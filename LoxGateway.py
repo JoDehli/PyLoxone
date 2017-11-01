@@ -21,11 +21,12 @@ class LoxoneGateway:
         self._time_out = 30
         self._ws = None
         self._current_typ = None
-        self._task = None
+        self._tasks = []
         self._log = None
         self._call_back = None
         self._keep_alive_interval = 120
         self._stop = False
+        self._last_keep_alive = 0
 
     def set_callback(self, callback):
         self._call_back = callback
@@ -47,63 +48,79 @@ class LoxoneGateway:
         hmac_obj = hmac.new(decoded_key, data.encode('UTF-8'), hashlib.sha1)
         return hmac_obj.hexdigest()
 
-    async def _ws_read(self):
+    @asyncio.coroutine
+    def _ws_read(self):
         result = None
         try:
             if not self._ws:
-                self._ws = await wslib.connect(
+                self._ws = yield from wslib.connect(
                     "ws://{}:{}/ws/rfc6455".format(self._host, self._port),
                     timeout=5)
-                await self._ws.send("jdev/sys/getkey")
-                await self._ws.recv()
-                key = await self._ws.recv()
+                yield from self._ws.send("jdev/sys/getkey")
+                yield from self._ws.recv()
+                key = yield from self._ws.recv()
                 new_hash = self.get_hash(key)
-                await self._ws.send("authenticate/{}".format(new_hash))
-                await self._ws.recv()
-                await self._ws.send("jdev/sps/enablebinstatusupdate")
-                await self._ws.recv()
+                yield from self._ws.send("authenticate/{}".format(new_hash))
+                yield from self._ws.recv()
+                yield from self._ws.send("jdev/sps/enablebinstatusupdate")
+                yield from self._ws.recv()
         except Exception as ws_exc:
             print("Failed to connect to websocket: %s", ws_exc)
 
         try:
-            result = await self._ws.recv()
+            result = yield from self._ws.recv()
         except Exception as ws_exc:  # pylint: disable=broad-except
             try:
-                await self._ws.close()
+                yield from self._ws.close()
             finally:
                 self._ws = None
         return result
 
-    async def keep_alive(self):
+    @asyncio.coroutine
+    def keep_alive(self):
         """Send an keep alive to the Miniserver."""
         while True:
-            if self._stop:
-                break
-            await asyncio.sleep(self._keep_alive_interval)
-            await self._ws.ping("keepalive")
-            print("keep-alive sent")
+            yield from asyncio.sleep(self._keep_alive_interval)
+            yield from self._ws.ping("keepalive")
 
-    async def ws_listen(self):
+    @asyncio.coroutine
+    def stop_listener(self):
+        """Stop listener."""
+        for task in self._tasks:
+            task.cancel()
+
+    def start_listener(self):
+        """Start listener."""
+        try:
+            from asyncio import ensure_future
+        except ImportError:
+            from asyncio import async as ensure_future
+        self._tasks.append(self._loop.create_task(self.ws_listen()))
+        self._tasks.append(self._loop.create_task(self.keep_alive()))
+
+    @asyncio.coroutine
+    def ws_listen(self):
         """Listen to all commands from the Miniserver."""
         try:
             while True:
-                result = await self._ws_read()
+                result = yield from self._ws_read()
                 if result:
-                    await self._async_process_message(result)
+                    yield from self._async_process_message(result)
                 else:
-                    await asyncio.sleep(self._time_out)
+                    yield from asyncio.sleep(self._time_out)
         finally:
             if self._ws:
-                await self._ws.close()
+                yield from self._ws.close()
 
-    async def _async_process_message(self, message):
+    @asyncio.coroutine
+    def _async_process_message(self, message):
         """Process the messages."""
         if len(message) == 8:
             unpacked_data = unpack('ccccI', message)
             self._current_typ = int.from_bytes(unpacked_data[1],
                                                byteorder='big')
         else:
-            parsed_data = await self.parse_loxone_message(message)
+            parsed_data = self.parse_loxone_message(message)
             if self._call_back is not None and parsed_data:
                 self._call_back(parsed_data)
 
@@ -115,7 +132,13 @@ class LoxoneGateway:
             elif level is "debug":
                 self._log.debug(message)
 
-    async def parse_loxone_message(self, message):
+    @asyncio.coroutine
+    def send_websocket_command(self, device_uuid, value):
+        """Send a websocket command to the Miniserver."""
+        yield from self._ws.send(
+            "jdev/sps/io/{}/{}".format(device_uuid, value))
+
+    def parse_loxone_message(self, message):
         """Parser of the Loxone message."""
         event_dict = {}
         if self._current_typ == 0:
