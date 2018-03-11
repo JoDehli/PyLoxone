@@ -8,7 +8,7 @@ System einzubinden. Deshalb benutze ich für alle weiteren Komponenten Home Assi
 als Hausautomation. Durch diese kleine Schnittstelle ist es möglich, bestimmte Komponenten
 der Loxone in Home Assistant zu integrieren. 
 
-##Was wird zur Installation benötigt:
+## Was wird zur Installation benötigt:
 Leider habe ich es noch nicht geschafft die neueste Authentifzierungs Methode von Loxone in
 diese Schnittstelle zu integrieren. Deshalb muss ich den Umweg über Node Red und die dazugehörige
 Loxone Schnittstelle gehen (https://github.com/codmpm/node-red-contrib-loxone). Alle Loxone Events
