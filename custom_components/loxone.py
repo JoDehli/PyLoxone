@@ -20,6 +20,7 @@ from base64 import b64encode
 from datetime import datetime
 from struct import unpack
 
+from homeassistant.config import get_default_config_dir
 import homeassistant.helpers.config_validation as cv
 import requests
 import voluptuous as vol
@@ -73,6 +74,8 @@ DEFAULT = ""
 ATTR_UUID = 'uuid'
 ATTR_VALUE = 'value'
 ATTR_COMMAND = "command"
+
+
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -151,8 +154,10 @@ async def async_setup(hass, config):
 
     async def stop_loxone(event):
         await lox.stop()
-
-    res = await lox.async_init()
+    try:
+        res = await lox.async_init()
+    except:
+        _LOGGER.error("Connection Error ", res)
 
     if res:
         lox.message_call_back = message_callback
@@ -330,6 +335,7 @@ class LoxWs:
         )
         for task in pending:
             task.cancel()
+
         if self.state is not "STOPPING":
             self.state == "CONNECTING"
             for i in range(self.connect_retries):
@@ -363,11 +369,14 @@ class LoxWs:
 
     async def async_init(self):
         import websockets as wslib
+        print("try to read token")
         # Read token from file
         try:
             await self.get_token_from_file()
         except IOError:
+            print("error token read")
             pass
+
 
         # Get public key from Loxone
         resp = self.get_public_key()
@@ -433,10 +442,13 @@ class LoxWs:
 
     async def ws_listen(self):
         """Listen to all commands from the Miniserver."""
-        while True:
-            message = await self._ws.recv()
-            await self._async_process_message(message)
-            await asyncio.sleep(0)
+        try:
+            while True:
+                message = await self._ws.recv()
+                await self._async_process_message(message)
+                await asyncio.sleep(0)
+        except:
+            pass
 
     async def _async_process_message(self, message):
         """Process the messages."""
@@ -564,14 +576,18 @@ class LoxWs:
 
     def load_token(self):
         try:
-            self._token = pickle.load(open(self._token_persist_filename, "rb"))
+            persist_token = os.path.join(get_default_config_dir(),
+                                         self._token_persist_filename)
+            self._token = pickle.load(open(persist_token, "rb"))
             return True
         except IOError:
             return ERROR_VALUE
 
     def save_token(self):
         try:
-            pickle.dump(self._token, open(self._token_persist_filename, "wb"))
+            persist_token = os.path.join(get_default_config_dir(),
+                                         self._token_persist_filename)
+            pickle.dump(self._token, open(persist_token, "wb"))
             return True
         except IOError:
             return ERROR_VALUE
@@ -675,6 +691,8 @@ class LoxWs:
         return True
 
     async def get_token_from_file(self):
-        if os.path.exists(self._token_persist_filename):
+        persist_token = os.path.join(get_default_config_dir(),
+                                     self._token_persist_filename)
+        if os.path.exists(persist_token):
             if self.load_token():
                 print("token loaded")
