@@ -9,13 +9,11 @@ from homeassistant.helpers.entity import Entity
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_NAME = 'MQTT Loxone Sensor'
+DEFAULT_NAME = 'Loxone Sensor'
 DEFAULT_FORCE_UPDATE = False
 
 CONF_UUID = "uuid"
-
-PLATFORM_SCHEMA = mqtt.MQTT_RO_PLATFORM_SCHEMA
-
+EVENT = "loxone_event"
 DOMAIN = 'loxone'
 
 
@@ -37,7 +35,8 @@ def get_all_digital_info(json_data):
 
 @asyncio.coroutine
 def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
-    """Set up MQTT Sensor."""
+    """Set up Loxone Sensor."""
+
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
         value_template.hass = hass
@@ -56,7 +55,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
                                   sensortyp="analog",
                                   complete_data=sensor)
 
-        hass.bus.async_listen('loxone', new_sensor.event_handler)
+        hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
 
     for sensor in get_all_digital_info(loxconfig):
@@ -64,7 +63,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
                                   uuid=sensor['uuidAction'],
                                   sensortyp="digital",
                                   complete_data=sensor)
-        hass.bus.async_listen('loxone', new_sensor.event_handler)
+        hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
 
     async_add_devices(devices)
@@ -84,30 +83,24 @@ class Loxonesensor(Entity):
         self._format = formating
         self._on_state = "an"
         self._off_state = "aus"
-
         self._complete_json = complete_data
         self.extract_attributes()
 
     @asyncio.coroutine
     def event_handler(self, event):
-        if isinstance(event.data, str):
-            event.data = json.loads(event.data)
-
-        @asyncio.coroutine
-        def event_handler(self, event):
-            if isinstance(event.data, str):
-                event.data = json.loads(event.data)
-            if event.data['uuid'] == self._uuid:
-                if self._sensortyp == "analog":
-                    self._state = event.data["value"]
+        if self._uuid in event.data:
+            if self._sensortyp == "analog":
+                self._state = round(event.data[self._uuid], 1)
+            elif self._sensortyp == "digital":
+                self._state = event.data[self._uuid]
+                if self._state == 1.0:
+                    self._state = self._on_state
                 else:
-
-                    if event.data["value"] == 0:
-                        self._state = self._off_state
-                    else:
-                        self._state = self._on_state
-                self.update()
-                self.schedule_update_ha_state()
+                    self._state = self._off_state
+            else:
+                self._state = event.data[self._uuid]
+            self.update()
+            self.schedule_update_ha_state()
 
     def extract_attributes(self):
         """Extract certain Attributes. Not all."""

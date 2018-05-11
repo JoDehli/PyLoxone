@@ -12,6 +12,7 @@ from homeassistant.const import (
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = 'loxone'
+EVENT = "loxone_event"
 SENDDOMAIN = "loxone_send"
 
 
@@ -43,7 +44,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
                                        push_button['uuidAction'],
                                        push_button['states']['active'])
 
-        hass.bus.async_listen(DOMAIN, new_push_button.event_handler)
+        hass.bus.async_listen(EVENT, new_push_button.event_handler)
         devices.append(new_push_button)
 
     async_add_devices(devices)
@@ -89,29 +90,33 @@ class LoxoneSwitch(SwitchDevice):
     def turn_on(self, **kwargs):
         """Turn the switch on."""
         self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(command=self._uuid + "/pulse", value=1,
-                                      topic="toLoxone"))
+                                 dict(uuid=self._uuid, value="pulse"))
         self._state = True
         self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
-        self.hass.bus.fire(SENDDOMAIN,
-                           dict(command=self._uuid + "/pulse", value=0,
-                                topic="toLoxone"))
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self._uuid, value="pulse"))
         self._state = False
         self.schedule_update_ha_state()
 
     @asyncio.coroutine
     def event_handler(self, event):
-        if isinstance(event.data, str):
-            event.data = json.loads(event.data)
+        if self._uuid in event.data or self._uuid_state in event.data:
+            if self._uuid_state in event.data:
+                self._state = event.data[self._uuid_state]
+            self.update()
+            self.schedule_update_ha_state()
 
-        if "uuid" in event.data:
-            if event.data['uuid'] == self._uuid:
-                pass
-
-            elif event.data['uuid'] == self._uuid_state:
-                self._state = event.data["value"]
-                self.update()
-                self.schedule_update_ha_state()
+        # if isinstance(event.data, str):
+        #     event.data = json.loads(event.data)
+        #
+        # if "uuid" in event.data:
+        #     if event.data['uuid'] == self._uuid:
+        #         pass
+        #
+        #     elif event.data['uuid'] == self._uuid_state:
+        #         self._state = event.data["value"]
+        #         self.update()
+        #         self.schedule_update_ha_state()
