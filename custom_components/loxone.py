@@ -4,7 +4,6 @@ Component to create an interface to the Loxone Miniserver.
 For more details about this component, please refer to the documentation at
 https://home-assistant.io/components/loxone/
 """
-
 import asyncio
 import binascii
 import datetime
@@ -24,18 +23,14 @@ from struct import unpack
 import homeassistant.helpers.config_validation as cv
 import requests
 import voluptuous as vol
-import websockets as wslib
-from Crypto.Cipher import AES, PKCS1_v1_5
-from Crypto.Hash import SHA, HMAC
-from Crypto.PublicKey import RSA
-from Crypto.Random import get_random_bytes
-from Crypto.Util import Padding
+
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_USERNAME, \
     CONF_PASSWORD, EVENT_HOMEASSISTANT_START, \
     EVENT_HOMEASSISTANT_STOP
 from homeassistant.helpers import discovery
 from requests.auth import HTTPBasicAuth
 
+REQUIREMENTS = ['websockets==4.0.1', "pycryptodome==3.6.1"]
 # Loxone constants
 TIMEOUT = 10
 KEEP_ALIVE_PERIOD = 240
@@ -185,10 +180,12 @@ async def async_setup(hass, config):
 
 # Loxone Stuff
 def gen_init_vec():
+    from Crypto.Random import get_random_bytes
     return get_random_bytes(IV_BYTES)
 
 
 def gen_key():
+    from Crypto.Random import get_random_bytes
     return get_random_bytes(AES_KEY_SIZE)
 
 
@@ -288,6 +285,7 @@ class LoxWs:
         pass
 
     async def _refresh_token(self):
+        from Crypto.Hash import SHA, HMAC
         command = "{}".format(CMD_GET_KEY)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
@@ -364,6 +362,7 @@ class LoxWs:
         await self._ws.send(command)
 
     async def async_init(self):
+        import websockets as wslib
         # Read token from file
         try:
             await self.get_token_from_file()
@@ -434,7 +433,8 @@ class LoxWs:
 
     async def ws_listen(self):
         """Listen to all commands from the Miniserver."""
-        async for message in self._ws:
+        while True:
+            message = await self._ws.recv()
             await self._async_process_message(message)
             await asyncio.sleep(0)
 
@@ -505,6 +505,7 @@ class LoxWs:
         return ERROR_VALUE
 
     async def hash_token(self):
+        from Crypto.Hash import SHA, HMAC
         command = "{}".format(CMD_GET_KEY)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
@@ -576,6 +577,7 @@ class LoxWs:
             return ERROR_VALUE
 
     async def encrypt(self, command):
+        from Crypto.Util import Padding
         if not self._encryption_ready:
             return command
         if self._salt is not "" and self.new_salt_needed():
@@ -595,6 +597,7 @@ class LoxWs:
         return CMD_ENCRYPT_CMD + encoded_url
 
     def hash_credentials(self, key_salt):
+        from Crypto.Hash import SHA, HMAC
         pwd_hash_str = self._pasword + ":" + key_salt.salt
         m = hashlib.sha1()
         m.update(pwd_hash_str.encode('utf-8'))
@@ -605,6 +608,7 @@ class LoxWs:
         return digester.hexdigest()
 
     def genarate_salt(self):
+        from Crypto.Random import get_random_bytes
         salt = get_random_bytes(SALT_BYTES)
         salt = binascii.hexlify(salt).decode("utf-8")
         salt = req.pathname2url(salt)
@@ -636,9 +640,12 @@ class LoxWs:
             return False
 
     def get_new_aes_chiper(self):
+        from Crypto.Cipher import AES
         return AES.new(self._key, AES.MODE_CBC, self._iv)
 
     def init_rsa_cipher(self):
+        from Crypto.Cipher import PKCS1_v1_5
+        from Crypto.PublicKey import RSA
         try:
             self._public_key = self._public_key.replace(
                 "-----BEGIN CERTIFICATE-----",

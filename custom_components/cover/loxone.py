@@ -68,8 +68,8 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
                                     up_uuid=cover['states']['up'],
                                     device_class="Jalousie")
 
-        devices.append(new_cover)
-        hass.bus.async_listen(EVENT, new_cover.event_handler)
+            devices.append(new_cover)
+            hass.bus.async_listen(EVENT, new_cover.event_handler)
 
     async_add_devices(devices)
 
