@@ -1,24 +1,18 @@
 # PyLoxone
-Home Assistant binding for Loxone.
+Home Assistant binding for Loxone. (Very early state!!)
 
-## Wozu dient dieses Binding:
-Meine Loxone verrichtet ausgezeichnete Arbeit in meinem Haus. Leider
-ist es nicht so einfach, weitere Komponenten fremder Hersteller in das Loxone
-System einzubinden. Deshalb benutze ich für alle weiteren Komponenten Home Assistant
-als Hausautomation. Durch diese kleine Schnittstelle ist es möglich, bestimmte Komponenten
-der Loxone in Home Assistant zu integrieren. 
+## Installation
+Copy all the files and subfolders to your custom_components folder in your HomeAssistant
+main folder. All you have to define is the following section:
 
-## Was wird zur Installation benötigt:
-Leider habe ich es noch nicht geschafft die neueste Authentifzierungs Methode von Loxone in
-diese Schnittstelle zu integrieren. Deshalb muss ich den Umweg über Node Red und die dazugehörige
-Loxone Schnittstelle gehen (https://github.com/codmpm/node-red-contrib-loxone). Alle Loxone Events
-werden dadurch auf einen MQTT Channel gestreamt und dann an Home Assistant weiter geleitet. 
+loxone:
+  port: 8080
+  host: hostadress
+  username: username
+  password: password
 
-* Loxone Miniserver
-* Raspberry Pi
-* Home Assistant Installation (Installationhinweise hier: https://home-assistant.io/)
-* Node Red installation (Installationshinweise hier: https://nodered.org/docs/getting-started/installation)
-* Mqtt Installation
+This is a very early stage of the binding. I have not tested it very much. 
 
-
+A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
+He really helped me a lot to with the new token based authentification. Thanks Pawel!!!
 
