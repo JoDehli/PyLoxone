@@ -135,8 +135,7 @@ async def async_setup(hass, config):
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
             discovery.load_platform(hass, "sensor", "loxone")
             discovery.load_platform(hass, "switch", "loxone")
-
-            # discovery.load_platform(hass, "cover", "loxone")
+            discovery.load_platform(hass, "cover", "loxone")
             del lox_config
         else:
             _LOGGER.error("Unable to connect to Loxone")

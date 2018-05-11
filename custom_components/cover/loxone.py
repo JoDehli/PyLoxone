@@ -11,7 +11,9 @@ from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 
 _LOGGER = logging.getLogger(__name__)
+
 DOMAIN = 'loxone'
+EVENT = "loxone_event"
 SENDDOMAIN = "loxone_send"
 
 SUPPORT_OPEN = 1
@@ -50,10 +52,11 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
 
     for cover in get_all_covers(loxconfig):
         if cover['type'] == "Gate":
-            new_cover = LoxoneCover(hass, cover['name'],
-                                    cover['uuidAction'],
-                                    position_uuid=cover['states']['position'],
-                                    device_class="Gate")
+            pass
+            # new_cover = LoxoneCover(hass, cover['name'],
+            #                         cover['uuidAction'],
+            #                         position_uuid=cover['states']['position'],
+            #                         device_class="Gate")
         else:
             new_cover = LoxoneCover(hass, cover['name'],
                                     cover['uuidAction'],
@@ -66,7 +69,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
                                     device_class="Jalousie")
 
         devices.append(new_cover)
-        hass.bus.async_listen('loxone', new_cover.event_handler)
+        hass.bus.async_listen(EVENT, new_cover.event_handler)
 
     async_add_devices(devices)
 
@@ -113,31 +116,29 @@ class LoxoneCover(CoverDevice):
 
     @asyncio.coroutine
     def event_handler(self, event):
-        if isinstance(event.data, str):
-            event.data = json.loads(event.data)
+        if self._position_uuid in event.data or self._shade_uuid in event.data \
+                or self._up_uuid in event.data or self._down_uuid in event.data:
+            if self._position_uuid in event.data:
+                position = float(event.data[self._position_uuid]) * 100.
+                self._position = round(100. - position, 0)
+                if self._position == 0:
+                    self._closed = True
+                else:
+                    self._closed = False
 
-        if event.data['uuid'] == self._position_uuid:
-            position = float(event.data['value']) * 100.
-            self._position = round(100. - position, 0)
-            if self._position == 0:
-                self._closed = True
-            else:
-                self._closed = False
+            if self._shade_uuid in event.data:
+                if event.data[self._shade_uuid] == 1:
+                    self._tilt_position = 0
+                else:
+                    self._tilt_position = 100
+
+            if self._up_uuid in event.data:
+                self._is_opening = event.data[self._up_uuid]
+
+            if self._down_uuid in event.data:
+                self._is_closing = event.data[self._down_uuid]
 
             self.schedule_update_ha_state()
-
-        elif event.data['uuid'] == self._shade_uuid:
-            if event.data['value'] == 1:
-                self._tilt_position = 0
-            else:
-                self._tilt_position = 100
-                self.schedule_update_ha_state()
-
-        elif event.data['uuid'] == self._up_uuid:
-            self._is_opening = event.data['value']
-
-        elif event.data['uuid'] == self._down_uuid:
-            self._is_closing = event.data['value']
 
     @property
     def name(self):
@@ -188,12 +189,9 @@ class LoxoneCover(CoverDevice):
             self.schedule_update_ha_state()
             return
 
-        self._is_closing = True
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self._uuid, value="FullDown"))
         self.schedule_update_ha_state()
-
-        self.hass.bus.fire(SENDDOMAIN,
-                           dict(command=self._uuid + "/FullDown", value=0,
-                                topic="toLoxone"))
 
     def open_cover(self, **kwargs):
         """Open the cover."""
@@ -203,37 +201,35 @@ class LoxoneCover(CoverDevice):
             self._closed = False
             self.schedule_update_ha_state()
             return
-
-        self.hass.bus.fire(SENDDOMAIN,
-                           dict(command=self._uuid + "/FullUp", value=0,
-                                topic="toLoxone"))
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self._uuid, value="FullUp"))
         self.schedule_update_ha_state()
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
+
         if self.is_closing:
-            self.hass.bus.fire(SENDDOMAIN,
-                               dict(command=self._uuid + "/up", value=0,
-                                    topic="toLoxone"))
+            self.hass.bus.async_fire(SENDDOMAIN,
+                                     dict(uuid=self._uuid, value="up"))
             return
+
         if self.is_opening:
-            self.hass.bus.fire(SENDDOMAIN,
-                               dict(command=self._uuid + "/down", value=0,
-                                    topic="toLoxone"))
+            self.hass.bus.async_fire(SENDDOMAIN,
+                                     dict(uuid=self._uuid, value="down"))
             return
 
     def close_cover_tilt(self, **kwargs):
         """Close the cover tilt."""
         if self._tilt_position in (0, None):
             return
-        self.hass.bus.fire(SENDDOMAIN,
-                           dict(command=self._uuid + "/FullDown", value=0,
-                                topic="toLoxone"))
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self._uuid, value="FullDown"))
 
     def open_cover_tilt(self, **kwargs):
         """Close the cover tilt."""
+
         if self._tilt_position in (100, None):
             return
-        self.hass.bus.fire(SENDDOMAIN,
-                           dict(command=self._uuid + "/shade", value=0,
-                                topic="toLoxone"))
+
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self._uuid, value="shade"))
