@@ -83,7 +83,7 @@ class Loxonesensor(Entity):
         self._format = formating
         self._on_state = "an"
         self._off_state = "aus"
-        self._complete_json = complete_data
+        self._complete_data = complete_data
         self.extract_attributes()
 
     @asyncio.coroutine
@@ -104,15 +104,15 @@ class Loxonesensor(Entity):
 
     def extract_attributes(self):
         """Extract certain Attributes. Not all."""
-        if self._complete_json is not None:
-            if "details" in self._complete_json:
-                if "text" in self._complete_json['details']:
-                    self._on_state = self._complete_json['details']['text'][
+        if self._complete_data is not None:
+            if "details" in self._complete_data:
+                if "text" in self._complete_data['details']:
+                    self._on_state = self._complete_data['details']['text'][
                         'on']
-                    self._off_state = self._complete_json['details']['text'][
+                    self._off_state = self._complete_data['details']['text'][
                         'off']
-                if "format" in self._complete_json['details']:
-                    self._format = self._complete_json['details']['format']
+                if "format" in self._complete_data['details']:
+                    self._format = self._complete_data['details']['format']
 
     @property
     def name(self):
@@ -135,3 +135,16 @@ class Loxonesensor(Entity):
     def unit_of_measurement(self):
         """Return the unit of measurement."""
         return self._unit_of_measurement
+
+    @property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return self._uuid
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
+        return {"uuid":self._uuid}

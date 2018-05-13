@@ -109,14 +109,10 @@ class LoxoneSwitch(SwitchDevice):
             self.update()
             self.schedule_update_ha_state()
 
-        # if isinstance(event.data, str):
-        #     event.data = json.loads(event.data)
-        #
-        # if "uuid" in event.data:
-        #     if event.data['uuid'] == self._uuid:
-        #         pass
-        #
-        #     elif event.data['uuid'] == self._uuid_state:
-        #         self._state = event.data["value"]
-        #         self.update()
-        #         self.schedule_update_ha_state()
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
+        return {"uuid":self._uuid, "state_uuid":self._uuid_state}

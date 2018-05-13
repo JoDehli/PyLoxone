@@ -142,36 +142,28 @@ class LoxoneGate(CoverDevice):
         """Open the cover."""
         if self._position == 100.:
             return
-        elif self._position is None:
-            self._closed = False
-            self.schedule_update_ha_state()
-            return
         self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self._uuid, value="open"))
+                                dict(uuid=self._uuid, value="open"))
         self.schedule_update_ha_state()
 
     def close_cover(self, **kwargs):
         """Close the cover."""
         if self._position == 0:
             return
-        elif self._position is None:
-            self._closed = True
-            self.schedule_update_ha_state()
-            return
         self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self._uuid, value="down"))
+                                 dict(uuid=self._uuid, value="close"))
         self.schedule_update_ha_state()
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
         if self.is_closing:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid, value="up"))
+                                     dict(uuid=self._uuid, value="open"))
             return
 
         if self.is_opening:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid, value="down"))
+                                     dict(uuid=self._uuid, value="close"))
             return
 
     @asyncio.coroutine
@@ -193,6 +185,14 @@ class LoxoneGate(CoverDevice):
                 elif event.data[self._state_uuid] == 1:
                     self._is_opening = True
             self.schedule_update_ha_state()
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
+        return {"uuid": self._uuid}
 
 
 class LoxoneJalousie(CoverDevice):
@@ -353,3 +353,12 @@ class LoxoneJalousie(CoverDevice):
 
         self.hass.bus.async_fire(SENDDOMAIN,
                                  dict(uuid=self._uuid, value="shade"))
+
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
+        return {"uuid": self._uuid}

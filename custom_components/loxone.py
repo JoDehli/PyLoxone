@@ -177,6 +177,14 @@ async def async_setup(hass, config):
 
         hass.bus.async_listen(SENDDOMAIN, listen_loxone_send)
 
+        async def handle_websocket_command(call):
+            """Handle websocket command services."""
+            value = call.data.get(ATTR_VALUE, DEFAULT)
+            device_uuid = call.data.get(ATTR_UUID, DEFAULT)
+            await lox.send_websocket_command(device_uuid, value)
+        hass.services.async_register(DOMAIN, 'event_websocket_command',
+                                     handle_websocket_command)
+
     else:
         res = False
         _LOGGER.info("Error")
@@ -376,7 +384,6 @@ class LoxWs:
         except IOError:
             print("error token read")
             pass
-
 
         # Get public key from Loxone
         resp = self.get_public_key()
