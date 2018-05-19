@@ -186,14 +186,6 @@ class LoxoneGate(CoverDevice):
                     self._is_opening = True
             self.schedule_update_ha_state()
 
-    @property
-    def device_state_attributes(self):
-        """Return device specific state attributes.
-
-        Implemented by platform classes.
-        """
-        return {"uuid": self._uuid}
-
 
 class LoxoneJalousie(CoverDevice):
     """Loxone Jalousie"""
@@ -353,12 +345,3 @@ class LoxoneJalousie(CoverDevice):
 
         self.hass.bus.async_fire(SENDDOMAIN,
                                  dict(uuid=self._uuid, value="shade"))
-
-
-    @property
-    def device_state_attributes(self):
-        """Return device specific state attributes.
-
-        Implemented by platform classes.
-        """
-        return {"uuid": self._uuid}

@@ -27,7 +27,7 @@ import voluptuous as vol
 
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_USERNAME, \
     CONF_PASSWORD, EVENT_HOMEASSISTANT_START, \
-    EVENT_HOMEASSISTANT_STOP
+    EVENT_HOMEASSISTANT_STOP, EVENT_COMPONENT_LOADED
 from homeassistant.helpers import discovery
 from requests.auth import HTTPBasicAuth
 
@@ -75,8 +75,6 @@ ATTR_UUID = 'uuid'
 ATTR_VALUE = 'value'
 ATTR_COMMAND = "command"
 
-
-
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
         vol.Required(CONF_USERNAME): cv.string,
@@ -121,6 +119,7 @@ class loxApp(object):
 
 async def async_setup(hass, config):
     """setup loxone"""
+
     try:
         lox_config = loxApp()
         lox_config.lox_user = config[DOMAIN][CONF_USERNAME]
@@ -154,6 +153,69 @@ async def async_setup(hass, config):
 
     async def stop_loxone(event):
         await lox.stop()
+
+    async def loxone_discovered(event):
+        try:
+            entity_ids = hass.states.async_all()
+            sensors_analog = []
+            sensors_digital = []
+            switches = []
+            covers = []
+
+            for s in entity_ids:
+                s_dict = s.as_dict()
+                attr = s_dict['attributes']
+                if "plattform" in attr and attr['plattform'] == "loxone":
+                    if attr['device_typ'] == "analog_sensor":
+                        sensors_analog.append(s_dict['entity_id'])
+                    if attr['device_typ'] == "digital_sensor":
+                        sensors_digital.append(s_dict['entity_id'])
+                    if attr['device_typ'] == "jalousie" or \
+                            attr['device_typ'] == "gate":
+                        covers.append(s_dict['entity_id'])
+                    if attr['device_typ'] == "switch":
+                        switches.append(s_dict['entity_id'])
+
+            sensors_analog.sort()
+            sensors_digital.sort()
+            covers.sort()
+            switches.sort()
+
+            async def create_loxone_group(name, entity_names, visible=True,
+                                          view=False):
+                if visible:
+                    visiblity = "true"
+                else:
+                    visiblity = "false"
+                if view:
+                    view_state = "true"
+                else:
+                    view_state = "false"
+                command = {"object_id": name, "visible": visiblity,
+                           "view": view_state, "entities": entity_names}
+                await hass.services.async_call("group", "set", command)
+
+            await create_loxone_group("loxone_analog", sensors_analog, True,
+                                      False)
+
+            await create_loxone_group("loxone_digtial", sensors_digital, True,
+                                      False)
+
+            await create_loxone_group("loxone_switches", switches, True,
+                                      False)
+
+            await create_loxone_group("loxone_covers", covers, True,
+                                      False)
+
+            await create_loxone_group("loxone_group",
+                                      ["group.loxone_analog",
+                                       "group.loxone_digtial",
+                                       "group.loxone_switches",
+                                       "group.loxone_covers"],
+                                      True, True)
+        except:
+            traceback.print_exc()
+
     try:
         res = await lox.async_init()
     except:
@@ -163,6 +225,7 @@ async def async_setup(hass, config):
         lox.message_call_back = message_callback
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, start_loxone)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_loxone)
+        hass.bus.async_listen(EVENT_COMPONENT_LOADED, loxone_discovered)
 
         async def listen_loxone_send(event):
             """Listen for change Events from Loxone Components"""
@@ -182,6 +245,7 @@ async def async_setup(hass, config):
             value = call.data.get(ATTR_VALUE, DEFAULT)
             device_uuid = call.data.get(ATTR_UUID, DEFAULT)
             await lox.send_websocket_command(device_uuid, value)
+
         hass.services.async_register(DOMAIN, 'event_websocket_command',
                                      handle_websocket_command)
 
