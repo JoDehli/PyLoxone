@@ -152,7 +152,8 @@ async def async_setup(hass, config):
         await lox.start()
 
     async def stop_loxone(event):
-        await lox.stop()
+        res = await lox.stop()
+        _LOGGER.debug(res)
 
     async def loxone_discovered(event):
         try:
@@ -394,13 +395,16 @@ class LoxWs:
             self.save_token()
 
     async def start(self):
+
         consumer_task = asyncio.ensure_future(self.ws_listen())
         keep_alive_task = asyncio.ensure_future(
             self.keep_alive(KEEP_ALIVE_PERIOD))
         refresh_token_task = asyncio.ensure_future(self.refresh_token())
+
         self._pending.append(consumer_task)
         self._pending.append(keep_alive_task)
         self._pending.append(refresh_token_task)
+
         done, pending = await asyncio.wait(
             [consumer_task, keep_alive_task, refresh_token_task],
             return_when=asyncio.FIRST_COMPLETED,
@@ -412,6 +416,8 @@ class LoxWs:
             self.state == "CONNECTING"
             for i in range(self.connect_retries):
                 await asyncio.sleep(self.connect_delay)
+                await self.stop()
+                self._pending = []
                 res = await self.reconnect()
                 if res:
                     break
@@ -423,10 +429,14 @@ class LoxWs:
         return res
 
     async def stop(self):
-        self.state = "STOPPING"
-        await self._ws.close()
-        for task in self._pending:
-            task.cancel()
+        try:
+            self.state = "STOPPING"
+            await self._ws.close()
+            for task in self._pending:
+                task.cancel()
+            return 1
+        except:
+            return -1
 
     async def keep_alive(self, second):
         while True:
@@ -532,7 +542,8 @@ class LoxWs:
         else:
             parsed_data = await self._parse_loxone_message(message)
             if self.message_call_back is not None:
-                await self.message_call_back(parsed_data)
+                if "LL" not in parsed_data and parsed_data != {}:
+                    await self.message_call_back(parsed_data)
             self._current_message_typ = None
             await asyncio.sleep(0)
 
