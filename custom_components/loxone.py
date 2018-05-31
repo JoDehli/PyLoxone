@@ -130,9 +130,9 @@ async def async_setup(hass, config):
         if request_code == 200 or request_code == "200":
             hass.data[DOMAIN] = config[DOMAIN]
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
-            discovery.load_platform(hass, "sensor", "loxone")
-            discovery.load_platform(hass, "switch", "loxone")
-            discovery.load_platform(hass, "cover", "loxone")
+            await discovery.async_load_platform(hass, "sensor", "loxone")
+            await discovery.async_load_platform(hass, "switch", "loxone")
+            await discovery.async_load_platform(hass, "cover", "loxone")
             del lox_config
         else:
             _LOGGER.error("Unable to connect to Loxone")
@@ -156,66 +156,77 @@ async def async_setup(hass, config):
         _LOGGER.debug(res)
 
     async def loxone_discovered(event):
-        try:
-            entity_ids = hass.states.async_all()
-            sensors_analog = []
-            sensors_digital = []
-            switches = []
-            covers = []
 
-            for s in entity_ids:
-                s_dict = s.as_dict()
-                attr = s_dict['attributes']
-                if "plattform" in attr and attr['plattform'] == "loxone":
-                    if attr['device_typ'] == "analog_sensor":
-                        sensors_analog.append(s_dict['entity_id'])
-                    if attr['device_typ'] == "digital_sensor":
-                        sensors_digital.append(s_dict['entity_id'])
-                    if attr['device_typ'] == "jalousie" or \
-                            attr['device_typ'] == "gate":
-                        covers.append(s_dict['entity_id'])
-                    if attr['device_typ'] == "switch":
-                        switches.append(s_dict['entity_id'])
+        if "component" in event.data:
+            if event.data['component'] == "loxone":
+                try:
+                    entity_ids = hass.states.async_all()
+                    sensors_analog = []
+                    sensors_digital = []
+                    switches = []
+                    covers = []
 
-            sensors_analog.sort()
-            sensors_digital.sort()
-            covers.sort()
-            switches.sort()
+                    for s in entity_ids:
+                        s_dict = s.as_dict()
+                        attr = s_dict['attributes']
+                        if "plattform" in attr and \
+                                attr['plattform'] == "loxone":
+                            if attr['device_typ'] == "analog_sensor":
+                                sensors_analog.append(s_dict['entity_id'])
+                            if attr['device_typ'] == "digital_sensor":
+                                sensors_digital.append(s_dict['entity_id'])
+                            if attr['device_typ'] == "jalousie" or \
+                                    attr['device_typ'] == "gate":
+                                covers.append(s_dict['entity_id'])
+                            if attr['device_typ'] == "switch":
+                                switches.append(s_dict['entity_id'])
 
-            async def create_loxone_group(name, entity_names, visible=True,
-                                          view=False):
-                if visible:
-                    visiblity = "true"
-                else:
-                    visiblity = "false"
-                if view:
-                    view_state = "true"
-                else:
-                    view_state = "false"
-                command = {"object_id": name, "visible": visiblity,
-                           "view": view_state, "entities": entity_names}
-                await hass.services.async_call("group", "set", command)
+                    sensors_analog.sort()
+                    sensors_digital.sort()
+                    covers.sort()
+                    switches.sort()
 
-            await create_loxone_group("loxone_analog", sensors_analog, True,
-                                      False)
+                    async def create_loxone_group(object_id, name,
+                                                  entity_names, visible=True,
+                                                  view=False):
+                        if visible:
+                            visiblity = "true"
+                        else:
+                            visiblity = "false"
+                        if view:
+                            view_state = "true"
+                        else:
+                            view_state = "false"
+                        command = {"object_id": object_id,
+                                   "visible": visiblity,
+                                   "view": view_state,
+                                   "entities": entity_names,
+                                   "name": name}
+                        await hass.services.async_call("group", "set", command)
 
-            await create_loxone_group("loxone_digtial", sensors_digital, True,
-                                      False)
+                    await create_loxone_group("loxone_analog",
+                                              "Loxone Analog Sensors",
+                                              sensors_analog, True, False)
 
-            await create_loxone_group("loxone_switches", switches, True,
-                                      False)
+                    await create_loxone_group("loxone_digtial",
+                                              "Loxone Digital Sensors",
+                                              sensors_digital, True, False)
 
-            await create_loxone_group("loxone_covers", covers, True,
-                                      False)
+                    await create_loxone_group("loxone_switches",
+                                              "Loxone Switches", switches,
+                                              True, False)
 
-            await create_loxone_group("loxone_group",
-                                      ["group.loxone_analog",
-                                       "group.loxone_digtial",
-                                       "group.loxone_switches",
-                                       "group.loxone_covers"],
-                                      True, True)
-        except:
-            traceback.print_exc()
+                    await create_loxone_group("loxone_covers", "Loxone Covers",
+                                              covers, True, False)
+
+                    await create_loxone_group("loxone_group", "Loxone Group",
+                                              ["group.loxone_analog",
+                                               "group.loxone_digtial",
+                                               "group.loxone_switches",
+                                               "group.loxone_covers"],
+                                              True, True)
+                except:
+                    traceback.print_exc()
 
     try:
         res = await lox.async_init()
