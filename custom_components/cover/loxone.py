@@ -221,6 +221,7 @@ class LoxoneJalousie(CoverDevice):
         self._is_opening = False
         self._is_closing = False
         self._complete_data = complete_data
+        self._supported_features = None
         if self._position is None:
             self._closed = True
         else:
@@ -362,4 +363,5 @@ class LoxoneJalousie(CoverDevice):
         Implemented by platform classes.
         """
         return {"uuid": self._uuid, "device_typ": "jalousie",
-                "plattform": "loxone"}
+                "plattform": "loxone",
+                "current_position": self.current_cover_position}
