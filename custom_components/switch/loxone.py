@@ -106,8 +106,7 @@ class LoxoneSwitch(SwitchDevice):
         if self._uuid in event.data or self._uuid_state in event.data:
             if self._uuid_state in event.data:
                 self._state = event.data[self._uuid_state]
-            self.update()
-            self.schedule_update_ha_state()
+            self.async_schedule_update_ha_state()
 
     @property
     def device_state_attributes(self):
