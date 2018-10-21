@@ -195,13 +195,14 @@ class LoxoneGate(CoverDevice):
         return {"uuid": self._uuid, "device_typ": "gate",
                 "plattform": "loxone"}
 
+
 class LoxoneJalousie(CoverDevice):
     """Loxone Jalousie"""
 
     # pylint: disable=no-self-use
     def __init__(self, hass, name, uuid, position_uuid=None,
                  shade_uuid=None, down_uuid=None, up_uuid=None,
-                 device_class=None,complete_data=None):
+                 device_class=None, complete_data=None):
         self.hass = hass
         self._name = name
         self._uuid = uuid
@@ -355,6 +356,13 @@ class LoxoneJalousie(CoverDevice):
         self.hass.bus.async_fire(SENDDOMAIN,
                                  dict(uuid=self._uuid, value="shade"))
 
+    @property
+    def shade_postion_as_text(self):
+        if self.current_cover_tilt_position == 100 and \
+                self.current_cover_position < 10:
+            return "shading on"
+        else:
+            return " "
 
     @property
     def device_state_attributes(self):
@@ -364,4 +372,9 @@ class LoxoneJalousie(CoverDevice):
         """
         return {"uuid": self._uuid, "device_typ": "jalousie",
                 "plattform": "loxone",
-                "current_position": self.current_cover_position}
+                "current_position": self.current_cover_position,
+                "current_shade_mode": self.shade_postion_as_text,
+                "extra_data_template": [
+                    "${attributes.current_position} % open",
+                    "${attributes.current_shade_mode}"
+                ]}

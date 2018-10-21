@@ -31,7 +31,7 @@ from homeassistant.const import CONF_HOST, CONF_PORT, CONF_USERNAME, \
 from homeassistant.helpers import discovery
 from requests.auth import HTTPBasicAuth
 
-REQUIREMENTS = ['websockets==4.0.1', "pycryptodome==3.6.1"]
+REQUIREMENTS = ['websockets==6.0', "pycryptodome==3.6.6"]
 # Loxone constants
 TIMEOUT = 10
 KEEP_ALIVE_PERIOD = 240
@@ -60,7 +60,7 @@ CMD_REFRESH_TOKEN = "jdev/sys/refreshtoken/"
 CMD_ENCRYPT_CMD = "jdev/sys/enc/"
 CMD_ENABLE_UPDATES = "jdev/sps/enablebinstatusupdate"
 
-DEFAULT_TOKEN_PERSIST_NAME = "lox_token.p"
+DEFAULT_TOKEN_PERSIST_NAME = "lox_token.cfg"
 ERROR_VALUE = -1
 # End of loxone constants
 
@@ -233,7 +233,7 @@ async def async_setup(hass, config):
     except:
         _LOGGER.error("Connection Error ", res)
 
-    if res:
+    if res is True:
         lox.message_call_back = message_callback
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, start_loxone)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_loxone)
@@ -316,6 +316,9 @@ class LxToken:
 
     def set_vaild_until(self, value):
         self._vaild_until = value
+
+    def set_token(self, token):
+        self._token = token
 
 
 class LoxWs:
@@ -406,7 +409,6 @@ class LoxWs:
             self.save_token()
 
     async def start(self):
-
         consumer_task = asyncio.ensure_future(self.ws_listen())
         keep_alive_task = asyncio.ensure_future(
             self.keep_alive(KEEP_ALIVE_PERIOD))
@@ -458,17 +460,17 @@ class LoxWs:
     async def send_websocket_command(self, device_uuid, value):
         """Send a websocket command to the Miniserver."""
         command = "jdev/sps/io/{}/{}".format(device_uuid, value)
+        _LOGGER.debug("send command: {}".format(command))
         await self._ws.send(command)
 
     async def async_init(self):
         import websockets as wslib
-        print("try to read token")
+        _LOGGER.debug("try to read token")
         # Read token from file
         try:
             await self.get_token_from_file()
         except IOError:
-            print("error token read")
-            pass
+            _LOGGER.debug("error token read")
 
         # Get public key from Loxone
         resp = self.get_public_key()
@@ -491,10 +493,12 @@ class LoxWs:
 
         # Exchange keys
         try:
-            self._ws = await wslib.connect("ws://{}:{}/ws/rfc6455".format(
-                self._host, self._port), timeout=TIMEOUT)
-            await self._ws.send("{}{}".format(CMD_KEY_EXCHANGE,
-                                              self._session_key))
+            self._ws = await wslib.connect(
+                "ws://{}:{}/ws/rfc6455".format(self._host, self._port),
+                timeout=TIMEOUT)
+            await self._ws.send(
+                "{}{}".format(CMD_KEY_EXCHANGE, self._session_key))
+
             message = await self._ws.recv()
             await self.parse_loxone_message(message)
             if self._current_message_typ != 0:
@@ -628,6 +632,7 @@ class LoxWs:
         return ERROR_VALUE
 
     async def acquire_token(self):
+        print("acquire_token")
         command = "{}".format(CMD_GET_KEY_AND_SALT + self._username)
         enc_command = await self.encrypt(command)
 
@@ -671,18 +676,39 @@ class LoxWs:
         try:
             persist_token = os.path.join(get_default_config_dir(),
                                          self._token_persist_filename)
-            self._token = pickle.load(open(persist_token, "rb"))
+            try:
+                with open(persist_token) as f:
+                    dict_token = json.load(f)
+            except FileNotFoundError:
+                with open(self._token_persist_filename) as f:
+                    dict_token = json.load(f)
+            self._token.set_token(dict_token['_token'])
+            self._token.set_vaild_until(dict_token['_valid_until'])
+            _LOGGER.debug("load_token successfully...")
             return True
         except IOError:
+            _LOGGER.debug("error load_token...")
             return ERROR_VALUE
 
     def save_token(self):
         try:
             persist_token = os.path.join(get_default_config_dir(),
                                          self._token_persist_filename)
-            pickle.dump(self._token, open(persist_token, "wb"))
+
+            dict_token = {"_token": self._token.token,
+                          "_valid_until": self._token.vaild_until}
+            try:
+                with open(persist_token, "w") as write_file:
+                    json.dump(dict_token, write_file)
+            except FileNotFoundError:
+                with open(self._token_persist_filename, "w") as write_file:
+                    json.dump(dict_token, write_file)
+
+            _LOGGER.debug("save_token successfully...")
             return True
         except IOError:
+            _LOGGER.debug("error save_token...")
+            _LOGGER.debug("tokenpath: {}".format(persist_token))
             return ERROR_VALUE
 
     async def encrypt(self, command):
@@ -706,15 +732,20 @@ class LoxWs:
         return CMD_ENCRYPT_CMD + encoded_url
 
     def hash_credentials(self, key_salt):
-        from Crypto.Hash import SHA, HMAC
-        pwd_hash_str = self._pasword + ":" + key_salt.salt
-        m = hashlib.sha1()
-        m.update(pwd_hash_str.encode('utf-8'))
-        pwd_hash = m.hexdigest().upper()
-        pwd_hash = self._username + ":" + pwd_hash
-        digester = HMAC.new(binascii.unhexlify(key_salt.key),
-                            pwd_hash.encode("utf-8"), SHA)
-        return digester.hexdigest()
+        try:
+            from Crypto.Hash import SHA, HMAC
+            pwd_hash_str = self._pasword + ":" + key_salt.salt
+            m = hashlib.sha1()
+            m.update(pwd_hash_str.encode('utf-8'))
+            pwd_hash = m.hexdigest().upper()
+            pwd_hash = self._username + ":" + pwd_hash
+            digester = HMAC.new(binascii.unhexlify(key_salt.key),
+                                pwd_hash.encode("utf-8"), SHA)
+            _LOGGER.debug("hash_credentials successfully...")
+            return digester.hexdigest()
+        except ValueError:
+            _LOGGER.debug("error hash_credentials...")
+            return None
 
     def genarate_salt(self):
         from Crypto.Random import get_random_bytes
@@ -733,9 +764,13 @@ class LoxWs:
 
     async def parse_loxone_message(self, message):
         if len(message) == 8:
-            unpacked_data = unpack('ccccI', message)
-            self._current_message_typ = int.from_bytes(unpacked_data[1],
-                                                       byteorder='big')
+            try:
+                unpacked_data = unpack('ccccI', message)
+                self._current_message_typ = int.from_bytes(unpacked_data[1],
+                                                           byteorder='big')
+                _LOGGER.debug("parse_loxone_message successfully...")
+            except ValueError:
+                _LOGGER.debug("error parse_loxone_message...")
 
     def generate_session_key(self):
         try:
@@ -744,18 +779,26 @@ class LoxWs:
             sess = aes_key + ":" + iv
             sess = self._rsa_cipher.encrypt(bytes(sess, "utf-8"))
             self._session_key = b64encode(sess).decode("utf-8")
+            _LOGGER.debug("generate_session_key successfully...")
             return True
         except KeyError:
+            _LOGGER.debug("error generate_session_key...")
             return False
 
     def get_new_aes_chiper(self):
-        from Crypto.Cipher import AES
-        return AES.new(self._key, AES.MODE_CBC, self._iv)
+        try:
+            from Crypto.Cipher import AES
+            _new_aes = AES.new(self._key, AES.MODE_CBC, self._iv)
+            _LOGGER.debug("get_new_aes_chiper successfully...")
+            return _new_aes
+        except ValueError:
+            _LOGGER.debug("error get_new_aes_chiper...")
+            return None
 
     def init_rsa_cipher(self):
-        from Crypto.Cipher import PKCS1_v1_5
-        from Crypto.PublicKey import RSA
         try:
+            from Crypto.Cipher import PKCS1_v1_5
+            from Crypto.PublicKey import RSA
             self._public_key = self._public_key.replace(
                 "-----BEGIN CERTIFICATE-----",
                 "-----BEGIN PUBLIC KEY-----\n")
@@ -763,29 +806,45 @@ class LoxWs:
                 "-----END CERTIFICATE-----",
                 "\n-----END PUBLIC KEY-----\n")
             self._rsa_cipher = PKCS1_v1_5.new(RSA.importKey(public_key))
+            _LOGGER.debug("init_rsa_cipher successfully...")
             return True
         except KeyError:
+            _LOGGER.debug("init_rsa_cipher error...")
+            _LOGGER.debug("{}".format(traceback.print_exc()))
             return False
 
     def get_public_key(self):
         command = "http://{}:{}/{}".format(self._host, self._port,
                                            CMD_GET_PUBLIC_KEY)
+        _LOGGER.debug("try to get public key: {}".format(command))
+
         response = requests.get(command, auth=(self._username, self._pasword))
         if response.status_code != 200:
+            _LOGGER.debug(
+                "error get_public_key: {}".format(response.status_code))
             return False
         try:
             resp_json = json.loads(response.text)
             if 'LL' in resp_json and 'value' in resp_json['LL']:
                 self._public_key = resp_json['LL']['value']
+                _LOGGER.debug("get_public_key successfully...")
             else:
+                _LOGGER.debug("public key load error")
                 return False
         except ValueError:
+            _LOGGER.debug("public key load error")
             return False
         return True
 
     async def get_token_from_file(self):
-        persist_token = os.path.join(get_default_config_dir(),
-                                     self._token_persist_filename)
-        if os.path.exists(persist_token):
-            if self.load_token():
-                print("token loaded")
+        try:
+            persist_token = os.path.join(get_default_config_dir(),
+                                         self._token_persist_filename)
+            if os.path.exists(persist_token):
+                if self.load_token():
+                    _LOGGER.debug(
+                        "token successfully loaded from file: {}".format(
+                            persist_token))
+        except FileExistsError:
+            _LOGGER.debug("error loading token {}".format(persist_token))
+            _LOGGER.debug("{}".format(traceback.print_exc()))
