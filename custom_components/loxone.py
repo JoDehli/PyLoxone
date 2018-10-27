@@ -11,7 +11,6 @@ import hashlib
 import json
 import logging
 import os
-import pickle
 import time
 import traceback
 import urllib.request as req
@@ -20,18 +19,19 @@ from base64 import b64encode
 from datetime import datetime
 from struct import unpack
 
-from homeassistant.config import get_default_config_dir
 import homeassistant.helpers.config_validation as cv
 import requests
 import voluptuous as vol
-
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_USERNAME, \
-    CONF_PASSWORD, EVENT_HOMEASSISTANT_START, \
-    EVENT_HOMEASSISTANT_STOP, EVENT_COMPONENT_LOADED
+from homeassistant.config import get_default_config_dir
+from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
+                                 CONF_USERNAME, EVENT_COMPONENT_LOADED,
+                                 EVENT_HOMEASSISTANT_START,
+                                 EVENT_HOMEASSISTANT_STOP)
 from homeassistant.helpers import discovery
 from requests.auth import HTTPBasicAuth
 
-REQUIREMENTS = ['websockets==6.0', "pycryptodome==3.6.6"]
+REQUIREMENTS = ['websockets', "pycryptodome==3.6.6"]
+
 # Loxone constants
 TIMEOUT = 10
 KEEP_ALIVE_PERIOD = 240
@@ -152,8 +152,8 @@ async def async_setup(hass, config):
         await lox.start()
 
     async def stop_loxone(event):
-        res = await lox.stop()
-        _LOGGER.debug(res)
+        _ = await lox.stop()
+        _LOGGER.debug(_)
 
     async def loxone_discovered(event):
 
@@ -231,7 +231,8 @@ async def async_setup(hass, config):
     try:
         res = await lox.async_init()
     except:
-        _LOGGER.error("Connection Error ", res)
+        _LOGGER.error("Connection Error: {}".format(res))
+        
 
     if res is True:
         lox.message_call_back = message_callback
@@ -399,8 +400,10 @@ class LoxWs:
             await self._ws.send(enc_command)
             message = await self._ws.recv()
             resp_json = json.loads(message)
-            print("Seconds before Refresh: ",
-                  self._token.get_seconds_to_expire())
+
+            _LOGGER.debug("Seconds before refresh: {}".format(
+                self._token.get_seconds_to_expire()))
+
             if 'LL' in resp_json:
                 if "value" in resp_json['LL']:
                     if "validUntil" in resp_json['LL']['value']:
@@ -476,19 +479,16 @@ class LoxWs:
         resp = self.get_public_key()
 
         if not resp:
-            print("Get public key failed.")
             return ERROR_VALUE
 
         # Init resa cipher
         rsa_gen = self.init_rsa_cipher()
         if not rsa_gen:
-            print("Rsa initialisation failed.")
             return ERROR_VALUE
 
         # Generate session key
         session_gen = self.generate_session_key()
         if not session_gen:
-            print("Rsa initialisation failed.")
             return ERROR_VALUE
 
         # Exchange keys
@@ -502,7 +502,7 @@ class LoxWs:
             message = await self._ws.recv()
             await self.parse_loxone_message(message)
             if self._current_message_typ != 0:
-                print("Error by getting the session key response.")
+                _LOGGER.debug("error by getting the session key response...")
                 return ERROR_VALUE
 
             message = await self._ws.recv()
@@ -515,7 +515,7 @@ class LoxWs:
                 return ERROR_VALUE
 
         except ConnectionError:
-            print("Error to Connect to Loxone.")
+            _LOGGER.debug("connection error...")
             return ERROR_VALUE
 
         self._encryption_ready = True
@@ -543,7 +543,7 @@ class LoxWs:
                 message = await self._ws.recv()
                 await self._async_process_message(message)
                 await asyncio.sleep(0)
-        except:
+        except ConnectionResetError:
             pass
 
     async def _async_process_message(self, message):
@@ -553,9 +553,10 @@ class LoxWs:
             self._current_message_typ = int.from_bytes(unpacked_data[1],
                                                        byteorder='big')
             if self._current_message_typ == 6:
-                print("Keep alive response received")
+                _LOGGER.debug("Keep alive response received...")
         else:
             parsed_data = await self._parse_loxone_message(message)
+            _LOGGER.debug("message:{}".format(parsed_data))
             if self.message_call_back is not None:
                 if "LL" not in parsed_data and parsed_data != {}:
                     await self.message_call_back(parsed_data)
@@ -632,7 +633,7 @@ class LoxWs:
         return ERROR_VALUE
 
     async def acquire_token(self):
-        print("acquire_token")
+        _LOGGER.debug("acquire_tokend")
         command = "{}".format(CMD_GET_KEY_AND_SALT + self._username)
         enc_command = await self.encrypt(command)
 
@@ -718,12 +719,11 @@ class LoxWs:
         if self._salt is not "" and self.new_salt_needed():
             prev_salt = self._salt
             self._salt = self.genarate_salt()
-            s = "nextSalt/" + prev_salt + "/" + self._salt + "/" + command + "\0"
+            s = "nextSalt/{}/{}/{}\0".format(prev_salt, self._salt, command)
         else:
             if self._salt is "":
                 self._salt = self.genarate_salt()
-            s = "salt/" + self._salt + "/" + command + "\0"
-
+            s = "salt/{}/{}\0".format(self._salt, command)
         s = Padding.pad(bytes(s, "utf-8"), 16)
         aes_cipher = self.get_new_aes_chiper()
         encrypted = aes_cipher.encrypt(s)
