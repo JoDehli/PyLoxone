@@ -99,7 +99,6 @@ class Loxonesensor(Entity):
                     self._state = self._off_state
             else:
                 self._state = event.data[self._uuid]
-            self.update()
             self.schedule_update_ha_state()
 
     def extract_attributes(self):
@@ -147,5 +146,6 @@ class Loxonesensor(Entity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self._uuid, "device_typ": self._sensortyp+"_sensor",
-                "plattform": "loxone"}
+        return {"uuid": self._uuid, "device_typ": self._sensortyp + "_sensor",
+                "plattform": "loxone",
+                "show_last_changed": "true"}
