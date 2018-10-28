@@ -5,9 +5,10 @@ import asyncio
 import logging
 
 from homeassistant.components.cover import (
-    CoverDevice, SUPPORT_OPEN, SUPPORT_CLOSE)
+    CoverDevice, SUPPORT_OPEN, SUPPORT_CLOSE, ATTR_POSITION)
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
+from homeassistant.helpers.event import track_utc_time_change
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,7 +42,6 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
         value_template.hass = hass
 
     if discovery_info is not None:
-        config = discovery_info['config']
         loxconfig = discovery_info['loxconfig']
     else:
         config = hass.data[DOMAIN]
@@ -143,7 +143,7 @@ class LoxoneGate(CoverDevice):
         if self._position == 100.:
             return
         self.hass.bus.async_fire(SENDDOMAIN,
-                                dict(uuid=self._uuid, value="open"))
+                                 dict(uuid=self._uuid, value="open"))
         self.schedule_update_ha_state()
 
     def close_cover(self, **kwargs):
@@ -181,7 +181,7 @@ class LoxoneGate(CoverDevice):
                 self._is_opening = False
 
                 if event.data[self._state_uuid] == -1:
-                    self.is_opening = True
+                    self._is_opening = True
                 elif event.data[self._state_uuid] == 1:
                     self._is_opening = True
             self.schedule_update_ha_state()
@@ -216,7 +216,6 @@ class LoxoneJalousie(CoverDevice):
         self._set_tilt_position = None
         self._tilt_position = None
         self._requested_closing = True
-        self._requested_closing_tilt = True
         self._unsub_listener_cover = None
         self._unsub_listener_cover_tilt = None
         self._is_opening = False
@@ -231,15 +230,18 @@ class LoxoneJalousie(CoverDevice):
     @property
     def supported_features(self):
         """Flag supported features."""
-        supported_features = SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP
+        supported_features = SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP \
+                             | SUPPORT_SET_POSITION
         if self.current_cover_tilt_position is not None:
             supported_features |= (SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT)
         return supported_features
 
     @asyncio.coroutine
     def event_handler(self, event):
-        if self._position_uuid in event.data or self._shade_uuid in event.data \
-                or self._up_uuid in event.data or self._down_uuid in event.data:
+        if self._position_uuid in event.data or \
+                self._shade_uuid in event.data or \
+                self._up_uuid in event.data or \
+                self._down_uuid in event.data:
             if self._position_uuid in event.data:
                 position = float(event.data[self._position_uuid]) * 100.
                 self._position = round(100. - position, 0)
@@ -302,6 +304,30 @@ class LoxoneJalousie(CoverDevice):
         """Return the class of this device, from component DEVICE_CLASSES."""
         return self._device_class
 
+    @property
+    def shade_postion_as_text(self):
+        """Returns shade postionn as text"""
+        if self.current_cover_tilt_position == 100 and \
+                self.current_cover_position < 10:
+            return "shading on"
+        else:
+            return " "
+
+    @property
+    def device_state_attributes(self):
+        """
+        Return device specific state attributes.
+        Implemented by platform classes.
+        """
+        return {"uuid": self._uuid, "device_typ": "jalousie",
+                "plattform": "loxone",
+                "current_position": self.current_cover_position,
+                "current_shade_mode": self.shade_postion_as_text,
+                "extra_data_template": [
+                    "${attributes.current_position} % open",
+                    "${attributes.current_shade_mode}"
+                ]}
+
     def close_cover(self, **kwargs):
         """Close the cover."""
         if self._position == 0:
@@ -333,12 +359,15 @@ class LoxoneJalousie(CoverDevice):
         if self.is_closing:
             self.hass.bus.async_fire(SENDDOMAIN,
                                      dict(uuid=self._uuid, value="up"))
-            return
 
-        if self.is_opening:
+        elif self.is_opening:
             self.hass.bus.async_fire(SENDDOMAIN,
                                      dict(uuid=self._uuid, value="down"))
-            return
+
+        if self._unsub_listener_cover is not None:
+            self._unsub_listener_cover()
+            self._unsub_listener_cover = None
+            self._set_position = None
 
     def close_cover_tilt(self, **kwargs):
         """Close the cover tilt."""
@@ -356,25 +385,30 @@ class LoxoneJalousie(CoverDevice):
         self.hass.bus.async_fire(SENDDOMAIN,
                                  dict(uuid=self._uuid, value="shade"))
 
-    @property
-    def shade_postion_as_text(self):
-        if self.current_cover_tilt_position == 100 and \
-                self.current_cover_position < 10:
-            return "shading on"
+    def set_cover_position(self, **kwargs):
+        """Return the current tilt position of the cover."""
+        position = kwargs.get(ATTR_POSITION)
+        self._set_position = position
+        if self._position == position:
+            return
+        self._requested_closing = position < self._position
+        if position < self._position:
+            self.close_cover()
         else:
-            return " "
+            self.open_cover()
+        self._listen_cover()
 
-    @property
-    def device_state_attributes(self):
-        """Return device specific state attributes.
+    def _listen_cover(self):
+        """Listen for changes in cover."""
+        if self._unsub_listener_cover is None:
+            self._unsub_listener_cover = track_utc_time_change(
+                self.hass, self._time_changed_cover)
 
-        Implemented by platform classes.
-        """
-        return {"uuid": self._uuid, "device_typ": "jalousie",
-                "plattform": "loxone",
-                "current_position": self.current_cover_position,
-                "current_shade_mode": self.shade_postion_as_text,
-                "extra_data_template": [
-                    "${attributes.current_position} % open",
-                    "${attributes.current_shade_mode}"
-                ]}
+    def _time_changed_cover(self, now):
+        """Track time changes."""
+        if abs(self._position - self._set_position) < 5:
+            self.stop_cover()
+        elif self._requested_closing and self._position <= self._set_position:
+            self.stop_cover()
+        elif not self._requested_closing and self._position >= self._set_position:
+            self.stop_cover()
