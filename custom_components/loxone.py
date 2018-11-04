@@ -156,7 +156,6 @@ async def async_setup(hass, config):
         _LOGGER.debug(_)
 
     async def loxone_discovered(event):
-
         if "component" in event.data:
             if event.data['component'] == "loxone":
                 try:
@@ -228,11 +227,12 @@ async def async_setup(hass, config):
                 except:
                     traceback.print_exc()
 
+    res = False
+
     try:
         res = await lox.async_init()
     except:
-        _LOGGER.error("Connection Error: {}".format(res))
-        
+        _LOGGER.error("Connection Error")
 
     if res is True:
         lox.message_call_back = message_callback
@@ -679,10 +679,16 @@ class LoxWs:
                                          self._token_persist_filename)
             try:
                 with open(persist_token) as f:
-                    dict_token = json.load(f)
+                    try:
+                        dict_token = json.load(f)
+                    except ValueError:
+                        return ERROR_VALUE
             except FileNotFoundError:
                 with open(self._token_persist_filename) as f:
-                    dict_token = json.load(f)
+                    try:
+                        dict_token = json.load(f)
+                    except ValueError:
+                        return ERROR_VALUE
             self._token.set_token(dict_token['_token'])
             self._token.set_vaild_until(dict_token['_valid_until'])
             _LOGGER.debug("load_token successfully...")
