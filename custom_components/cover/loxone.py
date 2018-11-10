@@ -35,17 +35,14 @@ def get_all_covers(json_data):
 
 
 @asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
+def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
     """Set up the Demo covers."""
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
         value_template.hass = hass
 
-    if discovery_info is not None:
-        loxconfig = discovery_info['loxconfig']
-    else:
-        config = hass.data[DOMAIN]
-        loxconfig = config['loxconfig']
+    config = hass.data[DOMAIN]
+    loxconfig = config['loxconfig']
 
     devices = []
 
@@ -212,6 +209,7 @@ class LoxoneJalousie(CoverDevice):
         self._up_uuid = up_uuid
         self._device_class = device_class
         self._position = None
+        self._position_loxone = -1
         self._set_position = None
         self._set_tilt_position = None
         self._tilt_position = None
@@ -243,8 +241,10 @@ class LoxoneJalousie(CoverDevice):
                 self._up_uuid in event.data or \
                 self._down_uuid in event.data:
             if self._position_uuid in event.data:
-                position = float(event.data[self._position_uuid]) * 100.
-                self._position = round(100. - position, 0)
+                self._position_loxone = float(
+                    event.data[self._position_uuid]) * 100.
+                self._position = round(100. - self._position_loxone, 0)
+
                 if self._position == 0:
                     self._closed = True
                 else:
@@ -323,6 +323,7 @@ class LoxoneJalousie(CoverDevice):
                 "plattform": "loxone",
                 "current_position": self.current_cover_position,
                 "current_shade_mode": self.shade_postion_as_text,
+                "current_position_loxone_style": round(self._position_loxone, 0),
                 "extra_data_template": [
                     "${attributes.current_position} % open",
                     "${attributes.current_shade_mode}"

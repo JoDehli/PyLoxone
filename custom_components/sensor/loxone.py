@@ -34,19 +34,16 @@ def get_all_digital_info(json_data):
 
 
 @asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
+def async_setup_platform(hass, config, async_add_devices,
+                         discovery_info: object = {}):
     """Set up Loxone Sensor."""
 
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
         value_template.hass = hass
 
-    if discovery_info is not None:
-        config = discovery_info['config']
-        loxconfig = discovery_info['loxconfig']
-    else:
-        config = hass.data[DOMAIN]
-        loxconfig = config['loxconfig']
+    config = hass.data[DOMAIN]
+    loxconfig = config['loxconfig']
 
     devices = []
     for sensor in get_all_analog_info(loxconfig):

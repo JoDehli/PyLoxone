@@ -25,17 +25,13 @@ def get_all_push_buttons(json_data):
 
 
 @asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
+def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
         value_template.hass = hass
 
-    if discovery_info is not None:
-        config = discovery_info['config']
-        loxconfig = discovery_info['loxconfig']
-    else:
-        config = hass.data[DOMAIN]
-        loxconfig = config['loxconfig']
+    config = hass.data[DOMAIN]
+    loxconfig = config['loxconfig']
 
     devices = []
 

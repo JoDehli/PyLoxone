@@ -130,9 +130,9 @@ async def async_setup(hass, config):
         if request_code == 200 or request_code == "200":
             hass.data[DOMAIN] = config[DOMAIN]
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
-            await discovery.async_load_platform(hass, "sensor", "loxone")
-            await discovery.async_load_platform(hass, "switch", "loxone")
-            await discovery.async_load_platform(hass, "cover", "loxone")
+            await discovery.async_load_platform(hass, "sensor", "loxone",{}, config)
+            await discovery.async_load_platform(hass, "switch", "loxone",{}, config)
+            await discovery.async_load_platform(hass, "cover", "loxone",{}, config)
             del lox_config
         else:
             _LOGGER.error("Unable to connect to Loxone")
