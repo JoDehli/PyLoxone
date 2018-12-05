@@ -69,7 +69,7 @@ def async_setup_platform(hass, config, async_add_devices,
 class Loxonesensor(Entity):
     """Representation of a Sensor."""
 
-    def __init__(self, name, uuid, sensortyp, formating="%s",
+    def __init__(self, name, uuid, sensortyp,
                  complete_data=None):
         """Initialize the sensor."""
         self._state = 0.0
@@ -77,7 +77,7 @@ class Loxonesensor(Entity):
         self._uuid = uuid
         self._sensortyp = sensortyp
         self._unit_of_measurement = None
-        self._format = formating
+        self._format = None
         self._on_state = "an"
         self._off_state = "aus"
         self._complete_data = complete_data
@@ -98,6 +98,35 @@ class Loxonesensor(Entity):
                 self._state = event.data[self._uuid]
             self.schedule_update_ha_state()
 
+    @staticmethod
+    def _clean_unit(lox_format):
+        cleaned_fields = []
+        fields = lox_format.split(" ")
+        for f in fields:
+            _ = f.strip()
+            if len(_) > 0:
+                cleaned_fields.append(_)
+
+        if len(cleaned_fields) > 1:
+            unit = cleaned_fields[1]
+            if unit == "%%":
+                unit = "%"
+            return unit
+        return None
+
+    @staticmethod
+    def _get_format(lox_format):
+        cleaned_fields = []
+        fields = lox_format.split(" ")
+        for f in fields:
+            _ = f.strip()
+            if len(_) > 0:
+                cleaned_fields.append(_)
+
+        if len(cleaned_fields) > 1:
+            return cleaned_fields[0]
+        return None
+
     def extract_attributes(self):
         """Extract certain Attributes. Not all."""
         if self._complete_data is not None:
@@ -108,7 +137,9 @@ class Loxonesensor(Entity):
                     self._off_state = self._complete_data['details']['text'][
                         'off']
                 if "format" in self._complete_data['details']:
-                    self._format = self._complete_data['details']['format']
+                    self._format = self._get_format(self._complete_data['details']['format'])
+                    self._unit_of_measurement = self._clean_unit(self._complete_data['details']['format'])
+
 
     @property
     def name(self):
@@ -122,9 +153,12 @@ class Loxonesensor(Entity):
     @property
     def state(self):
         """Return the state of the sensor."""
-        try:
-            return self._format % self._state
-        except:
+        if self._format is not None:
+            try:
+                return self._format % self._state
+            except ValueError:
+                return self._state
+        else:
             return self._state
 
     @property
