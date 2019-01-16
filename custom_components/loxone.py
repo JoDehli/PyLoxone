@@ -586,7 +586,21 @@ class LoxWs:
                 start += 24
                 end += 24
         elif self._current_message_typ == 3:
-            pass
+            event_uuid = uuid.UUID(bytes_le=message[0:16])
+            fields = event_uuid.urn.replace("urn:uuid:", "").split("-")
+            uuidstr = "{}-{}-{}-{}{}".format(
+                fields[0], fields[1], fields[2], fields[3], fields[4])
+
+            icon_uuid = uuid.UUID(bytes_le=message[16:32])
+            fields = icon_uuid.urn.replace("urn:uuid:", "").split("-")
+            uuidicon = "{}-{}-{}-{}{}".format(
+                fields[0], fields[1], fields[2], fields[3], fields[4])
+
+            length = unpack('<I', message[32:36])[0]
+
+            message_str = unpack('{}s'.format(length), message[36:36+length])[0]
+            event_dict[uuidstr] = message_str.decode("utf-8")
+
         elif self._current_message_typ == 6:
             event_dict["keep_alive"] = "received"
         else:
