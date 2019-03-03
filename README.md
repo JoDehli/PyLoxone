@@ -1,5 +1,7 @@
 # PyLoxone
-Home Assistant binding for Loxone. (Very early state!!)
+Home Assistant binding for Loxone. 
+
+#### This release works for the version 0.88.2 and newer!!
 
 ## Installation
 Copy all the files and subfolders to your custom_components folder in your HomeAssistant
@@ -13,8 +15,16 @@ loxone:
   password: password
 ```
 
-This is a very early stage of the binding. I have not tested it very much. 
-
 A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
 He really helped me a lot to with the new token based authentification. Thanks Pawel!!!
+
+## Websocket driect command
+Send command direct to the loxone for example a pulse event to a switch:
+
+```yaml
+{
+"uuid":"0f1e0b31-0179-7f77-ffff403fb0c34b9e",
+"value":"pulse"
+}
+```
 
