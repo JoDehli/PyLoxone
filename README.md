@@ -18,7 +18,7 @@ loxone:
 A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
 He really helped me a lot to with the new token based authentification. Thanks Pawel!!!
 
-## Websocket driect command
+## Websocket direct command
 Send command direct to the loxone for example a pulse event to a switch:
 
 ```yaml
