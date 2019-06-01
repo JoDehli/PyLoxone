@@ -1,4 +1,4 @@
-# Describes the format for available Blink services
+# Describes the format for available Loxone services
 
 event_websocket_command:
   description: Send websocket commands to the loxone server. More infos and commands https://www.loxone.com/dede/kb/api/
