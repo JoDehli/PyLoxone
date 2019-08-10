@@ -359,11 +359,11 @@ class LoxoneJalousie(CoverDevice):
 
         if self.is_closing:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid, value="up"))
+                                     dict(uuid=self._uuid, value="FullUp"))
 
         elif self.is_opening:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid, value="down"))
+                                     dict(uuid=self._uuid, value="FullDown"))
 
         if self._unsub_listener_cover is not None:
             self._unsub_listener_cover()
