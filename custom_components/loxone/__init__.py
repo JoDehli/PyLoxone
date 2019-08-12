@@ -75,6 +75,8 @@ ATTR_UUID = 'uuid'
 ATTR_VALUE = 'value'
 ATTR_COMMAND = "command"
 
+LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light"]
+
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
         vol.Required(CONF_USERNAME): cv.string,
@@ -109,12 +111,12 @@ class loxApp(object):
         self.responsecode = my_response.status_code
         return self.responsecode
 
-    def getAllAnalogInfo(self):
-        controls = []
-        for c in self.json['controls'].keys():
-            if self.json['controls'][c]['type'] == "InfoOnlyAnalog":
-                controls.append(self.json['controls'][c])
-        return controls
+    # def getAllAnalogInfo(self):
+    #     controls = []
+    #     for c in self.json['controls'].keys():
+    #         if self.json['controls'][c]['type'] == "InfoOnlyAnalog":
+    #             controls.append(self.json['controls'][c])
+    #     return controls
 
 
 async def async_setup(hass, config):
@@ -130,15 +132,18 @@ async def async_setup(hass, config):
         if request_code == 200 or request_code == "200":
             hass.data[DOMAIN] = config[DOMAIN]
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
-            await discovery.async_load_platform(hass, "sensor", "loxone", {}, config)
-            await discovery.async_load_platform(hass, "switch", "loxone", {}, config)
-            await discovery.async_load_platform(hass, "cover", "loxone", {}, config)
-
+            for platform in LOXONE_PLATFORMS:
+                # discovery.load_platform(hass, platform, DOMAIN, {}, config)
+                _LOGGER.debug("starting loxone components...")
+                await discovery.async_load_platform(hass, platform, "loxone", {}, config)
+            # await discovery.async_load_platform(hass, "switch", "loxone", {}, config)
+            # await discovery.async_load_platform(hass, "cover", "loxone", {}, config)
+            # await discovery.async_load_platform(hass, "lightcontroller", "loxone", {}, config)
             del lox_config
         else:
-            _LOGGER.error("Unable to connect to Loxone")
+            _LOGGER.error("unable to connect to Loxone")
     except ConnectionError:
-        _LOGGER.error("Unable to connect to Loxone")
+        _LOGGER.error("unable to connect to Loxone")
         return False
 
     lox = LoxWs(user=config[DOMAIN][CONF_USERNAME],
@@ -587,20 +592,40 @@ class LoxWs:
                 start += 24
                 end += 24
         elif self._current_message_typ == 3:
-            event_uuid = uuid.UUID(bytes_le=message[0:16])
-            fields = event_uuid.urn.replace("urn:uuid:", "").split("-")
-            uuidstr = "{}-{}-{}-{}{}".format(
-                fields[0], fields[1], fields[2], fields[3], fields[4])
+            from math import floor
+            start = 0
 
-            icon_uuid = uuid.UUID(bytes_le=message[16:32])
-            fields = icon_uuid.urn.replace("urn:uuid:", "").split("-")
-            uuidicon = "{}-{}-{}-{}{}".format(
-                fields[0], fields[1], fields[2], fields[3], fields[4])
+            def get_text(message, start, offset):
+                first = start
+                second = start + offset
+                event_uuid = uuid.UUID(bytes_le=message[first:second])
+                first += offset
+                second += offset
 
-            length = unpack('<I', message[32:36])[0]
+                icon_uuid_fields = event_uuid.urn.replace("urn:uuid:", "").split("-")
+                uuidstr = "{}-{}-{}-{}{}".format(
+                    icon_uuid_fields[0], icon_uuid_fields[1], icon_uuid_fields[2], icon_uuid_fields[3],
+                    icon_uuid_fields[4])
 
-            message_str = unpack('{}s'.format(length), message[36:36 + length])[0]
-            event_dict[uuidstr] = message_str.decode("utf-8")
+                icon_uuid = uuid.UUID(bytes_le=message[first:second])
+                icon_uuid_fields = icon_uuid.urn.replace("urn:uuid:", "").split("-")
+                uuidiconstr = "{}-{}-{}-{}{}".format(icon_uuid_fields[0], icon_uuid_fields[1], icon_uuid_fields[2],
+                                                     icon_uuid_fields[3], icon_uuid_fields[4])
+
+                first = second
+                second += 4
+
+                text_length = unpack('<I', message[first:second])[0]
+
+                first = second
+                second = first + text_length
+                message_str = unpack('{}s'.format(text_length), message[first:second])[0]
+                start += (floor((4 + text_length + 16 + 16 - 1) / 4) + 1) * 4
+                event_dict[uuidstr] = message_str.decode("utf-8")
+                return start
+
+            while start < len(message):
+                start = get_text(message, start, 16)
 
         elif self._current_message_typ == 6:
             event_dict["keep_alive"] = "received"
