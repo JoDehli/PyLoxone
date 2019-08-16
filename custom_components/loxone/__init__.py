@@ -119,6 +119,45 @@ class loxApp(object):
     #     return controls
 
 
+def get_room_name_from_room_uuid(lox_config, room_uuid):
+    if "rooms" in lox_config:
+        if room_uuid in lox_config['rooms']:
+            return lox_config['rooms'][room_uuid]['name']
+
+    return ""
+
+
+def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
+    if "cats" in lox_config:
+        if cat_uuid in lox_config['cats']:
+            return lox_config['cats'][cat_uuid]['name']
+
+    return ""
+
+
+def get_all_push_buttons(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] in ["Pushbutton", "Switch"]:
+            controls.append(json_data['controls'][c])
+    return controls
+
+
+def get_all_covers(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] in ["Jalousie", "Gate"]:
+            controls.append(json_data['controls'][c])
+    return controls
+
+def get_all_light_controller(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] == "LightControllerV2":
+            controls.append(json_data['controls'][c])
+    return controls
+
+
 async def async_setup(hass, config):
     """setup loxone"""
 
@@ -133,12 +172,8 @@ async def async_setup(hass, config):
             hass.data[DOMAIN] = config[DOMAIN]
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
             for platform in LOXONE_PLATFORMS:
-                # discovery.load_platform(hass, platform, DOMAIN, {}, config)
                 _LOGGER.debug("starting loxone components...")
                 await discovery.async_load_platform(hass, platform, "loxone", {}, config)
-                await discovery.async_load_platform(hass, "switch", "loxone", {}, config)
-                await discovery.async_load_platform(hass, "cover", "loxone", {}, config)
-                await discovery.async_load_platform(hass, "lightcontroller", "loxone", {}, config)
             del lox_config
         else:
             _LOGGER.error("unable to connect to Loxone")
@@ -575,8 +610,7 @@ class LoxWs:
         if self._current_message_typ == 0:
             event_dict = message
         elif self._current_message_typ == 1:
-            print("Binery")
-
+            pass
         elif self._current_message_typ == 2:
             length = len(message)
             num = length / 24

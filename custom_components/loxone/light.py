@@ -8,6 +8,8 @@ from homeassistant.components.light import (
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 
+from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_light_controller
+
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = 'Loxone Light Controller V2'
@@ -20,14 +22,6 @@ SENDDOMAIN = "loxone_send"
 
 STATE_ON = "on"
 STATE_OFF = "off"
-
-
-def get_all_light_controller(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] == "LightControllerV2":
-            controls.append(json_data['controls'][c])
-    return controls
 
 
 @asyncio.coroutine
@@ -47,6 +41,8 @@ def async_setup_platform(hass, config, async_add_devices,
         new_sensor = LoxonelightcontrollerV2(name=light_controller['name'],
                                              uuid=light_controller['uuidAction'],
                                              sensortyp="lightcontrollerv2",
+                                             room=get_room_name_from_room_uuid(loxconfig, light_controller['room']),
+                                             cat=get_cat_name_from_cat_uuid(loxconfig, light_controller['cat']),
                                              complete_data=light_controller)
 
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
@@ -58,13 +54,14 @@ def async_setup_platform(hass, config, async_add_devices,
 class LoxonelightcontrollerV2(Light):
     """Representation of a Sensor."""
 
-    def __init__(self, name, uuid, sensortyp,
+    def __init__(self, name, uuid, sensortyp, room="", cat="",
                  complete_data=None):
         """Initialize the sensor."""
         self._state = 0.0
         self._name = name
         self._uuid = uuid
-        self._cat_id = complete_data['cat']
+        self._room = room
+        self._cat = cat
         self._sensortyp = sensortyp
         self._data = complete_data
         self._action_uuid = uuid
@@ -198,7 +195,8 @@ class LoxonelightcontrollerV2(Light):
 
         Implemented by platform classes.
         """
-        return {"uuid": self._uuid,
+        return {"uuid": self._uuid, "room": self._room,
+                "category": self._cat,
                 "selected_scene": self.effect,
                 "device_typ": "lightcontrollerv2", "plattform": "loxone"}
 

@@ -9,6 +9,7 @@ from homeassistant.components.cover import (
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 from homeassistant.helpers.event import track_utc_time_change
+from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_covers
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,14 +25,6 @@ SUPPORT_OPEN_TILT = 16
 SUPPORT_CLOSE_TILT = 32
 SUPPORT_STOP_TILT = 64
 SUPPORT_SET_TILT_POSITION = 128
-
-
-def get_all_covers(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] in ["Jalousie", "Gate"]:
-            controls.append(json_data['controls'][c])
-    return controls
 
 
 @asyncio.coroutine
@@ -53,6 +46,8 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
                                   position_uuid=cover['states']['position'],
                                   state_uuid=cover['states']['active'],
                                   device_class="Gate",
+                                  room=get_room_name_from_room_uuid(loxconfig, cover['room']),
+                                  cat=get_cat_name_from_cat_uuid(loxconfig, cover['cat']),
                                   complete_data=cover)
             devices.append(new_gate)
             hass.bus.async_listen(EVENT, new_gate.event_handler)
@@ -66,6 +61,8 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
                                           down_uuid=cover['states']['down'],
                                           up_uuid=cover['states']['up'],
                                           device_class="Jalousie",
+                                          room=get_room_name_from_room_uuid(loxconfig, cover['room']),
+                                          cat=get_cat_name_from_cat_uuid(loxconfig, cover['cat']),
                                           complete_data=cover)
 
             devices.append(new_jalousie)
@@ -78,10 +75,12 @@ class LoxoneGate(CoverDevice):
     """Loxone Jalousie"""
 
     def __init__(self, hass, name, uuid, position_uuid=None, state_uuid=None,
-                 device_class=None, complete_data=None):
+                 device_class=None, room="", cat="", complete_data=None):
         self.hass = hass
         self._name = name
         self._uuid = uuid
+        self._room = room
+        self._cat = cat
         self._position_uuid = position_uuid
         self._state_uuid = state_uuid
         self._device_class = device_class
@@ -189,7 +188,7 @@ class LoxoneGate(CoverDevice):
 
         Implemented by platform classes.
         """
-        return {"uuid": self._uuid, "device_typ": "gate",
+        return {"uuid": self._uuid, "device_typ": "gate", "room": self._room, "category": self._cat,
                 "plattform": "loxone"}
 
 
@@ -199,10 +198,12 @@ class LoxoneJalousie(CoverDevice):
     # pylint: disable=no-self-use
     def __init__(self, hass, name, uuid, position_uuid=None,
                  shade_uuid=None, down_uuid=None, up_uuid=None,
-                 device_class=None, complete_data=None):
+                 device_class=None, room="", cat="", complete_data=None):
         self.hass = hass
         self._name = name
         self._uuid = uuid
+        self._room = room
+        self._cat = cat
         self._position_uuid = position_uuid
         self._shade_uuid = shade_uuid
         self._down_uuid = down_uuid
@@ -320,14 +321,15 @@ class LoxoneJalousie(CoverDevice):
         Implemented by platform classes.
         """
         return {"uuid": self._uuid, "device_typ": "jalousie",
-                "plattform": "loxone",
+                "plattform": "loxone", "room": self._room,
+                "category": self._cat,
                 "current_position": self.current_cover_position,
                 "current_shade_mode": self.shade_postion_as_text,
                 "current_position_loxone_style": round(self._position_loxone, 0),
                 "extra_data_template": [
                     "${attributes.current_position} % open",
                     "${attributes.current_shade_mode}"
-                ]}
+                 ]}
 
     def close_cover(self, **kwargs):
         """Close the cover."""

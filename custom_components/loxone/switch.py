@@ -1,27 +1,19 @@
 """
 """
 import asyncio
-import json
 import logging
 
 from homeassistant.components.switch import SwitchDevice
-from homeassistant.const import DEVICE_DEFAULT_NAME
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
+from homeassistant.const import DEVICE_DEFAULT_NAME
+from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_push_buttons
 
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = 'loxone'
 EVENT = "loxone_event"
 SENDDOMAIN = "loxone_send"
-
-
-def get_all_push_buttons(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] in ["Pushbutton", "Switch"]:
-            controls.append(json_data['controls'][c])
-    return controls
 
 
 @asyncio.coroutine
@@ -38,7 +30,9 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
     for push_button in get_all_push_buttons(loxconfig):
         new_push_button = LoxoneSwitch(push_button['name'],
                                        push_button['uuidAction'],
-                                       push_button['states']['active'])
+                                       push_button['states']['active'],
+                                       room=get_room_name_from_room_uuid(loxconfig, push_button['room']),
+                                       cat=get_cat_name_from_cat_uuid(loxconfig, push_button['cat']))
 
         hass.bus.async_listen(EVENT, new_push_button.event_handler)
         devices.append(new_push_button)
@@ -49,13 +43,15 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
 class LoxoneSwitch(SwitchDevice):
     """Representation of a loxone switch or pushbutton"""
 
-    def __init__(self, name, uuid, uuid_state):
+    def __init__(self, name, uuid, uuid_state, room="", cat=""):
         """Initialize the Demo switch."""
         self._name = name or DEVICE_DEFAULT_NAME
         self._state = False
         self._icon = None
         self._assumed = False
         self._uuid = uuid
+        self._room = room
+        self._cat = cat
         self._uuid_state = uuid_state
 
     @property
@@ -110,5 +106,5 @@ class LoxoneSwitch(SwitchDevice):
 
         Implemented by platform classes.
         """
-        return {"uuid": self._uuid, "state_uuid": self._uuid_state,
+        return {"uuid": self._uuid, "state_uuid": self._uuid_state, "room":self._room, "category":self._cat,
                 "device_typ": "switch", "plattform": "loxone"}
