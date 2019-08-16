@@ -136,9 +136,9 @@ async def async_setup(hass, config):
                 # discovery.load_platform(hass, platform, DOMAIN, {}, config)
                 _LOGGER.debug("starting loxone components...")
                 await discovery.async_load_platform(hass, platform, "loxone", {}, config)
-            # await discovery.async_load_platform(hass, "switch", "loxone", {}, config)
-            # await discovery.async_load_platform(hass, "cover", "loxone", {}, config)
-            # await discovery.async_load_platform(hass, "lightcontroller", "loxone", {}, config)
+                await discovery.async_load_platform(hass, "switch", "loxone", {}, config)
+                await discovery.async_load_platform(hass, "cover", "loxone", {}, config)
+                await discovery.async_load_platform(hass, "lightcontroller", "loxone", {}, config)
             del lox_config
         else:
             _LOGGER.error("unable to connect to Loxone")
@@ -562,7 +562,7 @@ class LoxWs:
                 _LOGGER.debug("Keep alive response received...")
         else:
             parsed_data = await self._parse_loxone_message(message)
-            _LOGGER.debug("message:{}".format(parsed_data))
+            _LOGGER.debug("message [type:{}]):{}".format(self._current_message_typ, parsed_data))
             if self.message_call_back is not None:
                 if "LL" not in parsed_data and parsed_data != {}:
                     await self.message_call_back(parsed_data)
@@ -575,7 +575,8 @@ class LoxWs:
         if self._current_message_typ == 0:
             event_dict = message
         elif self._current_message_typ == 1:
-            pass
+            print("Binery")
+
         elif self._current_message_typ == 2:
             length = len(message)
             num = length / 24
