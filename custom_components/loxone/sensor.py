@@ -2,10 +2,11 @@ import asyncio
 import logging
 
 from homeassistant.const import (
-    CONF_VALUE_TEMPLATE)
+    CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF)
 from homeassistant.helpers.entity import Entity
 
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid
+from . import get_all_analog_info, get_all_digital_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,22 +16,6 @@ DEFAULT_FORCE_UPDATE = False
 CONF_UUID = "uuid"
 EVENT = "loxone_event"
 DOMAIN = 'loxone'
-
-
-def get_all_analog_info(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] == "InfoOnlyAnalog":
-            controls.append(json_data['controls'][c])
-    return controls
-
-
-def get_all_digital_info(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] == "InfoOnlyDigital":
-            controls.append(json_data['controls'][c])
-    return controls
 
 
 @asyncio.coroutine
@@ -68,6 +53,7 @@ def async_setup_platform(hass, config, async_add_devices,
         devices.append(new_sensor)
 
     async_add_devices(devices)
+    return True
 
 
 class Loxonesensor(Entity):
@@ -82,8 +68,8 @@ class Loxonesensor(Entity):
         self._sensortyp = sensortyp
         self._unit_of_measurement = None
         self._format = None
-        self._on_state = "an"
-        self._off_state = "aus"
+        self._on_state = STATE_ON
+        self._off_state = STATE_OFF
         self._room = room
         self._cat = cat
         self._complete_data = complete_data

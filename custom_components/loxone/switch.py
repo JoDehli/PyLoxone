@@ -38,7 +38,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
         devices.append(new_push_button)
 
     async_add_devices(devices)
-
+    return True
 
 class LoxoneSwitch(SwitchDevice):
     """Representation of a loxone switch or pushbutton"""

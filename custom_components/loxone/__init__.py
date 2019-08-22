@@ -27,7 +27,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
                                  EVENT_HOMEASSISTANT_START,
                                  EVENT_HOMEASSISTANT_STOP)
-from homeassistant.helpers import discovery
+from homeassistant.helpers.discovery import async_load_platform
 from requests.auth import HTTPBasicAuth
 
 REQUIREMENTS = ['websockets', "pycryptodome"]
@@ -75,7 +75,7 @@ ATTR_UUID = 'uuid'
 ATTR_VALUE = 'value'
 ATTR_COMMAND = "command"
 
-LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light"]
+LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "scene"]
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -150,6 +150,23 @@ def get_all_covers(json_data):
             controls.append(json_data['controls'][c])
     return controls
 
+
+def get_all_analog_info(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] == "InfoOnlyAnalog":
+            controls.append(json_data['controls'][c])
+    return controls
+
+
+def get_all_digital_info(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] == "InfoOnlyDigital":
+            controls.append(json_data['controls'][c])
+    return controls
+
+
 def get_all_light_controller(json_data):
     controls = []
     for c in json_data['controls'].keys():
@@ -172,8 +189,10 @@ async def async_setup(hass, config):
             hass.data[DOMAIN] = config[DOMAIN]
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
             for platform in LOXONE_PLATFORMS:
-                _LOGGER.debug("starting loxone components...")
-                await discovery.async_load_platform(hass, platform, "loxone", {}, config)
+                _LOGGER.debug("starting loxone {}...".format(platform))
+                hass.async_create_task(
+                    async_load_platform(hass, platform, DOMAIN, {}, config)
+                )
             del lox_config
         else:
             _LOGGER.error("unable to connect to Loxone")
@@ -198,37 +217,45 @@ async def async_setup(hass, config):
 
     async def loxone_discovered(event):
         if "component" in event.data:
-            if event.data['component'] == "loxone":
+            if event.data['component'] == DOMAIN:
                 try:
+                    _LOGGER.info("loxone discovered")
+                    await asyncio.sleep(0.1)
+                    # await asyncio.sleep(0)
                     entity_ids = hass.states.async_all()
                     sensors_analog = []
                     sensors_digital = []
                     switches = []
                     covers = []
+                    light_controllers = []
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
                         attr = s_dict['attributes']
                         if "plattform" in attr and \
-                                attr['plattform'] == "loxone":
+                                attr['plattform'] == DOMAIN:
                             if attr['device_typ'] == "analog_sensor":
                                 sensors_analog.append(s_dict['entity_id'])
-                            if attr['device_typ'] == "digital_sensor":
+                            elif attr['device_typ'] == "digital_sensor":
                                 sensors_digital.append(s_dict['entity_id'])
-                            if attr['device_typ'] == "jalousie" or \
+                            elif attr['device_typ'] == "jalousie" or \
                                     attr['device_typ'] == "gate":
                                 covers.append(s_dict['entity_id'])
-                            if attr['device_typ'] == "switch":
+                            elif attr['device_typ'] == "switch":
                                 switches.append(s_dict['entity_id'])
+                            elif attr['device_typ'] == "lightcontrollerv2":
+                                light_controllers.append(s_dict['entity_id'])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
                     covers.sort()
                     switches.sort()
+                    light_controllers.sort()
 
                     async def create_loxone_group(object_id, name,
                                                   entity_names, visible=True,
-                                                  view=False):
+                                                  view=False
+                                                  ):
                         if visible:
                             visiblity = "true"
                         else:
@@ -242,6 +269,7 @@ async def async_setup(hass, config):
                                    "view": view_state,
                                    "entities": entity_names,
                                    "name": name}
+
                         await hass.services.async_call("group", "set", command)
 
                     await create_loxone_group("loxone_analog",
@@ -259,11 +287,16 @@ async def async_setup(hass, config):
                     await create_loxone_group("loxone_covers", "Loxone Covers",
                                               covers, True, False)
 
+                    await create_loxone_group("loxone_lightcontrollers", "Loxone Light Controllers",
+                                              light_controllers, True, False)
+
                     await create_loxone_group("loxone_group", "Loxone Group",
                                               ["group.loxone_analog",
                                                "group.loxone_digtial",
                                                "group.loxone_switches",
-                                               "group.loxone_covers"],
+                                               "group.loxone_covers",
+                                               "group.loxone_lightcontrollers"
+                                               ],
                                               True, True)
                 except:
                     traceback.print_exc()
@@ -279,7 +312,7 @@ async def async_setup(hass, config):
         lox.message_call_back = message_callback
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, start_loxone)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_loxone)
-        hass.bus.async_listen(EVENT_COMPONENT_LOADED, loxone_discovered)
+        hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
 
         async def listen_loxone_send(event):
             """Listen for change Events from Loxone Components"""

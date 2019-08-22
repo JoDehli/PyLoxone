@@ -69,6 +69,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
             hass.bus.async_listen(EVENT, new_jalousie.event_handler)
 
     async_add_devices(devices)
+    return True
 
 
 class LoxoneGate(CoverDevice):
@@ -329,7 +330,7 @@ class LoxoneJalousie(CoverDevice):
                 "extra_data_template": [
                     "${attributes.current_position} % open",
                     "${attributes.current_shade_mode}"
-                 ]}
+                ]}
 
     def close_cover(self, **kwargs):
         """Close the cover."""
