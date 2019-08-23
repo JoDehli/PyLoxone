@@ -56,7 +56,6 @@ def async_setup_platform(hass, config, async_add_devices,
     return True
 
 
-
 class LoxonelightcontrollerV2(Light):
     """Representation of a Sensor."""
 
@@ -210,7 +209,7 @@ class LoxonelightcontrollerV2(Light):
             return False
 
     @property
-    def state_attributes(self):
+    def device_state_attributes(self):
         """Return device specific state attributes.
 
         Implemented by platform classes.
