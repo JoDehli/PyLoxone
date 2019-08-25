@@ -13,6 +13,7 @@ loxone:
   host: hostadress
   username: username
   password: password
+  generate_scenes: false # default is true
 ```
 
 A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
@@ -27,4 +28,3 @@ Send command direct to the loxone for example a pulse event to a switch:
 "value":"pulse"
 }
 ```
-
