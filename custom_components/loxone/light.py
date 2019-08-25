@@ -94,6 +94,10 @@ class LoxonelightcontrollerV2(Light):
                 self._additional_mood_uuid = states["additionalMoods"]
 
     @property
+    def name(self):
+        return self._name
+
+    @property
     def uuid(self):
         return self._uuid
 
@@ -146,17 +150,31 @@ class LoxonelightcontrollerV2(Light):
             return self.get_moodname_by_id(self._active_moods[0])
         return None
 
-    def turn_on(self, **kwargs) -> None:
+    def async_turn_on(self, **kwargs) -> None:
 
         if 'effect' in kwargs:
-            mood_id = self.get_id_by_moodname(kwargs['effect'])
-            if mood_id != kwargs['effect']:
-                self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self._uuid, value="changeTo/{}".format(mood_id)))
-
+            effects = kwargs['effect'].split(",")
+            if len(effects) == 1:
+                mood_id = self.get_id_by_moodname(kwargs['effect'])
+                if mood_id != kwargs['effect']:
+                    self.hass.bus.async_fire(SENDDOMAIN,
+                                             dict(uuid=self._uuid, value="changeTo/{}".format(mood_id)))
+                else:
+                    self.hass.bus.async_fire(SENDDOMAIN,
+                                             dict(uuid=self._uuid, value="plus"))
             else:
+                effect_ids = []
+                for _ in effects:
+                    mood_id = self.get_id_by_moodname(_)
+                    if mood_id != _:
+                        effect_ids.append(mood_id)
+
                 self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self._uuid, value="plus"))
+                                         dict(uuid=self._uuid, value="off"))
+
+                for _ in effect_ids:
+                    self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self._uuid, value="addMood/{}".format(_)))
+
         else:
             self.hass.bus.async_fire(SENDDOMAIN,
                                      dict(uuid=self._uuid, value="plus"))

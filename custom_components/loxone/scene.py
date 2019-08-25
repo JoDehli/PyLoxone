@@ -14,7 +14,7 @@ DEFAULT_FORCE_UPDATE = False
 CONF_UUID = "uuid"
 DOMAIN = 'loxone'
 SENDDOMAIN = "loxone_send"
-
+CONF_SCENE_GEN = "generate_scenes"
 
 @asyncio.coroutine
 def async_setup_platform(hass, config, async_add_devices,
@@ -42,10 +42,11 @@ def async_setup_platform(hass, config, async_add_devices,
                     for effect in entity.effect_list:
                         mood_id = entity.get_id_by_moodname(effect)
                         uuid = entity.uuid
-                        devices.append(Loxonelightscene(effect, mood_id, uuid))
+                        devices.append(Loxonelightscene("{}_{}".format(entity.name, effect), mood_id, uuid))
         async_add_devices(devices)
 
-    async_call_later(hass, 0.1, async_call())
+    if config[CONF_SCENE_GEN]:
+        async_call_later(hass, 0.2, async_call())
     return True
 
 

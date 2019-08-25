@@ -74,6 +74,7 @@ DEFAULT = ""
 ATTR_UUID = 'uuid'
 ATTR_VALUE = 'value'
 ATTR_COMMAND = "command"
+CONF_SCENE_GEN = "generate_scenes"
 
 LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "scene"]
 
@@ -83,6 +84,7 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Required(CONF_PASSWORD): cv.string,
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
+        vol.Optional(CONF_SCENE_GEN, default=True): cv.boolean,
     }),
 }, extra=vol.ALLOW_EXTRA)
 
@@ -110,13 +112,6 @@ class loxApp(object):
             self.json = None
         self.responsecode = my_response.status_code
         return self.responsecode
-
-    # def getAllAnalogInfo(self):
-    #     controls = []
-    #     for c in self.json['controls'].keys():
-    #         if self.json['controls'][c]['type'] == "InfoOnlyAnalog":
-    #             controls.append(self.json['controls'][c])
-    #     return controls
 
 
 def get_room_name_from_room_uuid(lox_config, room_uuid):
