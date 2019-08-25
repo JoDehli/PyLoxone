@@ -165,7 +165,7 @@ class LoxonelightcontrollerV2(Light):
             else:
                 effect_ids = []
                 for _ in effects:
-                    mood_id = self.get_id_by_moodname(_)
+                    mood_id = self.get_id_by_moodname(_.strip())
                     if mood_id != _:
                         effect_ids.append(mood_id)
 
