@@ -27,7 +27,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
                                  EVENT_HOMEASSISTANT_START,
                                  EVENT_HOMEASSISTANT_STOP)
-from homeassistant.helpers import discovery
+from homeassistant.helpers.discovery import async_load_platform
 from requests.auth import HTTPBasicAuth
 
 REQUIREMENTS = ['websockets', "pycryptodome"]
@@ -74,6 +74,9 @@ DEFAULT = ""
 ATTR_UUID = 'uuid'
 ATTR_VALUE = 'value'
 ATTR_COMMAND = "command"
+CONF_SCENE_GEN = "generate_scenes"
+
+LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "scene"]
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -81,6 +84,7 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Required(CONF_PASSWORD): cv.string,
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
+        vol.Optional(CONF_SCENE_GEN, default=True): cv.boolean,
     }),
 }, extra=vol.ALLOW_EXTRA)
 
@@ -109,12 +113,61 @@ class loxApp(object):
         self.responsecode = my_response.status_code
         return self.responsecode
 
-    def getAllAnalogInfo(self):
-        controls = []
-        for c in self.json['controls'].keys():
-            if self.json['controls'][c]['type'] == "InfoOnlyAnalog":
-                controls.append(self.json['controls'][c])
-        return controls
+
+def get_room_name_from_room_uuid(lox_config, room_uuid):
+    if "rooms" in lox_config:
+        if room_uuid in lox_config['rooms']:
+            return lox_config['rooms'][room_uuid]['name']
+
+    return ""
+
+
+def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
+    if "cats" in lox_config:
+        if cat_uuid in lox_config['cats']:
+            return lox_config['cats'][cat_uuid]['name']
+
+    return ""
+
+
+def get_all_push_buttons(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] in ["Pushbutton", "Switch"]:
+            controls.append(json_data['controls'][c])
+    return controls
+
+
+def get_all_covers(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] in ["Jalousie", "Gate"]:
+            controls.append(json_data['controls'][c])
+    return controls
+
+
+def get_all_analog_info(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] == "InfoOnlyAnalog":
+            controls.append(json_data['controls'][c])
+    return controls
+
+
+def get_all_digital_info(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] == "InfoOnlyDigital":
+            controls.append(json_data['controls'][c])
+    return controls
+
+
+def get_all_light_controller(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] == "LightControllerV2":
+            controls.append(json_data['controls'][c])
+    return controls
 
 
 async def async_setup(hass, config):
@@ -130,15 +183,16 @@ async def async_setup(hass, config):
         if request_code == 200 or request_code == "200":
             hass.data[DOMAIN] = config[DOMAIN]
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
-            await discovery.async_load_platform(hass, "sensor", "loxone", {}, config)
-            await discovery.async_load_platform(hass, "switch", "loxone", {}, config)
-            await discovery.async_load_platform(hass, "cover", "loxone", {}, config)
-
+            for platform in LOXONE_PLATFORMS:
+                _LOGGER.debug("starting loxone {}...".format(platform))
+                hass.async_create_task(
+                    async_load_platform(hass, platform, DOMAIN, {}, config)
+                )
             del lox_config
         else:
-            _LOGGER.error("Unable to connect to Loxone")
+            _LOGGER.error("unable to connect to Loxone")
     except ConnectionError:
-        _LOGGER.error("Unable to connect to Loxone")
+        _LOGGER.error("unable to connect to Loxone")
         return False
 
     lox = LoxWs(user=config[DOMAIN][CONF_USERNAME],
@@ -158,37 +212,45 @@ async def async_setup(hass, config):
 
     async def loxone_discovered(event):
         if "component" in event.data:
-            if event.data['component'] == "loxone":
+            if event.data['component'] == DOMAIN:
                 try:
+                    _LOGGER.info("loxone discovered")
+                    await asyncio.sleep(0.1)
+                    # await asyncio.sleep(0)
                     entity_ids = hass.states.async_all()
                     sensors_analog = []
                     sensors_digital = []
                     switches = []
                     covers = []
+                    light_controllers = []
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
                         attr = s_dict['attributes']
                         if "plattform" in attr and \
-                                attr['plattform'] == "loxone":
+                                attr['plattform'] == DOMAIN:
                             if attr['device_typ'] == "analog_sensor":
                                 sensors_analog.append(s_dict['entity_id'])
-                            if attr['device_typ'] == "digital_sensor":
+                            elif attr['device_typ'] == "digital_sensor":
                                 sensors_digital.append(s_dict['entity_id'])
-                            if attr['device_typ'] == "jalousie" or \
+                            elif attr['device_typ'] == "jalousie" or \
                                     attr['device_typ'] == "gate":
                                 covers.append(s_dict['entity_id'])
-                            if attr['device_typ'] == "switch":
+                            elif attr['device_typ'] == "switch":
                                 switches.append(s_dict['entity_id'])
+                            elif attr['device_typ'] == "lightcontrollerv2":
+                                light_controllers.append(s_dict['entity_id'])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
                     covers.sort()
                     switches.sort()
+                    light_controllers.sort()
 
                     async def create_loxone_group(object_id, name,
                                                   entity_names, visible=True,
-                                                  view=False):
+                                                  view=False
+                                                  ):
                         if visible:
                             visiblity = "true"
                         else:
@@ -202,6 +264,7 @@ async def async_setup(hass, config):
                                    "view": view_state,
                                    "entities": entity_names,
                                    "name": name}
+
                         await hass.services.async_call("group", "set", command)
 
                     await create_loxone_group("loxone_analog",
@@ -219,11 +282,16 @@ async def async_setup(hass, config):
                     await create_loxone_group("loxone_covers", "Loxone Covers",
                                               covers, True, False)
 
+                    await create_loxone_group("loxone_lightcontrollers", "Loxone Light Controllers",
+                                              light_controllers, True, False)
+
                     await create_loxone_group("loxone_group", "Loxone Group",
                                               ["group.loxone_analog",
                                                "group.loxone_digtial",
                                                "group.loxone_switches",
-                                               "group.loxone_covers"],
+                                               "group.loxone_covers",
+                                               "group.loxone_lightcontrollers"
+                                               ],
                                               True, True)
                 except:
                     traceback.print_exc()
@@ -239,7 +307,7 @@ async def async_setup(hass, config):
         lox.message_call_back = message_callback
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, start_loxone)
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_loxone)
-        hass.bus.async_listen(EVENT_COMPONENT_LOADED, loxone_discovered)
+        hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
 
         async def listen_loxone_send(event):
             """Listen for change Events from Loxone Components"""
@@ -557,7 +625,7 @@ class LoxWs:
                 _LOGGER.debug("Keep alive response received...")
         else:
             parsed_data = await self._parse_loxone_message(message)
-            _LOGGER.debug("message:{}".format(parsed_data))
+            _LOGGER.debug("message [type:{}]):{}".format(self._current_message_typ, parsed_data))
             if self.message_call_back is not None:
                 if "LL" not in parsed_data and parsed_data != {}:
                     await self.message_call_back(parsed_data)
@@ -587,20 +655,40 @@ class LoxWs:
                 start += 24
                 end += 24
         elif self._current_message_typ == 3:
-            event_uuid = uuid.UUID(bytes_le=message[0:16])
-            fields = event_uuid.urn.replace("urn:uuid:", "").split("-")
-            uuidstr = "{}-{}-{}-{}{}".format(
-                fields[0], fields[1], fields[2], fields[3], fields[4])
+            from math import floor
+            start = 0
 
-            icon_uuid = uuid.UUID(bytes_le=message[16:32])
-            fields = icon_uuid.urn.replace("urn:uuid:", "").split("-")
-            uuidicon = "{}-{}-{}-{}{}".format(
-                fields[0], fields[1], fields[2], fields[3], fields[4])
+            def get_text(message, start, offset):
+                first = start
+                second = start + offset
+                event_uuid = uuid.UUID(bytes_le=message[first:second])
+                first += offset
+                second += offset
 
-            length = unpack('<I', message[32:36])[0]
+                icon_uuid_fields = event_uuid.urn.replace("urn:uuid:", "").split("-")
+                uuidstr = "{}-{}-{}-{}{}".format(
+                    icon_uuid_fields[0], icon_uuid_fields[1], icon_uuid_fields[2], icon_uuid_fields[3],
+                    icon_uuid_fields[4])
 
-            message_str = unpack('{}s'.format(length), message[36:36 + length])[0]
-            event_dict[uuidstr] = message_str.decode("utf-8")
+                icon_uuid = uuid.UUID(bytes_le=message[first:second])
+                icon_uuid_fields = icon_uuid.urn.replace("urn:uuid:", "").split("-")
+                uuidiconstr = "{}-{}-{}-{}{}".format(icon_uuid_fields[0], icon_uuid_fields[1], icon_uuid_fields[2],
+                                                     icon_uuid_fields[3], icon_uuid_fields[4])
+
+                first = second
+                second += 4
+
+                text_length = unpack('<I', message[first:second])[0]
+
+                first = second
+                second = first + text_length
+                message_str = unpack('{}s'.format(text_length), message[first:second])[0]
+                start += (floor((4 + text_length + 16 + 16 - 1) / 4) + 1) * 4
+                event_dict[uuidstr] = message_str.decode("utf-8")
+                return start
+
+            while start < len(message):
+                start = get_text(message, start, 16)
 
         elif self._current_message_typ == 6:
             event_dict["keep_alive"] = "received"

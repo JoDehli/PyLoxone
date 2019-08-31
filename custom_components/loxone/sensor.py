@@ -1,11 +1,12 @@
 import asyncio
-import json
 import logging
 
-import homeassistant.components.mqtt as mqtt
 from homeassistant.const import (
-    CONF_VALUE_TEMPLATE)
+    CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF)
 from homeassistant.helpers.entity import Entity
+
+from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid
+from . import get_all_analog_info, get_all_digital_info
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,22 +16,6 @@ DEFAULT_FORCE_UPDATE = False
 CONF_UUID = "uuid"
 EVENT = "loxone_event"
 DOMAIN = 'loxone'
-
-
-def get_all_analog_info(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] == "InfoOnlyAnalog":
-            controls.append(json_data['controls'][c])
-    return controls
-
-
-def get_all_digital_info(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] == "InfoOnlyDigital":
-            controls.append(json_data['controls'][c])
-    return controls
 
 
 @asyncio.coroutine
@@ -50,6 +35,8 @@ def async_setup_platform(hass, config, async_add_devices,
         new_sensor = Loxonesensor(name=sensor['name'],
                                   uuid=sensor['uuidAction'],
                                   sensortyp="analog",
+                                  room=get_room_name_from_room_uuid(loxconfig, sensor['room']),
+                                  cat=get_cat_name_from_cat_uuid(loxconfig, sensor['cat']),
                                   complete_data=sensor)
 
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
@@ -59,17 +46,20 @@ def async_setup_platform(hass, config, async_add_devices,
         new_sensor = Loxonesensor(name=sensor['name'],
                                   uuid=sensor['uuidAction'],
                                   sensortyp="digital",
+                                  room=get_room_name_from_room_uuid(loxconfig, sensor['room']),
+                                  cat=get_cat_name_from_cat_uuid(loxconfig, sensor['cat']),
                                   complete_data=sensor)
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
 
     async_add_devices(devices)
+    return True
 
 
 class Loxonesensor(Entity):
     """Representation of a Sensor."""
 
-    def __init__(self, name, uuid, sensortyp,
+    def __init__(self, name, uuid, sensortyp, room="", cat="",
                  complete_data=None):
         """Initialize the sensor."""
         self._state = 0.0
@@ -78,8 +68,10 @@ class Loxonesensor(Entity):
         self._sensortyp = sensortyp
         self._unit_of_measurement = None
         self._format = None
-        self._on_state = "an"
-        self._off_state = "aus"
+        self._on_state = STATE_ON
+        self._off_state = STATE_OFF
+        self._room = room
+        self._cat = cat
         self._complete_data = complete_data
         self.extract_attributes()
 
@@ -140,7 +132,6 @@ class Loxonesensor(Entity):
                     self._format = self._get_format(self._complete_data['details']['format'])
                     self._unit_of_measurement = self._clean_unit(self._complete_data['details']['format'])
 
-
     @property
     def name(self):
         """Return the name of the sensor."""
@@ -178,5 +169,5 @@ class Loxonesensor(Entity):
         Implemented by platform classes.
         """
         return {"uuid": self._uuid, "device_typ": self._sensortyp + "_sensor",
-                "plattform": "loxone",
+                "plattform": "loxone", "room": self._room, "category": self._cat,
                 "show_last_changed": "true"}
