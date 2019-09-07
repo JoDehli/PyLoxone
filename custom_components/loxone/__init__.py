@@ -170,6 +170,14 @@ def get_all_light_controller(json_data):
     return controls
 
 
+def get_all_dimmer(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] == "Dimmer":
+            controls.append(json_data['controls'][c])
+    return controls
+
+
 async def async_setup(hass, config):
     """setup loxone"""
 
@@ -222,7 +230,7 @@ async def async_setup(hass, config):
                     sensors_digital = []
                     switches = []
                     covers = []
-                    light_controllers = []
+                    lights = []
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
@@ -239,13 +247,15 @@ async def async_setup(hass, config):
                             elif attr['device_typ'] == "switch":
                                 switches.append(s_dict['entity_id'])
                             elif attr['device_typ'] == "lightcontrollerv2":
-                                light_controllers.append(s_dict['entity_id'])
+                                lights.append(s_dict['entity_id'])
+                            elif attr['device_typ'] == "dimmer":
+                                lights.append(s_dict['entity_id'])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
                     covers.sort()
                     switches.sort()
-                    light_controllers.sort()
+                    lights.sort()
 
                     async def create_loxone_group(object_id, name,
                                                   entity_names, visible=True,
@@ -271,7 +281,7 @@ async def async_setup(hass, config):
                                               "Loxone Analog Sensors",
                                               sensors_analog, True, False)
 
-                    await create_loxone_group("loxone_digtial",
+                    await create_loxone_group("loxone_digital",
                                               "Loxone Digital Sensors",
                                               sensors_digital, True, False)
 
@@ -282,15 +292,16 @@ async def async_setup(hass, config):
                     await create_loxone_group("loxone_covers", "Loxone Covers",
                                               covers, True, False)
 
-                    await create_loxone_group("loxone_lightcontrollers", "Loxone Light Controllers",
-                                              light_controllers, True, False)
+                    await create_loxone_group("loxone_lights", "Loxone Lights",
+                                              lights, True, False)
 
                     await create_loxone_group("loxone_group", "Loxone Group",
                                               ["group.loxone_analog",
-                                               "group.loxone_digtial",
+                                               "group.loxone_digital",
                                                "group.loxone_switches",
                                                "group.loxone_covers",
-                                               "group.loxone_lightcontrollers"
+                                               "group.loxone_lights",
+                                               "group.loxone_dimmers"
                                                ],
                                               True, True)
                 except:
@@ -371,8 +382,9 @@ class LxToken:
         self._vaild_until = vaild_until
 
     def get_seconds_to_expire(self):
+        return 300
         start_date = int(
-            datetime.strptime("1.1.2009", "%d.%m.%Y").strftime('%s'))
+            datetime.strptime("1.1.2009", '%d.%m.%Y').strftime('%s'))
         start_date = int(start_date) + self._vaild_until
         return start_date - int(round(time.time()))
 
@@ -694,6 +706,7 @@ class LoxWs:
             event_dict["keep_alive"] = "received"
         else:
             self._current_message_typ = 7
+
         return event_dict
 
     async def use_token(self):

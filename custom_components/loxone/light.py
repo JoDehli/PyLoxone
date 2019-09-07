@@ -3,12 +3,14 @@ import logging
 
 from homeassistant.components.light import (
     SUPPORT_EFFECT,
+    SUPPORT_BRIGHTNESS,
+    ATTR_BRIGHTNESS,
     Light
 )
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 
-from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_light_controller
+from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_light_controller, get_all_dimmer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,6 +53,21 @@ def async_setup_platform(hass, config, async_add_devices,
 
         hass.bus.async_listen(EVENT, new_light_controller.event_handler)
         devices.append(new_light_controller)
+
+    for dimmer in get_all_dimmer(loxconfig):
+        new_dimmer = LoxoneDimmer(name=dimmer['name'],
+                                                       uuid=dimmer['uuidAction'],
+                                                       uuid_position=dimmer['states']['position'],
+                                                       sensortyp="dimmer",
+                                                       room=get_room_name_from_room_uuid(loxconfig,
+                                                                                         dimmer['room']),
+                                                       cat=get_cat_name_from_cat_uuid(loxconfig,
+                                                                                      dimmer['cat']),
+                                                       complete_data=dimmer,
+                                                       async_add_devices=async_add_devices)
+
+        hass.bus.async_listen(EVENT, new_dimmer.event_handler)
+        devices.append(new_dimmer)
 
     async_add_devices(devices)
     return True
@@ -185,11 +202,6 @@ class LoxonelightcontrollerV2(Light):
                                  dict(uuid=self._uuid, value="off"))
         self.schedule_update_ha_state()
 
-    @property
-    def name(self):
-        """Return the name of the device if any."""
-        return self._name
-
     @asyncio.coroutine
     def event_handler(self, event):
         request_update = False
@@ -240,3 +252,106 @@ class LoxonelightcontrollerV2(Light):
     @property
     def supported_features(self):
         return SUPPORT_EFFECT
+
+
+
+class LoxoneDimmer(Light):
+    """Representation of a Dimmer."""
+
+    def __init__(self, name, uuid, uuid_position, sensortyp, room="", cat="",
+                 complete_data=None, async_add_devices=None):
+        """Initialize the sensor."""
+        self._state = False
+        self._position = 0.0
+        self._min = 0.0
+        self._max = 100.0
+        self._name = name
+        self._uuid = uuid
+        self._uuid_position = uuid_position
+        self._room = room
+        self._cat = cat
+        self._sensortyp = sensortyp
+        self._data = complete_data
+        self._action_uuid = uuid   
+        self._async_add_devices = async_add_devices
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def uuid(self):
+        return self._uuid
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return self._sensortyp
+
+    @property
+    def hidden(self) -> bool:
+        """Return True if the entity should be hidden from UIs."""
+        return False
+
+    @property
+    def brightness(self):
+        """Return the brightness of the group lights."""
+        return self.to_hass_level(self._position)
+
+    @property
+    def icon(self):
+        """Return the icon to use in the frontend, if any."""
+        return None
+
+    def to_loxone_level(self, level):
+        """Convert the given HASS light level (0-255) to Loxone (0.0-100.0)."""
+        return float((level * 100) / 255)
+
+
+    def to_hass_level(self, level):
+        """Convert the given Loxone (0.0-100.0) light level to HASS (0-255)."""
+        return int((level * 255) / 100)
+
+    def turn_on(self, **kwargs) -> None:
+        if ATTR_BRIGHTNESS in kwargs:
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self._uuid, value=self.to_loxone_level(kwargs[ATTR_BRIGHTNESS])))
+        else:
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self._uuid, value="on"))
+        self.schedule_update_ha_state()
+
+    def turn_off(self, **kwargs) -> None:
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self._uuid, value="off"))
+        self.schedule_update_ha_state()
+
+    @asyncio.coroutine
+    def event_handler(self, event):   
+        request_update = False
+        if self._uuid_position in event.data:
+            self._position = event.data[self._uuid_position]
+            request_update = True
+
+        if request_update:
+            self.async_schedule_update_ha_state()
+
+    @property
+    def state(self):
+        """Return the state of the entity."""
+        return STATE_ON if self.is_on else STATE_OFF
+
+    @property
+    def is_on(self) -> bool:
+        return self._position > 0
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
+        return {"uuid": self._uuid, "room": self._room,
+                "category": self._cat,
+                "device_typ": "dimmer", "plattform": "loxone"}
+
+    @property
+    def supported_features(self):
+        return SUPPORT_BRIGHTNESS
