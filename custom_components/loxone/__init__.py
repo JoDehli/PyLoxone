@@ -649,7 +649,6 @@ class LoxWs:
         return True
 
     async def get_visual_hash(self):
-        print("get_visual_hash")
         command = "{}{}".format(CMD_GET_VISUAL_PASSWD, self._username)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
