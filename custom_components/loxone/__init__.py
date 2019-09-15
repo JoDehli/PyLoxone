@@ -18,6 +18,7 @@ import uuid
 from base64 import b64encode
 from datetime import datetime
 from struct import unpack
+import queue
 
 import homeassistant.helpers.config_validation as cv
 import requests
@@ -59,6 +60,7 @@ CMD_AUTH_WITH_TOKEN = "authwithtoken/"
 CMD_REFRESH_TOKEN = "jdev/sys/refreshtoken/"
 CMD_ENCRYPT_CMD = "jdev/sys/enc/"
 CMD_ENABLE_UPDATES = "jdev/sps/enablebinstatusupdate"
+CMD_GET_VISUAL_PASSWD = "jdev/sys/getvisusalt/"
 
 DEFAULT_TOKEN_PERSIST_NAME = "lox_token.cfg"
 ERROR_VALUE = -1
@@ -70,13 +72,17 @@ DEFAULT_PORT = 8080
 EVENT = 'loxone_event'
 DOMAIN = 'loxone'
 SENDDOMAIN = "loxone_send"
+SECUREDSENDDOMAIN = "loxone_send_secured"
 DEFAULT = ""
 ATTR_UUID = 'uuid'
 ATTR_VALUE = 'value'
+ATTR_CODE = "code"
 ATTR_COMMAND = "command"
 CONF_SCENE_GEN = "generate_scenes"
 
-LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "scene"]
+LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "scene", "alarm_control_panel"]
+# LOXONE_PLATFORMS = ["alarm_control_panel"]
+
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -166,6 +172,14 @@ def get_all_light_controller(json_data):
     controls = []
     for c in json_data['controls'].keys():
         if json_data['controls'][c]['type'] == "LightControllerV2":
+            controls.append(json_data['controls'][c])
+    return controls
+
+
+def get_all_alarm(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] == "Alarm":
             controls.append(json_data['controls'][c])
     return controls
 
@@ -317,10 +331,19 @@ async def async_setup(hass, config):
                     value = event.data.get(ATTR_VALUE, DEFAULT)
                     device_uuid = event.data.get(ATTR_UUID, DEFAULT)
                     await lox.send_websocket_command(device_uuid, value)
+
+                elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data,
+                                                                          dict):
+                    value = event.data.get(ATTR_VALUE, DEFAULT)
+                    device_uuid = event.data.get(ATTR_UUID, DEFAULT)
+                    code = event.data.get(ATTR_CODE, DEFAULT)
+                    await lox.send_secured__websocket_command(device_uuid, value, code)
+
             except ValueError:
                 traceback.print_exc()
 
         hass.bus.async_listen(SENDDOMAIN, listen_loxone_send)
+        hass.bus.async_listen(SECUREDSENDDOMAIN, listen_loxone_send)
 
         async def handle_websocket_command(call):
             """Handle websocket command services."""
@@ -357,6 +380,7 @@ class LxJsonKeySalt:
         self.key = None
         self.salt = None
         self.response = None
+        self.time_elapsed_in_seconds = None
 
     def read_user_salt_responce(self, reponse):
         js = json.loads(reponse, strict=False)
@@ -419,7 +443,7 @@ class LoxWs:
         self._ws = None
         self._current_message_typ = None
         self._encryption_ready = False
-
+        self._visual_hash = None
         self._keep_alive_task = None
 
         self.message_call_back = None
@@ -428,6 +452,7 @@ class LoxWs:
         self.connect_retries = 10
         self.connect_delay = 30
         self.state = "CLOSED"
+        self._secured_queue = queue.Queue(maxsize=1)
 
     @property
     def key(self):
@@ -529,6 +554,22 @@ class LoxWs:
             if self._encryption_ready:
                 await self._ws.send("keepalive")
 
+    async def send_secured(self, device_uuid, value, code):
+        from Crypto.Hash import SHA, HMAC
+        pwd_hash_str = code + ":" + self._visual_hash.salt
+        m = hashlib.sha1()
+        m.update(pwd_hash_str.encode('utf-8'))
+        pwd_hash = m.hexdigest().upper()
+        digester = HMAC.new(binascii.unhexlify(self._visual_hash.key),
+                            pwd_hash.encode("utf-8"), SHA)
+
+        command = "jdev/sps/ios/{}/{}/{}".format(digester.hexdigest(), device_uuid, value)
+        await self._ws.send(command)
+
+    async def send_secured__websocket_command(self, device_uuid, value, code):
+        self._secured_queue.put((device_uuid, value, code))
+        await self.get_visual_hash()
+
     async def send_websocket_command(self, device_uuid, value):
         """Send a websocket command to the Miniserver."""
         command = "jdev/sps/io/{}/{}".format(device_uuid, value)
@@ -601,9 +642,17 @@ class LoxWs:
         command = "{}".format(CMD_ENABLE_UPDATES)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
-        await self._ws.recv()
+        _ = await self._ws.recv()
+        _ = await self._ws.recv()
+
         self.state = "CONNECTED"
         return True
+
+    async def get_visual_hash(self):
+        print("get_visual_hash")
+        command = "{}{}".format(CMD_GET_VISUAL_PASSWD, self._username)
+        enc_command = await self.encrypt(command)
+        await self._ws.send(enc_command)
 
     async def ws_listen(self):
         """Listen to all commands from the Miniserver."""
@@ -626,6 +675,27 @@ class LoxWs:
         else:
             parsed_data = await self._parse_loxone_message(message)
             _LOGGER.debug("message [type:{}]):{}".format(self._current_message_typ, parsed_data))
+
+            try:
+                resp_json = json.loads(parsed_data)
+            except TypeError:
+                resp_json = None
+
+            # Visual hash and key response
+            if resp_json is not None and 'LL' in resp_json:
+                if "control" in resp_json['LL'] and "code" in resp_json['LL'] and resp_json['LL']['code'] == 200:
+                    if 'value' in resp_json['LL']:
+                        if 'key' in resp_json['LL']['value'] and 'salt' in resp_json['LL']['value']:
+                            key_and_salt = LxJsonKeySalt()
+                            key_and_salt.key = resp_json['LL']['value']['key']
+                            key_and_salt.salt = resp_json['LL']['value']['salt']
+                            key_and_salt.time_elapsed_in_seconds = time_elapsed_in_seconds()
+                            self._visual_hash = key_and_salt
+
+                            while not self._secured_queue.empty():
+                                secured_message = self._secured_queue.get()
+                                await self.send_secured(secured_message[0], secured_message[1], secured_message[2])
+
             if self.message_call_back is not None:
                 if "LL" not in parsed_data and parsed_data != {}:
                     await self.message_call_back(parsed_data)
@@ -737,7 +807,7 @@ class LoxWs:
 
     async def acquire_token(self):
         _LOGGER.debug("acquire_tokend")
-        command = "{}".format(CMD_GET_KEY_AND_SALT + self._username)
+        command = "{}{}".format(CMD_GET_KEY_AND_SALT, self._username)
         enc_command = await self.encrypt(command)
 
         if not self._encryption_ready or self._ws is None:
@@ -749,10 +819,10 @@ class LoxWs:
 
         message = await self._ws.recv()
 
-        key_and_salf = LxJsonKeySalt()
-        key_and_salf.read_user_salt_responce(message)
+        key_and_salt = LxJsonKeySalt()
+        key_and_salt.read_user_salt_responce(message)
 
-        new_hash = self.hash_credentials(key_and_salf)
+        new_hash = self.hash_credentials(key_and_salt)
         command = "{}{}/{}/{}/edfc5f9a-df3f-4cad-9dddcdc42c732be2" \
                   "/homeassistant".format(CMD_REQUEST_TOKEN, new_hash,
                                           self._username, TOKEN_PERMISSION)
