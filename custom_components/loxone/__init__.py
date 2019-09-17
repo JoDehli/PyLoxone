@@ -184,6 +184,14 @@ def get_all_alarm(json_data):
     return controls
 
 
+def get_all_dimmer(json_data):
+    controls = []
+    for c in json_data['controls'].keys():
+        if json_data['controls'][c]['type'] == "Dimmer":
+            controls.append(json_data['controls'][c])
+    return controls
+
+
 async def async_setup(hass, config):
     """setup loxone"""
 
@@ -236,7 +244,7 @@ async def async_setup(hass, config):
                     sensors_digital = []
                     switches = []
                     covers = []
-                    light_controllers = []
+                    lights = []
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
@@ -253,13 +261,15 @@ async def async_setup(hass, config):
                             elif attr['device_typ'] == "switch":
                                 switches.append(s_dict['entity_id'])
                             elif attr['device_typ'] == "lightcontrollerv2":
-                                light_controllers.append(s_dict['entity_id'])
+                                lights.append(s_dict['entity_id'])
+                            elif attr['device_typ'] == "dimmer":
+                                lights.append(s_dict['entity_id'])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
                     covers.sort()
                     switches.sort()
-                    light_controllers.sort()
+                    lights.sort()
 
                     async def create_loxone_group(object_id, name,
                                                   entity_names, visible=True,
@@ -285,7 +295,7 @@ async def async_setup(hass, config):
                                               "Loxone Analog Sensors",
                                               sensors_analog, True, False)
 
-                    await create_loxone_group("loxone_digtial",
+                    await create_loxone_group("loxone_digital",
                                               "Loxone Digital Sensors",
                                               sensors_digital, True, False)
 
@@ -296,15 +306,16 @@ async def async_setup(hass, config):
                     await create_loxone_group("loxone_covers", "Loxone Covers",
                                               covers, True, False)
 
-                    await create_loxone_group("loxone_lightcontrollers", "Loxone Light Controllers",
-                                              light_controllers, True, False)
+                    await create_loxone_group("loxone_lights", "Loxone Lights",
+                                              lights, True, False)
 
                     await create_loxone_group("loxone_group", "Loxone Group",
                                               ["group.loxone_analog",
-                                               "group.loxone_digtial",
+                                               "group.loxone_digital",
                                                "group.loxone_switches",
                                                "group.loxone_covers",
-                                               "group.loxone_lightcontrollers"
+                                               "group.loxone_lights",
+                                               "group.loxone_dimmers"
                                                ],
                                               True, True)
                 except:
