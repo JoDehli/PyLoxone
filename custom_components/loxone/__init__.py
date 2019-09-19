@@ -81,8 +81,6 @@ ATTR_COMMAND = "command"
 CONF_SCENE_GEN = "generate_scenes"
 
 LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "scene", "alarm_control_panel"]
-# LOXONE_PLATFORMS = ["alarm_control_panel"]
-
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -132,63 +130,47 @@ def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
     if "cats" in lox_config:
         if cat_uuid in lox_config['cats']:
             return lox_config['cats'][cat_uuid]['name']
-
     return ""
 
 
 def get_all_push_buttons(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] in ["Pushbutton", "Switch"]:
-            controls.append(json_data['controls'][c])
-    return controls
+    return get_all(json_data, ["Pushbutton", "Switch"])
 
 
 def get_all_covers(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] in ["Jalousie", "Gate"]:
-            controls.append(json_data['controls'][c])
-    return controls
+    return get_all(json_data, ["Jalousie", "Gate"])
 
 
 def get_all_analog_info(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] == "InfoOnlyAnalog":
-            controls.append(json_data['controls'][c])
-    return controls
+    return get_all(json_data, 'InfoOnlyAnalog')
 
 
 def get_all_digital_info(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] == "InfoOnlyDigital":
-            controls.append(json_data['controls'][c])
-    return controls
+    return get_all(json_data, 'InfoOnlyDigital')
 
 
 def get_all_light_controller(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] == "LightControllerV2":
-            controls.append(json_data['controls'][c])
-    return controls
+    return get_all(json_data, 'LightControllerV2')
 
 
 def get_all_alarm(json_data):
-    controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] == "Alarm":
-            controls.append(json_data['controls'][c])
-    return controls
+    return get_all(json_data, 'Alarm')
 
 
 def get_all_dimmer(json_data):
+    return get_all(json_data, 'Dimmer')
+
+
+def get_all(json_data, name):
     controls = []
-    for c in json_data['controls'].keys():
-        if json_data['controls'][c]['type'] == "Dimmer":
-            controls.append(json_data['controls'][c])
+    if isinstance(name, list):
+        for c in json_data['controls'].keys():
+            if json_data['controls'][c]['type'] in name:
+                controls.append(json_data['controls'][c])
+    else:
+        for c in json_data['controls'].keys():
+            if json_data['controls'][c]['type'] == name:
+                controls.append(json_data['controls'][c])
     return controls
 
 
@@ -530,31 +512,30 @@ class LoxWs:
             [consumer_task, keep_alive_task, refresh_token_task],
             return_when=asyncio.FIRST_COMPLETED,
         )
+
         for task in pending:
             task.cancel()
 
         if self.state is not "STOPPING":
             self.state == "CONNECTING"
+            self._pending = []
             for i in range(self.connect_retries):
-                await asyncio.sleep(self.connect_delay)
+                _LOGGER.debug("reconnect: {} from {}".format(i + 1, self.connect_retries))
                 await self.stop()
-                self._pending = []
+                await asyncio.sleep(self.connect_delay)
                 res = await self.reconnect()
-                if res:
+                if res is True:
+                    await self.start()
                     break
 
     async def reconnect(self):
-        res = await self.async_init()
-        if res:
-            await self.start()
-        return res
+        return await self.async_init()
 
     async def stop(self):
         try:
             self.state = "STOPPING"
-            await self._ws.close()
-            for task in self._pending:
-                task.cancel()
+            if not self._ws.closed:
+                await self._ws.close()
             return 1
         except:
             return -1
@@ -1007,7 +988,11 @@ class LoxWs:
                                            CMD_GET_PUBLIC_KEY)
         _LOGGER.debug("try to get public key: {}".format(command))
 
-        response = requests.get(command, auth=(self._username, self._pasword))
+        try:
+            response = requests.get(command, auth=(self._username, self._pasword), timeout=1)
+        except:
+            return False
+
         if response.status_code != 200:
             _LOGGER.debug(
                 "error get_public_key: {}".format(response.status_code))
