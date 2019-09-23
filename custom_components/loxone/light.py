@@ -40,6 +40,8 @@ def async_setup_platform(hass, config, async_add_devices,
     config = hass.data[DOMAIN]
     loxconfig = config['loxconfig']
     devices = []
+    all_dimmers = []
+
     for light_controller in get_all_light_controller(loxconfig):
         new_light_controller = LoxonelightcontrollerV2(name=light_controller['name'],
                                                        uuid=light_controller['uuidAction'],
@@ -51,10 +53,21 @@ def async_setup_platform(hass, config, async_add_devices,
                                                        complete_data=light_controller,
                                                        async_add_devices=async_add_devices)
 
+        if 'subControls' in  light_controller:
+            if len(light_controller['subControls']) > 0:
+                for sub_controll in light_controller['subControls']:
+
+                    if light_controller['subControls'][sub_controll]['type'] == "Dimmer":
+                        light_controller['subControls'][sub_controll]['room'] = light_controller['room']
+                        light_controller['subControls'][sub_controll]['cat'] = light_controller['cat']
+                        all_dimmers.append(light_controller['subControls'][sub_controll])
+
         hass.bus.async_listen(EVENT, new_light_controller.event_handler)
         devices.append(new_light_controller)
 
-    for dimmer in get_all_dimmer(loxconfig):
+    all_dimmers += get_all_dimmer(loxconfig)
+
+    for dimmer in all_dimmers:
         new_dimmer = LoxoneDimmer(name=dimmer['name'],
                                   uuid=dimmer['uuidAction'],
                                   uuid_position=dimmer['states']['position'],
