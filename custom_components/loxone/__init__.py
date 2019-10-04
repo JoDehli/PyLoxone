@@ -31,7 +31,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
 from homeassistant.helpers.discovery import async_load_platform
 from requests.auth import HTTPBasicAuth
 
-REQUIREMENTS = ['websockets', "pycryptodome"]
+REQUIREMENTS = ['websockets', "pycryptodome", "numpy"]
 
 # Loxone constants
 TIMEOUT = 10

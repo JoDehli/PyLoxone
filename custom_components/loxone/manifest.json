@@ -4,7 +4,8 @@
   "documentation": "https://www.home-assistant.io/components/loxone",
   "requirements": [
     "websockets",
-    "pycryptodome"
+    "pycryptodome",
+    "numpy"
   ],
   "dependencies": [],
   "codeowners": []
