@@ -8,9 +8,17 @@ from homeassistant.components.light import (
     SUPPORT_BRIGHTNESS,
     SUPPORT_COLOR,
     SUPPORT_COLOR_TEMP,
+    SUPPORT_WHITE_VALUE,
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP,
+    ATTR_MIN_MIREDS,
+    ATTR_MAX_MIREDS,
+    ATTR_EFFECT_LIST,
+    ATTR_EFFECT,
+    ATTR_RGB_COLOR,
     ATTR_HS_COLOR,
+    ATTR_MAX_MIREDS,
+    ATTR_XY_COLOR,
     Light,
     ToggleEntity
 )
@@ -49,12 +57,12 @@ def to_loxone_level(level):
 
 def to_hass_color_temp(temp):
     """Linear interpolation between Loxone values from 2700 to 6500"""
-    return np.interp(temp, [2700, 6500], [100, 0])
+    return np.interp(temp, [2700, 6500], [500, 153])
 
 
 def to_loxone_color_temp(temp):
     """Linear interpolation between HASS values from 0 to 1000"""
-    return np.interp(temp, [0, 100], [6500, 2700])
+    return np.interp(temp, [153, 500], [6500, 2700])
 
 
 @asyncio.coroutine
@@ -464,7 +472,7 @@ class LoxoneColorPickerV2(Light):
             self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self._action_uuid, value="setBrightness/1"))
         self.schedule_update_ha_state()
 
-    def turn_off(self, **kwargs: Any) -> None:
+    def turn_off(self) -> None:
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self._action_uuid, value="setBrightness/0"))
         self.schedule_update_ha_state()
 
@@ -526,11 +534,11 @@ class LoxoneColorPickerV2(Light):
 
     @property
     def min_mireds(self):
-        return 0
+        return 153
 
     @property
     def max_mireds(self):
-        return 100.0
+        return 500
 
     @property
     def white_value(self):
