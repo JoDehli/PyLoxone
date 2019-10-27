@@ -1,30 +1,22 @@
 import asyncio
 import logging
 from typing import Any
-import numpy as np
 
+import homeassistant.util.color as color_util
+import numpy as np
 from homeassistant.components.light import (
     SUPPORT_EFFECT,
     SUPPORT_BRIGHTNESS,
     SUPPORT_COLOR,
     SUPPORT_COLOR_TEMP,
-    SUPPORT_WHITE_VALUE,
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP,
-    ATTR_MIN_MIREDS,
-    ATTR_MAX_MIREDS,
-    ATTR_EFFECT_LIST,
-    ATTR_EFFECT,
-    ATTR_RGB_COLOR,
     ATTR_HS_COLOR,
-    ATTR_MAX_MIREDS,
-    ATTR_XY_COLOR,
     Light,
     ToggleEntity
 )
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
-import homeassistant.util.color as color_util
 
 from . import get_room_name_from_room_uuid, \
     get_cat_name_from_cat_uuid, \
