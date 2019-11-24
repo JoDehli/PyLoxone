@@ -33,6 +33,7 @@ class LoxoneCover extends LitElement {
     }
   
     .box-1 {
+     color:  var(--state-icon-color) !important;
     }
 
     .box-2 {      
@@ -49,7 +50,7 @@ class LoxoneCover extends LitElement {
       flex-direction:column;
     }
     `;
-  }
+    }
 
   render() {
     /**
