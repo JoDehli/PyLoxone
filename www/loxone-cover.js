@@ -29,7 +29,7 @@ class LoxoneCover extends LitElement {
     
     .container-1 div {
       border:0px #ccc solid;
-      padding:5px;
+      padding:10px;
     }
   
     .box-1 {
@@ -72,10 +72,10 @@ class LoxoneCover extends LitElement {
         </div> 
       </div>
       <div class="box-3"> 
-        <paper-icon-button icon="mdi:view-column" @click="${this._onShade}" ></paper-icon-button>
-        <paper-icon-button icon="hass:arrow-up" @click="${this._onUp}" ></paper-icon-button>
-        <paper-icon-button icon="hass:stop" @click="${this._onStop}"></paper-icon-button>
-        <paper-icon-button icon="hass:arrow-down" @click="${this._onDown}"></paper-icon-button>
+        <paper-icon-button style="width: 24px; height: 24px; padding: 0px; margin-left: 15px;" icon="mdi:view-column" @click="${this._onShade}" ></paper-icon-button>
+        <paper-icon-button style="width: 24px; height: 24px; padding: 0px; margin-left: 15px;" icon="hass:arrow-up" @click="${this._onUp}" ></paper-icon-button>
+        <paper-icon-button style="width: 24px; height: 24px; padding: 0px; margin-left: 15px;" icon="hass:stop" @click="${this._onStop}"></paper-icon-button>
+        <paper-icon-button style="width: 24px; height: 24px; padding: 0px; margin-left: 15px; margin-right: 2px;" icon="hass:arrow-down" @click="${this._onDown}"></paper-icon-button>
       </div>
       </div>
     `;
