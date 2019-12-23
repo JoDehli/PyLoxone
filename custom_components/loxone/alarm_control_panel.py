@@ -6,6 +6,11 @@ import voluptuous as vol
 
 import homeassistant.components.alarm_control_panel as alarm
 from homeassistant.components.alarm_control_panel import PLATFORM_SCHEMA
+from homeassistant.components.alarm_control_panel.const import (
+    SUPPORT_ALARM_ARM_AWAY,
+    SUPPORT_ALARM_ARM_HOME,
+    SUPPORT_ALARM_ARM_NIGHT
+)
 from homeassistant.const import (
     CONF_CODE,
     CONF_NAME,
@@ -97,7 +102,9 @@ class LoxoneAlarm(alarm.AlarmControlPanel):
 
             if "armedDelay" in states:
                 self._armed_delay_total_delay_uuid = states["armedDelayTotal"]
-
+    @property
+    def supported_features(self):
+        return SUPPORT_ALARM_ARM_HOME | SUPPORT_ALARM_ARM_AWAY | SUPPORT_ALARM_ARM_NIGHT
     @property
     def code_arm_required(self):
         """Whether the code is required for arm actions."""
