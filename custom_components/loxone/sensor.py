@@ -18,9 +18,8 @@ EVENT = "loxone_event"
 DOMAIN = 'loxone'
 
 
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices,
-                         discovery_info: object = {}):
+async def async_setup_platform(hass, config, async_add_devices,
+                               discovery_info: object = {}):
     """Set up Loxone Sensor."""
 
     value_template = config.get(CONF_VALUE_TEMPLATE)
@@ -75,8 +74,7 @@ class Loxonesensor(Entity):
         self._complete_data = complete_data
         self.extract_attributes()
 
-    @asyncio.coroutine
-    def event_handler(self, event):
+    async def event_handler(self, event):
         if self._uuid in event.data:
             if self._sensortyp == "analog":
                 self._state = round(event.data[self._uuid], 1)

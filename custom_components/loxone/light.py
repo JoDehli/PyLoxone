@@ -251,8 +251,7 @@ class LoxonelightcontrollerV2(Light):
             return self.get_moodname_by_id(self._active_moods[0])
         return None
 
-    def async_turn_on(self, **kwargs) -> None:
-
+    def turn_on(self, **kwargs) -> None:
         if 'effect' in kwargs:
             effects = kwargs['effect'].split(",")
             if len(effects) == 1:

@@ -27,8 +27,7 @@ SUPPORT_STOP_TILT = 64
 SUPPORT_SET_TILT_POSITION = 128
 
 
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
+async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
     """Set up the Demo covers."""
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
@@ -163,8 +162,7 @@ class LoxoneGate(CoverDevice):
                                      dict(uuid=self._uuid, value="close"))
             return
 
-    @asyncio.coroutine
-    def event_handler(self, event):
+    async def event_handler(self, event):
         if self._position_uuid in event.data or self._state_uuid in event.data:
             if self._position_uuid in event.data:
                 self._position = float(event.data[self._position_uuid]) * 100.
@@ -236,8 +234,7 @@ class LoxoneJalousie(CoverDevice):
             supported_features |= (SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT)
         return supported_features
 
-    @asyncio.coroutine
-    def event_handler(self, event):
+    async def event_handler(self, event):
         if self._position_uuid in event.data or \
                 self._shade_uuid in event.data or \
                 self._up_uuid in event.data or \

@@ -102,9 +102,11 @@ class LoxoneAlarm(alarm.AlarmControlPanel):
 
             if "armedDelay" in states:
                 self._armed_delay_total_delay_uuid = states["armedDelayTotal"]
+
     @property
     def supported_features(self):
         return SUPPORT_ALARM_ARM_HOME | SUPPORT_ALARM_ARM_AWAY | SUPPORT_ALARM_ARM_NIGHT
+
     @property
     def code_arm_required(self):
         """Whether the code is required for arm actions."""
@@ -115,8 +117,7 @@ class LoxoneAlarm(alarm.AlarmControlPanel):
             self._code = None
         return self._secured
 
-    @asyncio.coroutine
-    def event_handler(self, event):
+    async def event_handler(self, event):
         request_update = False
         if self._armed_uuid in event.data:
             self._state = event.data[self._armed_uuid]
@@ -158,6 +159,18 @@ class LoxoneAlarm(alarm.AlarmControlPanel):
     def icon(self):
         """Return the icon to use in the frontend, if any."""
         return None
+
+    def alarm_disarm(self, code=None):
+        pass
+
+    def alarm_arm_home(self, code=None):
+        pass
+
+    def alarm_arm_away(self, code=None):
+        pass
+
+    def alarm_arm_night(self, code=None):
+        pass
 
     async def async_alarm_disarm(self, code=None):
         """Send disarm command."""
