@@ -9,3 +9,4 @@ hass.py
 
 *.yaml
 *.db
+*.log

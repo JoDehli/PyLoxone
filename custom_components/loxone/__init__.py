@@ -475,7 +475,7 @@ class LoxWs:
         if 'LL' in resp_json:
             if "value" in resp_json['LL']:
                 key = resp_json['LL']['value']
-                if key := "":
+                if key == "":
                     digester = HMAC.new(binascii.unhexlify(key),
                                         self._token.token.encode("utf-8"), SHA)
                     token_hash = digester.hexdigest()
@@ -652,7 +652,7 @@ class LoxWs:
                 message = await self._ws.recv()
                 await self._async_process_message(message)
                 await asyncio.sleep(0)
-        except ConnectionResetError:
+        except:
             pass
 
     async def _async_process_message(self, message):
