@@ -1,0 +1,12 @@
+.HA_VERSION
+
+.storage
+.cloud
+deps
+tts
+
+hass.py
+
+*.yaml
+*.db
+*.log

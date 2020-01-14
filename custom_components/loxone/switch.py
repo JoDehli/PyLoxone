@@ -16,8 +16,7 @@ EVENT = "loxone_event"
 SENDDOMAIN = "loxone_send"
 
 
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
+async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
         value_template.hass = hass
@@ -39,6 +38,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
 
     async_add_devices(devices)
     return True
+
 
 class LoxoneSwitch(SwitchDevice):
     """Representation of a loxone switch or pushbutton"""
@@ -93,8 +93,7 @@ class LoxoneSwitch(SwitchDevice):
         self._state = False
         self.schedule_update_ha_state()
 
-    @asyncio.coroutine
-    def event_handler(self, event):
+    async def event_handler(self, event):
         if self._uuid in event.data or self._uuid_state in event.data:
             if self._uuid_state in event.data:
                 self._state = event.data[self._uuid_state]
@@ -106,5 +105,5 @@ class LoxoneSwitch(SwitchDevice):
 
         Implemented by platform classes.
         """
-        return {"uuid": self._uuid, "state_uuid": self._uuid_state, "room":self._room, "category":self._cat,
+        return {"uuid": self._uuid, "state_uuid": self._uuid_state, "room": self._room, "category": self._cat,
                 "device_typ": "switch", "plattform": "loxone"}
