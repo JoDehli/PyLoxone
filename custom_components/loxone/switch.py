@@ -30,8 +30,8 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
         new_push_button = LoxoneSwitch(push_button['name'],
                                        push_button['uuidAction'],
                                        push_button['states']['active'],
-                                       room=get_room_name_from_room_uuid(loxconfig, push_button['room']),
-                                       cat=get_cat_name_from_cat_uuid(loxconfig, push_button['cat']))
+                                       room=get_room_name_from_room_uuid(loxconfig, push_button.get('room', '')),
+                                       cat=get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', '')))
 
         hass.bus.async_listen(EVENT, new_push_button.event_handler)
         devices.append(new_push_button)

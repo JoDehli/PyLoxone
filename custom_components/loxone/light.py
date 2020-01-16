@@ -80,9 +80,9 @@ def async_setup_platform(hass, config, async_add_devices,
                                                        uuid=light_controller['uuidAction'],
                                                        sensortyp="lightcontrollerv2",
                                                        room=get_room_name_from_room_uuid(loxconfig,
-                                                                                         light_controller['room']),
+                                                                                         light_controller.get('room', '')),
                                                        cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                                                      light_controller['cat']),
+                                                                                      light_controller.get('cat', '')),
                                                        complete_data=light_controller,
                                                        async_add_devices=async_add_devices)
 
@@ -90,17 +90,17 @@ def async_setup_platform(hass, config, async_add_devices,
             if len(light_controller['subControls']) > 0:
                 for sub_controll in light_controller['subControls']:
                     if light_controller['subControls'][sub_controll]['type'] == "Dimmer":
-                        light_controller['subControls'][sub_controll]['room'] = light_controller['room']
-                        light_controller['subControls'][sub_controll]['cat'] = light_controller['cat']
+                        light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
+                        light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
                         all_dimmers.append(light_controller['subControls'][sub_controll])
                     elif light_controller['subControls'][sub_controll]['type'] == "Switch":
-                        light_controller['subControls'][sub_controll]['room'] = light_controller['room']
-                        light_controller['subControls'][sub_controll]['cat'] = light_controller['cat']
+                        light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
+                        light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
                         all_switches.append(light_controller['subControls'][sub_controll])
 
                     elif light_controller['subControls'][sub_controll]['type'] == "ColorPickerV2":
-                        light_controller['subControls'][sub_controll]['room'] = light_controller['room']
-                        light_controller['subControls'][sub_controll]['cat'] = light_controller['cat']
+                        light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
+                        light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
                         all_color_picker.append(light_controller['subControls'][sub_controll])
 
         hass.bus.async_listen(EVENT, new_light_controller.event_handler)
@@ -114,9 +114,9 @@ def async_setup_platform(hass, config, async_add_devices,
                                   uuid_position=dimmer['states']['position'],
                                   sensortyp="dimmer",
                                   room=get_room_name_from_room_uuid(loxconfig,
-                                                                    dimmer['room']),
+                                                                    dimmer.get('room', '')),
                                   cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                                 dimmer['cat']),
+                                                                 dimmer.get('cat', '')),
                                   complete_data=dimmer,
                                   async_add_devices=async_add_devices)
 
@@ -129,9 +129,9 @@ def async_setup_platform(hass, config, async_add_devices,
                                  action_uuid=switch['uuidAction'],
                                  sensortyp="switch",
                                  room=get_room_name_from_room_uuid(loxconfig,
-                                                                   dimmer['room']),
+                                                                   dimmer.get('room', '')),
                                  cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                                dimmer['cat']),
+                                                                dimmer.get('cat', '')),
                                  complete_data=dimmer,
                                  async_add_devices=async_add_devices)
 
@@ -144,9 +144,9 @@ def async_setup_platform(hass, config, async_add_devices,
                                                action_uuid=color_picker['uuidAction'],
                                                sensortyp="colorpicker",
                                                room=get_room_name_from_room_uuid(loxconfig,
-                                                                                 color_picker['room']),
+                                                                                 color_picker.get('room', '')),
                                                cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                                              color_picker['cat']),
+                                                                              color_picker.get('cat', '')),
                                                complete_data=color_picker,
                                                async_add_devices=async_add_devices)
 
