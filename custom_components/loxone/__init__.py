@@ -134,7 +134,7 @@ def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
 
 
 def get_all_push_buttons(json_data):
-    return get_all(json_data, ["Pushbutton", "Switch", "TimedSwitch"])
+    return get_all(json_data, ["Pushbutton", "Switch", "TimedSwitch", "Intercom"])
 
 
 def get_all_covers(json_data):

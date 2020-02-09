@@ -27,7 +27,6 @@ async def async_setup_platform(hass, config, async_add_devices,
         value_template.hass = hass
 
     config = hass.data[DOMAIN]
-    loxconfig = config['loxconfig']
 
     async def async_call():
         devices = []

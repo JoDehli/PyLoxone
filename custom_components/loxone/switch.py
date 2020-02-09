@@ -4,6 +4,7 @@ import asyncio
 import logging
 
 from homeassistant.components.switch import SwitchDevice
+from homeassistant.components.script import ScriptEntity
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 from homeassistant.const import DEVICE_DEFAULT_NAME
@@ -33,17 +34,37 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
                                            push_button['states']['active'],
                                            room=get_room_name_from_room_uuid(loxconfig, push_button.get('room', '')),
                                            cat=get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', '')))
+            hass.bus.async_listen(EVENT, new_push_button.event_handler)
+            devices.append(new_push_button)
 
-        else:
+        elif push_button['type'] == "TimedSwitch":
             new_push_button = LoxoneTimedSwitch(push_button['name'],
                                                 push_button['uuidAction'],
                                                 push_button['states'],
                                                 room=get_room_name_from_room_uuid(loxconfig,
                                                                                   push_button.get('room', '')),
                                                 cat=get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', '')))
+            hass.bus.async_listen(EVENT, new_push_button.event_handler)
+            devices.append(new_push_button)
 
-        hass.bus.async_listen(EVENT, new_push_button.event_handler)
-        devices.append(new_push_button)
+        elif push_button['type'] == "Intercom":
+            if "subControls" in push_button:
+
+                for sub_name in push_button['subControls']:
+                    subcontol = push_button['subControls'][sub_name]
+                    if "states" in subcontol and "active" in subcontol['states']:
+                        acitive = subcontol['states']['active']
+
+                    new_push_button = LoxoneSwitch("{} - {}".format(push_button['name'], subcontol['name']),
+                                                   subcontol['uuidAction'],
+                                                   acitive,
+                                                   room=get_room_name_from_room_uuid(loxconfig,
+                                                                                     push_button.get('room', '')),
+                                                   cat=get_cat_name_from_cat_uuid(loxconfig,
+                                                                                  push_button.get('cat', '')))
+
+                    hass.bus.async_listen(EVENT, new_push_button.event_handler)
+                    devices.append(new_push_button)
 
     async_add_devices(devices)
     return True
