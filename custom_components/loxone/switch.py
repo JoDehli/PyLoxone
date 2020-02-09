@@ -246,8 +246,6 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
     def __init__(self, name, uuid, uuid_state, room="", cat=""):
         LoxoneSwitch.__init__(self, name, uuid, uuid_state, room="", cat="")
 
-        print("RE")
-
     def turn_on(self, **kwargs):
         """Turn the switch on."""
         self.hass.bus.async_fire(SENDDOMAIN,
