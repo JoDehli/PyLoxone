@@ -4,7 +4,6 @@ import asyncio
 import logging
 
 from homeassistant.components.switch import SwitchDevice
-from homeassistant.components.script import ScriptEntity
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 from homeassistant.const import DEVICE_DEFAULT_NAME
@@ -53,11 +52,11 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
                 for sub_name in push_button['subControls']:
                     subcontol = push_button['subControls'][sub_name]
                     if "states" in subcontol and "active" in subcontol['states']:
-                        acitive = subcontol['states']['active']
+                        active = subcontol['states']['active']
 
                     new_push_button = LoxoneSwitch("{} - {}".format(push_button['name'], subcontol['name']),
                                                    subcontol['uuidAction'],
-                                                   acitive,
+                                                   active,
                                                    room=get_room_name_from_room_uuid(loxconfig,
                                                                                      push_button.get('room', '')),
                                                    cat=get_cat_name_from_cat_uuid(loxconfig,
