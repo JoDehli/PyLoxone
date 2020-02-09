@@ -54,13 +54,13 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
                     if "states" in subcontol and "active" in subcontol['states']:
                         active = subcontol['states']['active']
 
-                    new_push_button = LoxoneSwitch("{} - {}".format(push_button['name'], subcontol['name']),
-                                                   subcontol['uuidAction'],
-                                                   active,
-                                                   room=get_room_name_from_room_uuid(loxconfig,
-                                                                                     push_button.get('room', '')),
-                                                   cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                                                  push_button.get('cat', '')))
+                    new_push_button = LoxoneIntercomSubControl("{} - {}".format(push_button['name'], subcontol['name']),
+                                                               subcontol['uuidAction'],
+                                                               active,
+                                                               room=get_room_name_from_room_uuid(loxconfig,
+                                                                                                 push_button.get('room',
+                                                                                                                 '')),
+                                                               cat=get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat','')))
 
                     hass.bus.async_listen(EVENT, new_push_button.event_handler)
                     devices.append(new_push_button)
@@ -240,3 +240,26 @@ class LoxoneSwitch(SwitchDevice):
         """
         return {"uuid": self._uuid, "state_uuid": self._uuid_state, "room": self._room, "category": self._cat,
                 "device_typ": "switch", "plattform": "loxone"}
+
+
+class LoxoneIntercomSubControl(LoxoneSwitch):
+    def __init__(self, name, uuid, uuid_state, room="", cat=""):
+        LoxoneSwitch.__init__(self, name, uuid, uuid_state, room="", cat="")
+
+        print("RE")
+
+    def turn_on(self, **kwargs):
+        """Turn the switch on."""
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self._uuid, value="on"))
+        self._state = True
+        self.schedule_update_ha_state()
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
+        return {"uuid": self._uuid, "state_uuid": self._uuid_state, "room": self._room, "category": self._cat,
+                "device_typ": "loxone_intercom_subcontrol", "plattform": "loxone"}
