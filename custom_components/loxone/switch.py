@@ -81,17 +81,19 @@ class LoxoneSwitch(SwitchDevice):
 
     def turn_on(self, **kwargs):
         """Turn the switch on."""
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self._uuid, value="pulse"))
-        self._state = True
-        self.schedule_update_ha_state()
+        if self._state == False:
+            self.hass.bus.async_fire(SENDDOMAIN,
+                                    dict(uuid=self._uuid, value="pulse"))
+            self._state = True
+            self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self._uuid, value="pulse"))
-        self._state = False
-        self.schedule_update_ha_state()
+        if self._state == True:
+            self.hass.bus.async_fire(SENDDOMAIN,
+                                    dict(uuid=self._uuid, value="pulse"))
+            self._state = False
+            self.schedule_update_ha_state()
 
     async def event_handler(self, event):
         if self._uuid in event.data or self._uuid_state in event.data:
