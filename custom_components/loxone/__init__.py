@@ -31,7 +31,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
 from homeassistant.helpers.discovery import async_load_platform
 from requests.auth import HTTPBasicAuth
 
-REQUIREMENTS = ['websockets', "pycryptodome"]
+REQUIREMENTS = ['websockets', "pycryptodome", "numpy"]
 
 # Loxone constants
 TIMEOUT = 10
@@ -475,7 +475,7 @@ class LoxWs:
         if 'LL' in resp_json:
             if "value" in resp_json['LL']:
                 key = resp_json['LL']['value']
-                if key is not "":
+                if key == "":
                     digester = HMAC.new(binascii.unhexlify(key),
                                         self._token.token.encode("utf-8"), SHA)
                     token_hash = digester.hexdigest()
@@ -516,7 +516,7 @@ class LoxWs:
         for task in pending:
             task.cancel()
 
-        if self.state is not "STOPPING":
+        if self.state != "STOPPING":
             self.state == "CONNECTING"
             self._pending = []
             for i in range(self.connect_retries):
@@ -652,7 +652,7 @@ class LoxWs:
                 message = await self._ws.recv()
                 await self._async_process_message(message)
                 await asyncio.sleep(0)
-        except ConnectionResetError:
+        except:
             pass
 
     async def _async_process_message(self, message):
@@ -674,7 +674,7 @@ class LoxWs:
 
             # Visual hash and key response
             if resp_json is not None and 'LL' in resp_json:
-                if "control" in resp_json['LL'] and "code" in resp_json['LL'] and resp_json['LL']['code'] == 200:
+                if "control" in resp_json['LL'] and "code" in resp_json['LL'] and resp_json['LL']['code'] in [200, '200']:
                     if 'value' in resp_json['LL']:
                         if 'key' in resp_json['LL']['value'] and 'salt' in resp_json['LL']['value']:
                             key_and_salt = LxJsonKeySalt()
@@ -790,7 +790,7 @@ class LoxWs:
         if 'LL' in resp_json:
             if "value" in resp_json['LL']:
                 key = resp_json['LL']['value']
-                if key is not "":
+                if key != "":
                     digester = HMAC.new(binascii.unhexlify(key),
                                         self._token.token.encode("utf-8"), SHA)
                     return digester.hexdigest()
@@ -886,12 +886,12 @@ class LoxWs:
         from Crypto.Util import Padding
         if not self._encryption_ready:
             return command
-        if self._salt is not "" and self.new_salt_needed():
+        if self._salt != "" and self.new_salt_needed():
             prev_salt = self._salt
             self._salt = self.genarate_salt()
             s = "nextSalt/{}/{}/{}\0".format(prev_salt, self._salt, command)
         else:
-            if self._salt is "":
+            if self._salt == "":
                 self._salt = self.genarate_salt()
             s = "salt/{}/{}\0".format(self._salt, command)
         s = Padding.pad(bytes(s, "utf-8"), 16)

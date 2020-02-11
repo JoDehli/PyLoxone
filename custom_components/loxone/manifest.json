@@ -1,11 +1,13 @@
 {
   "domain": "loxone",
   "name": "PyLoxone",
-  "documentation": "https://www.home-assistant.io/components/loxone",
+  "documentation": "https://github.com/JoDehli/PyLoxone",
   "requirements": [
     "websockets",
-    "pycryptodome"
+    "pycryptodome",
+    "numpy"
   ],
   "dependencies": [],
-  "codeowners": []
+  "codeowners": ["JoDehli"],
+  "homeassistant": "0.103.0"
 }

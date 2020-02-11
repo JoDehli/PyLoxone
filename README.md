@@ -1,7 +1,7 @@
 # PyLoxone
 Home Assistant binding for Loxone. 
 
-#### This release works for the version 0.88.2 and newer!!
+#### This release works for the version 0.103.0 and newer!!
 
 ## Installation
 Copy all the files and subfolders to your custom_components folder in your HomeAssistant

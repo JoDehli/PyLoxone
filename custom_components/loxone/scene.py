@@ -16,9 +16,9 @@ DOMAIN = 'loxone'
 SENDDOMAIN = "loxone_send"
 CONF_SCENE_GEN = "generate_scenes"
 
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices,
-                         discovery_info=None):
+
+async def async_setup_platform(hass, config, async_add_devices,
+                               discovery_info=None):
     """Set up Scenes."""
     if discovery_info is None:
         return
@@ -29,7 +29,6 @@ def async_setup_platform(hass, config, async_add_devices,
     config = hass.data[DOMAIN]
     loxconfig = config['loxconfig']
 
-    @asyncio.coroutine
     async def async_call():
         devices = []
         entity_ids = hass.states.async_entity_ids("LIGHT")
