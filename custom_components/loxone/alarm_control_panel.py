@@ -59,9 +59,9 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
                                 uuid=loxone_alarm['uuidAction'],
                                 sensortyp="alarm",
                                 room=get_room_name_from_room_uuid(loxconfig,
-                                                                  loxone_alarm['room']),
+                                                                  loxone_alarm.get('room', '')),
                                 cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                               loxone_alarm['cat']),
+                                                               loxone_alarm.get('cat', '')),
                                 complete_data=loxone_alarm, code="None")
 
         hass.bus.async_listen(EVENT, new_alarm.event_handler)

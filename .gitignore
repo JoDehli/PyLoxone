@@ -4,9 +4,14 @@
 .cloud
 deps
 tts
+venv
 
 hass.py
 
+.idea
 *.yaml
 *.db
 *.log
+*.json
+
+/venv/

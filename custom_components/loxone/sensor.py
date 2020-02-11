@@ -34,8 +34,8 @@ async def async_setup_platform(hass, config, async_add_devices,
         new_sensor = Loxonesensor(name=sensor['name'],
                                   uuid=sensor['uuidAction'],
                                   sensortyp="analog",
-                                  room=get_room_name_from_room_uuid(loxconfig, sensor['room']),
-                                  cat=get_cat_name_from_cat_uuid(loxconfig, sensor['cat']),
+                                  room=get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
+                                  cat=get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', '')),
                                   complete_data=sensor)
 
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
@@ -45,8 +45,8 @@ async def async_setup_platform(hass, config, async_add_devices,
         new_sensor = Loxonesensor(name=sensor['name'],
                                   uuid=sensor['uuidAction'],
                                   sensortyp="digital",
-                                  room=get_room_name_from_room_uuid(loxconfig, sensor['room']),
-                                  cat=get_cat_name_from_cat_uuid(loxconfig, sensor['cat']),
+                                  room=get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
+                                  cat=get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', '')),
                                   complete_data=sensor)
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)

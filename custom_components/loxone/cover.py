@@ -45,8 +45,8 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
                                   position_uuid=cover['states']['position'],
                                   state_uuid=cover['states']['active'],
                                   device_class="Gate",
-                                  room=get_room_name_from_room_uuid(loxconfig, cover['room']),
-                                  cat=get_cat_name_from_cat_uuid(loxconfig, cover['cat']),
+                                  room=get_room_name_from_room_uuid(loxconfig, cover.get('room', '')),
+                                  cat=get_cat_name_from_cat_uuid(loxconfig, cover.get('cat', '')),
                                   complete_data=cover)
             devices.append(new_gate)
             hass.bus.async_listen(EVENT, new_gate.event_handler)
@@ -60,8 +60,8 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
                                           down_uuid=cover['states']['down'],
                                           up_uuid=cover['states']['up'],
                                           device_class="Jalousie",
-                                          room=get_room_name_from_room_uuid(loxconfig, cover['room']),
-                                          cat=get_cat_name_from_cat_uuid(loxconfig, cover['cat']),
+                                          room=get_room_name_from_room_uuid(loxconfig, cover.get('room', '')),
+                                          cat=get_cat_name_from_cat_uuid(loxconfig, cover.get('cat', '')),
                                           complete_data=cover)
 
             devices.append(new_jalousie)
