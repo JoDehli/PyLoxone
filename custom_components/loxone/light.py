@@ -53,13 +53,12 @@ def to_hass_color_temp(temp):
 
 
 def to_loxone_color_temp(temp):
-    """Linear interpolation between HASS values from 0 to 1000"""
+    """Linear interpolation between HASS values from 153 to 500"""
     return np.interp(temp, [153, 500], [6500, 2700])
 
 
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices,
-                         discovery_info=None):
+async def async_setup_platform(hass, config, async_add_devices,
+                               discovery_info=None):
     """Set up Loxone Light Controller."""
     if discovery_info is None:
         return
@@ -80,9 +79,10 @@ def async_setup_platform(hass, config, async_add_devices,
                                                        uuid=light_controller['uuidAction'],
                                                        sensortyp="lightcontrollerv2",
                                                        room=get_room_name_from_room_uuid(loxconfig,
-                                                                                         light_controller['room']),
+                                                                                         light_controller.get('room',
+                                                                                                              '')),
                                                        cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                                                      light_controller['cat']),
+                                                                                      light_controller.get('cat', '')),
                                                        complete_data=light_controller,
                                                        async_add_devices=async_add_devices)
 
@@ -90,17 +90,17 @@ def async_setup_platform(hass, config, async_add_devices,
             if len(light_controller['subControls']) > 0:
                 for sub_controll in light_controller['subControls']:
                     if light_controller['subControls'][sub_controll]['type'] == "Dimmer":
-                        light_controller['subControls'][sub_controll]['room'] = light_controller['room']
-                        light_controller['subControls'][sub_controll]['cat'] = light_controller['cat']
+                        light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
+                        light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
                         all_dimmers.append(light_controller['subControls'][sub_controll])
                     elif light_controller['subControls'][sub_controll]['type'] == "Switch":
-                        light_controller['subControls'][sub_controll]['room'] = light_controller['room']
-                        light_controller['subControls'][sub_controll]['cat'] = light_controller['cat']
+                        light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
+                        light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
                         all_switches.append(light_controller['subControls'][sub_controll])
 
                     elif light_controller['subControls'][sub_controll]['type'] == "ColorPickerV2":
-                        light_controller['subControls'][sub_controll]['room'] = light_controller['room']
-                        light_controller['subControls'][sub_controll]['cat'] = light_controller['cat']
+                        light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
+                        light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
                         all_color_picker.append(light_controller['subControls'][sub_controll])
 
         hass.bus.async_listen(EVENT, new_light_controller.event_handler)
@@ -114,9 +114,9 @@ def async_setup_platform(hass, config, async_add_devices,
                                   uuid_position=dimmer['states']['position'],
                                   sensortyp="dimmer",
                                   room=get_room_name_from_room_uuid(loxconfig,
-                                                                    dimmer['room']),
+                                                                    dimmer.get('room', '')),
                                   cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                                 dimmer['cat']),
+                                                                 dimmer.get('cat', '')),
                                   complete_data=dimmer,
                                   async_add_devices=async_add_devices)
 
@@ -129,9 +129,9 @@ def async_setup_platform(hass, config, async_add_devices,
                                  action_uuid=switch['uuidAction'],
                                  sensortyp="switch",
                                  room=get_room_name_from_room_uuid(loxconfig,
-                                                                   dimmer['room']),
+                                                                   dimmer.get('room', '')),
                                  cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                                dimmer['cat']),
+                                                                dimmer.get('cat', '')),
                                  complete_data=dimmer,
                                  async_add_devices=async_add_devices)
 
@@ -144,9 +144,9 @@ def async_setup_platform(hass, config, async_add_devices,
                                                action_uuid=color_picker['uuidAction'],
                                                sensortyp="colorpicker",
                                                room=get_room_name_from_room_uuid(loxconfig,
-                                                                                 color_picker['room']),
+                                                                                 color_picker.get('room', '')),
                                                cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                                              color_picker['cat']),
+                                                                              color_picker.get('cat', '')),
                                                complete_data=color_picker,
                                                async_add_devices=async_add_devices)
 
@@ -290,8 +290,7 @@ class LoxonelightcontrollerV2(Light):
         """Return the name of the device if any."""
         return self._name
 
-    @asyncio.coroutine
-    def event_handler(self, event):
+    async def event_handler(self, event):
         request_update = False
         if self._uuid in event.data:
             self._state = event.data[self._uuid]
@@ -403,8 +402,7 @@ class LoxoneLight(ToggleEntity):
         """Flag supported features."""
         return 0
 
-    @asyncio.coroutine
-    def event_handler(self, event):
+    async def event_handler(self, event):
         request_update = False
         if self._uuid in event.data:
             self._state = event.data[self._uuid]
@@ -446,13 +444,16 @@ class LoxoneColorPickerV2(Light):
     def turn_on(self, **kwargs) -> None:
         if ATTR_BRIGHTNESS in kwargs:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._action_uuid, value='temp({},{})'.format(int(to_loxone_level(kwargs[ATTR_BRIGHTNESS])),
-                                                                                             int(to_loxone_color_temp(self._color_temp)))))
+                                     dict(uuid=self._action_uuid,
+                                          value='temp({},{})'.format(int(to_loxone_level(kwargs[ATTR_BRIGHTNESS])),
+                                                                     int(to_loxone_color_temp(self._color_temp)))))
 
         elif ATTR_COLOR_TEMP in kwargs:
             self.hass.bus.async_fire(SENDDOMAIN,
                                      dict(uuid=self._action_uuid, value='temp({},{})'.format(self._position,
-                                                                                             int(to_loxone_color_temp(kwargs[ATTR_COLOR_TEMP]))
+                                                                                             int(to_loxone_color_temp(
+                                                                                                 kwargs[
+                                                                                                     ATTR_COLOR_TEMP]))
                                                                                              )))
         elif ATTR_HS_COLOR in kwargs:
             r, g, b = color_util.color_hs_to_RGB(kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1])
@@ -485,8 +486,7 @@ class LoxoneColorPickerV2(Light):
                 "category": self._cat,
                 "device_typ": self._sensortyp, "plattform": "loxone"}
 
-    @asyncio.coroutine
-    def event_handler(self, event):
+    async def event_handler(self, event):
         request_update = False
         if self._color_uuid in event.data:
             color = event.data[self._color_uuid]
@@ -600,8 +600,7 @@ class LoxoneDimmer(Light):
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self._uuid, value="off"))
         self.schedule_update_ha_state()
 
-    @asyncio.coroutine
-    def event_handler(self, event):
+    async def event_handler(self, event):
         request_update = False
         if self._uuid_position in event.data:
             self._position = event.data[self._uuid_position]
