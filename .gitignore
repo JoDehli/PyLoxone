@@ -15,3 +15,5 @@ hass.py
 *.json
 
 /venv/
+
+__pycache__
