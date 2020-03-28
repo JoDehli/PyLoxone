@@ -44,7 +44,7 @@ SALT_BYTES = 16
 SALT_MAX_AGE_SECONDS = 60 * 60
 SALT_MAX_USE_COUNT = 30
 
-TOKEN_PERMISSION = 2  # 2=web, 4=app
+TOKEN_PERMISSION = 4  # 2=web, 4=app
 TOKEN_REFRESH_RETRY_COUNT = 5
 # token will be refreshed 1 day before its expiration date
 TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY = 24 * 60 * 60  # 1 day
@@ -55,9 +55,11 @@ CMD_GET_PUBLIC_KEY = "jdev/sys/getPublicKey"
 CMD_KEY_EXCHANGE = "jdev/sys/keyexchange/"
 CMD_GET_KEY_AND_SALT = "jdev/sys/getkey2/"
 CMD_REQUEST_TOKEN = "jdev/sys/gettoken/"
+CMD_REQUEST_TOKEN_JSON_WEB = "jdev/sys/getjwt/"
 CMD_GET_KEY = "jdev/sys/getkey"
 CMD_AUTH_WITH_TOKEN = "authwithtoken/"
 CMD_REFRESH_TOKEN = "jdev/sys/refreshtoken/"
+CMD_REFRESH_TOKEN_JSON_WEB = "jdev/sys/refreshjwt/"
 CMD_ENCRYPT_CMD = "jdev/sys/enc/"
 CMD_ENABLE_UPDATES = "jdev/sps/enablebinstatusupdate"
 CMD_GET_VISUAL_PASSWD = "jdev/sys/getvisusalt/"
@@ -103,15 +105,24 @@ class loxApp(object):
         self.lox_pass = None
         self.json = None
         self.responsecode = None
+        self.version = None
 
     def getJson(self):
-        url = "http://" + str(self.host) + ":" + str(
-            self.port) + self.loxapppath
-        my_response = requests.get(url, auth=HTTPBasicAuth(self.lox_user,
-                                                           self.lox_pass),
-                                   verify=False)
+        url_version = "http://{}:{}/jdev/cfg/version".format(self.host, self.port)
+        version_resp = requests.get(url_version, auth=HTTPBasicAuth(self.lox_user, self.lox_pass), verify=False)
+
+        if version_resp.status_code == 200:
+            vjson = version_resp.json()
+            if 'LL' in vjson:
+                if 'Code' in vjson['LL'] and 'value' in vjson['LL']:
+                    self.version = [int(x) for x in vjson['LL']['value'].split(".")]
+
+        url = "http://" + str(self.host) + ":" + str(self.port) + self.loxapppath
+        my_response = requests.get(url, auth=HTTPBasicAuth(self.lox_user, self.lox_pass), verify=False)
         if my_response.status_code == 200:
             self.json = my_response.json()
+            if self.version is not None:
+                self.json['softwareVersion'] = self.version
         else:
             self.json = None
         self.responsecode = my_response.status_code
@@ -202,7 +213,8 @@ async def async_setup(hass, config):
     lox = LoxWs(user=config[DOMAIN][CONF_USERNAME],
                 password=config[DOMAIN][CONF_PASSWORD],
                 host=config[DOMAIN][CONF_HOST],
-                port=config[DOMAIN][CONF_PORT])
+                port=config[DOMAIN][CONF_PORT],
+                loxconfig=config[DOMAIN]['loxconfig'])
 
     async def message_callback(message):
         hass.bus.async_fire(EVENT, message)
@@ -412,13 +424,24 @@ class LoxWs:
     def __init__(self, user=None,
                  password=None,
                  host="http://192.168.1.225 ",
-                 port="8080", token_persist_filename=None):
+                 port="8080", token_persist_filename=None,
+                 loxconfig=None):
         self._username = user
         self._pasword = password
         self._host = host
         self._port = port
         self._token_refresh_count = TOKEN_REFRESH_RETRY_COUNT
         self._token_persist_filename = token_persist_filename
+        self._loxconfig = loxconfig
+        self._version = 0
+        if self._loxconfig is not None:
+            if 'softwareVersion' in self._loxconfig:
+                vers = self._loxconfig['softwareVersion']
+                if isinstance(vers, list) and len(vers) >= 2:
+                    try:
+                        self._version = float("{}.{}".format(vers[0], vers[1]))
+                    except ValueError:
+                        self._version = 0
 
         if self._token_persist_filename is None:
             self._token_persist_filename = DEFAULT_TOKEN_PERSIST_NAME
@@ -465,7 +488,7 @@ class LoxWs:
         pass
 
     async def _refresh_token(self):
-        from Crypto.Hash import SHA, HMAC
+        from Crypto.Hash import SHA1, HMAC
         command = "{}".format(CMD_GET_KEY)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
@@ -477,12 +500,17 @@ class LoxWs:
                 key = resp_json['LL']['value']
                 if key == "":
                     digester = HMAC.new(binascii.unhexlify(key),
-                                        self._token.token.encode("utf-8"), SHA)
+                                        self._token.token.encode("utf-8"), SHA1)
                     token_hash = digester.hexdigest()
 
         if token_hash is not None:
-            command = "{}{}/{}".format(CMD_REFRESH_TOKEN, token_hash,
-                                       self._username)
+            if self._version < 10.2:
+                command = "{}{}/{}".format(CMD_REFRESH_TOKEN, token_hash,
+                                           self._username)
+            else:
+                command = "{}{}/{}".format(CMD_REFRESH_TOKEN_JSON_WEB, token_hash,
+                                           self._username)
+
             enc_command = await self.encrypt(command)
             await self._ws.send(enc_command)
             message = await self._ws.recv()
@@ -547,13 +575,13 @@ class LoxWs:
                 await self._ws.send("keepalive")
 
     async def send_secured(self, device_uuid, value, code):
-        from Crypto.Hash import SHA, HMAC
+        from Crypto.Hash import SHA1, HMAC
         pwd_hash_str = code + ":" + self._visual_hash.salt
         m = hashlib.sha1()
         m.update(pwd_hash_str.encode('utf-8'))
         pwd_hash = m.hexdigest().upper()
         digester = HMAC.new(binascii.unhexlify(self._visual_hash.key),
-                            pwd_hash.encode("utf-8"), SHA)
+                            pwd_hash.encode("utf-8"), SHA1)
 
         command = "jdev/sps/ios/{}/{}/{}".format(digester.hexdigest(), device_uuid, value)
         await self._ws.send(command)
@@ -674,7 +702,8 @@ class LoxWs:
 
             # Visual hash and key response
             if resp_json is not None and 'LL' in resp_json:
-                if "control" in resp_json['LL'] and "code" in resp_json['LL'] and resp_json['LL']['code'] in [200, '200']:
+                if "control" in resp_json['LL'] and "code" in resp_json['LL'] and resp_json['LL']['code'] in [200,
+                                                                                                              '200']:
                     if 'value' in resp_json['LL']:
                         if 'key' in resp_json['LL']['value'] and 'salt' in resp_json['LL']['value']:
                             key_and_salt = LxJsonKeySalt()
@@ -779,22 +808,25 @@ class LoxWs:
         return ERROR_VALUE
 
     async def hash_token(self):
-        from Crypto.Hash import SHA, HMAC
-        command = "{}".format(CMD_GET_KEY)
-        enc_command = await self.encrypt(command)
-        await self._ws.send(enc_command)
-        message = await self._ws.recv()
-        await self.parse_loxone_message(message)
-        message = await self._ws.recv()
-        resp_json = json.loads(message)
-        if 'LL' in resp_json:
-            if "value" in resp_json['LL']:
-                key = resp_json['LL']['value']
-                if key != "":
-                    digester = HMAC.new(binascii.unhexlify(key),
-                                        self._token.token.encode("utf-8"), SHA)
-                    return digester.hexdigest()
-        return ERROR_VALUE
+        try:
+            from Crypto.Hash import SHA1, HMAC
+            command = "{}".format(CMD_GET_KEY)
+            enc_command = await self.encrypt(command)
+            await self._ws.send(enc_command)
+            message = await self._ws.recv()
+            await self.parse_loxone_message(message)
+            message = await self._ws.recv()
+            resp_json = json.loads(message)
+            if 'LL' in resp_json:
+                if "value" in resp_json['LL']:
+                    key = resp_json['LL']['value']
+                    if key != "":
+                        digester = HMAC.new(binascii.unhexlify(key),
+                                            self._token.token.encode("utf-8"), SHA1)
+                        return digester.hexdigest()
+            return ERROR_VALUE
+        except:
+            return ERROR_VALUE
 
     async def acquire_token(self):
         _LOGGER.debug("acquire_tokend")
@@ -814,9 +846,16 @@ class LoxWs:
         key_and_salt.read_user_salt_responce(message)
 
         new_hash = self.hash_credentials(key_and_salt)
-        command = "{}{}/{}/{}/edfc5f9a-df3f-4cad-9dddcdc42c732be2" \
-                  "/homeassistant".format(CMD_REQUEST_TOKEN, new_hash,
-                                          self._username, TOKEN_PERMISSION)
+
+        if self._version < 10.2:
+            command = "{}{}/{}/{}/edfc5f9a-df3f-4cad-9dddcdc42c732be2" \
+                      "/homeassistant".format(CMD_REQUEST_TOKEN, new_hash,
+                                              self._username, TOKEN_PERMISSION)
+        else:
+            command = "{}{}/{}/{}/edfc5f9a-df3f-4cad-9dddcdc42c732be2" \
+                      "/homeassistant".format(CMD_REQUEST_TOKEN_JSON_WEB,
+                                              new_hash, self._username,
+                                              TOKEN_PERMISSION)
 
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
@@ -903,14 +942,14 @@ class LoxWs:
 
     def hash_credentials(self, key_salt):
         try:
-            from Crypto.Hash import SHA, HMAC
+            from Crypto.Hash import SHA1, HMAC
             pwd_hash_str = self._pasword + ":" + key_salt.salt
             m = hashlib.sha1()
             m.update(pwd_hash_str.encode('utf-8'))
             pwd_hash = m.hexdigest().upper()
             pwd_hash = self._username + ":" + pwd_hash
             digester = HMAC.new(binascii.unhexlify(key_salt.key),
-                                pwd_hash.encode("utf-8"), SHA)
+                                pwd_hash.encode("utf-8"), SHA1)
             _LOGGER.debug("hash_credentials successfully...")
             return digester.hexdigest()
         except ValueError:

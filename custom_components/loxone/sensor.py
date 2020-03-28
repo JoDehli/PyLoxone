@@ -30,6 +30,10 @@ async def async_setup_platform(hass, config, async_add_devices,
     loxconfig = config['loxconfig']
 
     devices = []
+    if 'softwareVersion' in loxconfig:
+        version_sensor = LoxoneVersionSensor(loxconfig['softwareVersion'])
+        devices.append(version_sensor)
+
     for sensor in get_all_analog_info(loxconfig):
         new_sensor = Loxonesensor(name=sensor['name'],
                                   uuid=sensor['uuidAction'],
@@ -53,6 +57,32 @@ async def async_setup_platform(hass, config, async_add_devices,
 
     async_add_devices(devices)
     return True
+
+
+class LoxoneVersionSensor(Entity):
+    def __init__(self, version_list):
+        try:
+            self.version = ".".join([str(x) for x in version_list])
+        except:
+            self.version = "-"
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return "Loxone Software Version"
+
+    @property
+    def should_poll(self):
+        return False
+
+    @property
+    def state(self):
+        return self.version
+
+    @property
+    def icon(self):
+        """Return the sensor icon."""
+        return "mdi:information-outline"
 
 
 class Loxonesensor(Entity):
