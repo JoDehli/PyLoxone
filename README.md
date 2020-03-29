@@ -1,11 +1,14 @@
 # PyLoxone
 Home Assistant binding for Loxone. 
 
+A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
+He really helped me a lot to with the new token based authentification. Thanks Pawel!!!
+
 #### This release works for the version 0.103.0 and newer!!
 
-## Installation
-Copy all the files and subfolders to your custom_components folder in your HomeAssistant
-main folder. All you have to define is the following section:
+## Manual installation
+1. Download and copy all files into your `config/www` directory.
+2. Add the following section to your `config.yaml` and restart:
 
 ```yaml
 loxone:
@@ -16,8 +19,20 @@ loxone:
   generate_scenes: false # default is true
 ```
 
-A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
-He really helped me a lot to with the new token based authentification. Thanks Pawel!!!
+## Hacs installation
+1. Install hacs to your homeassistant installation. See https://hacs.xyz/docs/installation/manual
+2. Add this repository to hacs: https://github.com/JoDehli/PyLoxone.git
+3. Install the PyLoxone binding
+4. Add the following section to your `config.yaml` and restart:
+
+```yaml
+loxone:
+  port: 8080
+  host: hostadress
+  username: username
+  password: password
+  generate_scenes: false # default is true
+```
 
 ## Websocket direct command
 Send command direct to the loxone for example a pulse event to a switch:
@@ -28,3 +43,11 @@ Send command direct to the loxone for example a pulse event to a switch:
 "value":"pulse"
 }
 ```
+
+## Supported Loxone Entites
+- InfoOnlyAnalog and InfoOnlyDigital
+- Switch, TimedSwitch and Pushbutton
+- Jalousie and Gate
+- Intercom
+- LightControllerV2
+- Alarm
