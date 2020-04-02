@@ -3,11 +3,12 @@ Loxone cover component.
 """
 import asyncio
 import logging
+from typing import Any
 
 from homeassistant.components.cover import (
     CoverDevice, SUPPORT_OPEN, SUPPORT_CLOSE, ATTR_POSITION)
 from homeassistant.const import (
-    CONF_VALUE_TEMPLATE)
+    CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF)
 from homeassistant.helpers.event import track_utc_time_change
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_covers
 
@@ -59,6 +60,8 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
                                               'shadePosition'],
                                           down_uuid=cover['states']['down'],
                                           up_uuid=cover['states']['up'],
+                                          auto_text_uuid=cover['states'].get('autoInfoText', ""),
+                                          auto_state_uuid=cover['states'].get('autoState', ""),
                                           device_class="Jalousie",
                                           room=get_room_name_from_room_uuid(loxconfig, cover.get('room', '')),
                                           cat=get_cat_name_from_cat_uuid(loxconfig, cover.get('cat', '')),
@@ -196,7 +199,7 @@ class LoxoneJalousie(CoverDevice):
 
     # pylint: disable=no-self-use
     def __init__(self, hass, name, uuid, position_uuid=None,
-                 shade_uuid=None, down_uuid=None, up_uuid=None,
+                 shade_uuid=None, down_uuid=None, up_uuid=None, auto_text_uuid=None, auto_state_uuid=None,
                  device_class=None, room="", cat="", complete_data=None):
         self.hass = hass
         self._name = name
@@ -207,6 +210,8 @@ class LoxoneJalousie(CoverDevice):
         self._shade_uuid = shade_uuid
         self._down_uuid = down_uuid
         self._up_uuid = up_uuid
+        self._auto_text_uuid = auto_text_uuid
+        self._auto_state_uuid = auto_state_uuid
         self._device_class = device_class
         self._position = None
         self._position_loxone = -1
@@ -220,6 +225,18 @@ class LoxoneJalousie(CoverDevice):
         self._is_closing = False
         self._complete_data = complete_data
         self._supported_features = None
+        self._animation = 0
+        self._is_automatic = False
+        self._auto_text = ""
+        self._auto_state = 0
+
+        if 'details' in self._complete_data:
+            _ = self._complete_data['details']
+            if 'isAutomatic' in _:
+                self._is_automatic = _['isAutomatic']
+            if 'animation' in _:
+                self._animation = _['animation']
+
         if self._position is None:
             self._closed = True
         else:
@@ -238,7 +255,10 @@ class LoxoneJalousie(CoverDevice):
         if self._position_uuid in event.data or \
                 self._shade_uuid in event.data or \
                 self._up_uuid in event.data or \
-                self._down_uuid in event.data:
+                self._down_uuid in event.data or \
+                self._auto_text_uuid in event.data or \
+                self._auto_state_uuid in event.data:
+
             if self._position_uuid in event.data:
                 self._position_loxone = float(
                     event.data[self._position_uuid]) * 100.
@@ -260,6 +280,12 @@ class LoxoneJalousie(CoverDevice):
 
             if self._down_uuid in event.data:
                 self._is_closing = event.data[self._down_uuid]
+
+            if self._auto_text_uuid in event.data:
+                self._auto_text = event.data[self._auto_text_uuid]
+
+            if self._auto_state_uuid in event.data:
+                self._auto_state = event.data[self._auto_state_uuid]
 
             self.schedule_update_ha_state()
 
@@ -304,6 +330,17 @@ class LoxoneJalousie(CoverDevice):
         return self._device_class
 
     @property
+    def is_automatic(self):
+        return self._is_automatic
+
+    @property
+    def auto(self):
+        if self._is_automatic and self._auto_state:
+            return STATE_ON
+        else:
+            return STATE_OFF
+
+    @property
     def shade_postion_as_text(self):
         """Returns shade postionn as text"""
         if self.current_cover_tilt_position == 100 and \
@@ -318,16 +355,23 @@ class LoxoneJalousie(CoverDevice):
         Return device specific state attributes.
         Implemented by platform classes.
         """
-        return {"uuid": self._uuid, "device_typ": "jalousie",
-                "plattform": "loxone", "room": self._room,
-                "category": self._cat,
-                "current_position": self.current_cover_position,
-                "current_shade_mode": self.shade_postion_as_text,
-                "current_position_loxone_style": round(self._position_loxone, 0),
-                "extra_data_template": [
-                    "${attributes.current_position} % open",
-                    "${attributes.current_shade_mode}"
-                ]}
+
+        device_att = {"uuid": self._uuid, "device_typ": "jalousie",
+                      "plattform": "loxone", "room": self._room,
+                      "category": self._cat,
+                      "current_position": self.current_cover_position,
+                      "current_shade_mode": self.shade_postion_as_text,
+                      "current_position_loxone_style": round(self._position_loxone, 0),
+                      "extra_data_template": [
+                          "${attributes.current_position} % open",
+                          "${attributes.current_shade_mode}"
+                      ]}
+
+        if self._is_automatic:
+            device_att.update({'automatic_text': self._auto_text,
+                               'auto_state': self.auto})
+
+        return device_att
 
     def close_cover(self, **kwargs):
         """Close the cover."""

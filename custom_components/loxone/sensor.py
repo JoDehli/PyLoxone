@@ -5,6 +5,7 @@ from homeassistant.const import (
     CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF)
 from homeassistant.helpers.entity import Entity
 
+from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid
 from . import get_all_analog_info, get_all_digital_info
 
@@ -35,23 +36,20 @@ async def async_setup_platform(hass, config, async_add_devices,
         devices.append(version_sensor)
 
     for sensor in get_all_analog_info(loxconfig):
-        new_sensor = Loxonesensor(name=sensor['name'],
-                                  uuid=sensor['uuidAction'],
-                                  sensortyp="analog",
-                                  room=get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
-                                  cat=get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', '')),
-                                  complete_data=sensor)
+        sensor.update({'typ': 'analog',
+                       'room': get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
+                       'cat': get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', ''))})
 
+        new_sensor = Loxonesensor(**sensor)
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
 
     for sensor in get_all_digital_info(loxconfig):
-        new_sensor = Loxonesensor(name=sensor['name'],
-                                  uuid=sensor['uuidAction'],
-                                  sensortyp="digital",
-                                  room=get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
-                                  cat=get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', '')),
-                                  complete_data=sensor)
+        sensor.update({'typ': 'digital',
+                       'room': get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
+                       'cat': get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', ''))})
+
+        new_sensor = Loxonesensor(**sensor)
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
 
@@ -85,67 +83,33 @@ class LoxoneVersionSensor(Entity):
         return "mdi:information-outline"
 
 
-class Loxonesensor(Entity):
+class Loxonesensor(LoxoneEntity):
     """Representation of a Sensor."""
 
-    def __init__(self, name, uuid, sensortyp, room="", cat="",
-                 complete_data=None):
+    def __init__(self, **kwargs):
+        LoxoneEntity.__init__(self, **kwargs)
         """Initialize the sensor."""
         self._state = 0.0
-        self._name = name
-        self._uuid = uuid
-        self._sensortyp = sensortyp
+        self._sensortyp = kwargs['typ']
         self._unit_of_measurement = None
         self._format = None
         self._on_state = STATE_ON
         self._off_state = STATE_OFF
-        self._room = room
-        self._cat = cat
-        self._complete_data = complete_data
         self.extract_attributes()
 
-    async def event_handler(self, event):
-        if self._uuid in event.data:
+    async def event_handler(self, e):
+        if self._uuid in e.data:
             if self._sensortyp == "analog":
-                self._state = round(event.data[self._uuid], 1)
+                self._state = round(e.data[self._uuid], 1)
             elif self._sensortyp == "digital":
-                self._state = event.data[self._uuid]
+                self._state = e.data[self._uuid]
                 if self._state == 1.0:
                     self._state = self._on_state
                 else:
                     self._state = self._off_state
             else:
-                self._state = event.data[self._uuid]
+                self._state = e.data[self._uuid]
             self.schedule_update_ha_state()
-
-    @staticmethod
-    def _clean_unit(lox_format):
-        cleaned_fields = []
-        fields = lox_format.split(" ")
-        for f in fields:
-            _ = f.strip()
-            if len(_) > 0:
-                cleaned_fields.append(_)
-
-        if len(cleaned_fields) > 1:
-            unit = cleaned_fields[1]
-            if unit == "%%":
-                unit = "%"
-            return unit
-        return None
-
-    @staticmethod
-    def _get_format(lox_format):
-        cleaned_fields = []
-        fields = lox_format.split(" ")
-        for f in fields:
-            _ = f.strip()
-            if len(_) > 0:
-                cleaned_fields.append(_)
-
-        if len(cleaned_fields) > 1:
-            return cleaned_fields[0]
-        return None
 
     def extract_attributes(self):
         """Extract certain Attributes. Not all."""
@@ -159,11 +123,6 @@ class Loxonesensor(Entity):
                 if "format" in self._complete_data['details']:
                     self._format = self._get_format(self._complete_data['details']['format'])
                     self._unit_of_measurement = self._clean_unit(self._complete_data['details']['format'])
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self._name
 
     @property
     def should_poll(self):
@@ -184,11 +143,6 @@ class Loxonesensor(Entity):
     def unit_of_measurement(self):
         """Return the unit of measurement."""
         return self._unit_of_measurement
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID."""
-        return self._uuid
 
     @property
     def device_state_attributes(self):

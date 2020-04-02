@@ -23,6 +23,7 @@ import queue
 import homeassistant.helpers.config_validation as cv
 import requests
 import voluptuous as vol
+from homeassistant.helpers.entity import Entity
 from homeassistant.config import get_default_config_dir
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
@@ -418,6 +419,57 @@ class LxToken:
 
     def set_token(self, token):
         self._token = token
+
+
+from homeassistant.const import DEVICE_DEFAULT_NAME
+class LoxoneEntity(Entity):
+
+    def __init__(self, **kwargs):
+        self._typ = kwargs['type']
+        self._name = kwargs.get('name', DEVICE_DEFAULT_NAME)
+        self._uuid = kwargs['uuidAction']
+        self._complete_data = kwargs
+        self._room = kwargs.get('room', "-")
+        self._cat = kwargs.get('cat', "-")
+
+    @staticmethod
+    def _clean_unit(lox_format):
+        cleaned_fields = []
+        fields = lox_format.split(" ")
+        for f in fields:
+            _ = f.strip()
+            if len(_) > 0:
+                cleaned_fields.append(_)
+
+        if len(cleaned_fields) > 1:
+            unit = cleaned_fields[1]
+            if unit == "%%":
+                unit = "%"
+            return unit
+        return None
+
+    @staticmethod
+    def _get_format(lox_format):
+        cleaned_fields = []
+        fields = lox_format.split(" ")
+        for f in fields:
+            _ = f.strip()
+            if len(_) > 0:
+                cleaned_fields.append(_)
+
+        if len(cleaned_fields) > 1:
+            return cleaned_fields[0]
+        return None
+
+    @property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return self._uuid
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return self._name
 
 
 class LoxWs:

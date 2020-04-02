@@ -1,10 +1,10 @@
 """Interfaces with Alarm.com alarm control panels."""
-import asyncio
 import logging
 import re
-import voluptuous as vol
 
 import homeassistant.components.alarm_control_panel as alarm
+import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
 from homeassistant.components.alarm_control_panel import PLATFORM_SCHEMA
 from homeassistant.components.alarm_control_panel.const import (
     SUPPORT_ALARM_ARM_AWAY,
@@ -20,8 +20,7 @@ from homeassistant.const import (
     STATE_ALARM_DISARMED,
 )
 
-import homeassistant.helpers.config_validation as cv
-
+from . import LoxoneEntity
 from . import get_all_alarm, get_room_name_from_room_uuid, get_cat_name_from_cat_uuid
 
 CONF_UUID = "uuid"
@@ -55,45 +54,34 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     devices = []
 
     for loxone_alarm in get_all_alarm(loxconfig):
-        new_alarm = LoxoneAlarm(name=loxone_alarm['name'],
-                                uuid=loxone_alarm['uuidAction'],
-                                sensortyp="alarm",
-                                room=get_room_name_from_room_uuid(loxconfig,
-                                                                  loxone_alarm.get('room', '')),
-                                cat=get_cat_name_from_cat_uuid(loxconfig,
-                                                               loxone_alarm.get('cat', '')),
-                                complete_data=loxone_alarm, code="None")
-
+        loxone_alarm.update({'room': get_room_name_from_room_uuid(loxconfig, loxone_alarm.get('room', '')),
+                             'cat': get_cat_name_from_cat_uuid(loxconfig, loxone_alarm.get('cat', '')),
+                             'code': None})
+        new_alarm = LoxoneAlarm(**loxone_alarm)
         hass.bus.async_listen(EVENT, new_alarm.event_handler)
         devices.append(new_alarm)
     async_add_devices(devices)
     return True
 
 
-class LoxoneAlarm(alarm.AlarmControlPanel):
+class LoxoneAlarm(LoxoneEntity, alarm.AlarmControlPanel):
 
-    def __init__(self, name, uuid, sensortyp, room="", cat="",
-                 complete_data=None, code=None):
+    def __init__(self, **kwargs):
+        LoxoneEntity.__init__(self, **kwargs)
         self._state = 0.0
-        self._name = name
-        self._uuid = uuid
-        self._room = room
-        self._cat = cat
-        self._sensortyp = sensortyp
-        self._data = complete_data
         self._armed_uuid = ""
         self._armed_delay_uuid = ""
         self._armed_delay_total_delay_uuid = ""
         self._armed_delay = 0.0
         self._armed_delay_total_delay = 0.0
         self._secured = False
-        self._code = str(code) if code else None
+        self._code = str(kwargs['code']) if kwargs['code'] else None
 
-        if "isSecured" in self._data:
-            self._secured = self._data['isSecured']
+        if "isSecured" in kwargs:
+            self._secured = kwargs['isSecured']
 
-        if "states" in self._data:
-            states = self._data['states']
+        if "states" in kwargs:
+            states = kwargs['states']
             if "armed" in states:
                 self._armed_uuid = states["armed"]
 
@@ -141,14 +129,6 @@ class LoxoneAlarm(alarm.AlarmControlPanel):
     @property
     def armed_delay_total_delay(self):
         return self._armed_delay_total_delay
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def uuid(self):
-        return self._uuid
 
     @property
     def hidden(self) -> bool:
@@ -238,7 +218,7 @@ class LoxoneAlarm(alarm.AlarmControlPanel):
         """Return the state attributes."""
         return {"uuid": self._uuid, "room": self._room,
                 "category": self._cat,
-                "device_typ": "alarm",
+                "device_typ": self._typ,
                 "armed_delay": self._armed_delay,
                 "armed_delay_total_delay": self._armed_delay_total_delay,
                 "plattform": "loxone"}

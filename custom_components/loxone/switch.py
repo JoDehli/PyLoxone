@@ -8,6 +8,7 @@ from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 from homeassistant.const import DEVICE_DEFAULT_NAME
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_push_buttons
+from . import LoxoneEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,73 +24,43 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
 
     config = hass.data[DOMAIN]
     loxconfig = config['loxconfig']
-
     devices = []
-
     for push_button in get_all_push_buttons(loxconfig):
         if push_button['type'] in ["Pushbutton", "Switch"]:
-            new_push_button = LoxoneSwitch(push_button['name'],
-                                           push_button['uuidAction'],
-                                           push_button['states']['active'],
-                                           room=get_room_name_from_room_uuid(loxconfig, push_button.get('room', '')),
-                                           cat=get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', '')))
+            push_button.update({'room': get_room_name_from_room_uuid(loxconfig, push_button.get('room', '')),
+                                'cat': get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', ''))})
+            new_push_button = LoxoneSwitch(**push_button)
             hass.bus.async_listen(EVENT, new_push_button.event_handler)
             devices.append(new_push_button)
-
         elif push_button['type'] == "TimedSwitch":
-            new_push_button = LoxoneTimedSwitch(push_button['name'],
-                                                push_button['uuidAction'],
-                                                push_button['states'],
-                                                room=get_room_name_from_room_uuid(loxconfig,
-                                                                                  push_button.get('room', '')),
-                                                cat=get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', '')))
+            push_button.update({'room': get_room_name_from_room_uuid(loxconfig, push_button.get('room', '')),
+                                'cat': get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', ''))})
+            new_push_button = LoxoneTimedSwitch(**push_button)
             hass.bus.async_listen(EVENT, new_push_button.event_handler)
             devices.append(new_push_button)
-
-        elif push_button['type'] == "Intercom":
-            if "subControls" in push_button:
-
-                for sub_name in push_button['subControls']:
-                    subcontol = push_button['subControls'][sub_name]
-                    if "states" in subcontol and "active" in subcontol['states']:
-                        active = subcontol['states']['active']
-
-                    new_push_button = LoxoneIntercomSubControl("{} - {}".format(push_button['name'], subcontol['name']),
-                                                               subcontol['uuidAction'],
-                                                               active,
-                                                               room=get_room_name_from_room_uuid(loxconfig,
-                                                                                                 push_button.get('room',
-                                                                                                                 '')),
-                                                               cat=get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat','')))
-
-                    hass.bus.async_listen(EVENT, new_push_button.event_handler)
-                    devices.append(new_push_button)
 
     async_add_devices(devices)
     return True
 
 
-class LoxoneTimedSwitch(SwitchDevice):
+class LoxoneTimedSwitch(LoxoneEntity, SwitchDevice):
     """Representation of a loxone switch or pushbutton"""
 
-    def __init__(self, name, uuid, states, room="", cat=""):
-        self._name = name or DEVICE_DEFAULT_NAME
+    def __init__(self, **kwargs):
+        LoxoneEntity.__init__(self, **kwargs)
         self._icon = None
         self._assumed = False
-        self._uuid = uuid
-        self._room = room
-        self._cat = cat
         self._state = False
         self._delay_remain = 0.0
         self._delay_time_total = 0.0
 
-        if 'deactivationDelay' in states:
-            self._deactivation_delay = states['deactivationDelay']
+        if 'deactivationDelay' in kwargs['states']:
+            self._deactivation_delay = kwargs['states']['deactivationDelay']
         else:
             self._deactivation_delay = ""
 
-        if 'deactivationDelayTotal' in states:
-            self._deactivation_delay_total = states['deactivationDelayTotal']
+        if 'deactivationDelayTotal' in kwargs['states']:
+            self._deactivation_delay_total = kwargs['states']['deactivationDelayTotal']
         else:
             self._deactivation_delay_total = ""
 
@@ -97,11 +68,6 @@ class LoxoneTimedSwitch(SwitchDevice):
     def should_poll(self):
         """No polling needed for a demo switch."""
         return False
-
-    @property
-    def name(self):
-        """Return the name of the device if any."""
-        return self._name
 
     @property
     def icon(self):
@@ -132,19 +98,19 @@ class LoxoneTimedSwitch(SwitchDevice):
         self._state = False
         self.schedule_update_ha_state()
 
-    async def event_handler(self, event):
+    async def event_handler(self, e):
         should_update = False
-        if self._deactivation_delay in event.data:
-            if event.data[self._deactivation_delay] == 0.0:
+        if self._deactivation_delay in e.data:
+            if e.data[self._deactivation_delay] == 0.0:
                 self._state = False
             else:
                 self._state = True
 
-            self._delay_remain = int(event.data[self._deactivation_delay])
+            self._delay_remain = int(e.data[self._deactivation_delay])
             should_update = True
 
-        if self._deactivation_delay_total in event.data:
-            self._delay_time_total = int(event.data[self._deactivation_delay_total])
+        if self._deactivation_delay_total in e.data:
+            self._delay_time_total = int(e.data[self._deactivation_delay_total])
             should_update = True
 
         if should_update:
@@ -156,46 +122,38 @@ class LoxoneTimedSwitch(SwitchDevice):
 
         Implemented by platform classes.
         """
+        state_dict = {"uuid": self._uuid,
+                      "room": self._room,
+                      "category": self._cat,
+                      "device_typ": "timedswitch",
+                      "plattform": "loxone"}
+
         if self._state == 0.0:
-            return {"uuid": self._uuid,
-                    "delay_time_total": str(self._delay_time_total),
-                    "room": self._room,
-                    "category": self._cat,
-                    "device_typ": "timedswitch",
-                    "plattform": "loxone"}
+            state_dict.update({"delay_time_total": str(self._delay_time_total)})
+
         else:
-            return {"uuid": self._uuid,
-                    "delay": str(self._delay_remain),
-                    "delay_time_total": str(self._delay_time_total),
-                    "room": self._room,
-                    "category": self._cat,
-                    "device_typ": "timedswitch",
-                    "plattform": "loxone"}
+            state_dict.update({"delay": str(self._delay_remain),
+                               "delay_time_total": str(self._delay_time_total)
+                               })
+        return state_dict
 
 
-class LoxoneSwitch(SwitchDevice):
+class LoxoneSwitch(LoxoneEntity, SwitchDevice):
     """Representation of a loxone switch or pushbutton"""
 
-    def __init__(self, name, uuid, uuid_state, room="", cat=""):
-        """Initialize the Demo switch."""
-        self._name = name or DEVICE_DEFAULT_NAME
+    def __init__(self, **kwargs):
+        LoxoneEntity.__init__(self, **kwargs)
+
+        """Initialize the Loxone switch."""
         self._state = False
         self._icon = None
         self._assumed = False
-        self._uuid = uuid
-        self._room = room
-        self._cat = cat
-        self._uuid_state = uuid_state
+        self._uuid_state = kwargs['states']['active']
 
     @property
     def should_poll(self):
         """No polling needed for a demo switch."""
         return False
-
-    @property
-    def name(self):
-        """Return the name of the device if any."""
-        return self._name
 
     @property
     def icon(self):
@@ -214,17 +172,17 @@ class LoxoneSwitch(SwitchDevice):
 
     def turn_on(self, **kwargs):
         """Turn the switch on."""
-        if self._state == False:
+        if not self._state:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                    dict(uuid=self._uuid, value="pulse"))
+                                     dict(uuid=self._uuid, value="pulse"))
             self._state = True
             self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
-        if self._state == True:
+        if self._state:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                    dict(uuid=self._uuid, value="pulse"))
+                                     dict(uuid=self._uuid, value="pulse"))
             self._state = False
             self.schedule_update_ha_state()
 
