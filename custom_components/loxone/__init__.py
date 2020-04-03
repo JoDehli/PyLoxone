@@ -31,6 +31,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  EVENT_HOMEASSISTANT_STOP)
 from homeassistant.helpers.discovery import async_load_platform
 from requests.auth import HTTPBasicAuth
+from homeassistant.const import DEVICE_DEFAULT_NAME
 
 REQUIREMENTS = ['websockets', "pycryptodome", "numpy"]
 
@@ -159,7 +160,6 @@ def get_all_analog_info(json_data):
 
 def get_all_digital_info(json_data):
     return get_all(json_data, 'InfoOnlyDigital')
-
 
 def get_all_light_controller(json_data):
     return get_all(json_data, 'LightControllerV2')
@@ -421,7 +421,7 @@ class LxToken:
         self._token = token
 
 
-from homeassistant.const import DEVICE_DEFAULT_NAME
+
 class LoxoneEntity(Entity):
 
     def __init__(self, **kwargs):

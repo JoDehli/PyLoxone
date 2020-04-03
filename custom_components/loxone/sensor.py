@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from homeassistant.const import (

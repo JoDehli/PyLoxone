@@ -1,9 +1,7 @@
 """
 Loxone cover component.
 """
-import asyncio
 import logging
-from typing import Any
 
 from homeassistant.components.cover import (
     CoverDevice, SUPPORT_OPEN, SUPPORT_CLOSE, ATTR_POSITION)
@@ -11,6 +9,7 @@ from homeassistant.const import (
     CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF)
 from homeassistant.helpers.event import track_utc_time_change
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_covers
+from . import LoxoneEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,33 +39,16 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
     devices = []
 
     for cover in get_all_covers(loxconfig):
+        cover.update({'hass': hass,
+                      'room': get_room_name_from_room_uuid(loxconfig, cover.get('room', '')),
+                      'cat': get_cat_name_from_cat_uuid(loxconfig, cover.get('cat', ''))})
+
         if cover['type'] == "Gate":
-            new_gate = LoxoneGate(hass, cover['name'],
-                                  cover['uuidAction'],
-                                  position_uuid=cover['states']['position'],
-                                  state_uuid=cover['states']['active'],
-                                  device_class="Gate",
-                                  room=get_room_name_from_room_uuid(loxconfig, cover.get('room', '')),
-                                  cat=get_cat_name_from_cat_uuid(loxconfig, cover.get('cat', '')),
-                                  complete_data=cover)
+            new_gate = LoxoneGate(**cover)
             devices.append(new_gate)
             hass.bus.async_listen(EVENT, new_gate.event_handler)
         else:
-            new_jalousie = LoxoneJalousie(hass, cover['name'],
-                                          cover['uuidAction'],
-                                          position_uuid=cover['states'][
-                                              'position'],
-                                          shade_uuid=cover['states'][
-                                              'shadePosition'],
-                                          down_uuid=cover['states']['down'],
-                                          up_uuid=cover['states']['up'],
-                                          auto_text_uuid=cover['states'].get('autoInfoText', ""),
-                                          auto_state_uuid=cover['states'].get('autoState', ""),
-                                          device_class="Jalousie",
-                                          room=get_room_name_from_room_uuid(loxconfig, cover.get('room', '')),
-                                          cat=get_cat_name_from_cat_uuid(loxconfig, cover.get('cat', '')),
-                                          complete_data=cover)
-
+            new_jalousie = LoxoneJalousie(**cover)
             devices.append(new_jalousie)
             hass.bus.async_listen(EVENT, new_jalousie.event_handler)
 
@@ -74,20 +56,14 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
     return True
 
 
-class LoxoneGate(CoverDevice):
+class LoxoneGate(LoxoneEntity, CoverDevice):
     """Loxone Jalousie"""
 
-    def __init__(self, hass, name, uuid, position_uuid=None, state_uuid=None,
-                 device_class=None, room="", cat="", complete_data=None):
-        self.hass = hass
-        self._name = name
-        self._uuid = uuid
-        self._room = room
-        self._cat = cat
-        self._position_uuid = position_uuid
-        self._state_uuid = state_uuid
-        self._device_class = device_class
-        self._complete_data = complete_data
+    def __init__(self, **kwargs):
+        LoxoneEntity.__init__(self, **kwargs)
+        self.hass = kwargs['hass']
+        self._position_uuid = kwargs['states']['position']
+        self._state_uuid = kwargs['states']['active']
         self._position = None
         self._is_opening = False
         self._is_closing = False
@@ -103,11 +79,6 @@ class LoxoneGate(CoverDevice):
         return SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP
 
     @property
-    def name(self):
-        """Return the name of the cover."""
-        return self._name
-
-    @property
     def should_poll(self):
         """No polling needed for a demo cover."""
         return False
@@ -115,7 +86,7 @@ class LoxoneGate(CoverDevice):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return self._device_class
+        return self._typ
 
     @property
     def current_cover_position(self):
@@ -190,29 +161,24 @@ class LoxoneGate(CoverDevice):
 
         Implemented by platform classes.
         """
-        return {"uuid": self._uuid, "device_typ": "gate", "room": self._room, "category": self._cat,
+        return {"uuid": self._uuid, "device_typ": self._typ,
+                "room": self._room, "category": self._cat,
                 "plattform": "loxone"}
 
 
-class LoxoneJalousie(CoverDevice):
+class LoxoneJalousie(LoxoneEntity, CoverDevice):
     """Loxone Jalousie"""
 
     # pylint: disable=no-self-use
-    def __init__(self, hass, name, uuid, position_uuid=None,
-                 shade_uuid=None, down_uuid=None, up_uuid=None, auto_text_uuid=None, auto_state_uuid=None,
-                 device_class=None, room="", cat="", complete_data=None):
-        self.hass = hass
-        self._name = name
-        self._uuid = uuid
-        self._room = room
-        self._cat = cat
-        self._position_uuid = position_uuid
-        self._shade_uuid = shade_uuid
-        self._down_uuid = down_uuid
-        self._up_uuid = up_uuid
-        self._auto_text_uuid = auto_text_uuid
-        self._auto_state_uuid = auto_state_uuid
-        self._device_class = device_class
+    def __init__(self, **kwargs):
+        LoxoneEntity.__init__(self, **kwargs)
+        self.hass = kwargs['hass']
+        self._position_uuid = kwargs['states']['position']
+        self._shade_uuid = kwargs['states']['shadePosition']
+        self._down_uuid = kwargs['states']['down']
+        self._up_uuid = kwargs['states']['up']
+        self._auto_text_uuid = kwargs['states'].get('autoInfoText', "")
+        self._auto_state_uuid = kwargs['states'].get('autoState', "")
         self._position = None
         self._position_loxone = -1
         self._set_position = None
@@ -223,7 +189,6 @@ class LoxoneJalousie(CoverDevice):
         self._unsub_listener_cover_tilt = None
         self._is_opening = False
         self._is_closing = False
-        self._complete_data = complete_data
         self._supported_features = None
         self._animation = 0
         self._is_automatic = False
@@ -246,22 +211,22 @@ class LoxoneJalousie(CoverDevice):
     def supported_features(self):
         """Flag supported features."""
         supported_features = SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP \
-                             | SUPPORT_SET_POSITION
+                            | SUPPORT_SET_POSITION
         if self.current_cover_tilt_position is not None:
             supported_features |= (SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT)
         return supported_features
 
-    async def event_handler(self, event):
-        if self._position_uuid in event.data or \
-                self._shade_uuid in event.data or \
-                self._up_uuid in event.data or \
-                self._down_uuid in event.data or \
-                self._auto_text_uuid in event.data or \
-                self._auto_state_uuid in event.data:
+    async def event_handler(self, e):
+        if self._position_uuid in e.data or \
+                self._shade_uuid in e.data or \
+                self._up_uuid in e.data or \
+                self._down_uuid in e.data or \
+                self._auto_text_uuid in e.data or \
+                self._auto_state_uuid in e.data:
 
-            if self._position_uuid in event.data:
+            if self._position_uuid in e.data:
                 self._position_loxone = float(
-                    event.data[self._position_uuid]) * 100.
+                    e.data[self._position_uuid]) * 100.
                 self._position = round(100. - self._position_loxone, 0)
 
                 if self._position == 0:
@@ -269,30 +234,25 @@ class LoxoneJalousie(CoverDevice):
                 else:
                     self._closed = False
 
-            if self._shade_uuid in event.data:
-                if event.data[self._shade_uuid] == 1:
+            if self._shade_uuid in e.data:
+                if e.data[self._shade_uuid] == 1:
                     self._tilt_position = 0
                 else:
                     self._tilt_position = 100
 
-            if self._up_uuid in event.data:
-                self._is_opening = event.data[self._up_uuid]
+            if self._up_uuid in e.data:
+                self._is_opening = e.data[self._up_uuid]
 
-            if self._down_uuid in event.data:
-                self._is_closing = event.data[self._down_uuid]
+            if self._down_uuid in e.data:
+                self._is_closing = e.data[self._down_uuid]
 
-            if self._auto_text_uuid in event.data:
-                self._auto_text = event.data[self._auto_text_uuid]
+            if self._auto_text_uuid in e.data:
+                self._auto_text = e.data[self._auto_text_uuid]
 
-            if self._auto_state_uuid in event.data:
-                self._auto_state = event.data[self._auto_state_uuid]
+            if self._auto_state_uuid in e.data:
+                self._auto_state = e.data[self._auto_state_uuid]
 
             self.schedule_update_ha_state()
-
-    @property
-    def name(self):
-        """Return the name of the cover."""
-        return self._name
 
     @property
     def should_poll(self):
@@ -327,7 +287,7 @@ class LoxoneJalousie(CoverDevice):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return self._device_class
+        return self._typ
 
     @property
     def is_automatic(self):
@@ -355,8 +315,7 @@ class LoxoneJalousie(CoverDevice):
         Return device specific state attributes.
         Implemented by platform classes.
         """
-
-        device_att = {"uuid": self._uuid, "device_typ": "jalousie",
+        device_att = {"uuid": self._uuid, "device_typ": self._typ,
                       "plattform": "loxone", "room": self._room,
                       "category": self._cat,
                       "current_position": self.current_cover_position,
