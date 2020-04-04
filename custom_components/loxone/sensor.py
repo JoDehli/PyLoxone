@@ -89,7 +89,6 @@ class Loxonesensor(LoxoneEntity):
         LoxoneEntity.__init__(self, **kwargs)
         """Initialize the sensor."""
         self._state = 0.0
-        self._sensortyp = kwargs['typ']
         self._unit_of_measurement = None
         self._format = None
         self._on_state = STATE_ON
@@ -97,31 +96,27 @@ class Loxonesensor(LoxoneEntity):
         self.extract_attributes()
 
     async def event_handler(self, e):
-        if self._uuid in e.data:
-            if self._sensortyp == "analog":
-                self._state = round(e.data[self._uuid], 1)
-            elif self._sensortyp == "digital":
-                self._state = e.data[self._uuid]
+        if self.uuidAction in e.data:
+            if self.typ == "analog":
+                self._state = round(e.data[self.uuidAction], 1)
+            elif self.typ == "digital":
+                self._state = e.data[self.uuidAction]
                 if self._state == 1.0:
                     self._state = self._on_state
                 else:
                     self._state = self._off_state
             else:
-                self._state = e.data[self._uuid]
+                self._state = e.data[self.uuidAction]
             self.schedule_update_ha_state()
 
     def extract_attributes(self):
         """Extract certain Attributes. Not all."""
-        if self._complete_data is not None:
-            if "details" in self._complete_data:
-                if "text" in self._complete_data['details']:
-                    self._on_state = self._complete_data['details']['text'][
-                        'on']
-                    self._off_state = self._complete_data['details']['text'][
-                        'off']
-                if "format" in self._complete_data['details']:
-                    self._format = self._get_format(self._complete_data['details']['format'])
-                    self._unit_of_measurement = self._clean_unit(self._complete_data['details']['format'])
+        if "text" in self.details:
+            self._on_state = self.details['text']['on']
+            self._off_state = self.details['text']['off']
+        if "format" in self.details:
+            self._format = self._get_format(self.details['format'])
+            self._unit_of_measurement = self._clean_unit(self.details['format'])
 
     @property
     def should_poll(self):
@@ -149,6 +144,6 @@ class Loxonesensor(LoxoneEntity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self._uuid, "device_typ": self._sensortyp + "_sensor",
-                "plattform": "loxone", "room": self._room, "category": self._cat,
+        return {"uuid": self.uuidAction, "device_typ": self.typ + "_sensor",
+                "plattform": "loxone", "room": self.room, "category": self.cat,
                 "show_last_changed": "true"}

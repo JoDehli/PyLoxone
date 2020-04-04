@@ -69,27 +69,20 @@ class LoxoneAlarm(LoxoneEntity, alarm.AlarmControlPanel):
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
         self._state = 0.0
-        self._armed_uuid = ""
-        self._armed_delay_uuid = ""
-        self._armed_delay_total_delay_uuid = ""
         self._armed_delay = 0.0
         self._armed_delay_total_delay = 0.0
-        self._secured = False
         self._code = str(kwargs['code']) if kwargs['code'] else None
 
-        if "isSecured" in kwargs:
-            self._secured = kwargs['isSecured']
-
-        if "states" in kwargs:
-            states = kwargs['states']
-            if "armed" in states:
-                self._armed_uuid = states["armed"]
-
-            if "armedDelay" in states:
-                self._armed_delay_uuid = states["armedDelay"]
-
-            if "armedDelay" in states:
-                self._armed_delay_total_delay_uuid = states["armedDelayTotal"]
+        # if "states" in kwargs:
+        #     states = kwargs['states']
+        #     if "armed" in states:
+        #         self._armed_uuid = states["armed"]
+        #
+        #     if "armedDelay" in states:
+        #         self._armed_delay_uuid = states["armedDelay"]
+        #
+        #     if "armedDelay" in states:
+        #         self._armed_delay_total_delay_uuid = states["armedDelayTotal"]
 
     @property
     def supported_features(self):
@@ -99,24 +92,24 @@ class LoxoneAlarm(LoxoneEntity, alarm.AlarmControlPanel):
     def code_arm_required(self):
         """Whether the code is required for arm actions."""
         self._code = "required"
-        if self._secured:
+        if self.isSecured:
             self._code = "required"
         else:
             self._code = None
-        return self._secured
+        return self.isSecured
 
-    async def event_handler(self, event):
+    async def event_handler(self, e):
         request_update = False
-        if self._armed_uuid in event.data:
-            self._state = event.data[self._armed_uuid]
+        if self.states['armed'] in e.data:
+            self._state = e.data[self.states['armed']]
             request_update = True
 
-        if self._armed_delay_uuid in event.data:
-            self._armed_delay = event.data[self._armed_delay_uuid]
+        if self.states['armedDelay'] in e.data:
+            self._armed_delay = e.data[self.states['armedDelay']]
             request_update = True
 
-        if self._armed_delay_total_delay_uuid in event.data:
-            self._armed_delay_total_delay = event.data[self._armed_delay_total_delay_uuid]
+        if self.states['armedDelayTotal'] in e.data:
+            self._armed_delay_total_delay = e.data[self.states['armedDelayTotal']]
             request_update = True
 
         if request_update:
@@ -154,42 +147,42 @@ class LoxoneAlarm(LoxoneEntity, alarm.AlarmControlPanel):
 
     async def async_alarm_disarm(self, code=None):
         """Send disarm command."""
-        if self._secured:
+        if self.isSecured:
             self.hass.bus.async_fire(SECUREDSENDDOMAIN,
-                                     dict(uuid=self._uuid, value="off", code=code))
+                                     dict(uuid=self.uuidAction, value="off", code=code))
         else:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid, value="off"))
+                                     dict(uuid=self.uuidAction, value="off"))
         self.schedule_update_ha_state()
 
     async def async_alarm_arm_home(self, code=None):
         """Send arm hom command."""
-        if self._secured:
+        if self.isSecured:
             self.hass.bus.async_fire(SECUREDSENDDOMAIN,
-                                     dict(uuid=self._uuid, value="on", code=code))
+                                     dict(uuid=self.uuidAction, value="on", code=code))
         else:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid, value="on"))
+                                     dict(uuid=self.uuidAction, value="on"))
         self.schedule_update_ha_state()
 
     async def async_alarm_arm_away(self, code=None):
         """Send arm away command."""
-        if self._secured:
+        if self.isSecured:
             self.hass.bus.async_fire(SECUREDSENDDOMAIN,
-                                     dict(uuid=self._uuid, value="on", code=code))
+                                     dict(uuid=self.uuidAction, value="on", code=code))
         else:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid, value="on"))
+                                     dict(uuid=self.uuidAction, value="on"))
         self.schedule_update_ha_state()
 
     def async_alarm_night_away(self, code=None):
         """Send arm away command."""
-        if self._secured:
+        if self.isSecured:
             self.hass.bus.async_fire(SECUREDSENDDOMAIN,
-                                     dict(uuid=self._uuid, value="on", code=code))
+                                     dict(uuid=self.uuidAction, value="on", code=code))
         else:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid, value="on"))
+                                     dict(uuid=self.uuidAction, value="on"))
         self.schedule_update_ha_state()
 
     def alarm_trigger(self, code=None):
@@ -197,12 +190,12 @@ class LoxoneAlarm(LoxoneEntity, alarm.AlarmControlPanel):
 
         This method must be run in the event loop and returns a coroutine.
         """
-        if self._secured:
+        if self.isSecured:
             self.hass.bus.async_fire(SECUREDSENDDOMAIN,
-                                     dict(uuid=self._uuid, value="on", code=code))
+                                     dict(uuid=self.uuidAction, value="on", code=code))
         else:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid, value="on"))
+                                     dict(uuid=self.uuidAction, value="on"))
         self.schedule_update_ha_state()
 
     def alarm_arm_custom_bypass(self, code=None):
@@ -216,9 +209,9 @@ class LoxoneAlarm(LoxoneEntity, alarm.AlarmControlPanel):
     @property
     def device_state_attributes(self):
         """Return the state attributes."""
-        return {"uuid": self._uuid, "room": self._room,
-                "category": self._cat,
-                "device_typ": self._typ,
+        return {"uuid": self.uuidAction, "room": self.room,
+                "category": self.cat,
+                "device_typ": self.type,
                 "armed_delay": self._armed_delay,
                 "armed_delay_total_delay": self._armed_delay_total_delay,
                 "plattform": "loxone"}

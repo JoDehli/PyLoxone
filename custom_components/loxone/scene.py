@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from homeassistant.components.scene import Scene
@@ -36,11 +35,11 @@ async def async_setup_platform(hass, config, async_add_devices,
             att = state.attributes
             if "plattform" in att and att['plattform'] == DOMAIN:
                 entity = hass.data['light'].get_entity(state.entity_id)
-                if entity.device_class == "lightcontrollerv2":
+                if entity.device_class == "LightControllerV2":
                     for effect in entity.effect_list:
                         mood_id = entity.get_id_by_moodname(effect)
-                        uuid = entity.uuid
-                        devices.append(Loxonelightscene("{}_{}".format(entity.name, effect), mood_id, uuid))
+                        uuid = entity.uuidAction
+                        devices.append(Loxonelightscene("{}-{}".format(entity.name, effect), mood_id, uuid))
         async_add_devices(devices)
 
     if config[CONF_SCENE_GEN]:
@@ -51,8 +50,8 @@ async def async_setup_platform(hass, config, async_add_devices,
 class Loxonelightscene(Scene):
     def __init__(self, name, mood_id, uuid):
         self._name = name
-        self._mood_id = mood_id
-        self._action_uuid = uuid
+        self.mood_id = mood_id
+        self.uuidAction = uuid
 
     @property
     def name(self):
@@ -61,4 +60,4 @@ class Loxonelightscene(Scene):
 
     def activate(self):
         """Activate scene. Try to get entities into requested state."""
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self._action_uuid, value="changeTo/{}".format(self._mood_id)))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="changeTo/{}".format(self.mood_id)))

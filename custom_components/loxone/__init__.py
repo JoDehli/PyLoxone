@@ -161,6 +161,7 @@ def get_all_analog_info(json_data):
 def get_all_digital_info(json_data):
     return get_all(json_data, 'InfoOnlyDigital')
 
+
 def get_all_light_controller(json_data):
     return get_all(json_data, 'LightControllerV2')
 
@@ -421,16 +422,36 @@ class LxToken:
         self._token = token
 
 
-
 class LoxoneEntity(Entity):
 
     def __init__(self, **kwargs):
-        self._typ = kwargs['type']
-        self._name = kwargs.get('name', DEVICE_DEFAULT_NAME)
-        self._uuid = kwargs['uuidAction']
-        self._complete_data = kwargs
-        self._room = kwargs.get('room', "-")
-        self._cat = kwargs.get('cat', "-")
+        self._name = ""
+        for key in kwargs:
+            if not hasattr(self, key):
+                setattr(self, key, kwargs[key])
+            else:
+                try:
+                    setattr(self, key, kwargs[key])
+                except:
+                    traceback.print_exc()
+                    import sys
+                    sys.exit(-1)
+
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, n):
+        self._name = n
+
+        # self._typ = kwargs['type']
+        # self._name = kwargs.get('name', DEVICE_DEFAULT_NAME)
+        # self._uuid = kwargs['uuidAction']
+        # self._complete_data = kwargs
+        # self._room = kwargs.get('room', "-")
+        # self._cat = kwargs.get('cat', "-")
 
     @staticmethod
     def _clean_unit(lox_format):
@@ -464,12 +485,13 @@ class LoxoneEntity(Entity):
     @property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return self._uuid
+        return self.uuidAction
 
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self._name
+
+    # @property
+    # def name(self):
+    #     """Return the name of the sensor."""
+    #     return self.name
 
 
 class LoxWs:
