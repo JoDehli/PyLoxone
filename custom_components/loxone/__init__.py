@@ -251,14 +251,15 @@ async def async_setup(hass, config):
                                 sensors_analog.append(s_dict['entity_id'])
                             elif attr['device_typ'] == "digital_sensor":
                                 sensors_digital.append(s_dict['entity_id'])
-                            elif attr['device_typ'] == "jalousie" or \
-                                    attr['device_typ'] == "gate":
+                            elif attr['device_typ'] == "Jalousie" or \
+                                    attr['device_typ'] == "Gate":
                                 covers.append(s_dict['entity_id'])
-                            elif attr['device_typ'] == "switch":
+                            elif attr['device_typ'] == "Switch" or \
+                                    attr['device_typ'] == "Pushbutton" or \
+                                    attr['device_typ'] == "TimedSwitch":
                                 switches.append(s_dict['entity_id'])
-                            elif attr['device_typ'] == "lightcontrollerv2":
-                                lights.append(s_dict['entity_id'])
-                            elif attr['device_typ'] == "dimmer":
+                            elif attr['device_typ'] == "LightControllerV2" or \
+                                    attr['device_typ'] == "Dimmer":
                                 lights.append(s_dict['entity_id'])
 
                     sensors_analog.sort()

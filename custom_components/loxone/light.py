@@ -89,6 +89,7 @@ async def async_setup_platform(hass, config, async_add_devices,
                         light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
                         light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
                         all_dimmers.append(light_controller['subControls'][sub_controll])
+
                     elif light_controller['subControls'][sub_controll]['type'] == "Switch":
                         light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
                         light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
@@ -127,18 +128,6 @@ async def async_setup_platform(hass, config, async_add_devices,
                              'async_add_devices': async_add_devices
                              })
         new_color_picker = LoxoneColorPickerV2(**color_picker)
-
-        # new_color_picker = LoxoneColorPickerV2(name=color_picker['name'],
-        #                                        color_uuid=color_picker['states']['color'],
-        #                                        action_uuid=color_picker['uuidAction'],
-        #                                        sensortyp="colorpicker",
-        #                                        room=get_room_name_from_room_uuid(loxconfig,
-        #                                                                          color_picker.get('room', '')),
-        #                                        cat=get_cat_name_from_cat_uuid(loxconfig,
-        #                                                                       color_picker.get('cat', '')),
-        #                                        complete_data=color_picker,
-        #                                        async_add_devices=async_add_devices)
-
         hass.bus.async_listen(EVENT, new_color_picker.event_handler)
         devices.append(new_color_picker)
 
