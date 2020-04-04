@@ -438,7 +438,6 @@ class LoxoneEntity(Entity):
                     import sys
                     sys.exit(-1)
 
-
     @property
     def name(self):
         return self._name
@@ -446,13 +445,6 @@ class LoxoneEntity(Entity):
     @name.setter
     def name(self, n):
         self._name = n
-
-        # self._typ = kwargs['type']
-        # self._name = kwargs.get('name', DEVICE_DEFAULT_NAME)
-        # self._uuid = kwargs['uuidAction']
-        # self._complete_data = kwargs
-        # self._room = kwargs.get('room', "-")
-        # self._cat = kwargs.get('cat', "-")
 
     @staticmethod
     def _clean_unit(lox_format):
@@ -487,12 +479,6 @@ class LoxoneEntity(Entity):
     def unique_id(self) -> str:
         """Return a unique ID."""
         return self.uuidAction
-
-
-    # @property
-    # def name(self):
-    #     """Return the name of the sensor."""
-    #     return self.name
 
 
 class LoxWs:

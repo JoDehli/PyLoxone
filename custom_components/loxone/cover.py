@@ -4,7 +4,18 @@ Loxone cover component.
 import logging
 
 from homeassistant.components.cover import (
-    CoverDevice, SUPPORT_OPEN, SUPPORT_CLOSE, ATTR_POSITION)
+    ATTR_POSITION,
+    DEVICE_CLASS_AWNING,
+    DEVICE_CLASS_BLIND,
+    DEVICE_CLASS_CURTAIN,
+    DEVICE_CLASS_SHUTTER,
+    DEVICE_CLASS_GARAGE,
+    DEVICE_CLASS_DOOR,
+    CoverDevice,
+    SUPPORT_OPEN,
+    SUPPORT_CLOSE,
+    ATTR_POSITION
+)
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF)
 from homeassistant.helpers.event import track_utc_time_change
@@ -86,7 +97,16 @@ class LoxoneGate(LoxoneEntity, CoverDevice):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
+        if self.animation == 0:
+            return DEVICE_CLASS_GARAGE
+        elif self.animation in [1, 2, 3, 4, 5]:
+            return DEVICE_CLASS_DOOR
         return self.type
+
+    @property
+    def animation(self):
+        return self.details['animation']
+
 
     @property
     def current_cover_position(self):
@@ -208,7 +228,7 @@ class LoxoneJalousie(LoxoneEntity, CoverDevice):
     def supported_features(self):
         """Flag supported features."""
         supported_features = SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP \
-                            | SUPPORT_SET_POSITION
+                             | SUPPORT_SET_POSITION
         if self.current_cover_tilt_position is not None:
             supported_features |= (SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT)
         return supported_features
@@ -284,7 +304,19 @@ class LoxoneJalousie(LoxoneEntity, CoverDevice):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
+        if self.animation in [0, 1]:
+            return DEVICE_CLASS_BLIND
+        elif self.animation in [2, 4, 5]:
+            return DEVICE_CLASS_CURTAIN
+        elif self.animation == 3:
+            return DEVICE_CLASS_SHUTTER
+        elif self.animation == 6:
+            return DEVICE_CLASS_AWNING
         return self.type
+
+    @property
+    def animation(self):
+        return self.details['animation']
 
     @property
     def is_automatic(self):
