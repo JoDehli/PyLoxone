@@ -39,6 +39,17 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
             hass.bus.async_listen(EVENT, new_push_button.event_handler)
             devices.append(new_push_button)
 
+        elif push_button['type'] == "Intercom":
+            if "subControls" in push_button:
+                for sub_name in push_button['subControls']:
+                    subcontol = push_button['subControls'][sub_name]
+                    _ = subcontol
+                    _.update({'name': "{} - {}".format(push_button['name'], subcontol['name'])})
+                    _.update({'room': get_room_name_from_room_uuid(loxconfig,push_button.get('room',''))})
+                    _.update({'cat': get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', ''))})
+                    new_push_button = LoxoneIntercomSubControl(**_)
+                    hass.bus.async_listen(EVENT, new_push_button.event_handler)
+                    devices.append(new_push_button)
     async_add_devices(devices)
     return True
 
