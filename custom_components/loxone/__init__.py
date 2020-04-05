@@ -147,11 +147,11 @@ def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
 
 
 def get_all_push_buttons(json_data):
-    return get_all(json_data, ["Pushbutton", "Switch", "TimedSwitch", "Intercom"])
+    return get_all(json_data, ["Pushbutton", "Switch", "TimedSwitch", "Intercom", "LeftRightAnalog", 'UpDownAnalog'])
 
 
 def get_all_covers(json_data):
-    return get_all(json_data, ["Jalousie", "Gate"])
+    return get_all(json_data, ["Jalousie", "Gate", 'Window'])
 
 
 def get_all_analog_info(json_data):

@@ -2,6 +2,7 @@
 """
 import asyncio
 import logging
+import voluptuous as vol
 
 from homeassistant.components.switch import SwitchDevice
 from homeassistant.const import (
@@ -16,6 +17,38 @@ DOMAIN = 'loxone'
 EVENT = "loxone_event"
 SENDDOMAIN = "loxone_send"
 
+from homeassistant.helpers.entity_component import EntityComponent
+from homeassistant.components import (
+    alarm_control_panel,
+    alert,
+    automation,
+    binary_sensor,
+    camera,
+    cover,
+    fan,
+    group,
+    image_processing,
+    input_boolean,
+    input_number,
+    light,
+    lock,
+    media_player,
+    scene,
+    script,
+    sensor,
+    switch,
+    timer,
+    vacuum,
+)
+
+from homeassistant.components.input_number import (
+    ATTR_VALUE,
+    SERVICE_DECREMENT,
+    SERVICE_INCREMENT,
+    SERVICE_RELOAD,
+    SERVICE_SET_VALUE,
+)
+
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
     value_template = config.get(CONF_VALUE_TEMPLATE)
@@ -25,6 +58,8 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
     config = hass.data[DOMAIN]
     loxconfig = config['loxconfig']
     devices = []
+    entities = []
+
     for push_button in get_all_push_buttons(loxconfig):
         if push_button['type'] in ["Pushbutton", "Switch"]:
             push_button.update({'room': get_room_name_from_room_uuid(loxconfig, push_button.get('room', '')),
@@ -45,13 +80,99 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
                     subcontol = push_button['subControls'][sub_name]
                     _ = subcontol
                     _.update({'name': "{} - {}".format(push_button['name'], subcontol['name'])})
-                    _.update({'room': get_room_name_from_room_uuid(loxconfig,push_button.get('room',''))})
+                    _.update({'room': get_room_name_from_room_uuid(loxconfig, push_button.get('room', ''))})
                     _.update({'cat': get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', ''))})
                     new_push_button = LoxoneIntercomSubControl(**_)
                     hass.bus.async_listen(EVENT, new_push_button.event_handler)
                     devices.append(new_push_button)
+        elif push_button['type'] in ['LeftRightAnalog', 'UpDownAnalog']:
+            # https://github.com/vinteo/hass-opensprinkler/blob/23fa23a628f3826310e8ade77d1dbe519b301bf7/opensprinkler.py#L52
+            push_button.update({'uuidAction': push_button['uuidAction'], 'name': push_button['name'],
+                                'initial': push_button['details']['min'],
+                                'min': push_button['details']['min'],
+                                'max': push_button['details']['max'],
+                                'step': push_button['details']['step'],
+                                'mode': 'slider'})  # 'slider box
+
+            if push_button['type'] == 'UpDownAnalog':
+                push_button.update({'mode': 'box'})
+            else:
+                push_button.update({'mode': 'slider'})
+
+            new_loxone_input_select = LoxoneInputSelect(**push_button)
+            hass.bus.async_listen(EVENT, new_loxone_input_select.event_handler)
+            entities.append(new_loxone_input_select)
+
+    component = EntityComponent(_LOGGER, 'input_number', hass)
+    component.async_register_entity_service(SERVICE_INCREMENT, {}, "async_increment")
+    component.async_register_entity_service(SERVICE_DECREMENT, {}, "async_decrement")
+    component.async_register_entity_service(
+        SERVICE_SET_VALUE,
+        {vol.Required('value'): vol.Coerce(float)},
+        "async_set_value",
+    )
+    await component.async_add_entities(entities)
+
     async_add_devices(devices)
     return True
+
+
+class LoxoneInputSelect(LoxoneEntity, input_number.InputNumber):
+    def __init__(self, **kwargs):
+        LoxoneEntity.__init__(self, **kwargs)
+        input_number.InputNumber.__init__(self, config=kwargs)
+
+    async def event_handler(self, e):
+        if self.uuidAction in e.data:
+            self._current_value = e.data[self.uuidAction]
+            self.async_schedule_update_ha_state()
+
+    async def async_set_value(self, value):
+        """Set new value."""
+        num_value = float(value)
+        if num_value < self._minimum or num_value > self._maximum:
+            _LOGGER.warning(
+                "Invalid value: %s (range %s - %s)",
+                num_value,
+                self._minimum,
+                self._maximum,
+            )
+            return
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self.uuidAction, value=num_value))
+        self.async_schedule_update_ha_state()
+
+    async def async_increment(self):
+        """Increment value."""
+        new_value = self._current_value + self._step
+        if new_value > self._maximum:
+            _LOGGER.warning(
+                "Invalid value: %s (range %s - %s)",
+                new_value,
+                self._minimum,
+                self._maximum,
+            )
+            return
+        self._current_value = new_value
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self.uuidAction, value=new_value))
+        self.async_schedule_update_ha_state()
+
+    async def async_decrement(self):
+        """Decrement value."""
+        new_value = self._current_value - self._step
+        if new_value < self._minimum:
+            _LOGGER.warning(
+                "Invalid value: %s (range %s - %s)",
+                new_value,
+                self._minimum,
+                self._maximum,
+            )
+            return
+        self._current_value = new_value
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self.uuidAction, value=new_value))
+        self.async_schedule_update_ha_state()
 
 
 class LoxoneTimedSwitch(LoxoneEntity, SwitchDevice):

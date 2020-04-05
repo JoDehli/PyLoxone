@@ -2,6 +2,7 @@
 Loxone cover component.
 """
 import logging
+from typing import Any
 
 from homeassistant.components.cover import (
     ATTR_POSITION,
@@ -11,6 +12,7 @@ from homeassistant.components.cover import (
     DEVICE_CLASS_SHUTTER,
     DEVICE_CLASS_GARAGE,
     DEVICE_CLASS_DOOR,
+    DEVICE_CLASS_WINDOW,
     CoverDevice,
     SUPPORT_OPEN,
     SUPPORT_CLOSE,
@@ -58,6 +60,10 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
             new_gate = LoxoneGate(**cover)
             devices.append(new_gate)
             hass.bus.async_listen(EVENT, new_gate.event_handler)
+        elif cover['type'] == "Window":
+            new_window = LoxoneWindow(**cover)
+            devices.append(new_window)
+            hass.bus.async_listen(EVENT, new_window.event_handler)
         else:
             new_jalousie = LoxoneJalousie(**cover)
             devices.append(new_jalousie)
@@ -186,6 +192,101 @@ class LoxoneGate(LoxoneEntity, CoverDevice):
                 "plattform": "loxone"}
 
 
+class LoxoneWindow(LoxoneEntity, CoverDevice):
+
+    # pylint: disable=no-self-use
+    def __init__(self, **kwargs):
+        LoxoneEntity.__init__(self, **kwargs)
+        self.hass = kwargs['hass']
+        self._position = None
+        self._closed = True
+        self._direction = 0
+
+    async def event_handler(self, e):
+        if self.states["position"] in e.data or \
+                self.states["direction"] in e.data:
+
+            if self.states["position"] in e.data:
+                self._position = float(
+                    e.data[self.states["position"]]) * 100.
+                if self._position == 0:
+                    self._closed = True
+                else:
+                    self._closed = False
+
+            if self.states["direction"] in e.data:
+                self._direction = e.data[self.states["direction"]]
+
+            self.schedule_update_ha_state()
+
+    @property
+    def current_cover_position(self):
+        """Return current position of cover.
+
+        None is unknown, 0 is closed, 100 is fully open.
+        """
+        return self._position
+
+    @property
+    def device_state_attributes(self):
+        """
+        Return device specific state attributes.
+        Implemented by platform classes.
+        """
+        device_att = {"uuid": self.uuidAction, "device_typ": self.type,
+                      "plattform": "loxone", "room": self.room,
+                      "category": self.cat}
+        return device_att
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_WINDOW
+
+    @property
+    def is_closing(self):
+        """Return if the cover is closing."""
+        if self._direction == -1:
+            return True
+        return False
+
+    @property
+    def is_opening(self):
+        """Return if the cover is opening."""
+        if self._direction == 1:
+            return True
+        return False
+
+    @property
+    def is_closed(self):
+        return self._closed
+
+    def open_cover(self, **kwargs: Any) -> None:
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self.uuidAction, value="fullopen"))
+
+    def close_cover(self, **kwargs: Any) -> None:
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self.uuidAction, value="fullclose"))
+
+    def stop_cover(self, **kwargs):
+        """Stop the cover."""
+
+        if self.is_closing:
+            self.hass.bus.async_fire(SENDDOMAIN,
+                                     dict(uuid=self.uuidAction, value="fullopen"))
+
+        elif self.is_opening:
+            self.hass.bus.async_fire(SENDDOMAIN,
+                                     dict(uuid=self.uuidAction, value="fullclose"))
+
+    def set_cover_position(self, **kwargs):
+        """Return the current tilt position of the cover."""
+        position = kwargs.get(ATTR_POSITION)
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self.uuidAction, value="moveToPosition/{}".format(position)))
+
+
 class LoxoneJalousie(LoxoneEntity, CoverDevice):
     """Loxone Jalousie"""
 
@@ -312,7 +413,6 @@ class LoxoneJalousie(LoxoneEntity, CoverDevice):
             return DEVICE_CLASS_SHUTTER
         elif self.animation == 6:
             return DEVICE_CLASS_AWNING
-        return self.type
 
     @property
     def animation(self):
