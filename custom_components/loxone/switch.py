@@ -8,7 +8,7 @@ from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 
 from . import LoxoneEntity
-from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_push_buttons
+from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_switch_entities
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,49 +38,50 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
     devices = []
     entities = []
 
-    for push_button in get_all_push_buttons(loxconfig):
-        if push_button['type'] in ["Pushbutton", "Switch"]:
-            push_button.update({'room': get_room_name_from_room_uuid(loxconfig, push_button.get('room', '')),
-                                'cat': get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', ''))})
-            new_push_button = LoxoneSwitch(**push_button)
-            hass.bus.async_listen(EVENT, new_push_button.event_handler)
-            devices.append(new_push_button)
-        elif push_button['type'] == "TimedSwitch":
-            push_button.update({'room': get_room_name_from_room_uuid(loxconfig, push_button.get('room', '')),
-                                'cat': get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', ''))})
-            new_push_button = LoxoneTimedSwitch(**push_button)
+    for switch_entity in get_all_switch_entities(loxconfig):
+        if switch_entity['type'] in ["Pushbutton", "Switch"]:
+            switch_entity.update({'room': get_room_name_from_room_uuid(loxconfig, switch_entity.get('room', '')),
+                                  'cat': get_cat_name_from_cat_uuid(loxconfig, switch_entity.get('cat', ''))})
+            new_push_button = LoxoneSwitch(**switch_entity)
             hass.bus.async_listen(EVENT, new_push_button.event_handler)
             devices.append(new_push_button)
 
-        elif push_button['type'] == "Intercom":
-            if "subControls" in push_button:
-                for sub_name in push_button['subControls']:
-                    subcontol = push_button['subControls'][sub_name]
+        elif switch_entity['type'] == "TimedSwitch":
+            switch_entity.update({'room': get_room_name_from_room_uuid(loxconfig, switch_entity.get('room', '')),
+                                  'cat': get_cat_name_from_cat_uuid(loxconfig, switch_entity.get('cat', ''))})
+            new_push_button = LoxoneTimedSwitch(**switch_entity)
+            hass.bus.async_listen(EVENT, new_push_button.event_handler)
+            devices.append(new_push_button)
+
+        elif switch_entity['type'] == "Intercom":
+            if "subControls" in switch_entity:
+                for sub_name in switch_entity['subControls']:
+                    subcontol = switch_entity['subControls'][sub_name]
                     _ = subcontol
-                    _.update({'name': "{} - {}".format(push_button['name'], subcontol['name'])})
-                    _.update({'room': get_room_name_from_room_uuid(loxconfig, push_button.get('room', ''))})
-                    _.update({'cat': get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', ''))})
+                    _.update({'name': "{} - {}".format(switch_entity['name'], subcontol['name'])})
+                    _.update({'room': get_room_name_from_room_uuid(loxconfig, switch_entity.get('room', ''))})
+                    _.update({'cat': get_cat_name_from_cat_uuid(loxconfig, switch_entity.get('cat', ''))})
                     new_push_button = LoxoneIntercomSubControl(**_)
                     hass.bus.async_listen(EVENT, new_push_button.event_handler)
                     devices.append(new_push_button)
-        elif push_button['type'] in ['LeftRightAnalog', 'UpDownAnalog']:
+        elif switch_entity['type'] in ['LeftRightAnalog', 'UpDownAnalog', 'Slider']:
             # https://github.com/vinteo/hass-opensprinkler/blob/23fa23a628f3826310e8ade77d1dbe519b301bf7/opensprinkler.py#L52
-            push_button.update({'uuidAction': push_button['uuidAction'],
-                                'name': push_button['name'],
-                                'initial': push_button['details']['min'],
-                                'min': push_button['details']['min'],
-                                'max': push_button['details']['max'],
-                                'step': push_button['details']['step'],
-                                'cat': get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', '')),
-                                'room': get_room_name_from_room_uuid(loxconfig, push_button.get('room', ''))
-                                })
+            switch_entity.update({'uuidAction': switch_entity['uuidAction'],
+                                  'name': switch_entity['name'],
+                                  'initial': switch_entity['details']['min'],
+                                  'min': switch_entity['details']['min'],
+                                  'max': switch_entity['details']['max'],
+                                  'step': switch_entity['details']['step'],
+                                  'cat': get_cat_name_from_cat_uuid(loxconfig, switch_entity.get('cat', '')),
+                                  'room': get_room_name_from_room_uuid(loxconfig, switch_entity.get('room', ''))
+                                  })
 
-            if push_button['type'] == 'UpDownAnalog':
-                push_button.update({'mode': 'box'})
+            if switch_entity['type'] == 'UpDownAnalog':
+                switch_entity.update({'mode': 'box'})
             else:
-                push_button.update({'mode': 'slider'})
+                switch_entity.update({'mode': 'slider'})
 
-            new_loxone_input_select = LoxoneInputSelect(**push_button)
+            new_loxone_input_select = LoxoneInputSelect(**switch_entity)
             hass.bus.async_listen(EVENT, new_loxone_input_select.event_handler)
             entities.append(new_loxone_input_select)
 
@@ -297,16 +298,24 @@ class LoxoneSwitch(LoxoneEntity, SwitchDevice):
     def turn_on(self, **kwargs):
         """Turn the switch on."""
         if not self._state:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="On"))
+            if self.type == "Pushbutton":
+                self.hass.bus.async_fire(SENDDOMAIN,
+                                         dict(uuid=self.uuidAction, value="pulse"))
+            else:
+                self.hass.bus.async_fire(SENDDOMAIN,
+                                         dict(uuid=self.uuidAction, value="On"))
             self._state = True
             self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
         if self._state:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="Off"))
+            if self.type == "Pushbutton":
+                self.hass.bus.async_fire(SENDDOMAIN,
+                                         dict(uuid=self.uuidAction, value="pulse"))
+            else:
+                self.hass.bus.async_fire(SENDDOMAIN,
+                                         dict(uuid=self.uuidAction, value="Off"))
             self._state = False
             self.schedule_update_ha_state()
 

@@ -72,8 +72,10 @@ async def async_setup_platform(hass, config, async_add_devices,
     loxconfig = config['loxconfig']
     devices = []
     all_dimmers = []
+    all_light_controller_dimmers = []
     all_color_picker = []
     all_switches = []
+    all_dimmers = get_all_dimmer(loxconfig)
 
     for light_controller in get_all_light_controller(loxconfig):
         light_controller.update({'room': get_room_name_from_room_uuid(loxconfig, light_controller.get('room', '')),
@@ -88,7 +90,7 @@ async def async_setup_platform(hass, config, async_add_devices,
                     if light_controller['subControls'][sub_controll]['type'] == "Dimmer":
                         light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
                         light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
-                        all_dimmers.append(light_controller['subControls'][sub_controll])
+                        all_light_controller_dimmers.append(light_controller['subControls'][sub_controll])
 
                     elif light_controller['subControls'][sub_controll]['type'] == "Switch":
                         light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
@@ -102,13 +104,20 @@ async def async_setup_platform(hass, config, async_add_devices,
         hass.bus.async_listen(EVENT, new_light_controller.event_handler)
         devices.append(new_light_controller)
 
-    all_dimmers += get_all_dimmer(loxconfig)
+    _ = all_dimmers + all_light_controller_dimmers
 
-    for dimmer in all_dimmers:
-        dimmer.update({'room': get_room_name_from_room_uuid(loxconfig, light_controller.get('room', '')),
-                       'cat': get_cat_name_from_cat_uuid(loxconfig, light_controller.get('cat', '')),
-                       'async_add_devices': async_add_devices
-                       })
+    for dimmer in _:
+        if dimmer in all_light_controller_dimmers:
+            dimmer.update({'room': get_room_name_from_room_uuid(loxconfig, light_controller.get('room', '')),
+                           'cat': get_cat_name_from_cat_uuid(loxconfig, light_controller.get('cat', '')),
+                           'async_add_devices': async_add_devices
+                           })
+        else:
+            dimmer.update({'room': get_room_name_from_room_uuid(loxconfig, dimmer.get('room', '')),
+                           'cat': get_cat_name_from_cat_uuid(loxconfig, dimmer.get('cat', '')),
+                           'async_add_devices': async_add_devices
+                           })
+
         new_dimmer = LoxoneDimmer(**dimmer)
         hass.bus.async_listen(EVENT, new_dimmer.event_handler)
         devices.append(new_dimmer)
