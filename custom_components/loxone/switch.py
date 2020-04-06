@@ -1,15 +1,14 @@
 """
 """
-import asyncio
 import logging
-import voluptuous as vol
 
+import voluptuous as vol
 from homeassistant.components.switch import SwitchDevice
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
-from homeassistant.const import DEVICE_DEFAULT_NAME
-from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_push_buttons
+
 from . import LoxoneEntity
+from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_push_buttons
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,33 +18,12 @@ SENDDOMAIN = "loxone_send"
 
 from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.components import (
-    alarm_control_panel,
-    alert,
-    automation,
-    binary_sensor,
-    camera,
-    cover,
-    fan,
-    group,
-    image_processing,
-    input_boolean,
     input_number,
-    light,
-    lock,
-    media_player,
-    scene,
-    script,
-    sensor,
-    switch,
-    timer,
-    vacuum,
 )
 
 from homeassistant.components.input_number import (
-    ATTR_VALUE,
     SERVICE_DECREMENT,
     SERVICE_INCREMENT,
-    SERVICE_RELOAD,
     SERVICE_SET_VALUE,
 )
 
@@ -87,12 +65,15 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
                     devices.append(new_push_button)
         elif push_button['type'] in ['LeftRightAnalog', 'UpDownAnalog']:
             # https://github.com/vinteo/hass-opensprinkler/blob/23fa23a628f3826310e8ade77d1dbe519b301bf7/opensprinkler.py#L52
-            push_button.update({'uuidAction': push_button['uuidAction'], 'name': push_button['name'],
+            push_button.update({'uuidAction': push_button['uuidAction'],
+                                'name': push_button['name'],
                                 'initial': push_button['details']['min'],
                                 'min': push_button['details']['min'],
                                 'max': push_button['details']['max'],
                                 'step': push_button['details']['step'],
-                                'mode': 'slider'})  # 'slider box
+                                'cat': get_cat_name_from_cat_uuid(loxconfig, push_button.get('cat', '')),
+                                'room': get_room_name_from_room_uuid(loxconfig, push_button.get('room', ''))
+                                })
 
             if push_button['type'] == 'UpDownAnalog':
                 push_button.update({'mode': 'box'})
@@ -173,6 +154,19 @@ class LoxoneInputSelect(LoxoneEntity, input_number.InputNumber):
         self.hass.bus.async_fire(SENDDOMAIN,
                                  dict(uuid=self.uuidAction, value=new_value))
         self.async_schedule_update_ha_state()
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
+        state_dict = {"uuid": self.uuidAction,
+                      "room": self.room,
+                      "category": self.cat,
+                      "device_typ": self.type,
+                      "plattform": "loxone"}
+        return state_dict
 
 
 class LoxoneTimedSwitch(LoxoneEntity, SwitchDevice):
@@ -275,7 +269,6 @@ class LoxoneSwitch(LoxoneEntity, SwitchDevice):
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
-
         """Initialize the Loxone switch."""
         self._state = False
         self._icon = None
@@ -305,7 +298,7 @@ class LoxoneSwitch(LoxoneEntity, SwitchDevice):
         """Turn the switch on."""
         if not self._state:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="pulse"))
+                                     dict(uuid=self.uuidAction, value="On"))
             self._state = True
             self.schedule_update_ha_state()
 
@@ -313,7 +306,7 @@ class LoxoneSwitch(LoxoneEntity, SwitchDevice):
         """Turn the device off."""
         if self._state:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="pulse"))
+                                     dict(uuid=self.uuidAction, value="Off"))
             self._state = False
             self.schedule_update_ha_state()
 

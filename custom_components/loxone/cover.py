@@ -5,7 +5,6 @@ import logging
 from typing import Any
 
 from homeassistant.components.cover import (
-    ATTR_POSITION,
     DEVICE_CLASS_AWNING,
     DEVICE_CLASS_BLIND,
     DEVICE_CLASS_CURTAIN,
@@ -21,17 +20,15 @@ from homeassistant.components.cover import (
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF)
 from homeassistant.helpers.event import track_utc_time_change
-from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_covers
+
 from . import LoxoneEntity
+from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_covers
 
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = 'loxone'
 EVENT = "loxone_event"
 SENDDOMAIN = "loxone_send"
-
-SUPPORT_OPEN = 1
-SUPPORT_CLOSE = 2
 SUPPORT_SET_POSITION = 4
 SUPPORT_STOP = 8
 SUPPORT_OPEN_TILT = 16
@@ -74,7 +71,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
 
 
 class LoxoneGate(LoxoneEntity, CoverDevice):
-    """Loxone Jalousie"""
+    """Loxone Gate"""
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
@@ -112,7 +109,6 @@ class LoxoneGate(LoxoneEntity, CoverDevice):
     @property
     def animation(self):
         return self.details['animation']
-
 
     @property
     def current_cover_position(self):
@@ -326,10 +322,19 @@ class LoxoneJalousie(LoxoneEntity, CoverDevice):
             self._closed = self.current_cover_position <= 0
 
     @property
+    def name(self):
+        if self.is_automatic and self._auto_state:
+            return "{}*".format(self._name)
+        return self._name
+
+    @name.setter
+    def name(self, n):
+        self._name = n
+
+    @property
     def supported_features(self):
         """Flag supported features."""
-        supported_features = SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP \
-                             | SUPPORT_SET_POSITION
+        supported_features = SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP | SUPPORT_SET_POSITION
         if self.current_cover_tilt_position is not None:
             supported_features |= (SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT)
         return supported_features
@@ -537,7 +542,7 @@ class LoxoneJalousie(LoxoneEntity, CoverDevice):
             self._unsub_listener_cover = track_utc_time_change(
                 self.hass, self._time_changed_cover)
 
-    def _time_changed_cover(self, now):
+    def _time_changed_cover(self, _):
         """Track time changes."""
         if abs(self._position - self._set_position) < 5:
             self.stop_cover()

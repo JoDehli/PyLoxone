@@ -424,7 +424,9 @@ class LxToken:
 
 
 class LoxoneEntity(Entity):
-
+    """
+    @DynamicAttrs
+    """
     def __init__(self, **kwargs):
         self._name = ""
         for key in kwargs:
