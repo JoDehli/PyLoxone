@@ -323,8 +323,8 @@ class LoxoneJalousie(LoxoneEntity, CoverDevice):
 
     @property
     def name(self):
-        if self.is_automatic and self._auto_state:
-            return "{}*".format(self._name)
+#        if self.is_automatic and self._auto_state:
+#            return "{}*".format(self._name)
         return self._name
 
     @name.setter

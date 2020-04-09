@@ -281,8 +281,6 @@ async def async_setup(hass, config):
                         else:
                             view_state = "false"
                         command = {"object_id": object_id,
-                                   "visible": visiblity,
-                                   "view": view_state,
                                    "entities": entity_names,
                                    "name": name}
 

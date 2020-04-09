@@ -6,7 +6,7 @@ from homeassistant.helpers.entity import Entity
 
 from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid
-from . import get_all_analog_info, get_all_digital_info
+from . import get_all_analog_info, get_all_digital_info, get_all
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -16,6 +16,7 @@ DEFAULT_FORCE_UPDATE = False
 CONF_UUID = "uuid"
 EVENT = "loxone_event"
 DOMAIN = 'loxone'
+SENDDOMAIN = "loxone_send"
 
 
 async def async_setup_platform(hass, config, async_add_devices,
@@ -52,6 +53,14 @@ async def async_setup_platform(hass, config, async_add_devices,
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
 
+    for sensor in get_all(loxconfig, "TextInput"):
+        sensor.update({'room': get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
+                       'cat': get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', ''))})
+
+        new_sensor = LoxoneTextSensor(**sensor)
+        hass.bus.async_listen(EVENT, new_sensor.event_handler)
+        devices.append(new_sensor)
+
     async_add_devices(devices)
     return True
 
@@ -80,6 +89,45 @@ class LoxoneVersionSensor(Entity):
     def icon(self):
         """Return the sensor icon."""
         return "mdi:information-outline"
+
+
+class LoxoneTextSensor(LoxoneEntity):
+    """Representation of a Text Sensor."""
+
+    def __init__(self, **kwargs):
+        LoxoneEntity.__init__(self, **kwargs)
+        self._state = ""
+
+    async def event_handler(self, e):
+        if self.states['text'] in e.data:
+            self._state = str(e.data[self.states['text']])
+            self.schedule_update_ha_state()
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return self.type
+
+    @property
+    def state(self):
+        """Return the state of the sensor."""
+        return self._state
+
+    async def async_set_value(self, value):
+        """Set new value."""
+        self.hass.bus.async_fire(SENDDOMAIN,
+                                 dict(uuid=self.uuidAction, value="{}".format(value)))
+        self.async_schedule_update_ha_state()
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
+        return {"uuid": self.uuidAction, "device_typ": self.type,
+                "plattform": "loxone", "room": self.room, "category": self.cat,
+                "show_last_changed": "true"}
 
 
 class Loxonesensor(LoxoneEntity):
