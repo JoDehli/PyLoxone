@@ -295,17 +295,16 @@ class LoxoneJalousie(LoxoneEntity, CoverDevice):
             self.states['autoInfoText'] = ""
         if 'autoState' not in self.states:
             self.states['autoState'] = ""
-        self._position = None
+        self._position = 0
         self._position_loxone = -1
         self._set_position = None
         self._set_tilt_position = None
-        self._tilt_position = None
+        self._tilt_position = 0
         self._requested_closing = True
         self._unsub_listener_cover = None
         self._unsub_listener_cover_tilt = None
         self._is_opening = False
         self._is_closing = False
-        self._supported_features = None
         self._animation = 0
         self._is_automatic = False
         self._auto_text = ""
@@ -323,8 +322,6 @@ class LoxoneJalousie(LoxoneEntity, CoverDevice):
 
     @property
     def name(self):
-#        if self.is_automatic and self._auto_state:
-#            return "{}*".format(self._name)
         return self._name
 
     @name.setter
@@ -334,9 +331,18 @@ class LoxoneJalousie(LoxoneEntity, CoverDevice):
     @property
     def supported_features(self):
         """Flag supported features."""
-        supported_features = SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP | SUPPORT_SET_POSITION
+        supported_features = SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP
+
+        if self.current_cover_position is not None:
+            supported_features |= SUPPORT_SET_POSITION
+
         if self.current_cover_tilt_position is not None:
-            supported_features |= (SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT)
+            supported_features |= (
+                SUPPORT_OPEN_TILT
+                | SUPPORT_CLOSE_TILT
+                | SUPPORT_STOP_TILT
+                | SUPPORT_SET_TILT_POSITION
+            )
         return supported_features
 
     async def event_handler(self, e):
