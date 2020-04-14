@@ -9,5 +9,6 @@
   ],
   "dependencies": [],
   "codeowners": ["JoDehli"],
-  "homeassistant": "0.103.0"
+  "homeassistant": "0.103.0",
+  "render_readme": true
 }
