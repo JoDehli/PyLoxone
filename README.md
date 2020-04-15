@@ -7,8 +7,8 @@ He really helped me a lot to with the new token based authentification. Thanks P
 #### This release works for the version 0.103.0 and newer!!
 
 ## Manual installation
-1. Download and copy all files into your `config/www` directory.
-2. Add the following section to your `config.yaml` and restart:
+1. Download the zip file and extract  all files into your `config` directory.
+2. Add the following section to your `configuration.yaml` and restart:
 
 ```yaml
 loxone:
@@ -23,7 +23,7 @@ loxone:
 1. Install hacs to your homeassistant installation. See https://hacs.xyz/docs/installation/manual
 2. Add this repository to hacs: https://github.com/JoDehli/PyLoxone
 3. Install the PyLoxone binding
-4. Add the following section to your `config.yaml` and restart:
+4. Add the following section to your `configuration.yaml` and restart:
 
 ```yaml
 loxone:
@@ -47,7 +47,8 @@ Send command direct to the loxone for example a pulse event to a switch:
 ## Supported Loxone Entites
 - InfoOnlyAnalog and InfoOnlyDigital
 - Switch, TimedSwitch and Pushbutton
-- Jalousie and Gate
+- Jalousie, Window and Gate
 - Intercom
 - LightControllerV2
 - Alarm
+- LeftRightAnalog, UpDownAnalog, Slider
