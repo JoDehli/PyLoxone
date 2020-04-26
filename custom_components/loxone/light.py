@@ -200,7 +200,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, Light):
 
     @property
     def effect(self):
-        """Return the current effect."""
+       custom_components/loxone/light.py """Return the current effect."""
         if len(self._active_moods) == 1:
             return self.get_moodname_by_id(self._active_moods[0])
         return None
@@ -224,14 +224,14 @@ class LoxonelightcontrollerV2(LoxoneEntity, Light):
                         effect_ids.append(mood_id)
 
                 self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self.uuidAction, value="off"))
+                                         dict(uuid=self.uuidAction, value="on"))
 
                 for _ in effect_ids:
-                    self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self._uuid, value="addMood/{}".format(_)))
+                    self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="addMood/{}".format(_)))
 
         else:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="plus"))
+                                     dict(uuid=self.uuidAction, value="on"))
         self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs) -> None:
