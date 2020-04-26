@@ -200,7 +200,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, Light):
 
     @property
     def effect(self):
-       custom_components/loxone/light.py """Return the current effect."""
+        """Return the current effect."""
         if len(self._active_moods) == 1:
             return self.get_moodname_by_id(self._active_moods[0])
         return None
