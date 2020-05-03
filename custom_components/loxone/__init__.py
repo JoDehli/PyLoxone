@@ -19,9 +19,9 @@ from base64 import b64encode
 from datetime import datetime
 from struct import unpack
 import queue
+import requests_async as requests
 
 import homeassistant.helpers.config_validation as cv
-import requests
 import voluptuous as vol
 from homeassistant.helpers.entity import Entity
 from homeassistant.config import get_default_config_dir
@@ -33,7 +33,7 @@ from homeassistant.helpers.discovery import async_load_platform
 from requests.auth import HTTPBasicAuth
 from homeassistant.const import DEVICE_DEFAULT_NAME
 
-REQUIREMENTS = ['websockets', "pycryptodome", "numpy"]
+REQUIREMENTS = ['websockets', "pycryptodome", "numpy", "requests_async"]
 
 # Loxone constants
 TIMEOUT = 10
@@ -109,9 +109,9 @@ class loxApp(object):
         self.responsecode = None
         self.version = None
 
-    def getJson(self):
+    async def getJson (self):
         url_version = "http://{}:{}/jdev/cfg/version".format(self.host, self.port)
-        version_resp = requests.get(url_version, auth=HTTPBasicAuth(self.lox_user, self.lox_pass), verify=False)
+        version_resp = await requests.get(url_version, auth=HTTPBasicAuth(self.lox_user, self.lox_pass), verify=False)
 
         if version_resp.status_code == 200:
             vjson = version_resp.json()
@@ -120,7 +120,7 @@ class loxApp(object):
                     self.version = [int(x) for x in vjson['LL']['value'].split(".")]
 
         url = "http://" + str(self.host) + ":" + str(self.port) + self.loxapppath
-        my_response = requests.get(url, auth=HTTPBasicAuth(self.lox_user, self.lox_pass), verify=False)
+        my_response = await requests.get(url, auth=HTTPBasicAuth(self.lox_user, self.lox_pass), verify=False)
         if my_response.status_code == 200:
             self.json = my_response.json()
             if self.version is not None:
@@ -196,7 +196,8 @@ async def async_setup(hass, config):
         lox_config.lox_pass = config[DOMAIN][CONF_PASSWORD]
         lox_config.host = config[DOMAIN][CONF_HOST]
         lox_config.port = config[DOMAIN][CONF_PORT]
-        request_code = lox_config.getJson()
+        request_code = await lox_config.getJson()
+
         if request_code == 200 or request_code == "200":
             hass.data[DOMAIN] = config[DOMAIN]
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
@@ -667,7 +668,7 @@ class LoxWs:
             _LOGGER.debug("error token read")
 
         # Get public key from Loxone
-        resp = self.get_public_key()
+        resp = await self.get_public_key()
 
         if not resp:
             return ERROR_VALUE
@@ -1083,13 +1084,13 @@ class LoxWs:
             _LOGGER.debug("{}".format(traceback.print_exc()))
             return False
 
-    def get_public_key(self):
+    async def get_public_key(self):
         command = "http://{}:{}/{}".format(self._host, self._port,
                                            CMD_GET_PUBLIC_KEY)
         _LOGGER.debug("try to get public key: {}".format(command))
 
         try:
-            response = requests.get(command, auth=(self._username, self._pasword), timeout=1)
+            response = await requests.get(command, auth=(self._username, self._pasword), timeout=1)
         except:
             return False
 
