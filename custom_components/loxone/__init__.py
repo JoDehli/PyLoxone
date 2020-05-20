@@ -31,7 +31,6 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  EVENT_HOMEASSISTANT_STOP)
 from homeassistant.helpers.discovery import async_load_platform
 from requests.auth import HTTPBasicAuth
-from homeassistant.const import DEVICE_DEFAULT_NAME
 
 REQUIREMENTS = ['websockets', "pycryptodome", "numpy", "requests_async"]
 
@@ -73,6 +72,7 @@ ERROR_VALUE = -1
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_PORT = 8080
+DEFAULT_TIMEOUT = 10.0
 EVENT = 'loxone_event'
 DOMAIN = 'loxone'
 SENDDOMAIN = "loxone_send"
@@ -111,7 +111,9 @@ class loxApp(object):
 
     async def getJson (self):
         url_version = "http://{}:{}/jdev/cfg/version".format(self.host, self.port)
-        version_resp = await requests.get(url_version, auth=HTTPBasicAuth(self.lox_user, self.lox_pass), verify=False)
+        version_resp = await requests.get(url_version,
+                                          auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
+                                          verify=False, timeout=DEFAULT_TIMEOUT)
 
         if version_resp.status_code == 200:
             vjson = version_resp.json()
@@ -120,7 +122,8 @@ class loxApp(object):
                     self.version = [int(x) for x in vjson['LL']['value'].split(".")]
 
         url = "http://" + str(self.host) + ":" + str(self.port) + self.loxapppath
-        my_response = await requests.get(url, auth=HTTPBasicAuth(self.lox_user, self.lox_pass), verify=False)
+        my_response = await requests.get(url, auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
+                                         verify=False, timeout=DEFAULT_TIMEOUT)
         if my_response.status_code == 200:
             self.json = my_response.json()
             if self.version is not None:
@@ -1090,7 +1093,7 @@ class LoxWs:
         _LOGGER.debug("try to get public key: {}".format(command))
 
         try:
-            response = await requests.get(command, auth=(self._username, self._pasword), timeout=1)
+            response = await requests.get(command, auth=(self._username, self._pasword), timeout=DEFAULT_TIMEOUT)
         except:
             return False
 
