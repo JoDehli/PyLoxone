@@ -2,6 +2,8 @@
 import logging
 import re
 
+from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity, FORMAT_NUMBER, FORMAT_TEXT
+
 import homeassistant.components.alarm_control_panel as alarm
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -64,7 +66,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     return True
 
 
-class LoxoneAlarm(LoxoneEntity, alarm.AlarmControlPanel):
+class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
@@ -229,5 +231,5 @@ class LoxoneAlarm(LoxoneEntity, alarm.AlarmControlPanel):
         if self._code is None:
             return None
         if isinstance(self._code, str) and re.search("^\\d+$", self._code):
-            return alarm.FORMAT_NUMBER
-        return alarm.FORMAT_TEXT
+            return FORMAT_NUMBER
+        return FORMAT_TEXT

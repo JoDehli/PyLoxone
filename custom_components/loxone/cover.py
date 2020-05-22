@@ -12,7 +12,7 @@ from homeassistant.components.cover import (
     DEVICE_CLASS_GARAGE,
     DEVICE_CLASS_DOOR,
     DEVICE_CLASS_WINDOW,
-    CoverDevice,
+    CoverEntity,
     SUPPORT_OPEN,
     SUPPORT_CLOSE,
     ATTR_POSITION
@@ -70,7 +70,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
     return True
 
 
-class LoxoneGate(LoxoneEntity, CoverDevice):
+class LoxoneGate(LoxoneEntity, CoverEntity):
     """Loxone Gate"""
 
     def __init__(self, **kwargs):
@@ -188,7 +188,7 @@ class LoxoneGate(LoxoneEntity, CoverDevice):
                 "plattform": "loxone"}
 
 
-class LoxoneWindow(LoxoneEntity, CoverDevice):
+class LoxoneWindow(LoxoneEntity, CoverEntity):
 
     # pylint: disable=no-self-use
     def __init__(self, **kwargs):
@@ -283,7 +283,7 @@ class LoxoneWindow(LoxoneEntity, CoverDevice):
                                  dict(uuid=self.uuidAction, value="moveToPosition/{}".format(position)))
 
 
-class LoxoneJalousie(LoxoneEntity, CoverDevice):
+class LoxoneJalousie(LoxoneEntity, CoverEntity):
     """Loxone Jalousie"""
 
     # pylint: disable=no-self-use

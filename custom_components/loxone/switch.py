@@ -3,7 +3,7 @@
 import logging
 
 import voluptuous as vol
-from homeassistant.components.switch import SwitchDevice
+from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 
@@ -170,7 +170,7 @@ class LoxoneInputSelect(LoxoneEntity, input_number.InputNumber):
         return state_dict
 
 
-class LoxoneTimedSwitch(LoxoneEntity, SwitchDevice):
+class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch or pushbutton"""
 
     def __init__(self, **kwargs):
@@ -265,7 +265,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchDevice):
         return state_dict
 
 
-class LoxoneSwitch(LoxoneEntity, SwitchDevice):
+class LoxoneSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch or pushbutton"""
 
     def __init__(self, **kwargs):

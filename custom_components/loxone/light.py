@@ -13,7 +13,7 @@ from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_COLOR_TEMP,
     ATTR_HS_COLOR,
-    Light,
+    LightEntity,
     ToggleEntity
 )
 from homeassistant.const import (
@@ -144,7 +144,7 @@ async def async_setup_platform(hass, config, async_add_devices,
     return True
 
 
-class LoxonelightcontrollerV2(LoxoneEntity, Light):
+class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
     """Representation of a Light Controller V2."""
 
     def __init__(self, **kwargs):
@@ -345,7 +345,7 @@ class LoxoneLight(LoxoneEntity, ToggleEntity):
             self.async_schedule_update_ha_state()
 
 
-class LoxoneColorPickerV2(LoxoneEntity, Light):
+class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
@@ -458,7 +458,7 @@ class LoxoneColorPickerV2(LoxoneEntity, Light):
         return SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
 
 
-class LoxoneDimmer(LoxoneEntity, Light):
+class LoxoneDimmer(LoxoneEntity, LightEntity):
     """Representation of a Dimmer."""
 
     def __init__(self, **kwargs):
