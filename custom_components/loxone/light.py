@@ -298,6 +298,7 @@ class LoxoneLight(LoxoneEntity, ToggleEntity):
         self._state = 0.0
         self._async_add_devices = kwargs['async_add_devices']
 
+
     @property
     def state(self):
         """Return the state of the entity."""
@@ -337,9 +338,10 @@ class LoxoneLight(LoxoneEntity, ToggleEntity):
 
     async def event_handler(self, event):
         request_update = False
-        if self.uuidAction in event.data:
-            self._state = event.data[self.uuidAction]
-            request_update = True
+        if 'active' in self.states:
+            if self.states['active'] in event.data:
+                self._state = event.data[self.states['active']]
+                request_update = True
 
         if request_update:
             self.async_schedule_update_ha_state()
