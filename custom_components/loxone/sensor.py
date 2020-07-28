@@ -1,8 +1,10 @@
 import logging
-
 from homeassistant.const import (
-    CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF)
+    CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF, CONF_NAME, CONF_UNIT_OF_MEASUREMENT)
 from homeassistant.helpers.entity import Entity
+import voluptuous as vol
+from homeassistant.components.sensor import PLATFORM_SCHEMA
+import homeassistant.helpers.config_validation as cv
 
 from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid
@@ -17,6 +19,14 @@ CONF_UUID = "uuid"
 EVENT = "loxone_event"
 DOMAIN = 'loxone'
 SENDDOMAIN = "loxone_send"
+CONF_ACTIONID = "uuidAction"
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_ACTIONID): cv.string,
+        vol.Optional(CONF_NAME): cv.string,
+        vol.Optional(CONF_UNIT_OF_MEASUREMENT): cv.string,
+    }
+)
 
 
 async def async_setup_platform(hass, config, async_add_devices,
@@ -26,6 +36,16 @@ async def async_setup_platform(hass, config, async_add_devices,
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
         value_template.hass = hass
+
+    # Devices from yaml
+    if config != {}:
+        # Here Setup alle Sensors in Yaml-File
+        new_sensor = LoxoneCustomSensor(**config)
+        hass.bus.async_listen(EVENT, new_sensor.event_handler)
+        # hass.bus.async_listen(EVENT_STATE_CHANGED, new_sensor.changed_handler)
+        # hass.bus.async_listen("event_websocket_command", new_sensor.websocket_handler)
+        async_add_devices([new_sensor])
+        return True
 
     config = hass.data[DOMAIN]
     loxconfig = config['loxconfig']
@@ -63,6 +83,48 @@ async def async_setup_platform(hass, config, async_add_devices,
 
     async_add_devices(devices)
     return True
+
+
+class LoxoneCustomSensor(Entity):
+    def __init__(self, **kwargs):
+        self._name = kwargs['name']
+        if "uuidAction" in kwargs:
+            self.uuidAction = kwargs['uuidAction']
+        else:
+            self.uuidAction = ""
+        if "unit_of_measurement" in kwargs:
+            self._unit_of_measurement = kwargs['unit_of_measurement']
+        else:
+            self._unit_of_measurement = ""
+
+        self._state = "-"
+
+    async def event_handler(self, e):
+        if self.uuidAction in e.data:
+            self._state = e.data[self.uuidAction]
+            self.schedule_update_ha_state()
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return self._name
+
+    @property
+    def state(self):
+        return self._state
+
+    @property
+    def unit_of_measurement(self):
+        """Return the unit of measurement of this entity, if any."""
+        return self._unit_of_measurement
+
+    # async def changed_handler(self, e):
+    #     if e.data.get("new_state"):
+    #         if e.data["entity_id"] == self.entity_id:
+    #             print(e.data)
+    #
+    # async def websocket_handler(self, e):
+    #     print(e)
 
 
 class LoxoneVersionSensor(Entity):
