@@ -58,12 +58,10 @@ You can integrate nearly every Loxone Entity in your Home-Assistent System by ad
 
 Here is a example of a sensor 
 ```yaml
-{
 sensor:
   - name: comfort temp 
     platform: loxone
     uuidAction: 15beed5b-01ab-d81d-ffff2b06d5b9c660
-}
 ```
 In this example a sensor with the name comfort_temp is created. The sensor is listining to all events from the loxone system with the specifiied uuid. 
 
