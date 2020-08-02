@@ -64,7 +64,7 @@ sensor:
     uuidAction: "15beed5b-01ab-d81d-ffff2b06d5b9c660"
     unit_of_measurement: "°C"
 ```
-In this example a sensor with the name comfort_temp is created. The sensor is listining to all events from the loxone system with the specifiied uuid ([How do you get the uuid?](#-How-do-you-get-the-uuid?)).
+In this example a sensor with the name roomcomforttemperature (sensor.roomcomforttemperature) is created. The sensor is listining to all events from the loxone system with the specifiied uuid ([How do you get the uuid?](#-How-do-you-get-the-uuid?)).
 
 You can also send any websocket to a loxone entity for example to degrease an increase the temperature of a room controller v2. Here are to scripts for increasing and decreasing the temperature in 0.5 °C steps:
 
