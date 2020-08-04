@@ -1,4 +1,6 @@
 # PyLoxone
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+
 Home Assistant binding for Loxone. 
 
 A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
