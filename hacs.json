@@ -1,0 +1,9 @@
+{
+    "name": "PyLoxone",
+    "country": "DE",
+    "hacs": "1.0.0",
+    "render_readme": true,
+    "domains": ["sensor", "switch", "cover", "light", "scene", "alarm_control_panel"],
+    "homeassistant": "0.109.0"
+}
+
