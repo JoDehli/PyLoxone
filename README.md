@@ -51,7 +51,6 @@ Send command direct to the loxone for example a pulse event to a switch:
 - Intercom
 - LightControllerV2
 - Alarm
-- LeftRightAnalog, UpDownAnalog, Slider
 
 ## If your Device is not supported
 You can integrate nearly every Loxone Entity in your Home-Assistent System by adding a custom sensor to your yaml file. 

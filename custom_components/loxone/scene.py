@@ -43,7 +43,7 @@ async def async_setup_platform(hass, config, async_add_devices,
         async_add_devices(devices)
 
     if config[CONF_SCENE_GEN]:
-        async_call_later(hass, 0.2, async_call())
+        async_call_later(hass, 0.5, async_call())
     return True
 
 
