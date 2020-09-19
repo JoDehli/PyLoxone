@@ -57,6 +57,7 @@ Send command direct to the loxone for example a pulse event to a switch:
 ## If your Device is not supported
 You can integrate nearly every Loxone Entity in your Home-Assistent System by adding a custom sensor to your yaml file. 
 
+### Example 1 with a RoomComfortTemperature
 Here is a example of a sensor which is displaying the comfort temperature of a room controller v2:
 ```yaml
 sensor:
@@ -88,6 +89,39 @@ script:
         value: "setComfortTemperature/{{ states('sensor.roomcomforttemperature')|float-0.5}}"
       service: loxone.event_websocket_command
 ```
+
+### Example 2 with a UpDownAnalog
+
+- First get the uuidAction as described above for example. Let's assume your uuidAction for the UpDownAnalog is 152ecfaa-03ac-f715-ffff403fb0c34b9e.
+- Create a Sensor do display the current value of the UpDownAnalog like this:
+```yaml
+sensor:
+  - name: "Up and Down Sensor"
+    platform: loxone
+    uuidAction: "152ecfaa-03ac-f715-ffff403fb0c34b9e"
+    unit_of_measurement: ""
+```
+- Create a script for incrementing up and down like this:
+```yaml
+down:
+  alias: Down
+  mode: single
+  sequence:
+  - data_template:
+      uuid: "152ecfaa-03ac-f715-ffff403fb0c34b9e"
+      value: "{{ states('sensor.up_and_down_sensor')|float-1}}"
+    service: loxone.event_websocket_command
+
+up:
+  alias: Up
+  mode: single
+  sequence:
+  - data_template:
+      uuid: "152ecfaa-03ac-f715-ffff403fb0c34b9e"
+      value: "{{ states('sensor.up_and_down_sensor')|float+1}}"
+    service: loxone.event_websocket_command
+```
+
 The commands for each entity can be found in the structure file. You can download it from the [Loxone Hompage](https://www.loxone.com/dede/kb/api/).
 
  ### How do you get the uuid?
