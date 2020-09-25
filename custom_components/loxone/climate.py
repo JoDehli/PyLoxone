@@ -149,6 +149,7 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity):
         uuid = self._stateAttribUuids[name]
         return self._stateAttribValues[uuid] if uuid in self._stateAttribValues else None
 
+
     @property
     def device_state_attributes(self):
         """Return device specific state attributes.
@@ -158,6 +159,11 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity):
         return {"uuid": self.uuidAction, "device_typ": self.type,
                 "room": self.room, "category": self.cat,
                 "plattform": "loxone"}
+
+    @property
+    def current_temperature(self):
+        """Return the current temperature."""
+        return self.getStateValue("tempActual")
 
     def set_temperature(self, **kwargs):
         """Set new target temperature"""
