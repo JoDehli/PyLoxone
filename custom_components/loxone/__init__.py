@@ -83,7 +83,7 @@ ATTR_CODE = "code"
 ATTR_COMMAND = "command"
 CONF_SCENE_GEN = "generate_scenes"
 
-LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "scene", "alarm_control_panel"]
+LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "scene", "alarm_control_panel", "climate"]
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -146,6 +146,9 @@ def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
         if cat_uuid in lox_config['cats']:
             return lox_config['cats'][cat_uuid]['name']
     return ""
+
+def get_all_roomcontroller_entities(json_data):
+    return get_all(json_data, 'IRoomControllerV2')
 
 
 def get_all_switch_entities(json_data):
@@ -244,6 +247,7 @@ async def async_setup(hass, config):
                     switches = []
                     covers = []
                     lights = []
+                    climates = []
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
@@ -264,12 +268,15 @@ async def async_setup(hass, config):
                             elif attr['device_typ'] == "LightControllerV2" or \
                                     attr['device_typ'] == "Dimmer":
                                 lights.append(s_dict['entity_id'])
+                            elif attr['device_typ'] == "IRoomControllerV2":
+                                climates.append(s_dict['entity_id'])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
                     covers.sort()
                     switches.sort()
                     lights.sort()
+                    climates.sort()
 
                     async def create_loxone_group(object_id, name,
                                                   entity_names, visible=True,
@@ -306,6 +313,9 @@ async def async_setup(hass, config):
 
                     await create_loxone_group("loxone_lights", "Loxone Lights",
                                               lights, True, False)
+
+                    await create_loxone_group("loxone_climates", "Loxone Room Controllers",
+                                              climates, True, False)
 
                     await create_loxone_group("loxone_group", "Loxone Group",
                                               ["group.loxone_analog",
