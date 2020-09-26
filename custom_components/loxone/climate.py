@@ -2,29 +2,25 @@
 Loxone climate component.
 """
 import logging
-from voluptuous import All, Range, Optional
-
-from homeassistant.components.climate.const import (
-    HVAC_MODE_COOL,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_OFF,    
-    HVAC_MODE_HEAT_COOL,
-    HVAC_MODE_AUTO,
-)
+from abc import ABC
 
 from homeassistant.components.climate import (
-    SERVICE_TURN_OFF,
-    SERVICE_TURN_ON,
     TEMP_CELSIUS,
-    ATTR_HVAC_MODE,
     ClimateEntity,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
     PLATFORM_SCHEMA
 )
-
+from homeassistant.components.climate.const import (
+    HVAC_MODE_COOL,
+    HVAC_MODE_HEAT,
+    HVAC_MODE_OFF,
+    HVAC_MODE_HEAT_COOL,
+    HVAC_MODE_AUTO,
+)
 from homeassistant.const import (
-    CONF_VALUE_TEMPLATE, CONF_NAME)
+    CONF_VALUE_TEMPLATE)
+from voluptuous import All, Range, Optional
 
 from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_roomcontroller_entities
@@ -38,13 +34,13 @@ SENDDOMAIN = "loxone_send"
 CONF_HVAC_AUTO_MODE = 'hvac_auto_mode'
 
 OPMODES = {
-        None: HVAC_MODE_OFF,
-        0: HVAC_MODE_AUTO,
-        1: HVAC_MODE_AUTO,
-        2: HVAC_MODE_AUTO,
-        3: HVAC_MODE_HEAT_COOL,
-        4: HVAC_MODE_HEAT,
-        5: HVAC_MODE_COOL }
+    None: HVAC_MODE_OFF,
+    0: HVAC_MODE_AUTO,
+    1: HVAC_MODE_AUTO,
+    2: HVAC_MODE_AUTO,
+    3: HVAC_MODE_HEAT_COOL,
+    4: HVAC_MODE_HEAT,
+    5: HVAC_MODE_COOL}
 
 OPMODETOLOXONE = {
     HVAC_MODE_HEAT_COOL: 3,
@@ -53,13 +49,14 @@ OPMODETOLOXONE = {
 }
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-        Optional(CONF_HVAC_AUTO_MODE, default=0):
-            All(int, Range(min=0, max=2)),
-    })
+    Optional(CONF_HVAC_AUTO_MODE, default=0):
+        All(int, Range(min=0, max=2)),
+})
 
+
+# noinspection PyUnusedLocal
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
     value_template = config.get(CONF_VALUE_TEMPLATE)
-    name = config.get(CONF_NAME)
     auto_mode = 0 if config.get(CONF_HVAC_AUTO_MODE) is None else config.get(CONF_HVAC_AUTO_MODE)
 
     if value_template is not None:
@@ -72,19 +69,19 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
 
     for climate in get_all_roomcontroller_entities(loxconfig):
         climate.update({'hass': hass,
-                      'room': get_room_name_from_room_uuid(loxconfig, climate.get('room', '')),
-                      'cat': get_cat_name_from_cat_uuid(loxconfig, climate.get('cat', '')),
-                      CONF_HVAC_AUTO_MODE: auto_mode})
+                        'room': get_room_name_from_room_uuid(loxconfig, climate.get('room', '')),
+                        'cat': get_cat_name_from_cat_uuid(loxconfig, climate.get('cat', '')),
+                        CONF_HVAC_AUTO_MODE: auto_mode})
 
-        new_thermostat = LoxoneRoomController(**climate)
+        new_thermostat = LoxoneRoomControllerV2(**climate)
         devices.append(new_thermostat)
         hass.bus.async_listen(EVENT, new_thermostat.event_handler)
-        
+
     async_add_devices(devices)
     return True
 
-class LoxoneRoomController(LoxoneEntity, ClimateEntity):
-    
+
+class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller"""
 
     def __init__(self, **kwargs):
@@ -95,12 +92,12 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity):
 
         self._stateAttribUuids = kwargs['states']
         self._stateAttribValues = {}
-        
+
         self._modeList = kwargs['details']['timerModes']
 
-    def getModeFromId(self, modeId):
+    def get_mode_from_id(self, mode_id):
         for mode in self._modeList:
-            if mode['id'] == modeId:
+            if mode['id'] == mode_id:
                 return mode['name']
 
     @property
@@ -120,14 +117,13 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity):
         for key in (set(self._stateAttribUuids.values()) & event.data.keys()):
             self._stateAttribValues[key] = event.data[key]
             update = True
-     
+
         if update:
             self.schedule_update_ha_state()
 
         _LOGGER.debug(f"State attribs after event handling: {self._stateAttribValues}")
 
-
-    def getStateValue(self, name):
+    def get_state_value(self, name):
         uuid = self._stateAttribUuids[name]
         return self._stateAttribValues[uuid] if uuid in self._stateAttribValues else None
 
@@ -144,15 +140,16 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity):
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        return self.getStateValue("tempActual")
+        return self.get_state_value("tempActual")
 
     def set_temperature(self, **kwargs):
         """Set new target temperature"""
-        if (self.getStateValue("operatingMode") > 2): #Set manual temp if any of the manual modes selected
-            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f'setManualTemperature/{kwargs["temperature"]}'))    
-        else: #Set comfort temp offset otherwise
-            newOffset = kwargs["temperature"] - self.getStateValue("comfortTemperature")
-            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f'setComfortModeTemp/{newOffset}'))
+        if self.get_state_value("operatingMode") > 2:  # Set manual temp if any of the manual modes selected
+            self.hass.bus.async_fire(SENDDOMAIN,
+                                     dict(uuid=self.uuidAction, value=f'setManualTemperature/{kwargs["temperature"]}'))
+        else:  # Set comfort temp offset otherwise
+            new_offset = kwargs["temperature"] - self.get_state_value("comfortTemperature")
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f'setComfortModeTemp/{new_offset}'))
 
     @property
     def hvac_mode(self):
@@ -160,7 +157,7 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity):
 
         Need to be one of HVAC_MODE_*.
         """
-        return OPMODES[self.getStateValue("operatingMode")]
+        return OPMODES[self.get_state_value("operatingMode")]
 
     @property
     def hvac_modes(self):
@@ -173,14 +170,14 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity):
     @property
     def temperature_unit(self):
         """Return the unit of measurement used by the platform."""
-        
+
         return TEMP_CELSIUS
 
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        
-        return self.getStateValue("tempTarget")
+
+        return self.get_state_value("tempTarget")
 
     @property
     def target_temperature_step(self):
@@ -193,8 +190,8 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity):
 
         Requires SUPPORT_PRESET_MODE.
         """
-        #return self._activeMode
-        return self.getModeFromId(self.getStateValue("activeMode"))
+        # return self._activeMode
+        return self.get_mode_from_id(self.get_state_value("activeMode"))
 
     @property
     def preset_modes(self):
@@ -208,18 +205,18 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity):
         """Set new target hvac mode."""
 
         target_mode = self._autoMode if hvac_mode == HVAC_MODE_AUTO else OPMODETOLOXONE[hvac_mode]
-        
+
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f'setOperatingMode/{target_mode}'))
 
         self.schedule_update_ha_state()
 
-        #if the mode selected is a manual one, we set the target temperature too
-        #if (hvac_mode != HVAC_MODE_AUTO):
+        # if the mode selected is a manual one, we set the target temperature too
+        # if (hvac_mode != HVAC_MODE_AUTO):
         #    self.set_temperature({"temperature": self.target_temperature})
 
     def set_preset_mode(self, preset_mode: str):
         """Set new preset mode."""
-        modeId = next((mode["id"] for mode in self._modeList if mode['name'] == preset_mode), None)
-        if (modeId is not None):
-            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f'override/{modeId}'))
+        mode_id = next((mode["id"] for mode in self._modeList if mode['name'] == preset_mode), None)
+        if mode_id is not None:
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f'override/{mode_id}'))
             self.schedule_update_ha_state()
