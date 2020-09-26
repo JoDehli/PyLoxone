@@ -17,3 +17,5 @@ hass.py
 /venv/
 
 __pycache__
+custom_components/loxone/homeassistant
+.vscode
