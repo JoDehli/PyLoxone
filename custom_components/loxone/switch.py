@@ -20,9 +20,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
         value_template.hass = hass
-
-    config = hass.data[DOMAIN]
-    loxconfig = config['loxconfig']
+    loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
     entities = []
 

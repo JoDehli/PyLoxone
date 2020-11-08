@@ -51,8 +51,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     if discovery_info is None:
         return
 
-    config = hass.data[DOMAIN]
-    loxconfig = config['loxconfig']
+    loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
 
     for loxone_alarm in get_all_alarm(loxconfig):

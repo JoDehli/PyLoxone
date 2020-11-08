@@ -47,8 +47,7 @@ async def async_setup_platform(hass, config, async_add_devices,
         async_add_devices([new_sensor])
         return True
 
-    config = hass.data[DOMAIN]
-    loxconfig = config['loxconfig']
+    loxconfig = hass.data[DOMAIN]['loxconfig']
 
     devices = []
     if 'softwareVersion' in loxconfig:

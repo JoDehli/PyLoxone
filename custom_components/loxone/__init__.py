@@ -108,7 +108,7 @@ class loxApp(object):
         self.responsecode = None
         self.version = None
 
-    async def getJson (self):
+    async def getJson(self):
         url_version = "http://{}:{}/jdev/cfg/version".format(self.host, self.port)
         version_resp = await requests.get(url_version,
                                           auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
@@ -189,15 +189,47 @@ def get_all(json_data, name):
     return controls
 
 
+async def async_unload_entry(hass, config_entry):
+    """"""
+    hass.data.pop(DOMAIN)
+    return True
+
 async def async_setup(hass, config):
     """setup loxone"""
+    if DOMAIN in config:
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": "import"}, data=config[DOMAIN]
+            )
+        )
+    return True
+
+
+async def async_set_options(hass, config_entry):
+    data = {**config_entry.data}
+    options = {
+        CONF_HOST: data.pop(CONF_HOST, ""),
+        CONF_PORT: data.pop(CONF_PORT, 8080),
+        CONF_USERNAME: data.pop(CONF_USERNAME, ""),
+        CONF_PASSWORD: data.pop(CONF_PASSWORD, ""),
+    }
+    hass.config_entries.async_update_entry(
+        config_entry, data=data, options=options
+    )
+
+
+async def async_setup_entry(hass, config_entry):
+    if not config_entry.options:
+        await async_set_options(hass, config_entry)
+
+    config = {DOMAIN: dict(config_entry.options)}
 
     try:
         lox_config = loxApp()
-        lox_config.lox_user = config[DOMAIN][CONF_USERNAME]
-        lox_config.lox_pass = config[DOMAIN][CONF_PASSWORD]
-        lox_config.host = config[DOMAIN][CONF_HOST]
-        lox_config.port = config[DOMAIN][CONF_PORT]
+        lox_config.lox_user = config_entry.options[CONF_USERNAME]
+        lox_config.lox_pass = config_entry.options[CONF_PASSWORD]
+        lox_config.host = config_entry.options[CONF_HOST]
+        lox_config.port = config_entry.options[CONF_PORT]
         request_code = await lox_config.getJson()
 
         if request_code == 200 or request_code == "200":
@@ -428,6 +460,7 @@ class LoxoneEntity(Entity):
     """
     @DynamicAttrs
     """
+
     def __init__(self, **kwargs):
         self._name = ""
         for key in kwargs:

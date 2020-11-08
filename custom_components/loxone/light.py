@@ -68,8 +68,7 @@ async def async_setup_platform(hass, config, async_add_devices,
     if value_template is not None:
         value_template.hass = hass
 
-    config = hass.data[DOMAIN]
-    loxconfig = config['loxconfig']
+    loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
     all_dimmers = []
     all_light_controller_dimmers = []

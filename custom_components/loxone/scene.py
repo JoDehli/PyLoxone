@@ -25,8 +25,6 @@ async def async_setup_platform(hass, config, async_add_devices,
     if value_template is not None:
         value_template.hass = hass
 
-    config = hass.data[DOMAIN]
-
     async def async_call():
         devices = []
         entity_ids = hass.states.async_entity_ids("LIGHT")
@@ -42,7 +40,8 @@ async def async_setup_platform(hass, config, async_add_devices,
                         devices.append(Loxonelightscene("{}-{}".format(entity.name, effect), mood_id, uuid))
         async_add_devices(devices)
 
-    if config[CONF_SCENE_GEN]:
+    if hass.data[DOMAIN].get(CONF_SCENE_GEN):
+        # hass.helpers.event.async_call_later(0.5, async_call(hass))
         async_call_later(hass, 0.5, async_call())
     return True
 
