@@ -147,6 +147,7 @@ def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
             return lox_config['cats'][cat_uuid]['name']
     return ""
 
+
 def get_all_roomcontroller_entities(json_data):
     return get_all(json_data, 'IRoomControllerV2')
 
@@ -193,9 +194,10 @@ def get_all(json_data, name):
 
 
 async def async_unload_entry(hass, config_entry):
-    """"""
-    hass.data.pop(DOMAIN)
-    return True
+    """ Restart of Home Assistant needed."""
+    # TODO: Implement a complete restart of the loxone component without restart HomeAssistant
+    return False
+
 
 async def async_setup(hass, config):
     """setup loxone"""
@@ -215,6 +217,7 @@ async def async_set_options(hass, config_entry):
         CONF_PORT: data.pop(CONF_PORT, 8080),
         CONF_USERNAME: data.pop(CONF_USERNAME, ""),
         CONF_PASSWORD: data.pop(CONF_PASSWORD, ""),
+        CONF_SCENE_GEN: data.pop(CONF_SCENE_GEN, ""),
     }
     hass.config_entries.async_update_entry(
         config_entry, data=data, options=options
@@ -245,9 +248,11 @@ async def async_setup_entry(hass, config_entry):
                 )
             del lox_config
         else:
-            _LOGGER.error("unable to connect to Loxone")
+            _LOGGER.error("Unable to connect to Loxone.")
+            return False
+
     except ConnectionError:
-        _LOGGER.error("unable to connect to Loxone")
+        _LOGGER.error("Unable to connect to Loxone.")
         return False
 
     lox = LoxWs(user=config[DOMAIN][CONF_USERNAME],
@@ -666,6 +671,7 @@ class LoxWs:
     async def reconnect(self):
         return await self.async_init()
 
+    # https://github.com/aio-libs/aiohttp/issues/754
     async def stop(self):
         try:
             self.state = "STOPPING"

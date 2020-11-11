@@ -12,7 +12,8 @@
                     "username": "User",
                     "port": "Port",
                     "host": "Miniserver Ip",
-                    "password": "Password"
+                    "password": "Password",
+                    "generate_scenes": "Generate Scenes"
                 }
             }
         }

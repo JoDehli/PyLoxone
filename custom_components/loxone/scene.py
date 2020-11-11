@@ -4,6 +4,7 @@ from homeassistant.components.scene import Scene
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 from homeassistant.helpers.entity_platform import async_call_later
+from homeassistant.core import callback
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,7 +16,11 @@ DOMAIN = 'loxone'
 SENDDOMAIN = "loxone_send"
 CONF_SCENE_GEN = "generate_scenes"
 
+from homeassistant.loader import bind_hass
 
+
+# @callback
+# @bind_hass
 async def async_setup_platform(hass, config, async_add_devices,
                                discovery_info=None):
     """Set up Scenes."""
@@ -25,7 +30,7 @@ async def async_setup_platform(hass, config, async_add_devices,
     if value_template is not None:
         value_template.hass = hass
 
-    async def async_call():
+    async def gen_scenes(_):
         devices = []
         entity_ids = hass.states.async_entity_ids("LIGHT")
         for _ in entity_ids:
@@ -41,8 +46,7 @@ async def async_setup_platform(hass, config, async_add_devices,
         async_add_devices(devices)
 
     if hass.data[DOMAIN].get(CONF_SCENE_GEN):
-        # hass.helpers.event.async_call_later(0.5, async_call(hass))
-        async_call_later(hass, 0.5, async_call())
+        async_call_later(hass, 0.5, gen_scenes)
     return True
 
 

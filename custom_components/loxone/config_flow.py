@@ -11,6 +11,7 @@ DOMAIN = 'loxone'
 
 LOXONE_DEFAULT_PORT = 8080
 LOXONE_DEFAULT_IP = ""
+CONF_SCENE_GEN = "generate_scenes"
 
 LOXONE_SCHEMA = vol.Schema(
     {
@@ -18,6 +19,7 @@ LOXONE_SCHEMA = vol.Schema(
         vol.Required(CONF_PASSWORD, default=""): str,
         vol.Required(CONF_HOST, default=LOXONE_DEFAULT_IP): str,
         vol.Required(CONF_PORT, default=LOXONE_DEFAULT_PORT): int,
+        vol.Required(CONF_SCENE_GEN, default=True): bool,
     }
 )
 
@@ -66,12 +68,15 @@ class LoxoneOptionsFlowHandler(config_entries.OptionsFlow):
         password = self.config_entry.options.get(CONF_PASSWORD, "")
         host = self.config_entry.options.get(CONF_HOST, "")
         port = self.config_entry.options.get(CONF_PORT, 80)
+        gen_scenes = self.config_entry.options.get(CONF_SCENE_GEN, True)
+
         options = OrderedDict()
 
         options[vol.Required(CONF_USERNAME, default=user)] = str
         options[vol.Required(CONF_PASSWORD, default=password)] = str
         options[vol.Required(CONF_HOST, default=host)] = str
         options[vol.Required(CONF_PORT, default=port)] = int
+        options[vol.Required(CONF_SCENE_GEN, default=gen_scenes)] = bool
 
         return self.async_show_form(
             step_id="init",
