@@ -28,10 +28,12 @@ from homeassistant.config import get_default_config_dir
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
                                  EVENT_HOMEASSISTANT_START,
-                                 EVENT_HOMEASSISTANT_STOP)
+                                 EVENT_HOMEASSISTANT_STOP,
+                                 )
 from homeassistant.helpers.discovery import async_load_platform
 import homeassistant.components.group as group
 from requests.auth import HTTPBasicAuth
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 REQUIREMENTS = ['websockets', "pycryptodome", "numpy", "requests_async"]
 
@@ -83,6 +85,7 @@ ATTR_VALUE = 'value'
 ATTR_CODE = "code"
 ATTR_COMMAND = "command"
 CONF_SCENE_GEN = "generate_scenes"
+DOMAIN_DEVICES = "devices"
 
 LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "climate", "scene", "alarm_control_panel"]
 
@@ -181,6 +184,16 @@ def get_all_dimmer(json_data):
     return get_all(json_data, 'Dimmer')
 
 
+def get_miniserver_type(t):
+    if t == 0:
+        return "Miniserver Gen 1"
+    elif t == 1:
+        return "Miniserver Go"
+    elif t == 2:
+        return "Miniserver"
+    return "Unkown Typ"
+
+
 def get_all(json_data, name):
     controls = []
     if isinstance(name, list):
@@ -197,6 +210,7 @@ def get_all(json_data, name):
 async def async_unload_entry(hass, config_entry):
     """ Restart of Home Assistant needed."""
     # TODO: Implement a complete restart of the loxone component without restart HomeAssistant
+    # TODO: Unload device
     return False
 
 
@@ -242,6 +256,23 @@ async def async_setup_entry(hass, config_entry):
         if request_code == 200 or request_code == "200":
             hass.data[DOMAIN] = config[DOMAIN]
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
+            # await hass.async_block_till_done()
+            # hass.data[DOMAIN][DOMAIN_DEVICES] = {}
+            # hass.data[DOMAIN][DOMAIN_DEVICES]["test"] = {}
+
+            # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
+            device_registry = await dr.async_get_registry(hass)
+            identify = hass.data[DOMAIN]['loxconfig']['msInfo']['serialNr']
+            device_registry.async_get_or_create(
+                config_entry_id=config_entry.entry_id,
+                connections={},
+                identifiers={(DOMAIN, identify)},
+                name=hass.data[DOMAIN]['loxconfig']['msInfo']['msName'],
+                manufacturer="Loxone",
+                sw_version=".".join([str(x) for x in hass.data[DOMAIN]['loxconfig']['softwareVersion']]),
+                model=get_miniserver_type(hass.data[DOMAIN]['loxconfig']['msInfo']['miniserverType']),
+            )
+
             for platform in LOXONE_PLATFORMS:
                 _LOGGER.debug("starting loxone {}...".format(platform))
                 # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
