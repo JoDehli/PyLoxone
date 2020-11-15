@@ -38,14 +38,13 @@ SUPPORT_SET_TILT_POSITION = 128
 
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
-    """Set up the Demo covers."""
-    value_template = config.get(CONF_VALUE_TEMPLATE)
-    if value_template is not None:
-        value_template.hass = hass
+    """Set up the Loxone covers."""
+    return True
 
-    config = hass.data[DOMAIN]
-    loxconfig = config['loxconfig']
 
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set Loxone covers."""
+    loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
 
     for cover in get_all_covers(loxconfig):
@@ -66,7 +65,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
             devices.append(new_jalousie)
             hass.bus.async_listen(EVENT, new_jalousie.event_handler)
 
-    async_add_devices(devices)
+    async_add_devices(devices, True)
     return True
 
 
@@ -338,10 +337,10 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
         if self.current_cover_tilt_position is not None:
             supported_features |= (
-                SUPPORT_OPEN_TILT
-                | SUPPORT_CLOSE_TILT
-                | SUPPORT_STOP_TILT
-                | SUPPORT_SET_TILT_POSITION
+                    SUPPORT_OPEN_TILT
+                    | SUPPORT_CLOSE_TILT
+                    | SUPPORT_STOP_TILT
+                    | SUPPORT_SET_TILT_POSITION
             )
         return supported_features
 

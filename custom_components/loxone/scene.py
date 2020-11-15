@@ -19,8 +19,11 @@ CONF_SCENE_GEN = "generate_scenes"
 from homeassistant.loader import bind_hass
 
 
-# @callback
-# @bind_hass
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up Scenes."""
+    return True
+
+
 async def async_setup_platform(hass, config, async_add_devices,
                                discovery_info=None):
     """Set up Scenes."""

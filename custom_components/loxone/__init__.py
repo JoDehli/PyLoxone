@@ -30,6 +30,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  EVENT_HOMEASSISTANT_START,
                                  EVENT_HOMEASSISTANT_STOP)
 from homeassistant.helpers.discovery import async_load_platform
+import homeassistant.components.group as group
 from requests.auth import HTTPBasicAuth
 
 REQUIREMENTS = ['websockets', "pycryptodome", "numpy", "requests_async"]
@@ -83,7 +84,7 @@ ATTR_CODE = "code"
 ATTR_COMMAND = "command"
 CONF_SCENE_GEN = "generate_scenes"
 
-LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "scene", "alarm_control_panel", "climate"]
+LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "climate", "scene", "alarm_control_panel"]
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -243,8 +244,12 @@ async def async_setup_entry(hass, config_entry):
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
             for platform in LOXONE_PLATFORMS:
                 _LOGGER.debug("starting loxone {}...".format(platform))
+                # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
                 hass.async_create_task(
-                    async_load_platform(hass, platform, DOMAIN, {}, config)
+                    hass.config_entries.async_forward_entry_setup(config_entry, platform)
+                )
+                hass.async_create_task(
+                    async_load_platform(hass, platform, DOMAIN, {}, config_entry)
                 )
             del lox_config
         else:
@@ -296,7 +301,7 @@ async def async_setup_entry(hass, config_entry):
                             elif attr['device_typ'] == "digital_sensor":
                                 sensors_digital.append(s_dict['entity_id'])
                             elif attr['device_typ'] == "Jalousie" or \
-                                    attr['device_typ'] == "Gate":
+                                    attr['device_typ'] == "Gate" or attr['device_typ'] == "Window":
                                 covers.append(s_dict['entity_id'])
                             elif attr['device_typ'] == "Switch" or \
                                     attr['device_typ'] == "Pushbutton" or \
@@ -307,6 +312,8 @@ async def async_setup_entry(hass, config_entry):
                                 lights.append(s_dict['entity_id'])
                             elif attr['device_typ'] == "IRoomControllerV2":
                                 climates.append(s_dict['entity_id'])
+                            elif attr['device_typ'] == "IRoomControllerV2":
+                                climates.append(s_dict['entity_id'])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
@@ -315,54 +322,33 @@ async def async_setup_entry(hass, config_entry):
                     lights.sort()
                     climates.sort()
 
-                    async def create_loxone_group(object_id, name,
-                                                  entity_names, visible=True,
-                                                  view=False
-                                                  ):
-                        if visible:
-                            visiblity = "true"
-                        else:
-                            visiblity = "false"
-                        if view:
-                            view_state = "true"
-                        else:
-                            view_state = "false"
-                        command = {"object_id": object_id,
-                                   "entities": entity_names,
-                                   "name": name}
+                    await group.Group.async_create_group(
+                        hass, "Loxone Analog Sensors", object_id="loxone_analog", entity_ids=sensors_analog)
 
-                        await hass.services.async_call("group", "set", command)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Digital Sensors", object_id="loxone_digital", entity_ids=sensors_digital)
 
-                    await create_loxone_group("loxone_analog",
-                                              "Loxone Analog Sensors",
-                                              sensors_analog, True, False)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Switches", object_id="loxone_switches", entity_ids=switches)
 
-                    await create_loxone_group("loxone_digital",
-                                              "Loxone Digital Sensors",
-                                              sensors_digital, True, False)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Covers", object_id="loxone_covers", entity_ids=covers)
 
-                    await create_loxone_group("loxone_switches",
-                                              "Loxone Switches", switches,
-                                              True, False)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Lights", object_id="loxone_lights", entity_ids=lights)
 
-                    await create_loxone_group("loxone_covers", "Loxone Covers",
-                                              covers, True, False)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Room Controllers", object_id="loxone_climates", entity_ids=climates)
 
-                    await create_loxone_group("loxone_lights", "Loxone Lights",
-                                              lights, True, False)
+                    await hass.async_block_till_done()
 
-                    await create_loxone_group("loxone_climates", "Loxone Room Controllers",
-                                              climates, True, False)
-
-                    await create_loxone_group("loxone_group", "Loxone Group",
-                                              ["group.loxone_analog",
-                                               "group.loxone_digital",
-                                               "group.loxone_switches",
-                                               "group.loxone_covers",
-                                               "group.loxone_lights",
-                                               "group.loxone_dimmers"
-                                               ],
-                                              True, True)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Group", object_id="loxone_group", entity_ids=["group.loxone_analog",
+                                                                                    "group.loxone_digital",
+                                                                                    "group.loxone_switches",
+                                                                                    "group.loxone_covers",
+                                                                                    "group.loxone_lights",
+                                                                                    ])
                 except:
                     traceback.print_exc()
 
@@ -530,6 +516,34 @@ class LoxoneEntity(Entity):
     def unique_id(self) -> str:
         """Return a unique ID."""
         return self.uuidAction
+
+    # @property
+    # def device_info(self):
+    #     """Device info."""
+    #     return {
+    #         "identifiers": {(DOMAIN,)},
+    #         "manufacturer": "Loxone",
+    #         "model": "Loxone Minivserver",
+    #         "default_name": "Loxone Minivserver",
+    #         "entry_type": "entity",
+    #     }
+    #
+    # @property
+    # def device_info(self):
+    #     """Device info."""
+    #     return {
+    #         "identifiers": {(DOMAIN,)},
+    #         "manufacturer": "Loxone",
+    #         "model": "Loxone Minivserver",
+    #         "default_name": "Loxone Minivserver",
+    #         "entry_type": "entity",
+    #     }
+    #
+    # @property
+    # def entity_registry_enabled_default(self) -> bool:
+    #     """Return if the entity should be enabled when first added to the entity registry."""
+    #     return True
+    #
 
 
 class LoxWs:

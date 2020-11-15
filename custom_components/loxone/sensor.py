@@ -31,24 +31,24 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 async def async_setup_platform(hass, config, async_add_devices,
                                discovery_info: object = {}):
-    """Set up Loxone Sensor."""
-
+    """Set up Loxone Sensor from yaml"""
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
         value_template.hass = hass
 
     # Devices from yaml
     if config != {}:
-        # Here Setup alle Sensors in Yaml-File
+        # Here setup all Sensors in Yaml-File
         new_sensor = LoxoneCustomSensor(**config)
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
-        # hass.bus.async_listen(EVENT_STATE_CHANGED, new_sensor.changed_handler)
-        # hass.bus.async_listen("event_websocket_command", new_sensor.websocket_handler)
         async_add_devices([new_sensor])
         return True
+    return True
 
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up entry."""
     loxconfig = hass.data[DOMAIN]['loxconfig']
-
     devices = []
     if 'softwareVersion' in loxconfig:
         version_sensor = LoxoneVersionSensor(loxconfig['softwareVersion'])
@@ -80,11 +80,11 @@ async def async_setup_platform(hass, config, async_add_devices,
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
 
-    async_add_devices(devices)
+    async_add_devices(devices, True)
     return True
 
 
-class LoxoneCustomSensor(Entity):
+class LoxoneCustomSensor(LoxoneEntity):
     def __init__(self, **kwargs):
         self._name = kwargs['name']
         if "uuidAction" in kwargs:
@@ -117,16 +117,8 @@ class LoxoneCustomSensor(Entity):
         """Return the unit of measurement of this entity, if any."""
         return self._unit_of_measurement
 
-    # async def changed_handler(self, e):
-    #     if e.data.get("new_state"):
-    #         if e.data["entity_id"] == self.entity_id:
-    #             print(e.data)
-    #
-    # async def websocket_handler(self, e):
-    #     print(e)
 
-
-class LoxoneVersionSensor(Entity):
+class LoxoneVersionSensor(LoxoneEntity):
     def __init__(self, version_list):
         try:
             self.version = ".".join([str(x) for x in version_list])
@@ -150,6 +142,11 @@ class LoxoneVersionSensor(Entity):
     def icon(self):
         """Return the sensor icon."""
         return "mdi:information-outline"
+
+    @property
+    def unique_id(self):
+        """Return unique ID."""
+        return "loxone_software_version"
 
 
 class LoxoneTextSensor(LoxoneEntity):
@@ -247,6 +244,11 @@ class Loxonesensor(LoxoneEntity):
         """Return the unit of measurement."""
         return self._unit_of_measurement
 
+    # @property
+    # def icon(self):
+    #     """Return the sensor icon."""
+    #     return "mdi:information-outline"
+
     @property
     def device_state_attributes(self):
         """Return device specific state attributes.
@@ -256,3 +258,21 @@ class Loxonesensor(LoxoneEntity):
         return {"uuid": self.uuidAction, "device_typ": self.typ + "_sensor",
                 "plattform": "loxone", "room": self.room, "category": self.cat,
                 "show_last_changed": "true"}
+
+    # @property
+    # def device_info(self):
+    #     """Device info."""
+    #     return {
+    #         "identifiers": {(DOMAIN,)},
+    #         "manufacturer": "Loxone",
+    #         "model": "Loxone Sensor",
+    #         "default_name": "NAME",
+    #         "entry_type": 'entity',
+    #     }
+
+
+    # @property
+    # def unique_id(self) -> str:
+    #     """Return a unique ID."""
+    #     import uuid
+    #     return str(uuid.uuid4())

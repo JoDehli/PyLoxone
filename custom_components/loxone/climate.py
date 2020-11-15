@@ -56,28 +56,31 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 # noinspection PyUnusedLocal
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
-    value_template = config.get(CONF_VALUE_TEMPLATE)
-    auto_mode = 0 if config.get(CONF_HVAC_AUTO_MODE) is None else config.get(CONF_HVAC_AUTO_MODE)
+    # value_template = config.get(CONF_VALUE_TEMPLATE)
+    # auto_mode = 0 if config.get(CONF_HVAC_AUTO_MODE) is None else config.get(CONF_HVAC_AUTO_MODE)
+    #
+    # if value_template is not None:
+    #     value_template.hass = hass
+    # config = hass.data[DOMAIN]
+    return True
 
-    if value_template is not None:
-        value_template.hass = hass
 
-    config = hass.data[DOMAIN]
-    loxconfig = config['loxconfig']
-
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up LoxoneRoomControllerV2."""
+    loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
 
     for climate in get_all_roomcontroller_entities(loxconfig):
         climate.update({'hass': hass,
                         'room': get_room_name_from_room_uuid(loxconfig, climate.get('room', '')),
                         'cat': get_cat_name_from_cat_uuid(loxconfig, climate.get('cat', '')),
-                        CONF_HVAC_AUTO_MODE: auto_mode})
+                        CONF_HVAC_AUTO_MODE: 0})
 
         new_thermostat = LoxoneRoomControllerV2(**climate)
         devices.append(new_thermostat)
         hass.bus.async_listen(EVENT, new_thermostat.event_handler)
 
-    async_add_devices(devices)
+    async_add_devices(devices, True)
     return True
 
 

@@ -48,12 +48,13 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up Loxone Alarms."""
-    if discovery_info is None:
-        return
+    return True
 
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up Loxone Alarms."""
     loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
-
     for loxone_alarm in get_all_alarm(loxconfig):
         loxone_alarm.update({'room': get_room_name_from_room_uuid(loxconfig, loxone_alarm.get('room', '')),
                              'cat': get_cat_name_from_cat_uuid(loxconfig, loxone_alarm.get('cat', '')),

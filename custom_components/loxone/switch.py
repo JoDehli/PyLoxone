@@ -16,10 +16,9 @@ EVENT = "loxone_event"
 SENDDOMAIN = "loxone_send"
 
 
-async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
-    value_template = config.get(CONF_VALUE_TEMPLATE)
-    if value_template is not None:
-        value_template.hass = hass
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up entry."""
     loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
     entities = []
@@ -52,6 +51,11 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
                     devices.append(new_push_button)
 
     async_add_devices(devices)
+    return True
+
+
+async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
+
     return True
 
 

@@ -61,13 +61,10 @@ def to_loxone_color_temp(temp):
 async def async_setup_platform(hass, config, async_add_devices,
                                discovery_info=None):
     """Set up Loxone Light Controller."""
-    if discovery_info is None:
-        return
+    return True
 
-    value_template = config.get(CONF_VALUE_TEMPLATE)
-    if value_template is not None:
-        value_template.hass = hass
-
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up Loxone Light Controller."""
     loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
     all_dimmers = []
@@ -139,7 +136,7 @@ async def async_setup_platform(hass, config, async_add_devices,
         hass.bus.async_listen(EVENT, new_color_picker.event_handler)
         devices.append(new_color_picker)
 
-    async_add_devices(devices)
+    async_add_devices(devices, True)
     return True
 
 
