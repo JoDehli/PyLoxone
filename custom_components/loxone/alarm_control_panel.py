@@ -233,3 +233,13 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         if isinstance(self._code, str) and re.search("^\\d+$", self._code):
             return FORMAT_NUMBER
         return FORMAT_TEXT
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": "Alarm",
+            "type": self.type
+        }

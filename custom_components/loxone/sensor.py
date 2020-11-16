@@ -244,10 +244,11 @@ class Loxonesensor(LoxoneEntity):
         """Return the unit of measurement."""
         return self._unit_of_measurement
 
-    # @property
-    # def icon(self):
-    #     """Return the sensor icon."""
-    #     return "mdi:information-outline"
+    @property
+    def icon(self):
+        """Return the sensor icon."""
+        if self.typ == "analog":
+            return "mdi:chart-bell-curve"
 
     @property
     def device_state_attributes(self):
@@ -259,20 +260,21 @@ class Loxonesensor(LoxoneEntity):
                 "plattform": "loxone", "room": self.room, "category": self.cat,
                 "show_last_changed": "true"}
 
-    # @property
-    # def device_info(self):
-    #     """Device info."""
-    #     return {
-    #         "identifiers": {(DOMAIN,)},
-    #         "manufacturer": "Loxone",
-    #         "model": "Loxone Sensor",
-    #         "default_name": "NAME",
-    #         "entry_type": 'entity',
-    #     }
-
-
-    # @property
-    # def unique_id(self) -> str:
-    #     """Return a unique ID."""
-    #     import uuid
-    #     return str(uuid.uuid4())
+    @property
+    def device_info(self):
+        if self.typ == "analog":
+            return {
+                "identifiers": {(DOMAIN, self.unique_id)},
+                "name": self.name,
+                "manufacturer": "Loxone",
+                "model": "Sensor analog",
+                "type": self.typ
+            }
+        else:
+            return {
+                "identifiers": {(DOMAIN, self.unique_id)},
+                "name": self.name,
+                "manufacturer": "Loxone",
+                "model": "Sensor digital",
+                "type": self.typ
+            }

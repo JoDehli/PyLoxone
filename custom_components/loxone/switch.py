@@ -16,12 +16,10 @@ EVENT = "loxone_event"
 SENDDOMAIN = "loxone_send"
 
 
-
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up entry."""
     loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
-    entities = []
 
     for switch_entity in get_all_switch_entities(loxconfig):
         if switch_entity['type'] in ["Pushbutton", "Switch"]:
@@ -55,7 +53,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
-
     return True
 
 

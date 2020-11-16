@@ -223,3 +223,13 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         if mode_id is not None:
             self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f'override/{mode_id}'))
             self.schedule_update_ha_state()
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": "RoomControllerV2",
+            "type": self.type
+        }

@@ -186,6 +186,16 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
                 "room": self.room, "category": self.cat,
                 "plattform": "loxone"}
 
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": "Gate",
+            "type": self.type
+        }
+
 
 class LoxoneWindow(LoxoneEntity, CoverEntity):
 
@@ -280,6 +290,16 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         position = kwargs.get(ATTR_POSITION)
         self.hass.bus.async_fire(SENDDOMAIN,
                                  dict(uuid=self.uuidAction, value="moveToPosition/{}".format(position)))
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": "Window",
+            "type": self.type
+        }
 
 
 class LoxoneJalousie(LoxoneEntity, CoverEntity):
@@ -555,3 +575,13 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             self.stop_cover()
         elif not self._requested_closing and self._position >= self._set_position:
             self.stop_cover()
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": "Jalousie",
+            "type": self.type
+        }
