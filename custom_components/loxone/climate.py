@@ -3,7 +3,7 @@ Loxone climate component.
 """
 import logging
 from abc import ABC
-
+from voluptuous import All, Range, Optional
 from homeassistant.components.climate import (
     TEMP_CELSIUS,
     ClimateEntity,
@@ -18,20 +18,16 @@ from homeassistant.components.climate.const import (
     HVAC_MODE_HEAT_COOL,
     HVAC_MODE_AUTO,
 )
-from homeassistant.const import (
-    CONF_VALUE_TEMPLATE)
-from voluptuous import All, Range, Optional
+
 
 from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_roomcontroller_entities
+from .const import (DOMAIN, EVENT, SENDDOMAIN, CONF_HVAC_AUTO_MODE)
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = 'loxone'
-EVENT = "loxone_event"
-SENDDOMAIN = "loxone_send"
 
-CONF_HVAC_AUTO_MODE = 'hvac_auto_mode'
+
 
 OPMODES = {
     None: HVAC_MODE_OFF,

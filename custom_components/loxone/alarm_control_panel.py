@@ -62,7 +62,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         new_alarm = LoxoneAlarm(**loxone_alarm)
         hass.bus.async_listen(EVENT, new_alarm.event_handler)
         devices.append(new_alarm)
-    async_add_devices(devices)
+    async_add_devices(devices, True)
     return True
 
 

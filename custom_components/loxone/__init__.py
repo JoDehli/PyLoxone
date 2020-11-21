@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import os
+import queue
 import time
 import traceback
 import urllib.request as req
@@ -18,76 +19,66 @@ import uuid
 from base64 import b64encode
 from datetime import datetime
 from struct import unpack
-import queue
-import requests_async as requests
 
-import homeassistant.helpers.config_validation as cv
+import homeassistant.components.group as group
+import requests_async as requests
 import voluptuous as vol
-from homeassistant.helpers.entity import Entity
 from homeassistant.config import get_default_config_dir
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
                                  EVENT_HOMEASSISTANT_START,
                                  EVENT_HOMEASSISTANT_STOP,
                                  )
-from homeassistant.helpers.discovery import async_load_platform
-import homeassistant.components.group as group
-from requests.auth import HTTPBasicAuth
 from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.helpers.discovery import async_load_platform
+from homeassistant.helpers.entity import Entity
+from requests.auth import HTTPBasicAuth
 
 REQUIREMENTS = ['websockets', "pycryptodome", "numpy", "requests_async"]
 
-# Loxone constants
-TIMEOUT = 10
-KEEP_ALIVE_PERIOD = 240
-
-IV_BYTES = 16
-AES_KEY_SIZE = 32
-
-SALT_BYTES = 16
-SALT_MAX_AGE_SECONDS = 60 * 60
-SALT_MAX_USE_COUNT = 30
-
-TOKEN_PERMISSION = 4  # 2=web, 4=app
-TOKEN_REFRESH_RETRY_COUNT = 5
-# token will be refreshed 1 day before its expiration date
-TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY = 24 * 60 * 60  # 1 day
-#  if can't determine token expiration date, it will be refreshed after 2 days
-TOKEN_REFRESH_DEFAULT_SECONDS = 2 * 24 * 60 * 60  # 2 days
-
-CMD_GET_PUBLIC_KEY = "jdev/sys/getPublicKey"
-CMD_KEY_EXCHANGE = "jdev/sys/keyexchange/"
-CMD_GET_KEY_AND_SALT = "jdev/sys/getkey2/"
-CMD_REQUEST_TOKEN = "jdev/sys/gettoken/"
-CMD_REQUEST_TOKEN_JSON_WEB = "jdev/sys/getjwt/"
-CMD_GET_KEY = "jdev/sys/getkey"
-CMD_AUTH_WITH_TOKEN = "authwithtoken/"
-CMD_REFRESH_TOKEN = "jdev/sys/refreshtoken/"
-CMD_REFRESH_TOKEN_JSON_WEB = "jdev/sys/refreshjwt/"
-CMD_ENCRYPT_CMD = "jdev/sys/enc/"
-CMD_ENABLE_UPDATES = "jdev/sps/enablebinstatusupdate"
-CMD_GET_VISUAL_PASSWD = "jdev/sys/getvisusalt/"
-
-DEFAULT_TOKEN_PERSIST_NAME = "lox_token.cfg"
-ERROR_VALUE = -1
-# End of loxone constants
+from .const import (
+    TIMEOUT,
+    KEEP_ALIVE_PERIOD,
+    IV_BYTES,
+    AES_KEY_SIZE,
+    SALT_BYTES,
+    SALT_MAX_AGE_SECONDS,
+    SALT_MAX_USE_COUNT,
+    TOKEN_PERMISSION,
+    TOKEN_REFRESH_RETRY_COUNT,
+    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY,
+    TOKEN_REFRESH_DEFAULT_SECONDS,
+    CMD_GET_PUBLIC_KEY,
+    CMD_KEY_EXCHANGE,
+    CMD_GET_KEY_AND_SALT,
+    CMD_REQUEST_TOKEN,
+    CMD_REQUEST_TOKEN_JSON_WEB,
+    CMD_GET_KEY,
+    CMD_AUTH_WITH_TOKEN,
+    CMD_REFRESH_TOKEN,
+    CMD_REFRESH_TOKEN_JSON_WEB,
+    CMD_ENCRYPT_CMD,
+    CMD_ENABLE_UPDATES,
+    CMD_GET_VISUAL_PASSWD,
+    DEFAULT_TOKEN_PERSIST_NAME,
+    ERROR_VALUE,
+    DEFAULT_PORT,
+    EVENT,
+    DOMAIN,
+    SENDDOMAIN,
+    SECUREDSENDDOMAIN,
+    ATTR_UUID,
+    DEFAULT,
+    ATTR_UUID,
+    ATTR_VALUE,
+    ATTR_CODE,
+    ATTR_COMMAND,
+    CONF_SCENE_GEN,
+    DOMAIN_DEVICES,
+    LOXONE_PLATFORMS
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-DEFAULT_PORT = 8080
-EVENT = 'loxone_event'
-DOMAIN = 'loxone'
-SENDDOMAIN = "loxone_send"
-SECUREDSENDDOMAIN = "loxone_send_secured"
-DEFAULT = ""
-ATTR_UUID = 'uuid'
-ATTR_VALUE = 'value'
-ATTR_CODE = "code"
-ATTR_COMMAND = "command"
-CONF_SCENE_GEN = "generate_scenes"
-DOMAIN_DEVICES = "devices"
-
-LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "climate", "scene", "alarm_control_panel"]
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -229,7 +220,7 @@ async def async_set_options(hass, config_entry):
     data = {**config_entry.data}
     options = {
         CONF_HOST: data.pop(CONF_HOST, ""),
-        CONF_PORT: data.pop(CONF_PORT, 8080),
+        CONF_PORT: data.pop(CONF_PORT, DEFAULT_PORT),
         CONF_USERNAME: data.pop(CONF_USERNAME, ""),
         CONF_PASSWORD: data.pop(CONF_PASSWORD, ""),
         CONF_SCENE_GEN: data.pop(CONF_SCENE_GEN, ""),
@@ -245,6 +236,7 @@ async def async_setup_entry(hass, config_entry):
 
     config = {DOMAIN: dict(config_entry.options)}
 
+    res = False
     try:
         lox_config = loxApp()
         lox_config.lox_user = config_entry.options[CONF_USERNAME]
@@ -256,46 +248,43 @@ async def async_setup_entry(hass, config_entry):
         if request_code == 200 or request_code == "200":
             hass.data[DOMAIN] = config[DOMAIN]
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
-            # await hass.async_block_till_done()
-            # hass.data[DOMAIN][DOMAIN_DEVICES] = {}
-            # hass.data[DOMAIN][DOMAIN_DEVICES]["test"] = {}
 
-            # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
-            device_registry = await dr.async_get_registry(hass)
-            identify = hass.data[DOMAIN]['loxconfig']['msInfo']['serialNr']
-            device_registry.async_get_or_create(
-                config_entry_id=config_entry.entry_id,
-                connections={},
-                identifiers={(DOMAIN, identify)},
-                name=hass.data[DOMAIN]['loxconfig']['msInfo']['msName'],
-                manufacturer="Loxone",
-                sw_version=".".join([str(x) for x in hass.data[DOMAIN]['loxconfig']['softwareVersion']]),
-                model=get_miniserver_type(hass.data[DOMAIN]['loxconfig']['msInfo']['miniserverType']),
-            )
+            lox = LoxWs(user=config[DOMAIN][CONF_USERNAME],
+                        password=config[DOMAIN][CONF_PASSWORD],
+                        host=config[DOMAIN][CONF_HOST],
+                        port=config[DOMAIN][CONF_PORT],
+                        loxconfig=config[DOMAIN]['loxconfig'])
 
-            for platform in LOXONE_PLATFORMS:
-                _LOGGER.debug("starting loxone {}...".format(platform))
-                # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
-                hass.async_create_task(
-                    hass.config_entries.async_forward_entry_setup(config_entry, platform)
-                )
-                hass.async_create_task(
-                    async_load_platform(hass, platform, DOMAIN, {}, config_entry)
-                )
-            del lox_config
-        else:
-            _LOGGER.error("Unable to connect to Loxone.")
-            return False
-
+            res = await lox.async_init()
     except ConnectionError:
-        _LOGGER.error("Unable to connect to Loxone.")
+        _LOGGER.error("Connection Error")
         return False
 
-    lox = LoxWs(user=config[DOMAIN][CONF_USERNAME],
-                password=config[DOMAIN][CONF_PASSWORD],
-                host=config[DOMAIN][CONF_HOST],
-                port=config[DOMAIN][CONF_PORT],
-                loxconfig=config[DOMAIN]['loxconfig'])
+    # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
+    device_registry = await dr.async_get_registry(hass)
+    identify = hass.data[DOMAIN]['loxconfig']['msInfo']['serialNr']
+    device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        connections={},
+        identifiers={(DOMAIN, identify)},
+        name=hass.data[DOMAIN]['loxconfig']['msInfo']['msName'],
+        manufacturer="Loxone",
+        sw_version=".".join([str(x) for x in hass.data[DOMAIN]['loxconfig']['softwareVersion']]),
+        model=get_miniserver_type(hass.data[DOMAIN]['loxconfig']['msInfo']['miniserverType']),
+    )
+
+    await asyncio.sleep(0.5)
+    for platform in LOXONE_PLATFORMS:
+        _LOGGER.debug("starting loxone {}...".format(platform))
+        # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(config_entry, platform)
+        )
+        hass.async_create_task(
+            async_load_platform(hass, platform, DOMAIN, {}, config_entry)
+        )
+
+    del lox_config
 
     async def message_callback(message):
         hass.bus.async_fire(EVENT, message)
@@ -313,7 +302,6 @@ async def async_setup_entry(hass, config_entry):
                 try:
                     _LOGGER.info("loxone discovered")
                     await asyncio.sleep(0.1)
-                    # await asyncio.sleep(0)
                     entity_ids = hass.states.async_all()
                     sensors_analog = []
                     sensors_digital = []
@@ -382,13 +370,6 @@ async def async_setup_entry(hass, config_entry):
                                                                                     ])
                 except:
                     traceback.print_exc()
-
-    res = False
-
-    try:
-        res = await lox.async_init()
-    except ConnectionError:
-        _LOGGER.error("Connection Error")
 
     if res is True:
         lox.message_call_back = message_callback

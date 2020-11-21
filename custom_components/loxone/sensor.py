@@ -1,11 +1,12 @@
 import logging
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF, CONF_NAME, CONF_UNIT_OF_MEASUREMENT)
-from homeassistant.helpers.entity import Entity
+
 import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 import homeassistant.helpers.config_validation as cv
 
+from .const import (DOMAIN, EVENT, SENDDOMAIN, CONF_ACTIONID)
 from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid
 from . import get_all_analog_info, get_all_digital_info, get_all
@@ -13,13 +14,7 @@ from . import get_all_analog_info, get_all_digital_info, get_all
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = 'Loxone Sensor'
-DEFAULT_FORCE_UPDATE = False
 
-CONF_UUID = "uuid"
-EVENT = "loxone_event"
-DOMAIN = 'loxone'
-SENDDOMAIN = "loxone_send"
-CONF_ACTIONID = "uuidAction"
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_ACTIONID): cv.string,
@@ -81,6 +76,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         devices.append(new_sensor)
 
     async_add_devices(devices, True)
+
     return True
 
 

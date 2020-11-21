@@ -23,18 +23,10 @@ from homeassistant.helpers.event import track_utc_time_change
 
 from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_covers
+from .const import (DOMAIN, EVENT, SENDDOMAIN, SUPPORT_SET_POSITION, SUPPORT_STOP, SUPPORT_OPEN_TILT,
+                    SUPPORT_CLOSE_TILT, SUPPORT_STOP_TILT, SUPPORT_SET_TILT_POSITION)
 
 _LOGGER = logging.getLogger(__name__)
-
-DOMAIN = 'loxone'
-EVENT = "loxone_event"
-SENDDOMAIN = "loxone_send"
-SUPPORT_SET_POSITION = 4
-SUPPORT_STOP = 8
-SUPPORT_OPEN_TILT = 16
-SUPPORT_CLOSE_TILT = 32
-SUPPORT_STOP_TILT = 64
-SUPPORT_SET_TILT_POSITION = 128
 
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):

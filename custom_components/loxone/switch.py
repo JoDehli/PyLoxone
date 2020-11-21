@@ -3,17 +3,12 @@
 import logging
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import (
-    CONF_VALUE_TEMPLATE)
-
+from .const import (DOMAIN, EVENT, SENDDOMAIN)
 from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_switch_entities
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = 'loxone'
-EVENT = "loxone_event"
-SENDDOMAIN = "loxone_send"
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
@@ -48,7 +43,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                     hass.bus.async_listen(EVENT, new_push_button.event_handler)
                     devices.append(new_push_button)
 
-    async_add_devices(devices)
+    async_add_devices(devices, True)
     return True
 
 
