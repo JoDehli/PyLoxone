@@ -23,29 +23,20 @@ from homeassistant.helpers.event import track_utc_time_change
 
 from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_covers
+from .const import (DOMAIN, EVENT, SENDDOMAIN, SUPPORT_SET_POSITION, SUPPORT_STOP, SUPPORT_OPEN_TILT,
+                    SUPPORT_CLOSE_TILT, SUPPORT_STOP_TILT, SUPPORT_SET_TILT_POSITION)
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = 'loxone'
-EVENT = "loxone_event"
-SENDDOMAIN = "loxone_send"
-SUPPORT_SET_POSITION = 4
-SUPPORT_STOP = 8
-SUPPORT_OPEN_TILT = 16
-SUPPORT_CLOSE_TILT = 32
-SUPPORT_STOP_TILT = 64
-SUPPORT_SET_TILT_POSITION = 128
-
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
-    """Set up the Demo covers."""
-    value_template = config.get(CONF_VALUE_TEMPLATE)
-    if value_template is not None:
-        value_template.hass = hass
+    """Set up the Loxone covers."""
+    return True
 
-    config = hass.data[DOMAIN]
-    loxconfig = config['loxconfig']
 
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set Loxone covers."""
+    loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
 
     for cover in get_all_covers(loxconfig):
@@ -66,7 +57,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
             devices.append(new_jalousie)
             hass.bus.async_listen(EVENT, new_jalousie.event_handler)
 
-    async_add_devices(devices)
+    async_add_devices(devices, True)
     return True
 
 
@@ -187,6 +178,16 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
                 "room": self.room, "category": self.cat,
                 "plattform": "loxone"}
 
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": "Gate",
+            "type": self.type
+        }
+
 
 class LoxoneWindow(LoxoneEntity, CoverEntity):
 
@@ -282,6 +283,16 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         self.hass.bus.async_fire(SENDDOMAIN,
                                  dict(uuid=self.uuidAction, value="moveToPosition/{}".format(position)))
 
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": "Window",
+            "type": self.type
+        }
+
 
 class LoxoneJalousie(LoxoneEntity, CoverEntity):
     """Loxone Jalousie"""
@@ -338,10 +349,10 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
         if self.current_cover_tilt_position is not None:
             supported_features |= (
-                SUPPORT_OPEN_TILT
-                | SUPPORT_CLOSE_TILT
-                | SUPPORT_STOP_TILT
-                | SUPPORT_SET_TILT_POSITION
+                    SUPPORT_OPEN_TILT
+                    | SUPPORT_CLOSE_TILT
+                    | SUPPORT_STOP_TILT
+                    | SUPPORT_SET_TILT_POSITION
             )
         return supported_features
 
@@ -556,3 +567,13 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             self.stop_cover()
         elif not self._requested_closing and self._position >= self._set_position:
             self.stop_cover()
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": "Jalousie",
+            "type": self.type
+        }

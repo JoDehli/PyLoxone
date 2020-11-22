@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import os
+import queue
 import time
 import traceback
 import urllib.request as req
@@ -18,72 +19,67 @@ import uuid
 from base64 import b64encode
 from datetime import datetime
 from struct import unpack
-import queue
-import requests_async as requests
 
-import homeassistant.helpers.config_validation as cv
+import homeassistant.components.group as group
+import requests_async as requests
 import voluptuous as vol
-from homeassistant.helpers.entity import Entity
 from homeassistant.config import get_default_config_dir
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
                                  EVENT_HOMEASSISTANT_START,
-                                 EVENT_HOMEASSISTANT_STOP)
+                                 EVENT_HOMEASSISTANT_STOP,
+                                 )
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.discovery import async_load_platform
+from homeassistant.helpers.entity import Entity
 from requests.auth import HTTPBasicAuth
 
 REQUIREMENTS = ['websockets', "pycryptodome", "numpy", "requests_async"]
 
-# Loxone constants
-TIMEOUT = 10
-KEEP_ALIVE_PERIOD = 240
-
-IV_BYTES = 16
-AES_KEY_SIZE = 32
-
-SALT_BYTES = 16
-SALT_MAX_AGE_SECONDS = 60 * 60
-SALT_MAX_USE_COUNT = 30
-
-TOKEN_PERMISSION = 4  # 2=web, 4=app
-TOKEN_REFRESH_RETRY_COUNT = 5
-# token will be refreshed 1 day before its expiration date
-TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY = 24 * 60 * 60  # 1 day
-#  if can't determine token expiration date, it will be refreshed after 2 days
-TOKEN_REFRESH_DEFAULT_SECONDS = 2 * 24 * 60 * 60  # 2 days
-
-CMD_GET_PUBLIC_KEY = "jdev/sys/getPublicKey"
-CMD_KEY_EXCHANGE = "jdev/sys/keyexchange/"
-CMD_GET_KEY_AND_SALT = "jdev/sys/getkey2/"
-CMD_REQUEST_TOKEN = "jdev/sys/gettoken/"
-CMD_REQUEST_TOKEN_JSON_WEB = "jdev/sys/getjwt/"
-CMD_GET_KEY = "jdev/sys/getkey"
-CMD_AUTH_WITH_TOKEN = "authwithtoken/"
-CMD_REFRESH_TOKEN = "jdev/sys/refreshtoken/"
-CMD_REFRESH_TOKEN_JSON_WEB = "jdev/sys/refreshjwt/"
-CMD_ENCRYPT_CMD = "jdev/sys/enc/"
-CMD_ENABLE_UPDATES = "jdev/sps/enablebinstatusupdate"
-CMD_GET_VISUAL_PASSWD = "jdev/sys/getvisusalt/"
-
-DEFAULT_TOKEN_PERSIST_NAME = "lox_token.cfg"
-ERROR_VALUE = -1
-# End of loxone constants
+from .const import (
+    TIMEOUT,
+    KEEP_ALIVE_PERIOD,
+    IV_BYTES,
+    AES_KEY_SIZE,
+    SALT_BYTES,
+    SALT_MAX_AGE_SECONDS,
+    SALT_MAX_USE_COUNT,
+    TOKEN_PERMISSION,
+    TOKEN_REFRESH_RETRY_COUNT,
+    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY,
+    TOKEN_REFRESH_DEFAULT_SECONDS,
+    CMD_GET_PUBLIC_KEY,
+    CMD_KEY_EXCHANGE,
+    CMD_GET_KEY_AND_SALT,
+    CMD_REQUEST_TOKEN,
+    CMD_REQUEST_TOKEN_JSON_WEB,
+    CMD_GET_KEY,
+    CMD_AUTH_WITH_TOKEN,
+    CMD_REFRESH_TOKEN,
+    CMD_REFRESH_TOKEN_JSON_WEB,
+    CMD_ENCRYPT_CMD,
+    CMD_ENABLE_UPDATES,
+    CMD_GET_VISUAL_PASSWD,
+    DEFAULT_TOKEN_PERSIST_NAME,
+    ERROR_VALUE,
+    DEFAULT_PORT,
+    EVENT,
+    DOMAIN,
+    SENDDOMAIN,
+    SECUREDSENDDOMAIN,
+    ATTR_UUID,
+    DEFAULT,
+    ATTR_UUID,
+    ATTR_VALUE,
+    ATTR_CODE,
+    ATTR_COMMAND,
+    CONF_SCENE_GEN,
+    DOMAIN_DEVICES,
+    LOXONE_PLATFORMS,
+    LOXAPPPATH
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-DEFAULT_PORT = 8080
-EVENT = 'loxone_event'
-DOMAIN = 'loxone'
-SENDDOMAIN = "loxone_send"
-SECUREDSENDDOMAIN = "loxone_send_secured"
-DEFAULT = ""
-ATTR_UUID = 'uuid'
-ATTR_VALUE = 'value'
-ATTR_CODE = "code"
-ATTR_COMMAND = "command"
-CONF_SCENE_GEN = "generate_scenes"
-
-LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "scene", "alarm_control_panel", "climate"]
 
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -100,7 +96,7 @@ class loxApp(object):
     def __init__(self):
         self.host = None
         self.port = None
-        self.loxapppath = "/data/LoxAPP3.json"
+        self.loxapppath = LOXAPPPATH
 
         self.lox_user = None
         self.lox_pass = None
@@ -108,7 +104,7 @@ class loxApp(object):
         self.responsecode = None
         self.version = None
 
-    async def getJson (self):
+    async def getJson(self):
         url_version = "http://{}:{}/jdev/cfg/version".format(self.host, self.port)
         version_resp = await requests.get(url_version,
                                           auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
@@ -147,6 +143,7 @@ def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
             return lox_config['cats'][cat_uuid]['name']
     return ""
 
+
 def get_all_roomcontroller_entities(json_data):
     return get_all(json_data, 'IRoomControllerV2')
 
@@ -179,6 +176,16 @@ def get_all_dimmer(json_data):
     return get_all(json_data, 'Dimmer')
 
 
+def get_miniserver_type(t):
+    if t == 0:
+        return "Miniserver Gen 1"
+    elif t == 1:
+        return "Miniserver Go"
+    elif t == 2:
+        return "Miniserver"
+    return "Unkown Typ"
+
+
 def get_all(json_data, name):
     controls = []
     if isinstance(name, list):
@@ -192,37 +199,93 @@ def get_all(json_data, name):
     return controls
 
 
+async def async_unload_entry(hass, config_entry):
+    """ Restart of Home Assistant needed."""
+    # TODO: Implement a complete restart of the loxone component without restart HomeAssistant
+    # TODO: Unload device
+    return False
+
+
 async def async_setup(hass, config):
     """setup loxone"""
+    if DOMAIN in config:
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": "import"}, data=config[DOMAIN]
+            )
+        )
+    return True
 
+
+async def async_set_options(hass, config_entry):
+    data = {**config_entry.data}
+    options = {
+        CONF_HOST: data.pop(CONF_HOST, ""),
+        CONF_PORT: data.pop(CONF_PORT, DEFAULT_PORT),
+        CONF_USERNAME: data.pop(CONF_USERNAME, ""),
+        CONF_PASSWORD: data.pop(CONF_PASSWORD, ""),
+        CONF_SCENE_GEN: data.pop(CONF_SCENE_GEN, ""),
+    }
+    hass.config_entries.async_update_entry(
+        config_entry, data=data, options=options
+    )
+
+
+async def async_setup_entry(hass, config_entry):
+    if not config_entry.options:
+        await async_set_options(hass, config_entry)
+
+    config = {DOMAIN: dict(config_entry.options)}
+
+    res = False
     try:
         lox_config = loxApp()
-        lox_config.lox_user = config[DOMAIN][CONF_USERNAME]
-        lox_config.lox_pass = config[DOMAIN][CONF_PASSWORD]
-        lox_config.host = config[DOMAIN][CONF_HOST]
-        lox_config.port = config[DOMAIN][CONF_PORT]
+        lox_config.lox_user = config_entry.options[CONF_USERNAME]
+        lox_config.lox_pass = config_entry.options[CONF_PASSWORD]
+        lox_config.host = config_entry.options[CONF_HOST]
+        lox_config.port = config_entry.options[CONF_PORT]
         request_code = await lox_config.getJson()
 
         if request_code == 200 or request_code == "200":
             hass.data[DOMAIN] = config[DOMAIN]
             hass.data[DOMAIN]['loxconfig'] = lox_config.json
-            for platform in LOXONE_PLATFORMS:
-                _LOGGER.debug("starting loxone {}...".format(platform))
-                hass.async_create_task(
-                    async_load_platform(hass, platform, DOMAIN, {}, config)
-                )
-            del lox_config
-        else:
-            _LOGGER.error("unable to connect to Loxone")
+
+            lox = LoxWs(user=config[DOMAIN][CONF_USERNAME],
+                        password=config[DOMAIN][CONF_PASSWORD],
+                        host=config[DOMAIN][CONF_HOST],
+                        port=config[DOMAIN][CONF_PORT],
+                        loxconfig=config[DOMAIN]['loxconfig'])
+
+            res = await lox.async_init()
     except ConnectionError:
-        _LOGGER.error("unable to connect to Loxone")
+        _LOGGER.error("Connection Error")
         return False
 
-    lox = LoxWs(user=config[DOMAIN][CONF_USERNAME],
-                password=config[DOMAIN][CONF_PASSWORD],
-                host=config[DOMAIN][CONF_HOST],
-                port=config[DOMAIN][CONF_PORT],
-                loxconfig=config[DOMAIN]['loxconfig'])
+    # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
+    device_registry = await dr.async_get_registry(hass)
+    identify = hass.data[DOMAIN]['loxconfig']['msInfo']['serialNr']
+    device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        connections={},
+        identifiers={(DOMAIN, identify)},
+        name=hass.data[DOMAIN]['loxconfig']['msInfo']['msName'],
+        manufacturer="Loxone",
+        sw_version=".".join([str(x) for x in hass.data[DOMAIN]['loxconfig']['softwareVersion']]),
+        model=get_miniserver_type(hass.data[DOMAIN]['loxconfig']['msInfo']['miniserverType']),
+    )
+
+    await asyncio.sleep(0.5)
+    for platform in LOXONE_PLATFORMS:
+        _LOGGER.debug("starting loxone {}...".format(platform))
+        # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(config_entry, platform)
+        )
+        hass.async_create_task(
+            async_load_platform(hass, platform, DOMAIN, {}, config_entry)
+        )
+
+    del lox_config
 
     async def message_callback(message):
         hass.bus.async_fire(EVENT, message)
@@ -240,7 +303,6 @@ async def async_setup(hass, config):
                 try:
                     _LOGGER.info("loxone discovered")
                     await asyncio.sleep(0.1)
-                    # await asyncio.sleep(0)
                     entity_ids = hass.states.async_all()
                     sensors_analog = []
                     sensors_digital = []
@@ -259,7 +321,7 @@ async def async_setup(hass, config):
                             elif attr['device_typ'] == "digital_sensor":
                                 sensors_digital.append(s_dict['entity_id'])
                             elif attr['device_typ'] == "Jalousie" or \
-                                    attr['device_typ'] == "Gate":
+                                    attr['device_typ'] == "Gate" or attr['device_typ'] == "Window":
                                 covers.append(s_dict['entity_id'])
                             elif attr['device_typ'] == "Switch" or \
                                     attr['device_typ'] == "Pushbutton" or \
@@ -270,6 +332,8 @@ async def async_setup(hass, config):
                                 lights.append(s_dict['entity_id'])
                             elif attr['device_typ'] == "IRoomControllerV2":
                                 climates.append(s_dict['entity_id'])
+                            elif attr['device_typ'] == "IRoomControllerV2":
+                                climates.append(s_dict['entity_id'])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
@@ -278,63 +342,35 @@ async def async_setup(hass, config):
                     lights.sort()
                     climates.sort()
 
-                    async def create_loxone_group(object_id, name,
-                                                  entity_names, visible=True,
-                                                  view=False
-                                                  ):
-                        if visible:
-                            visiblity = "true"
-                        else:
-                            visiblity = "false"
-                        if view:
-                            view_state = "true"
-                        else:
-                            view_state = "false"
-                        command = {"object_id": object_id,
-                                   "entities": entity_names,
-                                   "name": name}
+                    await group.Group.async_create_group(
+                        hass, "Loxone Analog Sensors", object_id="loxone_analog", entity_ids=sensors_analog)
 
-                        await hass.services.async_call("group", "set", command)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Digital Sensors", object_id="loxone_digital", entity_ids=sensors_digital)
 
-                    await create_loxone_group("loxone_analog",
-                                              "Loxone Analog Sensors",
-                                              sensors_analog, True, False)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Switches", object_id="loxone_switches", entity_ids=switches)
 
-                    await create_loxone_group("loxone_digital",
-                                              "Loxone Digital Sensors",
-                                              sensors_digital, True, False)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Covers", object_id="loxone_covers", entity_ids=covers)
 
-                    await create_loxone_group("loxone_switches",
-                                              "Loxone Switches", switches,
-                                              True, False)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Lights", object_id="loxone_lights", entity_ids=lights)
 
-                    await create_loxone_group("loxone_covers", "Loxone Covers",
-                                              covers, True, False)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Room Controllers", object_id="loxone_climates", entity_ids=climates)
 
-                    await create_loxone_group("loxone_lights", "Loxone Lights",
-                                              lights, True, False)
+                    await hass.async_block_till_done()
 
-                    await create_loxone_group("loxone_climates", "Loxone Room Controllers",
-                                              climates, True, False)
-
-                    await create_loxone_group("loxone_group", "Loxone Group",
-                                              ["group.loxone_analog",
-                                               "group.loxone_digital",
-                                               "group.loxone_switches",
-                                               "group.loxone_covers",
-                                               "group.loxone_lights",
-                                               "group.loxone_dimmers"
-                                               ],
-                                              True, True)
+                    await group.Group.async_create_group(
+                        hass, "Loxone Group", object_id="loxone_group", entity_ids=["group.loxone_analog",
+                                                                                    "group.loxone_digital",
+                                                                                    "group.loxone_switches",
+                                                                                    "group.loxone_covers",
+                                                                                    "group.loxone_lights",
+                                                                                    ])
                 except:
                     traceback.print_exc()
-
-    res = False
-
-    try:
-        res = await lox.async_init()
-    except ConnectionError:
-        _LOGGER.error("Connection Error")
 
     if res is True:
         lox.message_call_back = message_callback
@@ -438,6 +474,7 @@ class LoxoneEntity(Entity):
     """
     @DynamicAttrs
     """
+
     def __init__(self, **kwargs):
         self._name = ""
         for key in kwargs:
@@ -492,6 +529,34 @@ class LoxoneEntity(Entity):
     def unique_id(self) -> str:
         """Return a unique ID."""
         return self.uuidAction
+
+    # @property
+    # def device_info(self):
+    #     """Device info."""
+    #     return {
+    #         "identifiers": {(DOMAIN,)},
+    #         "manufacturer": "Loxone",
+    #         "model": "Loxone Minivserver",
+    #         "default_name": "Loxone Minivserver",
+    #         "entry_type": "entity",
+    #     }
+    #
+    # @property
+    # def device_info(self):
+    #     """Device info."""
+    #     return {
+    #         "identifiers": {(DOMAIN,)},
+    #         "manufacturer": "Loxone",
+    #         "model": "Loxone Minivserver",
+    #         "default_name": "Loxone Minivserver",
+    #         "entry_type": "entity",
+    #     }
+    #
+    # @property
+    # def entity_registry_enabled_default(self) -> bool:
+    #     """Return if the entity should be enabled when first added to the entity registry."""
+    #     return True
+    #
 
 
 class LoxWs:
@@ -633,6 +698,7 @@ class LoxWs:
     async def reconnect(self):
         return await self.async_init()
 
+    # https://github.com/aio-libs/aiohttp/issues/754
     async def stop(self):
         try:
             self.state = "STOPPING"

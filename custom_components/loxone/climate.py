@@ -3,7 +3,7 @@ Loxone climate component.
 """
 import logging
 from abc import ABC
-
+from voluptuous import All, Range, Optional
 from homeassistant.components.climate import (
     TEMP_CELSIUS,
     ClimateEntity,
@@ -18,20 +18,16 @@ from homeassistant.components.climate.const import (
     HVAC_MODE_HEAT_COOL,
     HVAC_MODE_AUTO,
 )
-from homeassistant.const import (
-    CONF_VALUE_TEMPLATE)
-from voluptuous import All, Range, Optional
+
 
 from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_roomcontroller_entities
+from .const import (DOMAIN, EVENT, SENDDOMAIN, CONF_HVAC_AUTO_MODE)
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = 'loxone'
-EVENT = "loxone_event"
-SENDDOMAIN = "loxone_send"
 
-CONF_HVAC_AUTO_MODE = 'hvac_auto_mode'
+
 
 OPMODES = {
     None: HVAC_MODE_OFF,
@@ -56,28 +52,31 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 # noinspection PyUnusedLocal
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
-    value_template = config.get(CONF_VALUE_TEMPLATE)
-    auto_mode = 0 if config.get(CONF_HVAC_AUTO_MODE) is None else config.get(CONF_HVAC_AUTO_MODE)
+    # value_template = config.get(CONF_VALUE_TEMPLATE)
+    # auto_mode = 0 if config.get(CONF_HVAC_AUTO_MODE) is None else config.get(CONF_HVAC_AUTO_MODE)
+    #
+    # if value_template is not None:
+    #     value_template.hass = hass
+    # config = hass.data[DOMAIN]
+    return True
 
-    if value_template is not None:
-        value_template.hass = hass
 
-    config = hass.data[DOMAIN]
-    loxconfig = config['loxconfig']
-
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up LoxoneRoomControllerV2."""
+    loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
 
     for climate in get_all_roomcontroller_entities(loxconfig):
         climate.update({'hass': hass,
                         'room': get_room_name_from_room_uuid(loxconfig, climate.get('room', '')),
                         'cat': get_cat_name_from_cat_uuid(loxconfig, climate.get('cat', '')),
-                        CONF_HVAC_AUTO_MODE: auto_mode})
+                        CONF_HVAC_AUTO_MODE: 0})
 
         new_thermostat = LoxoneRoomControllerV2(**climate)
         devices.append(new_thermostat)
         hass.bus.async_listen(EVENT, new_thermostat.event_handler)
 
-    async_add_devices(devices)
+    async_add_devices(devices, True)
     return True
 
 
@@ -220,3 +219,13 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         if mode_id is not None:
             self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f'override/{mode_id}'))
             self.schedule_update_ha_state()
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": "RoomControllerV2",
+            "type": self.type
+        }

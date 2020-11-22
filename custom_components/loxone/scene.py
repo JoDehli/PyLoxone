@@ -1,19 +1,18 @@
-import logging
-
 from homeassistant.components.scene import Scene
 from homeassistant.const import (
     CONF_VALUE_TEMPLATE)
 from homeassistant.helpers.entity_platform import async_call_later
+from .const import (DOMAIN,
+                    SENDDOMAIN,
+                    CONF_SCENE_GEN)
+import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_NAME = 'Loxone Scene'
-DEFAULT_FORCE_UPDATE = False
 
-CONF_UUID = "uuid"
-DOMAIN = 'loxone'
-SENDDOMAIN = "loxone_send"
-CONF_SCENE_GEN = "generate_scenes"
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up Scenes."""
+    return True
 
 
 async def async_setup_platform(hass, config, async_add_devices,
@@ -25,9 +24,7 @@ async def async_setup_platform(hass, config, async_add_devices,
     if value_template is not None:
         value_template.hass = hass
 
-    config = hass.data[DOMAIN]
-
-    async def async_call():
+    async def gen_scenes(_):
         devices = []
         entity_ids = hass.states.async_entity_ids("LIGHT")
         for _ in entity_ids:
@@ -40,10 +37,10 @@ async def async_setup_platform(hass, config, async_add_devices,
                         mood_id = entity.get_id_by_moodname(effect)
                         uuid = entity.uuidAction
                         devices.append(Loxonelightscene("{}-{}".format(entity.name, effect), mood_id, uuid))
-        async_add_devices(devices)
+        async_add_devices(devices, True)
 
-    if config[CONF_SCENE_GEN]:
-        async_call_later(hass, 0.5, async_call())
+    if hass.data[DOMAIN].get(CONF_SCENE_GEN):
+        async_call_later(hass, 0.5, gen_scenes)
     return True
 
 

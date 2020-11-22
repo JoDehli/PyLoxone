@@ -1,0 +1,21 @@
+{
+    "config": {
+        "abort": {
+            "single_instance_allowed": "Bereits konfiguriert"
+        },
+        "step": {
+            "user": {
+                "title": "Loxone",
+                "description": "Loxone Konfiguration",
+                "data": {
+                    "host": "Host",
+                    "username": "Benutzer",
+                    "port": "Port",
+                    "host": "Miniserver Ip",
+                    "password": "Password",
+                    "generate_scenes": "Scenen generieren"
+                }
+            }
+        }
+    }
+}

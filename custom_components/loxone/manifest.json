@@ -12,5 +12,6 @@
   "dependencies": [],
   "codeowners": ["JoDehli"],
   "homeassistant": "0.109.0",
-  "render_readme": true
+  "render_readme": true,
+  "config_flow": true
 }

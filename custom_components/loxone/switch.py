@@ -3,28 +3,18 @@
 import logging
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import (
-    CONF_VALUE_TEMPLATE)
-
+from .const import (DOMAIN, EVENT, SENDDOMAIN)
 from . import LoxoneEntity
 from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_switch_entities
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = 'loxone'
-EVENT = "loxone_event"
-SENDDOMAIN = "loxone_send"
 
 
-async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
-    value_template = config.get(CONF_VALUE_TEMPLATE)
-    if value_template is not None:
-        value_template.hass = hass
-
-    config = hass.data[DOMAIN]
-    loxconfig = config['loxconfig']
+async def async_setup_entry(hass, config_entry, async_add_devices):
+    """Set up entry."""
+    loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
-    entities = []
 
     for switch_entity in get_all_switch_entities(loxconfig):
         if switch_entity['type'] in ["Pushbutton", "Switch"]:
@@ -53,7 +43,11 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
                     hass.bus.async_listen(EVENT, new_push_button.event_handler)
                     devices.append(new_push_button)
 
-    async_add_devices(devices)
+    async_add_devices(devices, True)
+    return True
+
+
+async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
     return True
 
 

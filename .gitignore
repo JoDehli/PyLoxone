@@ -12,7 +12,7 @@ hass.py
 *.yaml
 *.db
 *.log
-*.json
+#*.json
 !hacs.json
 /venv/
 
