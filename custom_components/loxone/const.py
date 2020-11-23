@@ -1,6 +1,7 @@
 
 # Loxone constants
-LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "climate", "scene", "alarm_control_panel"]
+#LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "climate", "scene", "alarm_control_panel"]
+LOXONE_PLATFORMS = ["sensor"]
 
 TIMEOUT = 10
 KEEP_ALIVE_PERIOD = 240

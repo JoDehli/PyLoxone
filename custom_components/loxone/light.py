@@ -64,7 +64,7 @@ async def async_setup_platform(hass, config, async_add_devices,
     return True
 
 
-async def async_setup_entry(hass, config_entry, async_add_devices):
+async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up Loxone Light Controller."""
     loxconfig = hass.data[DOMAIN]['loxconfig']
     identify = loxconfig['msInfo']['serialNr']
@@ -79,7 +79,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     for light_controller in get_all_light_controller(loxconfig):
         light_controller.update({'room': get_room_name_from_room_uuid(loxconfig, light_controller.get('room', '')),
                                  'cat': get_cat_name_from_cat_uuid(loxconfig, light_controller.get('cat', '')),
-                                 'async_add_devices': async_add_devices
+                                 'async_add_devices': async_add_entities
                                  })
         new_light_controller = LoxonelightcontrollerV2(**light_controller)
         # from homeassistant.helpers import config_validation as cv, device_registry as dr
@@ -157,7 +157,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         hass.bus.async_listen(EVENT, new_color_picker.event_handler)
         devices.append(new_color_picker)
 
-    async_add_devices(devices, True)
+    async_add_entities(devices, True)
     # from homeassistant.helpers import config_validation as cv, device_registry as dr
     # device_registry = await dr.async_get_registry(hass)
     return True

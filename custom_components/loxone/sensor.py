@@ -41,7 +41,7 @@ async def async_setup_platform(hass, config, async_add_devices,
     return True
 
 
-async def async_setup_entry(hass, config_entry, async_add_devices):
+async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up entry."""
     loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
@@ -75,7 +75,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
 
-    async_add_devices(devices, True)
+    async_add_entities(devices, True)
 
     return True
 
