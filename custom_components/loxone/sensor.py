@@ -96,7 +96,16 @@ class LoxoneCustomSensor(LoxoneEntity):
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
-            self._state = e.data[self.uuidAction]
+            data = e.data[self.uuidAction]
+            if isinstance(data, (list, dict)):
+                data = str(data)
+                if len(data) >= 255:
+                    self._state = data[:255]
+                else:
+                    self._state = data
+            else:
+                self._state = data
+
             self.schedule_update_ha_state()
 
     @property
