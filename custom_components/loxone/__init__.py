@@ -75,7 +75,8 @@ from .const import (
     ATTR_COMMAND,
     CONF_SCENE_GEN,
     DOMAIN_DEVICES,
-    LOXONE_PLATFORMS
+    LOXONE_PLATFORMS,
+    LOXAPPPATH
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -101,7 +102,7 @@ class loxApp(object):
     def __init__(self):
         self.host = None
         self.port = None
-        self.loxapppath = "/data/LoxAPP3.json"
+        self.loxapppath = LOXAPPPATH
 
         self.lox_user = None
         self.lox_pass = None
