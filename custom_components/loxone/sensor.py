@@ -41,7 +41,8 @@ async def async_setup_platform(hass, config, async_add_devices,
     return True
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+
+async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up entry."""
     loxconfig = hass.data[DOMAIN]['loxconfig']
     devices = []
@@ -75,7 +76,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
 
-    async_add_entities(devices, True)
+
+    async_add_devices(devices, True)
 
     return True
 
@@ -96,7 +98,16 @@ class LoxoneCustomSensor(LoxoneEntity):
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
-            self._state = e.data[self.uuidAction]
+            data = e.data[self.uuidAction]
+            if isinstance(data, (list, dict)):
+                data = str(data)
+                if len(data) >= 255:
+                    self._state = data[:255]
+                else:
+                    self._state = data
+            else:
+                self._state = data
+
             self.schedule_update_ha_state()
 
     @property
