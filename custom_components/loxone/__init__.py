@@ -91,7 +91,13 @@ CONFIG_SCHEMA = vol.Schema({
     }),
 }, extra=vol.ALLOW_EXTRA)
 
-
+'''@JoDehli Any specific reason you are using async_add_devices() here? 
+https://github.com/JoDehli/PyLoxone/blob/dev/custom_components/loxone/light.py#L160 Also, manually adding devices to 
+hass is not necessary unless you are creating a device that has no entities. For entities that belong to a device, 
+use async_add_entities(). Devices will be automatically created based on the provided device info in the entity, 
+and the entities will be added to it. A tip is to use base classes for devices. Take a look at the Deconz integration 
+for example '''
+# https://github.com/home-assistant/core/blob/48e954e038430f9f58ebf67dc80073978928dbab/homeassistant/components/broadlink/__init__.py
 class loxApp(object):
     def __init__(self):
         self.host = None

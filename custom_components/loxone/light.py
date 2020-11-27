@@ -158,8 +158,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         devices.append(new_color_picker)
 
     async_add_devices(devices, True)
-    # from homeassistant.helpers import config_validation as cv, device_registry as dr
-    # device_registry = await dr.async_get_registry(hass)
     return True
 
 

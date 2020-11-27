@@ -41,6 +41,7 @@ async def async_setup_platform(hass, config, async_add_devices,
     return True
 
 
+
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up entry."""
     loxconfig = hass.data[DOMAIN]['loxconfig']
@@ -74,6 +75,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         new_sensor = LoxoneTextSensor(**sensor)
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
+
 
     async_add_devices(devices, True)
 
