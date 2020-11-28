@@ -1,6 +1,13 @@
+"""
+Loxone constants
 
+For more details about this component, please refer to the documentation at
+https://github.com/JoDehli/PyLoxone
+"""
 # Loxone constants
 LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "climate", "scene", "alarm_control_panel"]
+
+LOXONE_DEFAULT_PORT = 8080
 
 TIMEOUT = 10
 KEEP_ALIVE_PERIOD = 240
@@ -37,6 +44,7 @@ CMD_GET_VISUAL_PASSWD = "jdev/sys/getvisusalt/"
 DEFAULT_TOKEN_PERSIST_NAME = "lox_token.cfg"
 ERROR_VALUE = -1
 DEFAULT_PORT = 8080
+DEFAULT_IP = ""
 
 EVENT = 'loxone_event'
 DOMAIN = 'loxone'
@@ -58,7 +66,6 @@ CONF_ACTIONID = "uuidAction"
 CONF_SCENE_GEN = "generate_scenes"
 DEFAULT_FORCE_UPDATE = False
 
-
 SUPPORT_SET_POSITION = 4
 SUPPORT_STOP = 8
 SUPPORT_OPEN_TILT = 16
@@ -67,5 +74,8 @@ SUPPORT_STOP_TILT = 64
 SUPPORT_SET_TILT_POSITION = 128
 
 CONF_HVAC_AUTO_MODE = 'hvac_auto_mode'
+
+STATE_ON = "on"
+STATE_OFF = "off"
 
 # End of loxone constants

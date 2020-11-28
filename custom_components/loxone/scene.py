@@ -1,11 +1,17 @@
-from homeassistant.components.scene import Scene
-from homeassistant.const import (
-    CONF_VALUE_TEMPLATE)
-from homeassistant.helpers.entity_platform import async_call_later
-from .const import (DOMAIN,
-                    SENDDOMAIN,
-                    CONF_SCENE_GEN)
+"""
+Loxone Scenes
+
+For more details about this component, please refer to the documentation at
+https://github.com/JoDehli/PyLoxone
+"""
+
 import logging
+
+from homeassistant.components.scene import Scene
+from homeassistant.const import CONF_VALUE_TEMPLATE
+from homeassistant.helpers.entity_platform import async_call_later
+
+from .const import CONF_SCENE_GEN, DOMAIN, SENDDOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 

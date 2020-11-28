@@ -1,15 +1,21 @@
-import logging
-from homeassistant.const import (
-    CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF, CONF_NAME, CONF_UNIT_OF_MEASUREMENT)
+"""
+Loxone Sensors
 
+For more details about this component, please refer to the documentation at
+https://github.com/JoDehli/PyLoxone
+"""
+import logging
+
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
-import homeassistant.helpers.config_validation as cv
+from homeassistant.const import (CONF_NAME, CONF_UNIT_OF_MEASUREMENT,
+                                 CONF_VALUE_TEMPLATE, STATE_OFF, STATE_ON)
 
-from .const import (DOMAIN, EVENT, SENDDOMAIN, CONF_ACTIONID)
 from . import LoxoneEntity
-from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid
-from . import get_all_analog_info, get_all_digital_info, get_all
+from .const import CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN
+from .helpers import (get_all, get_all_analog_info, get_all_digital_info,
+                      get_cat_name_from_cat_uuid, get_room_name_from_room_uuid)
 
 _LOGGER = logging.getLogger(__name__)
 
