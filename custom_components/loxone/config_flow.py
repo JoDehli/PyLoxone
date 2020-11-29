@@ -1,24 +1,26 @@
-"""Config Flow for Advantage Air integration."""
-import voluptuous as vol
+"""
+Config Flow for PyLoxone
+
+For more details about this component, please refer to the documentation at
+https://github.com/JoDehli/PyLoxone
+"""
+
 from collections import OrderedDict
 
+import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_USERNAME, CONF_PASSWORD
-
+from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
+                                 CONF_USERNAME)
 from homeassistant.core import callback
 
-DOMAIN = 'loxone'
-
-LOXONE_DEFAULT_PORT = 8080
-LOXONE_DEFAULT_IP = ""
-CONF_SCENE_GEN = "generate_scenes"
+from .const import CONF_SCENE_GEN, DEFAULT_IP, DEFAULT_PORT, DOMAIN
 
 LOXONE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME, default=""): str,
         vol.Required(CONF_PASSWORD, default=""): str,
-        vol.Required(CONF_HOST, default=LOXONE_DEFAULT_IP): str,
-        vol.Required(CONF_PORT, default=LOXONE_DEFAULT_PORT): int,
+        vol.Required(CONF_HOST, default=DEFAULT_IP): str,
+        vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
         vol.Required(CONF_SCENE_GEN, default=True): bool,
     }
 )

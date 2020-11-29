@@ -2,34 +2,20 @@
 import logging
 import re
 
-from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity, FORMAT_NUMBER, FORMAT_TEXT
-
-import homeassistant.components.alarm_control_panel as alarm
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.alarm_control_panel import PLATFORM_SCHEMA
+from homeassistant.components.alarm_control_panel import (
+    FORMAT_NUMBER, FORMAT_TEXT, PLATFORM_SCHEMA, AlarmControlPanelEntity)
 from homeassistant.components.alarm_control_panel.const import (
-    SUPPORT_ALARM_ARM_AWAY,
-    SUPPORT_ALARM_ARM_HOME,
-    SUPPORT_ALARM_ARM_NIGHT
-)
-from homeassistant.const import (
-    CONF_CODE,
-    CONF_NAME,
-    CONF_PASSWORD,
-    CONF_USERNAME,
-    STATE_ALARM_ARMED_AWAY,
-    STATE_ALARM_DISARMED,
-)
+    SUPPORT_ALARM_ARM_AWAY, SUPPORT_ALARM_ARM_HOME, SUPPORT_ALARM_ARM_NIGHT)
+from homeassistant.const import (CONF_CODE, CONF_NAME, CONF_PASSWORD,
+                                 CONF_USERNAME, STATE_ALARM_ARMED_AWAY,
+                                 STATE_ALARM_DISARMED)
 
 from . import LoxoneEntity
-from . import get_all_alarm, get_room_name_from_room_uuid, get_cat_name_from_cat_uuid
-
-CONF_UUID = "uuid"
-EVENT = "loxone_event"
-DOMAIN = 'loxone'
-SENDDOMAIN = "loxone_send"
-SECUREDSENDDOMAIN = "loxone_send_secured"
+from .const import DOMAIN, EVENT, SECUREDSENDDOMAIN, SENDDOMAIN
+from .helpers import (get_all_alarm, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 
 DEFAULT_NAME = 'Loxone Alarm'
 DEFAULT_FORCE_UPDATE = False

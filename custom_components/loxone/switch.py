@@ -1,14 +1,19 @@
 """
+Loxone Switches
+
+For more details about this component, please refer to the documentation at
+https://github.com/JoDehli/PyLoxone
 """
 import logging
 
 from homeassistant.components.switch import SwitchEntity
-from .const import (DOMAIN, EVENT, SENDDOMAIN)
+
 from . import LoxoneEntity
-from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_switch_entities
+from .const import DOMAIN, EVENT, SENDDOMAIN
+from .helpers import (get_all_switch_entities, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 
 _LOGGER = logging.getLogger(__name__)
-
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):

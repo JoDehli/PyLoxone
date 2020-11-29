@@ -1,33 +1,30 @@
 """
-Loxone climate component.
+Loxone climate
+
+For more details about this component, please refer to the documentation at
+https://github.com/JoDehli/PyLoxone
 """
+
 import logging
 from abc import ABC
-from voluptuous import All, Range, Optional
-from homeassistant.components.climate import (
-    TEMP_CELSIUS,
-    ClimateEntity,
-    SUPPORT_PRESET_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
-    PLATFORM_SCHEMA
-)
-from homeassistant.components.climate.const import (
-    HVAC_MODE_COOL,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_OFF,
-    HVAC_MODE_HEAT_COOL,
-    HVAC_MODE_AUTO,
-)
 
+from homeassistant.components.climate import (PLATFORM_SCHEMA,
+                                              SUPPORT_PRESET_MODE,
+                                              SUPPORT_TARGET_TEMPERATURE,
+                                              TEMP_CELSIUS, ClimateEntity)
+from homeassistant.components.climate.const import (HVAC_MODE_AUTO,
+                                                    HVAC_MODE_COOL,
+                                                    HVAC_MODE_HEAT,
+                                                    HVAC_MODE_HEAT_COOL,
+                                                    HVAC_MODE_OFF)
+from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
-from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_roomcontroller_entities
-from .const import (DOMAIN, EVENT, SENDDOMAIN, CONF_HVAC_AUTO_MODE)
+from .const import CONF_HVAC_AUTO_MODE, DOMAIN, EVENT, SENDDOMAIN
+from .helpers import (get_all_roomcontroller_entities,
+                      get_cat_name_from_cat_uuid, get_room_name_from_room_uuid)
 
 _LOGGER = logging.getLogger(__name__)
-
-
-
 
 OPMODES = {
     None: HVAC_MODE_OFF,

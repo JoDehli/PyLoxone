@@ -1,61 +1,24 @@
-import asyncio
 import logging
 from typing import Any
-from . import LoxoneEntity
 
 import homeassistant.util.color as color_util
-import numpy as np
-from homeassistant.components.light import (
-    SUPPORT_EFFECT,
-    SUPPORT_BRIGHTNESS,
-    SUPPORT_COLOR,
-    SUPPORT_COLOR_TEMP,
-    ATTR_BRIGHTNESS,
-    ATTR_COLOR_TEMP,
-    ATTR_HS_COLOR,
-    LightEntity,
-    ToggleEntity
-)
-from homeassistant.const import (
-    CONF_VALUE_TEMPLATE)
+from homeassistant.components.light import (ATTR_BRIGHTNESS, ATTR_COLOR_TEMP,
+                                            ATTR_HS_COLOR, SUPPORT_BRIGHTNESS,
+                                            SUPPORT_COLOR, SUPPORT_COLOR_TEMP,
+                                            SUPPORT_EFFECT, LightEntity,
+                                            ToggleEntity)
 
-from . import get_room_name_from_room_uuid, \
-    get_cat_name_from_cat_uuid, \
-    get_all_light_controller, \
-    get_all_dimmer
+from . import LoxoneEntity
+from .const import DOMAIN, EVENT, SENDDOMAIN, STATE_OFF, STATE_ON
+from .helpers import (get_all_dimmer, get_all_light_controller,
+                      get_cat_name_from_cat_uuid, get_room_name_from_room_uuid,
+                      to_hass_color_temp, to_hass_level, to_loxone_color_temp,
+                      to_loxone_level)
 
 _LOGGER = logging.getLogger(__name__)
-
 DEFAULT_NAME = 'Loxone Light Controller V2'
 DEFAULT_FORCE_UPDATE = False
 
-CONF_UUID = "uuid"
-EVENT = "loxone_event"
-DOMAIN = 'loxone'
-SENDDOMAIN = "loxone_send"
-
-STATE_ON = "on"
-STATE_OFF = "off"
-
-
-def to_hass_level(level):
-    """Convert the given Loxone (0.0-100.0) light level to HASS (0-255)."""
-    return int((level * 255) / 100)
-
-
-def to_loxone_level(level):
-    """Convert the given HASS light level (0-255) to Loxone (0.0-100.0)."""
-    return float((level * 100) / 255)
-
-
-def to_hass_color_temp(temp):
-    """Linear interpolation between Loxone values from 2700 to 6500"""
-    return np.interp(temp, [2700, 6500], [500, 153])
-
-
-def to_loxone_color_temp(temp):
-    """Linear interpolation between HASS values from 153 to 500"""
-    return np.interp(temp, [153, 500], [6500, 2700])
 
 
 async def async_setup_platform(hass, config, async_add_devices,
@@ -82,17 +45,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                                  'async_add_devices': async_add_devices
                                  })
         new_light_controller = LoxonelightcontrollerV2(**light_controller)
-        # from homeassistant.helpers import config_validation as cv, device_registry as dr
-        # device_registry = await dr.async_get_registry(hass)
-        #
-        # device_registry.async_get_or_create(
-        #     config_entry_id=config_entry.entry_id,
-        #     identifiers={(DOMAIN, new_light_controller.unique_id)},
-        #     name=new_light_controller.name,
-        #     manufacturer="Loxone",
-        #     model="LightControllerV2",
-        #     via_device=(DOMAIN, identify)
-        # )
 
         if 'subControls' in light_controller:
             if len(light_controller['subControls']) > 0:

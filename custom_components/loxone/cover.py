@@ -1,30 +1,30 @@
 """
-Loxone cover component.
+Loxone Cover
+
+For more details about this component, please refer to the documentation at
+https://github.com/JoDehli/PyLoxone
 """
+
 import logging
 from typing import Any
 
-from homeassistant.components.cover import (
-    DEVICE_CLASS_AWNING,
-    DEVICE_CLASS_BLIND,
-    DEVICE_CLASS_CURTAIN,
-    DEVICE_CLASS_SHUTTER,
-    DEVICE_CLASS_GARAGE,
-    DEVICE_CLASS_DOOR,
-    DEVICE_CLASS_WINDOW,
-    CoverEntity,
-    SUPPORT_OPEN,
-    SUPPORT_CLOSE,
-    ATTR_POSITION
-)
-from homeassistant.const import (
-    CONF_VALUE_TEMPLATE, STATE_ON, STATE_OFF)
+from homeassistant.components.cover import (ATTR_POSITION, DEVICE_CLASS_AWNING,
+                                            DEVICE_CLASS_BLIND,
+                                            DEVICE_CLASS_CURTAIN,
+                                            DEVICE_CLASS_DOOR,
+                                            DEVICE_CLASS_GARAGE,
+                                            DEVICE_CLASS_SHUTTER,
+                                            DEVICE_CLASS_WINDOW, SUPPORT_CLOSE,
+                                            SUPPORT_OPEN, CoverEntity)
+from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.helpers.event import track_utc_time_change
 
 from . import LoxoneEntity
-from . import get_room_name_from_room_uuid, get_cat_name_from_cat_uuid, get_all_covers
-from .const import (DOMAIN, EVENT, SENDDOMAIN, SUPPORT_SET_POSITION, SUPPORT_STOP, SUPPORT_OPEN_TILT,
-                    SUPPORT_CLOSE_TILT, SUPPORT_STOP_TILT, SUPPORT_SET_TILT_POSITION)
+from .const import (DOMAIN, EVENT, SENDDOMAIN, SUPPORT_CLOSE_TILT,
+                    SUPPORT_OPEN_TILT, SUPPORT_SET_POSITION,
+                    SUPPORT_SET_TILT_POSITION, SUPPORT_STOP, SUPPORT_STOP_TILT)
+from .helpers import (get_all_covers, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 
 _LOGGER = logging.getLogger(__name__)
 
