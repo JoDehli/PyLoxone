@@ -7,7 +7,7 @@ from homeassistant.components.light import (ATTR_BRIGHTNESS, ATTR_COLOR_TEMP,
                                             SUPPORT_COLOR, SUPPORT_COLOR_TEMP,
                                             SUPPORT_EFFECT, LightEntity,
                                             ToggleEntity)
-
+from homeassistant.const import STATE_UNKNOWN
 from . import LoxoneEntity
 from .const import DOMAIN, EVENT, SENDDOMAIN, STATE_OFF, STATE_ON
 from .helpers import (get_all_dimmer, get_all_light_controller,
@@ -18,7 +18,6 @@ from .helpers import (get_all_dimmer, get_all_light_controller,
 _LOGGER = logging.getLogger(__name__)
 DEFAULT_NAME = 'Loxone Light Controller V2'
 DEFAULT_FORCE_UPDATE = False
-
 
 
 async def async_setup_platform(hass, config, async_add_devices,
@@ -119,7 +118,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
         """Initialize the sensor."""
-        self._state = 0.0
+        self._state = STATE_UNKNOWN
         self._active_moods = []
         self._moodlist = []
         self._additional_moodlist = []
@@ -278,7 +277,7 @@ class LoxoneLight(LoxoneEntity, ToggleEntity):
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
-        self._state = 0.0
+        self._state = STATE_UNKNOWN
         self._async_add_devices = kwargs['async_add_devices']
         self.light_controller_id = kwargs.get("lightcontroller_id", None)
 
@@ -509,7 +508,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
         """Initialize the sensor."""
-        self._state = False
+        self._state = STATE_UNKNOWN
         self._position = 0.0
         self._min = 0.0
         self._max = 100.0

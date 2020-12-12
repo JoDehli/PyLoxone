@@ -7,6 +7,7 @@ https://github.com/JoDehli/PyLoxone
 import logging
 
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.const import STATE_UNKNOWN
 
 from . import LoxoneEntity
 from .const import DOMAIN, EVENT, SENDDOMAIN
@@ -63,7 +64,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
         LoxoneEntity.__init__(self, **kwargs)
         self._icon = None
         self._assumed = False
-        self._state = False
+        self._state = STATE_UNKNOWN
         self._delay_remain = 0.0
         self._delay_time_total = 0.0
 
@@ -157,7 +158,7 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
         """Initialize the Loxone switch."""
-        self._state = False
+        self._state = STATE_UNKNOWN
         self._icon = None
         self._assumed = False
 

@@ -10,7 +10,7 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import (CONF_NAME, CONF_UNIT_OF_MEASUREMENT,
-                                 CONF_VALUE_TEMPLATE, STATE_OFF, STATE_ON)
+                                 CONF_VALUE_TEMPLATE, STATE_OFF, STATE_ON, STATE_UNKNOWN)
 
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN
@@ -47,7 +47,6 @@ async def async_setup_platform(hass, config, async_add_devices,
     return True
 
 
-
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up entry."""
     loxconfig = hass.data[DOMAIN]['loxconfig']
@@ -82,7 +81,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         hass.bus.async_listen(EVENT, new_sensor.event_handler)
         devices.append(new_sensor)
 
-
     async_add_devices(devices, True)
 
     return True
@@ -100,7 +98,7 @@ class LoxoneCustomSensor(LoxoneEntity):
         else:
             self._unit_of_measurement = ""
 
-        self._state = "-"
+        self._state = STATE_UNKNOWN
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
@@ -136,7 +134,7 @@ class LoxoneVersionSensor(LoxoneEntity):
         try:
             self.version = ".".join([str(x) for x in version_list])
         except:
-            self.version = "-"
+            self.version = STATE_UNKNOWN
 
     @property
     def name(self):
@@ -167,7 +165,7 @@ class LoxoneTextSensor(LoxoneEntity):
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
-        self._state = ""
+        self._state = STATE_UNKNOWN
 
     async def event_handler(self, e):
         if self.states['text'] in e.data:
@@ -207,7 +205,7 @@ class Loxonesensor(LoxoneEntity):
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
         """Initialize the sensor."""
-        self._state = 0.0
+        self._state = STATE_UNKNOWN
         self._unit_of_measurement = None
         self._format = None
         self._on_state = STATE_ON
@@ -244,7 +242,7 @@ class Loxonesensor(LoxoneEntity):
     @property
     def state(self):
         """Return the state of the sensor."""
-        if self._format is not None:
+        if self._format is not None and self._format != STATE_UNKNOWN:
             try:
                 return self._format % self._state
             except ValueError:
