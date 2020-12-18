@@ -242,7 +242,7 @@ class Loxonesensor(LoxoneEntity):
     @property
     def state(self):
         """Return the state of the sensor."""
-        if self._format is not None and self._format != STATE_UNKNOWN:
+        if self._format is not None and self._state != STATE_UNKNOWN:
             try:
                 return self._format % self._state
             except ValueError:
