@@ -198,7 +198,7 @@ class LoxWs:
         for task in pending:
             task.cancel()
 
-        if self.state != "STOPPING":
+        if self.state != "STOPPING" and self.state != "CONNECTED":
             self.state == "CONNECTING"
             self._pending = []
             for i in range(self.connect_retries):

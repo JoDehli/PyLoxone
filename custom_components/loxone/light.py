@@ -14,10 +14,12 @@ from .helpers import (get_all_dimmer, get_all_light_controller,
                       get_cat_name_from_cat_uuid, get_room_name_from_room_uuid,
                       to_hass_color_temp, to_hass_level, to_loxone_color_temp,
                       to_loxone_level)
+from .miniserver import get_miniserver_from_config_entry
 
 _LOGGER = logging.getLogger(__name__)
 DEFAULT_NAME = 'Loxone Light Controller V2'
 DEFAULT_FORCE_UPDATE = False
+
 
 
 async def async_setup_platform(hass, config, async_add_devices,
@@ -28,9 +30,9 @@ async def async_setup_platform(hass, config, async_add_devices,
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up Loxone Light Controller."""
-    loxconfig = hass.data[DOMAIN]['loxconfig']
+    miniserver = get_miniserver_from_config_entry(hass, config_entry)
+    loxconfig = miniserver.lox_config.json
     identify = loxconfig['msInfo']['serialNr']
-
     devices = []
     all_dimmers = []
     all_light_controller_dimmers = []
@@ -69,7 +71,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                             'lightcontroller_id'] = new_light_controller.unique_id
                         all_color_picker.append(light_controller['subControls'][sub_controll])
 
-        hass.bus.async_listen(EVENT, new_light_controller.event_handler)
         devices.append(new_light_controller)
 
     _ = all_dimmers + all_light_controller_dimmers
@@ -87,7 +88,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                            })
 
         new_dimmer = LoxoneDimmer(**dimmer)
-        hass.bus.async_listen(EVENT, new_dimmer.event_handler)
         devices.append(new_dimmer)
 
     for switch in all_switches:
@@ -96,7 +96,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                        'async_add_devices': async_add_devices
                        })
         new_switch = LoxoneLight(**switch)
-        hass.bus.async_listen(EVENT, new_switch.event_handler)
         devices.append(new_switch)
 
     for color_picker in all_color_picker:

@@ -13,13 +13,14 @@ from . import LoxoneEntity
 from .const import DOMAIN, EVENT, SENDDOMAIN
 from .helpers import (get_all_switch_entities, get_cat_name_from_cat_uuid,
                       get_room_name_from_room_uuid)
-
+from .miniserver import get_miniserver_from_config_entry
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up entry."""
-    loxconfig = hass.data[DOMAIN]['loxconfig']
+    miniserver = get_miniserver_from_config_entry(hass, config_entry)
+    loxconfig = miniserver.lox_config.json
     devices = []
 
     for switch_entity in get_all_switch_entities(loxconfig):
@@ -27,14 +28,12 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
             switch_entity.update({'room': get_room_name_from_room_uuid(loxconfig, switch_entity.get('room', '')),
                                   'cat': get_cat_name_from_cat_uuid(loxconfig, switch_entity.get('cat', ''))})
             new_push_button = LoxoneSwitch(**switch_entity)
-            hass.bus.async_listen(EVENT, new_push_button.event_handler)
             devices.append(new_push_button)
 
         elif switch_entity['type'] == "TimedSwitch":
             switch_entity.update({'room': get_room_name_from_room_uuid(loxconfig, switch_entity.get('room', '')),
                                   'cat': get_cat_name_from_cat_uuid(loxconfig, switch_entity.get('cat', ''))})
             new_push_button = LoxoneTimedSwitch(**switch_entity)
-            hass.bus.async_listen(EVENT, new_push_button.event_handler)
             devices.append(new_push_button)
 
         elif switch_entity['type'] == "Intercom":
@@ -46,7 +45,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                     _.update({'room': get_room_name_from_room_uuid(loxconfig, switch_entity.get('room', ''))})
                     _.update({'cat': get_cat_name_from_cat_uuid(loxconfig, switch_entity.get('cat', ''))})
                     new_push_button = LoxoneIntercomSubControl(**_)
-                    hass.bus.async_listen(EVENT, new_push_button.event_handler)
                     devices.append(new_push_button)
 
     async_add_devices(devices, True)

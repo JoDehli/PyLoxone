@@ -5,7 +5,7 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 # Loxone constants
-LOXONE_PLATFORMS = ["sensor", "switch", "cover", "light", "climate", "scene", "alarm_control_panel"]
+LOXONE_PLATFORMS = ["sensor", "switch",  "cover", "light", "climate", "scene", "alarm_control_panel"]
 
 LOXONE_DEFAULT_PORT = 8080
 
@@ -48,6 +48,7 @@ DEFAULT_IP = ""
 
 EVENT = 'loxone_event'
 DOMAIN = 'loxone'
+LOX_CONFIG = 'loxconfig'
 
 SENDDOMAIN = "loxone_send"
 SECUREDSENDDOMAIN = "loxone_send_secured"

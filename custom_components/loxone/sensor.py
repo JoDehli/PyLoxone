@@ -16,6 +16,11 @@ from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN
 from .helpers import (get_all, get_all_analog_info, get_all_digital_info,
                       get_cat_name_from_cat_uuid, get_room_name_from_room_uuid)
+from .miniserver import get_miniserver_from_config_entry
+from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
+
+NEW_SENSOR = "sensors"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,7 +46,6 @@ async def async_setup_platform(hass, config, async_add_devices,
     if config != {}:
         # Here setup all Sensors in Yaml-File
         new_sensor = LoxoneCustomSensor(**config)
-        hass.bus.async_listen(EVENT, new_sensor.event_handler)
         async_add_devices([new_sensor])
         return True
     return True
@@ -49,41 +53,46 @@ async def async_setup_platform(hass, config, async_add_devices,
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up entry."""
-    loxconfig = hass.data[DOMAIN]['loxconfig']
-    devices = []
+    miniserver = get_miniserver_from_config_entry(hass, config_entry)
+
+    loxconfig = miniserver.lox_config.json
+    sensors = []
     if 'softwareVersion' in loxconfig:
-        version_sensor = LoxoneVersionSensor(loxconfig['softwareVersion'])
-        devices.append(version_sensor)
+        sensors.append(LoxoneVersionSensor(loxconfig['softwareVersion']))
 
     for sensor in get_all_analog_info(loxconfig):
         sensor.update({'typ': 'analog',
                        'room': get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
                        'cat': get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', ''))})
 
-        new_sensor = Loxonesensor(**sensor)
-        hass.bus.async_listen(EVENT, new_sensor.event_handler)
-        devices.append(new_sensor)
+        sensors.append(Loxonesensor(**sensor))
 
     for sensor in get_all_digital_info(loxconfig):
         sensor.update({'typ': 'digital',
                        'room': get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
                        'cat': get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', ''))})
-
-        new_sensor = Loxonesensor(**sensor)
-        hass.bus.async_listen(EVENT, new_sensor.event_handler)
-        devices.append(new_sensor)
+        sensors.append(Loxonesensor(**sensor))
 
     for sensor in get_all(loxconfig, "TextInput"):
         sensor.update({'room': get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
                        'cat': get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', ''))})
 
-        new_sensor = LoxoneTextSensor(**sensor)
-        hass.bus.async_listen(EVENT, new_sensor.event_handler)
-        devices.append(new_sensor)
+        sensors.append(LoxoneTextSensor(**sensor))
 
-    async_add_devices(devices, True)
+    @callback
+    def async_add_sensors(_):
+        async_add_devices(_, True)
 
-    return True
+    miniserver.listeners.append(
+        async_dispatcher_connect(
+            hass, miniserver.async_signal_new_device(NEW_SENSOR), async_add_sensors
+        )
+    )
+
+
+
+    async_add_sensors(sensors)
+    #return True
 
 
 class LoxoneCustomSensor(LoxoneEntity):

@@ -25,9 +25,13 @@ from .const import (DOMAIN, EVENT, SENDDOMAIN, SUPPORT_CLOSE_TILT,
                     SUPPORT_SET_TILT_POSITION, SUPPORT_STOP, SUPPORT_STOP_TILT)
 from .helpers import (get_all_covers, get_cat_name_from_cat_uuid,
                       get_room_name_from_room_uuid)
+from .miniserver import get_miniserver_from_config_entry
+from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 _LOGGER = logging.getLogger(__name__)
 
+NEW_COVERS = "covers"
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
     """Set up the Loxone covers."""
@@ -36,8 +40,9 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set Loxone covers."""
-    loxconfig = hass.data[DOMAIN]['loxconfig']
-    devices = []
+    miniserver = get_miniserver_from_config_entry(hass, config_entry)
+    loxconfig = miniserver.lox_config.json
+    covers = []
 
     for cover in get_all_covers(loxconfig):
         cover.update({'hass': hass,
@@ -46,19 +51,26 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 
         if cover['type'] == "Gate":
             new_gate = LoxoneGate(**cover)
-            devices.append(new_gate)
-            hass.bus.async_listen(EVENT, new_gate.event_handler)
+            covers.append(new_gate)
         elif cover['type'] == "Window":
             new_window = LoxoneWindow(**cover)
-            devices.append(new_window)
-            hass.bus.async_listen(EVENT, new_window.event_handler)
+            covers.append(new_window)
         else:
             new_jalousie = LoxoneJalousie(**cover)
-            devices.append(new_jalousie)
-            hass.bus.async_listen(EVENT, new_jalousie.event_handler)
+            covers.append(new_jalousie)
 
-    async_add_devices(devices, True)
-    return True
+    @callback
+    def async_add_covers(_):
+        async_add_devices(_, True)
+
+    miniserver.listeners.append(
+        async_dispatcher_connect(
+            hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_covers
+        )
+    )
+
+    async_add_covers(covers)
+
 
 
 class LoxoneGate(LoxoneEntity, CoverEntity):

@@ -23,6 +23,7 @@ from . import LoxoneEntity
 from .const import CONF_HVAC_AUTO_MODE, DOMAIN, EVENT, SENDDOMAIN
 from .helpers import (get_all_roomcontroller_entities,
                       get_cat_name_from_cat_uuid, get_room_name_from_room_uuid)
+from .miniserver import get_miniserver_from_config_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,7 +61,8 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up LoxoneRoomControllerV2."""
-    loxconfig = hass.data[DOMAIN]['loxconfig']
+    miniserver = get_miniserver_from_config_entry(hass, config_entry)
+    loxconfig = miniserver.lox_config.json
     devices = []
 
     for climate in get_all_roomcontroller_entities(loxconfig):
@@ -71,7 +73,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 
         new_thermostat = LoxoneRoomControllerV2(**climate)
         devices.append(new_thermostat)
-        hass.bus.async_listen(EVENT, new_thermostat.event_handler)
 
     async_add_devices(devices, True)
     return True

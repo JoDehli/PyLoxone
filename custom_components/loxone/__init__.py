@@ -19,6 +19,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
+from .miniserver import MiniServer, get_miniserver_from_config_entry
 from .api import LoxWs, LoxApp
 from .helpers import get_miniserver_type
 
@@ -51,6 +52,8 @@ CONFIG_SCHEMA = vol.Schema({
     }),
 }, extra=vol.ALLOW_EXTRA)
 
+_UNDEF: dict = {}
+
 '''@JoDehli Any specific reason you are using async_add_devices() here? 
 https://github.com/JoDehli/PyLoxone/blob/dev/custom_components/loxone/light.py#L160 Also, manually adding devices to 
 hass is not necessary unless you are creating a device that has no entities. For entities that belong to a device, 
@@ -60,6 +63,9 @@ for example '''
 
 
 # https://github.com/home-assistant/core/blob/48e954e038430f9f58ebf67dc80073978928dbab/homeassistant/components/broadlink/__init__.py
+
+# https://github.com/home-assistant/core/blob/d47b3a5f4406866e42d64aabc3395d935016d96d/homeassistant/components/aurora/config_flow.py
+# https://github.com/home-assistant/core/blob/ac3a6aaa8cdb005b3c900f9d9671e5a859351060/homeassistant/components/tado/config_flow.py
 
 
 async def async_unload_entry(hass, config_entry):
@@ -94,71 +100,65 @@ async def async_set_options(hass, config_entry):
     )
 
 
+async def async_setup_events(miniserver) -> None:
+    """Set up the Loxone events."""
+    print("async_setup_events")
+
+
+async def async_config_entry_updated(hass, entry) -> None:
+    """Handle signals of config entry being updated.
+
+    This is a static method because a class method (bound method), can not be used with weak references.
+    Causes for this is either discovery updating host address or config entry options changing.
+    """
+    print("async_config_entry_updated")
+
+
 async def async_setup_entry(hass, config_entry):
+    if DOMAIN not in hass.data:
+        hass.data[DOMAIN] = {}
+
     if not config_entry.options:
         await async_set_options(hass, config_entry)
 
-    config = {DOMAIN: dict(config_entry.options)}
+    miniserver = MiniServer(hass, config_entry)
 
-    res = False
-    try:
-        lox_config = LoxApp()
-        lox_config.lox_user = config_entry.options[CONF_USERNAME]
-        lox_config.lox_pass = config_entry.options[CONF_PASSWORD]
-        lox_config.host = config_entry.options[CONF_HOST]
-        lox_config.port = config_entry.options[CONF_PORT]
-        request_code = await lox_config.getJson()
-
-        if request_code == 200 or request_code == "200":
-            hass.data[DOMAIN] = config[DOMAIN]
-            hass.data[DOMAIN]['loxconfig'] = lox_config.json
-
-            lox = LoxWs(user=config[DOMAIN][CONF_USERNAME],
-                        password=config[DOMAIN][CONF_PASSWORD],
-                        host=config[DOMAIN][CONF_HOST],
-                        port=config[DOMAIN][CONF_PORT],
-                        loxconfig=config[DOMAIN]['loxconfig'])
-
-            res = await lox.async_init()
-    except ConnectionError:
-        _LOGGER.error("Connection Error")
+    if not await miniserver.async_setup():
         return False
 
-    # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
-    device_registry = await dr.async_get_registry(hass)
-    identify = hass.data[DOMAIN]['loxconfig']['msInfo']['serialNr']
-    device_registry.async_get_or_create(
-        config_entry_id=config_entry.entry_id,
-        connections={},
-        identifiers={(DOMAIN, identify)},
-        name=hass.data[DOMAIN]['loxconfig']['msInfo']['msName'],
-        manufacturer="Loxone",
-        sw_version=".".join([str(x) for x in hass.data[DOMAIN]['loxconfig']['softwareVersion']]),
-        model=get_miniserver_type(hass.data[DOMAIN]['loxconfig']['msInfo']['miniserverType']),
-    )
-
-    await asyncio.sleep(0.5)
     for platform in LOXONE_PLATFORMS:
         _LOGGER.debug("starting loxone {}...".format(platform))
-        # https://github.com/home-assistant/core/blob/dev/homeassistant/components/upnp/__init__.py
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(config_entry, platform)
         )
-        hass.async_create_task(
-            async_load_platform(hass, platform, DOMAIN, {}, config_entry)
+        # hass.async_create_task(
+        #     async_load_platform(hass, platform, DOMAIN, {}, config_entry)
+        # )
+
+    hass.async_create_task(async_setup_events(miniserver))
+
+    config_entry.add_update_listener(async_config_entry_updated)
+
+    new_data = _UNDEF
+
+    if config_entry.unique_id is None:
+        hass.config_entries.async_update_entry(
+            config_entry, unique_id=miniserver.serial, data=new_data
         )
 
-    del lox_config
+    hass.data[DOMAIN][config_entry.unique_id] = miniserver
+
+    await miniserver.async_update_device_registry()
 
     async def message_callback(message):
+        """Fire message on HomeAssistant Bus."""
         hass.bus.async_fire(EVENT, message)
 
-    async def start_loxone(event):
-        await lox.start()
-
-    async def stop_loxone(event):
-        _ = await lox.stop()
-        _LOGGER.debug(_)
+    async def handle_websocket_command(call):
+        """Handle websocket command services."""
+        value = call.data.get(ATTR_VALUE, DEFAULT)
+        device_uuid = call.data.get(ATTR_UUID, DEFAULT)
+        await miniserver.api.send_websocket_command(device_uuid, value)
 
     async def loxone_discovered(event):
         if "component" in event.data:
@@ -193,8 +193,6 @@ async def async_setup_entry(hass, config_entry):
                             elif attr['device_typ'] == "LightControllerV2" or \
                                     attr['device_typ'] == "Dimmer":
                                 lights.append(s_dict['entity_id'])
-                            elif attr['device_typ'] == "IRoomControllerV2":
-                                climates.append(s_dict['entity_id'])
                             elif attr['device_typ'] == "IRoomControllerV2":
                                 climates.append(s_dict['entity_id'])
 
@@ -235,47 +233,18 @@ async def async_setup_entry(hass, config_entry):
                 except:
                     traceback.print_exc()
 
-    if res is True:
-        lox.message_call_back = message_callback
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, start_loxone)
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_loxone)
-        hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
+    await miniserver.async_set_callback(message_callback)
 
-        async def listen_loxone_send(event):
-            """Listen for change Events from Loxone Components"""
-            try:
-                if event.event_type == SENDDOMAIN and isinstance(event.data,
-                                                                 dict):
-                    value = event.data.get(ATTR_VALUE, DEFAULT)
-                    device_uuid = event.data.get(ATTR_UUID, DEFAULT)
-                    await lox.send_websocket_command(device_uuid, value)
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, miniserver.start_loxone)
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, miniserver.stop_loxone)
+    hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
 
-                elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data,
-                                                                          dict):
-                    value = event.data.get(ATTR_VALUE, DEFAULT)
-                    device_uuid = event.data.get(ATTR_UUID, DEFAULT)
-                    code = event.data.get(ATTR_CODE, DEFAULT)
-                    await lox.send_secured__websocket_command(device_uuid, value, code)
+    hass.bus.async_listen(SENDDOMAIN, miniserver.listen_loxone_send)
+    hass.bus.async_listen(SECUREDSENDDOMAIN, miniserver.listen_loxone_send)
 
-            except ValueError:
-                traceback.print_exc()
+    hass.services.async_register(DOMAIN, 'event_websocket_command', handle_websocket_command)
 
-        hass.bus.async_listen(SENDDOMAIN, listen_loxone_send)
-        hass.bus.async_listen(SECUREDSENDDOMAIN, listen_loxone_send)
-
-        async def handle_websocket_command(call):
-            """Handle websocket command services."""
-            value = call.data.get(ATTR_VALUE, DEFAULT)
-            device_uuid = call.data.get(ATTR_UUID, DEFAULT)
-            await lox.send_websocket_command(device_uuid, value)
-
-        hass.services.async_register(DOMAIN, 'event_websocket_command',
-                                     handle_websocket_command)
-
-    else:
-        res = False
-        _LOGGER.info("Error")
-    return res
+    return True
 
 
 class LoxoneEntity(Entity):
@@ -295,6 +264,19 @@ class LoxoneEntity(Entity):
                     traceback.print_exc()
                     import sys
                     sys.exit(-1)
+
+        self.listener = None
+
+    async def async_added_to_hass(self):
+        """Subscribe to device events."""
+        self.listener = self.hass.bus.async_listen(EVENT, self.event_handler)
+
+    async def async_will_remove_from_hass(self):
+        """Disconnect callbacks."""
+        self.listener = None
+
+    async def event_handler(self, e):
+        pass
 
     @property
     def name(self):
