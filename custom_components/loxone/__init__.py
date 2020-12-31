@@ -54,26 +54,13 @@ CONFIG_SCHEMA = vol.Schema({
 
 _UNDEF: dict = {}
 
-'''@JoDehli Any specific reason you are using async_add_devices() here? 
-https://github.com/JoDehli/PyLoxone/blob/dev/custom_components/loxone/light.py#L160 Also, manually adding devices to 
-hass is not necessary unless you are creating a device that has no entities. For entities that belong to a device, 
-use async_add_entities(). Devices will be automatically created based on the provided device info in the entity, 
-and the entities will be added to it. A tip is to use base classes for devices. Take a look at the Deconz integration 
-for example '''
 
-
-# https://github.com/home-assistant/core/blob/48e954e038430f9f58ebf67dc80073978928dbab/homeassistant/components/broadlink/__init__.py
-
-# https://github.com/home-assistant/core/blob/d47b3a5f4406866e42d64aabc3395d935016d96d/homeassistant/components/aurora/config_flow.py
-# https://github.com/home-assistant/core/blob/ac3a6aaa8cdb005b3c900f9d9671e5a859351060/homeassistant/components/tado/config_flow.py
-
+# TODO: Implement a complete restart of the loxone component without restart HomeAssistant
+# TODO: Unload device
 
 async def async_unload_entry(hass, config_entry):
     """ Restart of Home Assistant needed."""
-    # TODO: Implement a complete restart of the loxone component without restart HomeAssistant
-    # TODO: Unload device
     return False
-
 
 async def async_setup(hass, config):
     """setup loxone"""
@@ -100,18 +87,13 @@ async def async_set_options(hass, config_entry):
     )
 
 
-async def async_setup_events(miniserver) -> None:
-    """Set up the Loxone events."""
-    print("async_setup_events")
-
-
 async def async_config_entry_updated(hass, entry) -> None:
     """Handle signals of config entry being updated.
 
     This is a static method because a class method (bound method), can not be used with weak references.
     Causes for this is either discovery updating host address or config entry options changing.
     """
-    print("async_config_entry_updated")
+    pass
 
 
 async def async_setup_entry(hass, config_entry):
@@ -131,11 +113,9 @@ async def async_setup_entry(hass, config_entry):
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(config_entry, platform)
         )
-        # hass.async_create_task(
-        #     async_load_platform(hass, platform, DOMAIN, {}, config_entry)
-        # )
-
-    hass.async_create_task(async_setup_events(miniserver))
+        hass.async_create_task(
+            async_load_platform(hass, platform, DOMAIN, {}, config_entry)
+        )
 
     config_entry.add_update_listener(async_config_entry_updated)
 
@@ -145,6 +125,8 @@ async def async_setup_entry(hass, config_entry):
         hass.config_entries.async_update_entry(
             config_entry, unique_id=miniserver.serial, data=new_data
         )
+        # Workaround
+        await asyncio.sleep(5)
 
     hass.data[DOMAIN][config_entry.unique_id] = miniserver
 

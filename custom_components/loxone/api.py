@@ -48,9 +48,38 @@ class LoxApp(object):
         self.json = None
         self.responsecode = None
         self.version = None
+        self.https_status = None
+        self.url = ""
 
     async def getJson(self):
-        url_version = "http://{}:{}/jdev/cfg/version".format(self.host, self.port)
+        if self.port == 80:
+            url_api = "http://{}/jdev/cfg/apiKey".format(self.host)
+        else:
+            url_api = "http://{}:{}/jdev/cfg/apiKey".format(self.host, self.port)
+
+        api_resp = await requests.get(url_api,
+                                      auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
+                                      verify=False, timeout=TIMEOUT)
+        if api_resp.status_code != 200:
+            _LOGGER.error(f"Could not connect to Loxone! Status code {api_resp.status_code}.")
+            return False
+
+        req_data = api_resp.json()
+        if 'LL' in req_data:
+            if 'Code' in req_data['LL'] and 'value' in req_data['LL']:
+                _ = req_data['LL']['value']
+                if isinstance(_, str):
+                    try:
+                        _ = eval(_)
+                    except ValueError:
+                        pass
+                if isinstance(_, dict):
+                    if "httpsStatus" in _:
+                        self.https_status = _['httpsStatus']
+
+        self.url = api_resp.url.replace("/jdev/cfg/apiKey", "")
+
+        url_version = f"{self.url}/jdev/cfg/version"
         version_resp = await requests.get(url_version,
                                           auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
                                           verify=False, timeout=TIMEOUT)
@@ -61,8 +90,8 @@ class LoxApp(object):
                 if 'Code' in vjson['LL'] and 'value' in vjson['LL']:
                     self.version = [int(x) for x in vjson['LL']['value'].split(".")]
 
-        url = "http://" + str(self.host) + ":" + str(self.port) + self.loxapppath
-        my_response = await requests.get(url, auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
+        url_lox_app = f"{self.url}{self.loxapppath}"
+        my_response = await requests.get(url_lox_app, auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
                                          verify=False, timeout=TIMEOUT)
         if my_response.status_code == 200:
             self.json = my_response.json()
@@ -79,11 +108,13 @@ class LoxWs:
                  password=None,
                  host="http://192.168.1.225 ",
                  port="8080", token_persist_filename=None,
-                 loxconfig=None):
+                 loxconfig=None,
+                 loxone_url=None):
         self._username = user
         self._pasword = password
         self._host = host
         self._port = port
+        self._loxone_url = loxone_url
         self._token_refresh_count = TOKEN_REFRESH_RETRY_COUNT
         self._token_persist_filename = token_persist_filename
         self._loxconfig = loxconfig
@@ -278,11 +309,13 @@ class LoxWs:
 
         # Exchange keys
         try:
-            self._ws = await wslib.connect(
-                "ws://{}:{}/ws/rfc6455".format(self._host, self._port),
-                timeout=TIMEOUT)
-            await self._ws.send(
-                "{}{}".format(CMD_KEY_EXCHANGE, self._session_key))
+            if self._loxone_url.startswith("https:"):
+                new_url = self._loxone_url.replace("https", "wss")
+            else:
+                new_url = self._loxone_url.replace("http", "ws")
+            self._ws = await wslib.connect("{}/ws/rfc6455".format(new_url),timeout=TIMEOUT)
+
+            await self._ws.send("{}{}".format(CMD_KEY_EXCHANGE, self._session_key))
 
             message = await self._ws.recv()
             await self.parse_loxone_message(message)
@@ -678,8 +711,7 @@ class LoxWs:
             return False
 
     async def get_public_key(self):
-        command = "http://{}:{}/{}".format(self._host, self._port,
-                                           CMD_GET_PUBLIC_KEY)
+        command = f"{self._loxone_url}/{CMD_GET_PUBLIC_KEY}"
         _LOGGER.debug("try to get public key: {}".format(command))
 
         try:

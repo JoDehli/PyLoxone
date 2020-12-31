@@ -36,6 +36,7 @@ NEW_SCENE = "scenes"
 NEW_SENSOR = "sensors"
 NEW_COVERS = "covers"
 
+
 @callback
 def get_miniserver_from_config_entry(hass, config_entry):
     """Return gateway with a matching bridge id."""
@@ -62,7 +63,6 @@ class MiniServer:
             NEW_SENSOR: f"loxone_new_sensor_{self.miniserverid}",
             NEW_COVERS: f"loxone_new_cover_{self.miniserverid}",
         }
-        print("New Device ", new_device[device_type])
         return new_device[device_type]
 
     @callback
@@ -116,10 +116,11 @@ class MiniServer:
                                  password=self.config_entry.options[CONF_PASSWORD],
                                  host=self.config_entry.options[CONF_HOST],
                                  port=self.config_entry.options[CONF_PORT],
-                                 loxconfig=self.lox_config.json)
+                                 loxconfig=self.lox_config.json,
+                                 loxone_url=self.lox_config.url)
 
                 res = await self.api.async_init()
-                if not res:
+                if not res or res == -1:
                     _LOGGER.error("Error connecting to loxone miniserver")
                     return False
 
@@ -187,7 +188,6 @@ class MiniServer:
             sw_version=self.software_version,
             model=get_miniserver_type(self.miniserver_type),
         )
-
 
     @property
     def host(self) -> str:
