@@ -6,6 +6,7 @@ https://github.com/JoDehli/PyLoxone
 """
 # Loxone constants
 LOXONE_PLATFORMS = ["sensor", "switch",  "cover", "light", "climate", "scene", "alarm_control_panel"]
+#LOXONE_PLATFORMS = ["light"]
 
 LOXONE_DEFAULT_PORT = 8080
 

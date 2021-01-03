@@ -11,10 +11,17 @@ def to_hass_level(level):
     """Convert the given Loxone (0.0-100.0) light level to HASS (0-255)."""
     return int((level * 255) / 100)
 
+def to_hass_level_min_max(level, min, max):
+    """Convert the given Loxone (0.0-100.0) light level to HASS (0-255)."""
+    return np.interp(level, [min, max], [100, 0])
 
 def to_loxone_level(level):
     """Convert the given HASS light level (0-255) to Loxone (0.0-100.0)."""
     return float((level * 100) / 255)
+
+def to_loxone_level_min_max(level, min, max):
+    """Convert the given HASS light level (0-255) to Loxone (0.0-100.0)."""
+    return np.interp(level, [0, 100], [max, min])
 
 
 def to_hass_color_temp(temp):

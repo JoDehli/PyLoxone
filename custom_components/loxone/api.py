@@ -150,8 +150,8 @@ class LoxWs:
         self.message_call_back = None
         self._pending = []
 
-        self.connect_retries = 10
-        self.connect_delay = 30
+        self.connect_retries = 20
+        self.connect_delay = 10
         self.state = "CLOSED"
         self._secured_queue = queue.Queue(maxsize=1)
 
@@ -230,19 +230,23 @@ class LoxWs:
             task.cancel()
 
         if self.state != "STOPPING" and self.state != "CONNECTED":
-            self.state == "CONNECTING"
-            self._pending = []
-            for i in range(self.connect_retries):
-                _LOGGER.debug("reconnect: {} from {}".format(i + 1, self.connect_retries))
-                await self.stop()
-                await asyncio.sleep(self.connect_delay)
-                res = await self.reconnect()
-                if res is True:
-                    await self.start()
-                    break
+            await self.reconnect()
 
     async def reconnect(self):
-        return await self.async_init()
+        # for task in self._pending:
+        #     task.cancel()
+        #
+        self._pending = []
+        for i in range(self.connect_retries):
+            _LOGGER.debug("reconnect: {} from {}".format(i + 1, self.connect_retries))
+            await self.stop()
+            self.state = "CONNECTING"
+            _LOGGER.debug("wait for {} seconds...".format(self.connect_delay))
+            await asyncio.sleep(self.connect_delay)
+            res = await self.async_init()
+            if res is True:
+                await self.start()
+                break
 
     # https://github.com/aio-libs/aiohttp/issues/754
     async def stop(self):
@@ -369,7 +373,10 @@ class LoxWs:
                 await self._async_process_message(message)
                 await asyncio.sleep(0)
         except:
-            pass
+            await asyncio.sleep(5)
+            if self._ws.closed:
+                await self.reconnect()
+
 
     async def _async_process_message(self, message):
         """Process the messages."""
