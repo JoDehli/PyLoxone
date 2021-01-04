@@ -72,7 +72,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                             'lightcontroller_id'] = new_light_controller.unique_id
                         all_color_picker.append(light_controller['subControls'][sub_controll])
 
-        #devices.append(new_light_controller)
+        devices.append(new_light_controller)
 
     _ = all_dimmers + all_light_controller_dimmers
 
