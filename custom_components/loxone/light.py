@@ -46,8 +46,8 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                                  'async_add_devices': async_add_devices
                                  })
         new_light_controller = LoxonelightcontrollerV2(**light_controller)
-        if 'subControls' in light_controller and generate_subcontrols:
-            if len(light_controller['subControls']) > 0:
+        if 'subControls' in light_controller:
+            if generate_subcontrols:
                 for sub_controll in light_controller['subControls']:
                     if sub_controll.find("masterValue") > -1 or sub_controll.find("masterColor") > 1:
                         continue
@@ -150,7 +150,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
 
             elif control['type'] == "Switch":
                 self._features = 0
-            self._features = None
+
         else:
             for uuid, data in kwargs.get("subControls", {}).items():
                 if uuid.find("masterValue") > -1:
