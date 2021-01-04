@@ -21,8 +21,7 @@ def to_loxone_level(level):
 
 def to_loxone_level_min_max(level, min, max):
     """Convert the given HASS light level (0-255) to Loxone (0.0-100.0)."""
-    return np.interp(level, [0, 100], [max, min])
-
+    return np.interp(level, [0, 100], [min, max])
 
 def to_hass_color_temp(temp):
     """Linear interpolation between Loxone values from 2700 to 6500"""

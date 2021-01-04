@@ -6,7 +6,6 @@ https://github.com/JoDehli/PyLoxone
 """
 # Loxone constants
 LOXONE_PLATFORMS = ["sensor", "switch",  "cover", "light", "climate", "scene", "alarm_control_panel"]
-#LOXONE_PLATFORMS = ["light"]
 
 LOXONE_DEFAULT_PORT = 8080
 
@@ -66,6 +65,7 @@ DOMAIN_DEVICES = "devices"
 
 CONF_ACTIONID = "uuidAction"
 CONF_SCENE_GEN = "generate_scenes"
+CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN = "generate_lightcontroller_subcontrols"
 DEFAULT_FORCE_UPDATE = False
 
 SUPPORT_SET_POSITION = 4

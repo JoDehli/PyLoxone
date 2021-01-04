@@ -15,7 +15,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  EVENT_HOMEASSISTANT_START,
                                  EVENT_HOMEASSISTANT_STOP)
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers import device_registry as dr
+
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
@@ -38,7 +38,7 @@ from .const import (AES_KEY_SIZE, ATTR_CODE, ATTR_COMMAND, ATTR_UUID,
                     SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
                     SECUREDSENDDOMAIN, SENDDOMAIN, TIMEOUT, TOKEN_PERMISSION,
                     TOKEN_REFRESH_DEFAULT_SECONDS, TOKEN_REFRESH_RETRY_COUNT,
-                    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY)
+                    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +49,7 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
         vol.Optional(CONF_SCENE_GEN, default=True): cv.boolean,
+        vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): bool,
     }),
 }, extra=vol.ALLOW_EXTRA)
 
@@ -62,6 +63,7 @@ async def async_unload_entry(hass, config_entry):
     """ Restart of Home Assistant needed."""
     return False
 
+
 async def async_setup(hass, config):
     """setup loxone"""
     if DOMAIN in config:
@@ -73,6 +75,16 @@ async def async_setup(hass, config):
     return True
 
 
+async def async_migrate_entry(hass, config_entry):
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+    if config_entry.version == 1:
+        new = {**config_entry.options, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: True}
+        config_entry.options = {**new}
+        config_entry.version = 2
+    _LOGGER.info("Migration to version %s successful", config_entry.version)
+    return True
+
+
 async def async_set_options(hass, config_entry):
     data = {**config_entry.data}
     options = {
@@ -81,6 +93,8 @@ async def async_set_options(hass, config_entry):
         CONF_USERNAME: data.pop(CONF_USERNAME, ""),
         CONF_PASSWORD: data.pop(CONF_PASSWORD, ""),
         CONF_SCENE_GEN: data.pop(CONF_SCENE_GEN, ""),
+        CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: data.pop(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, ""),
+
     }
     hass.config_entries.async_update_entry(
         config_entry, data=data, options=options

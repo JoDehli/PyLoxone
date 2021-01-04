@@ -13,9 +13,28 @@
                     "port": "Port",
                     "host": "Miniserver Ip",
                     "password": "Password",
-                    "generate_scenes": "Generate Scenes"
+                    "generate_scenes": "generate scenes",
+                    "generate_lightcontroller_subcontrols": "generate subcontrols for lightcontrolerV2"
                 }
             }
         }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "host": "Host",
+                    "username": "User",
+                    "port": "Port",
+                    "host": "Miniserver Ip",
+                    "password": "Password",
+                    "generate_scenes": "Generate scenes",
+                    "generate_lightcontroller_subcontrols": "Generate subcontrols for lightcontrolerV2"
+                },
+                "description": "PyLoxone edit settings:",
+                "title": "PyLoxone settings"
+            }
+        }
     }
+
 }

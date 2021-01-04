@@ -13,7 +13,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME)
 from homeassistant.core import callback
 
-from .const import CONF_SCENE_GEN, DEFAULT_IP, DEFAULT_PORT, DOMAIN
+from .const import CONF_SCENE_GEN, DEFAULT_IP, DEFAULT_PORT, DOMAIN, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN
 
 LOXONE_SCHEMA = vol.Schema(
     {
@@ -22,6 +22,7 @@ LOXONE_SCHEMA = vol.Schema(
         vol.Required(CONF_HOST, default=DEFAULT_IP): str,
         vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
         vol.Required(CONF_SCENE_GEN, default=True): bool,
+        vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): bool,
     }
 )
 
@@ -29,7 +30,7 @@ LOXONE_SCHEMA = vol.Schema(
 class LoxoneFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle Pyloxone handle."""
 
-    VERSION = 1
+    VERSION = 2
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     @staticmethod
@@ -40,7 +41,8 @@ class LoxoneFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         """Handle a flow initialized by the user."""
-        if self._async_current_entries():
+        current_entries = self._async_current_entries()
+        if current_entries:
             return self.async_abort(reason="single_instance_allowed")
 
         if user_input is None:
@@ -71,6 +73,7 @@ class LoxoneOptionsFlowHandler(config_entries.OptionsFlow):
         host = self.config_entry.options.get(CONF_HOST, "")
         port = self.config_entry.options.get(CONF_PORT, 80)
         gen_scenes = self.config_entry.options.get(CONF_SCENE_GEN, True)
+        gen_subcontrols = self.config_entry.options.get(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, False)
 
         options = OrderedDict()
 
@@ -79,6 +82,7 @@ class LoxoneOptionsFlowHandler(config_entries.OptionsFlow):
         options[vol.Required(CONF_HOST, default=host)] = str
         options[vol.Required(CONF_PORT, default=port)] = int
         options[vol.Required(CONF_SCENE_GEN, default=gen_scenes)] = bool
+        options[vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=gen_subcontrols)] = bool
 
         return self.async_show_form(
             step_id="init",
