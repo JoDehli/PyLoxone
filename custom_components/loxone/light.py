@@ -351,10 +351,6 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
 
     async def event_handler(self, event):
         request_update = False
-        for d in event.data:
-            for s in self.states:
-                if self.states[s] == d:
-                    print("got ", s , "in event data: ", event.data[d])
 
         if self.uuidAction in event.data:
             self._state = event.data[self.uuidAction]

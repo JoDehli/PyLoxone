@@ -8,10 +8,10 @@ https://github.com/JoDehli/PyLoxone
 import logging
 
 from homeassistant.components.scene import Scene
-from homeassistant.const import CONF_VALUE_TEMPLATE
 from homeassistant.helpers.entity_platform import async_call_later
 
 from .const import CONF_SCENE_GEN, DOMAIN, SENDDOMAIN
+from .miniserver import get_miniserver_from_config
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,9 +26,9 @@ async def async_setup_platform(hass, config, async_add_devices,
     """Set up Scenes."""
     if discovery_info is None:
         return
-    value_template = config.get(CONF_VALUE_TEMPLATE)
-    if value_template is not None:
-        value_template.hass = hass
+    miniserver = get_miniserver_from_config(hass, hass.data[DOMAIN])
+    if miniserver is None:
+        return False
 
     async def gen_scenes(_):
         devices = []
@@ -45,7 +45,7 @@ async def async_setup_platform(hass, config, async_add_devices,
                         devices.append(Loxonelightscene("{}-{}".format(entity.name, effect), mood_id, uuid))
         async_add_devices(devices, True)
 
-    if hass.data[DOMAIN].get(CONF_SCENE_GEN):
+    if miniserver.config_entry.options.get(CONF_SCENE_GEN, False):
         async_call_later(hass, 0.5, gen_scenes)
     return True
 
