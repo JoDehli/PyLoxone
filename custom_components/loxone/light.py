@@ -778,7 +778,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
 
         if self.states['position'] in e.data and isinstance(e.data[self.states['position']], (int, float)):
             if self._min is not None and self._max is not None:
-                to_loxone_level_min_max(e.data[self.states['position']], self._min, self._max)
+                self._position = to_loxone_level_min_max(e.data[self.states['position']], self._min, self._max)
             else:
                 self._position = e.data[self.states['position']]
             request_update = True
