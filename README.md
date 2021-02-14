@@ -86,7 +86,7 @@ sensor:
     uuidAction: "15beed5b-01ab-d81d-ffff2b06d5b9c660"
     unit_of_measurement: "°C"
 ```
-In this example a sensor with the name roomcomforttemperature (sensor.roomcomforttemperature) is created. The sensor is listening to all events from the loxone system with the specified uuid ([How do you get the uuid?](#-How-do-you-get-the-uuid?)).
+In this example a sensor with the name roomcomforttemperature (sensor.roomcomforttemperature) is created. The sensor is listening to all events from the loxone system with the specified uuid ([How do you get the uuid?](https://github.com/JoDehli/PyLoxone/tree/dev#how-do-you-get-the-uuid)).
 
 You can also send any websocket to a loxone entity for example to increase and decrease the temperature of a room controller v2. Here is a script that raises and lowers the temperature in 0.5 °C steps:
 
