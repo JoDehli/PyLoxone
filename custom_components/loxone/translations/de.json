@@ -13,9 +13,30 @@
                     "port": "Port",
                     "host": "Miniserver Ip",
                     "password": "Password",
-                    "generate_scenes": "Scenen generieren"
+                    "generate_scenes": "Scenen generieren",
+                    "generate_lightcontroller_subcontrols": "Subcontrols für lightcontrollerV2 erzeugen",
+                    "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
                 }
             }
         }
+    },
+      "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "host": "Host",
+                    "username": "Benutzer",
+                    "port": "Port",
+                    "host": "Miniserver Ip",
+                    "password": "Password",
+                    "generate_scenes": "Scenen generieren",
+                    "generate_lightcontroller_subcontrols": "Subcontrols für lightcontrollerV2 erzeugen",
+                    "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+                },
+                "description": "PyLoxone Einstellungen editieren:",
+                "title": "PyLoxone Einstellungen"
+            }
+        }
     }
+
 }

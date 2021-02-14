@@ -44,6 +44,7 @@ CMD_GET_VISUAL_PASSWD = "jdev/sys/getvisusalt/"
 DEFAULT_TOKEN_PERSIST_NAME = "lox_token.cfg"
 ERROR_VALUE = -1
 DEFAULT_PORT = 8080
+DEFAULT_DELAY_SCENE = 3
 DEFAULT_IP = ""
 
 EVENT = 'loxone_event'
@@ -60,11 +61,11 @@ ATTR_UUID = 'uuid'
 ATTR_VALUE = 'value'
 ATTR_CODE = "code"
 ATTR_COMMAND = "command"
-CONF_SCENE_GEN = "generate_scenes"
 DOMAIN_DEVICES = "devices"
 
 CONF_ACTIONID = "uuidAction"
 CONF_SCENE_GEN = "generate_scenes"
+CONF_SCENE_GEN_DELAY = "generate_scenes_delay"
 CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN = "generate_lightcontroller_subcontrols"
 DEFAULT_FORCE_UPDATE = False
 

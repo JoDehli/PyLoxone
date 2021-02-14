@@ -38,7 +38,8 @@ from .const import (AES_KEY_SIZE, ATTR_CODE, ATTR_COMMAND, ATTR_UUID,
                     SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
                     SECUREDSENDDOMAIN, SENDDOMAIN, TIMEOUT, TOKEN_PERMISSION,
                     TOKEN_REFRESH_DEFAULT_SECONDS, TOKEN_REFRESH_RETRY_COUNT,
-                    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN)
+                    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN,
+                    CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
         vol.Optional(CONF_SCENE_GEN, default=True): cv.boolean,
+        vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE ): cv.positive_int,
         vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): bool,
     }),
 }, extra=vol.ALLOW_EXTRA)
@@ -81,7 +83,13 @@ async def async_migrate_entry(hass, config_entry):
         new = {**config_entry.options, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: True}
         config_entry.options = {**new}
         config_entry.version = 2
-    _LOGGER.info("Migration to version %s successful", config_entry.version)
+        _LOGGER.info("Migration to version %s successful", 2)
+
+    if config_entry.version == 3:
+        new = {**config_entry.options, CONF_SCENE_GEN_DELAY: DEFAULT_DELAY_SCENE}
+        config_entry.options = {**new}
+        config_entry.version = 3
+        _LOGGER.info("Migration to version %s successful", 3)
     return True
 
 
@@ -93,6 +101,7 @@ async def async_set_options(hass, config_entry):
         CONF_USERNAME: data.pop(CONF_USERNAME, ""),
         CONF_PASSWORD: data.pop(CONF_PASSWORD, ""),
         CONF_SCENE_GEN: data.pop(CONF_SCENE_GEN, ""),
+        CONF_SCENE_GEN_DELAY: data.pop(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE),
         CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: data.pop(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, ""),
 
     }

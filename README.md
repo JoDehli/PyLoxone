@@ -22,23 +22,25 @@ Here is an example config:
 ![alt text](cloud_config.png)
 
 ## Manual installation
-1. Download the zip file and extract  all files into your `config` directory.
-2. Add the following section to your `configuration.yaml` and restart:
-
-```yaml
-loxone:
-  port: 8080
-  host: hostadress
-  username: username
-  password: password
-  generate_scenes: false # default is true
-```
+1. Download the zip file and extract all files.
+2. Copy the ***custom_components*** and ***www*** folder in the same folder where your configuration.yaml is located
+3. Restart Home-Assitant
+4. Go to Configuration -> Integrations and search for Pyloxone
+5. Add the Intgration and fill out all required fields
+6. Restart Home-Assitant
 
 ## Hacs installation
 1. Install hacs to your homeassistant installation. See https://hacs.xyz/docs/installation/manual
 2. Add this repository to hacs: https://github.com/JoDehli/PyLoxone
-3. Install the PyLoxone binding
-4. Add the following section to your `configuration.yaml` and restart:
+3. Install the PyLoxone binding 
+4. Restart Home-Assitant
+5. Go to Configuration -> Integrations and search for Pyloxone
+6. Add the Intgration and fill out all required fields
+7. Restart Home-Assitant
+
+
+## Configuration over yaml (deprecated)
+Add the following entries to your configuration.yaml:
 
 ```yaml
 loxone:
@@ -47,7 +49,11 @@ loxone:
   username: username
   password: password
   generate_scenes: false # default is true
+  generate_scenes_delay: 5
+  generate_lightcontroller_subcontrols: false
 ```
+
+
 
 ## Websocket direct command
 Send command direct to the loxone for example a pulse event to a switch:
@@ -68,7 +74,7 @@ Send command direct to the loxone for example a pulse event to a switch:
 - Alarm
 - RoomControllerV2 (thanks for the implementation [ztamas83](https://github.com/ztamas83) )
 
-## If your Device is not supported
+### If your Device is not supported
 You can integrate nearly every Loxone Entity in your Home-Assistent System by adding a custom sensor to your yaml file. 
 
 ### Example 1 with a RoomComfortTemperature
