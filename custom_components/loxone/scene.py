@@ -10,7 +10,7 @@ import logging
 from homeassistant.components.scene import Scene
 from homeassistant.helpers.entity_platform import async_call_later
 
-from .const import CONF_SCENE_GEN, DOMAIN, SENDDOMAIN, DEFAULT_DELAY_SCENE
+from .const import CONF_SCENE_GEN, DEFAULT_DELAY_SCENE, DOMAIN, SENDDOMAIN
 from .miniserver import get_miniserver_from_config
 
 _LOGGER = logging.getLogger(__name__)

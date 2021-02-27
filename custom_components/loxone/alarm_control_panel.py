@@ -17,6 +17,7 @@ from .const import DOMAIN, EVENT, SECUREDSENDDOMAIN, SENDDOMAIN
 from .helpers import (get_all_alarm, get_cat_name_from_cat_uuid,
                       get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_config_entry
+
 DEFAULT_NAME = 'Loxone Alarm'
 DEFAULT_FORCE_UPDATE = False
 

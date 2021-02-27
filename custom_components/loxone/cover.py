@@ -17,17 +17,17 @@ from homeassistant.components.cover import (ATTR_POSITION, DEVICE_CLASS_AWNING,
                                             DEVICE_CLASS_WINDOW, SUPPORT_CLOSE,
                                             SUPPORT_OPEN, CoverEntity)
 from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import track_utc_time_change
 
 from . import LoxoneEntity
-from .const import (DOMAIN, EVENT, SENDDOMAIN, SUPPORT_CLOSE_TILT,
-                    SUPPORT_OPEN_TILT, SUPPORT_SET_POSITION,
-                    SUPPORT_SET_TILT_POSITION, SUPPORT_STOP, SUPPORT_STOP_TILT)
+from .const import (DOMAIN, SENDDOMAIN, SUPPORT_CLOSE_TILT, SUPPORT_OPEN_TILT,
+                    SUPPORT_SET_POSITION, SUPPORT_SET_TILT_POSITION,
+                    SUPPORT_STOP, SUPPORT_STOP_TILT)
 from .helpers import (get_all_covers, get_cat_name_from_cat_uuid,
                       get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_config_entry
-from homeassistant.core import callback
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 _LOGGER = logging.getLogger(__name__)
 

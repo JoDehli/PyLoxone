@@ -10,15 +10,16 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import (CONF_NAME, CONF_UNIT_OF_MEASUREMENT,
-                                 CONF_VALUE_TEMPLATE, STATE_OFF, STATE_ON, STATE_UNKNOWN)
+                                 CONF_VALUE_TEMPLATE, STATE_OFF, STATE_ON,
+                                 STATE_UNKNOWN)
+from homeassistant.core import callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from . import LoxoneEntity
-from .const import CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN
+from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
 from .helpers import (get_all, get_all_analog_info, get_all_digital_info,
                       get_cat_name_from_cat_uuid, get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_config_entry
-from homeassistant.core import callback
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 NEW_SENSOR = "sensors"
 

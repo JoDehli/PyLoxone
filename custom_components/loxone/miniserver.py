@@ -1,31 +1,14 @@
-import asyncio
-
-import async_timeout
 import logging
 import traceback
-from .api import LoxWs, LoxApp
-from .helpers import get_miniserver_type
-from homeassistant.core import callback
 
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
-                                 CONF_USERNAME, EVENT_COMPONENT_LOADED,
-                                 EVENT_HOMEASSISTANT_START,
-                                 EVENT_HOMEASSISTANT_STOP)
+                                 CONF_USERNAME)
+from homeassistant.core import callback
 
-from .const import (AES_KEY_SIZE, ATTR_CODE, ATTR_COMMAND, ATTR_UUID,
-                    ATTR_VALUE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
-                    CMD_ENCRYPT_CMD, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
-                    CMD_GET_PUBLIC_KEY, CMD_GET_VISUAL_PASSWD,
-                    CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
-                    CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
-                    CMD_REQUEST_TOKEN_JSON_WEB, CONF_SCENE_GEN, DEFAULT,
-                    DEFAULT_PORT, DEFAULT_TOKEN_PERSIST_NAME, DOMAIN,
-                    DOMAIN_DEVICES, ERROR_VALUE, EVENT, IV_BYTES,
-                    KEEP_ALIVE_PERIOD, LOXAPPPATH, LOXONE_PLATFORMS,
-                    SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
-                    SECUREDSENDDOMAIN, SENDDOMAIN, TIMEOUT, TOKEN_PERMISSION,
-                    TOKEN_REFRESH_DEFAULT_SECONDS, TOKEN_REFRESH_RETRY_COUNT,
-                    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, LOX_CONFIG)
+from .api import LoxApp, LoxWs
+from .const import (ATTR_CODE, ATTR_UUID, ATTR_VALUE, DEFAULT, DOMAIN, EVENT,
+                    SECUREDSENDDOMAIN, SENDDOMAIN)
+from .helpers import get_miniserver_type
 
 _LOGGER = logging.getLogger(__name__)
 CONNECTION_NETWORK_MAC = "mac"

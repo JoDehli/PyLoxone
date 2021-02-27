@@ -20,7 +20,7 @@ from homeassistant.components.climate.const import (HVAC_MODE_AUTO,
 from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
-from .const import CONF_HVAC_AUTO_MODE, DOMAIN, EVENT, SENDDOMAIN
+from .const import CONF_HVAC_AUTO_MODE, DOMAIN, SENDDOMAIN
 from .helpers import (get_all_roomcontroller_entities,
                       get_cat_name_from_cat_uuid, get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_config_entry

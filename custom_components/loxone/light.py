@@ -3,17 +3,18 @@ from typing import Any
 
 import homeassistant.util.color as color_util
 from homeassistant.components.light import (ATTR_BRIGHTNESS, ATTR_COLOR_TEMP,
-                                            ATTR_HS_COLOR, SUPPORT_BRIGHTNESS,
-                                            SUPPORT_COLOR, SUPPORT_COLOR_TEMP,
-                                            SUPPORT_EFFECT, LightEntity,
-                                            ToggleEntity, ATTR_EFFECT)
+                                            ATTR_EFFECT, ATTR_HS_COLOR,
+                                            SUPPORT_BRIGHTNESS, SUPPORT_COLOR,
+                                            SUPPORT_COLOR_TEMP, SUPPORT_EFFECT,
+                                            LightEntity, ToggleEntity)
 from homeassistant.const import STATE_UNKNOWN
+
 from . import LoxoneEntity
-from .const import DOMAIN, EVENT, SENDDOMAIN, STATE_OFF, STATE_ON
+from .const import DOMAIN, SENDDOMAIN, STATE_OFF, STATE_ON
 from .helpers import (get_all_dimmer, get_all_light_controller,
                       get_cat_name_from_cat_uuid, get_room_name_from_room_uuid,
-                      to_hass_color_temp, to_hass_level, to_loxone_color_temp,
-                      to_loxone_level, to_hass_level_min_max, to_loxone_level_min_max)
+                      hass_to_lox, lox2hass_mapped, lox_to_hass,
+                      to_hass_color_temp, to_loxone_color_temp)
 from .miniserver import get_miniserver_from_config_entry
 
 _LOGGER = logging.getLogger(__name__)
@@ -288,12 +289,12 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
             if self.states.get("masterValue", None):
                 self.hass.bus.async_fire(SENDDOMAIN,
                                          dict(uuid=self._uuid_dict.get(self.states.get("masterValue"), self.uuidAction),
-                                              value='{}'.format(round(to_loxone_level(kwargs[ATTR_BRIGHTNESS])))))
+                                              value='{}'.format(round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])))))
             elif self.color_temp:
                 self.hass.bus.async_fire(SENDDOMAIN,
                                          dict(uuid=self.uuidAction,
                                               value='temp({},{})'.format(
-                                                  round(to_loxone_level(kwargs[ATTR_BRIGHTNESS])),
+                                                  round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])),
                                                   int(to_loxone_color_temp(self.color_temp)))))
             elif self.hs_color:
                 r, g, b = color_util.color_hs_to_RGB(self.hs_color[0], self.hs_color[1])
@@ -301,14 +302,14 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
                 self.hass.bus.async_fire(SENDDOMAIN,
                                          dict(uuid=self._uuid_dict.get(self.states.get("masterColor"), self.uuidAction),
                                               value='hsv({},{},{})'.format(h, s,
-                                                                           round(to_loxone_level(
+                                                                           round(hass_to_lox(
                                                                                kwargs[ATTR_BRIGHTNESS])))))
 
         if ATTR_HS_COLOR in kwargs:
             r, g, b = color_util.color_hs_to_RGB(kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1])
             h, s, v = color_util.color_RGB_to_hsv(r, g, b)
             if self.brightness:
-                v = round(to_loxone_level(self.brightness))
+                v = round(hass_to_lox(self.brightness))
             self.hass.bus.async_fire(SENDDOMAIN,
                                      dict(uuid=self._uuid_dict.get(self.states.get("masterColor"), self.uuidAction),
                                           value='hsv({},{},{})'.format(h, s, v)))
@@ -316,7 +317,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         if ATTR_COLOR_TEMP in kwargs:
             self.hass.bus.async_fire(SENDDOMAIN,
                                      dict(uuid=self._uuid_dict.get(self.states.get("masterColor"), self.uuidAction),
-                                          value='temp({},{})'.format(round(to_loxone_level(self.brightness)),
+                                          value='temp({},{})'.format(round(hass_to_lox(self.brightness)),
                                                                      int(to_loxone_color_temp(
                                                                          kwargs[ATTR_COLOR_TEMP])))))
 
@@ -377,21 +378,21 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
                 color = eval(color)
                 self._master_color = color_util.color_hs_to_RGB(color[0], color[1])
                 self._master_color_temp = None
-                self._master_brightness = to_hass_level(color[2])
+                self._master_brightness = lox_to_hass(color[2])
                 request_update = True
 
             elif color.startswith('temp'):
                 color = color.replace('temp', '')
                 color = eval(color)
                 self._master_color_temp = to_hass_color_temp(color[1])
-                self._master_brightness = to_hass_level(color[0])
+                self._master_brightness = lox_to_hass(color[0])
                 self._master_color = None
                 request_update = True
 
         if event.data.get(self.states['masterValue'], None):
             brightness = event.data.get(self.states['masterValue'])
             if isinstance(brightness, (int, float)):
-                self._master_brightness = to_hass_level(brightness)
+                self._master_brightness = lox_to_hass(brightness)
                 self._master_color = None
                 self._master_color_temp = None
                 request_update = True
@@ -585,7 +586,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
         if ATTR_BRIGHTNESS in kwargs:
             self.hass.bus.async_fire(SENDDOMAIN,
                                      dict(uuid=self.uuidAction,
-                                          value='temp({},{})'.format(round(to_loxone_level(kwargs[ATTR_BRIGHTNESS])),
+                                          value='temp({},{})'.format(round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])),
                                                                      int(to_loxone_color_temp(self._color_temp)))))
 
         elif ATTR_COLOR_TEMP in kwargs:
@@ -644,7 +645,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
     @property
     def brightness(self):
         """Return the brightness of the group lights."""
-        return to_hass_level(self._position)
+        return lox_to_hass(self._position)
 
     @property
     def hs_color(self):
@@ -693,7 +694,6 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
         """Return the sensor icon."""
         return "mdi:eyedropper-variant"
 
-
 class LoxoneDimmer(LoxoneEntity, LightEntity):
     """Representation of a Dimmer."""
 
@@ -741,9 +741,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
     @property
     def brightness(self):
         """Return the brightness of the group lights."""
-        if self._max and self._min:
-            return to_hass_level_min_max(self._position, self._min, self._max)
-        return to_hass_level(self._position)
+        return self._position
 
     @property
     def icon(self):
@@ -753,13 +751,13 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
     def turn_on(self, **kwargs) -> None:
         if ATTR_BRIGHTNESS in kwargs:
             self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value=round(to_loxone_level(kwargs[ATTR_BRIGHTNESS]))))
+                                     dict(uuid=self.uuidAction, value=round(hass_to_lox(kwargs[ATTR_BRIGHTNESS]))))
         else:
             self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
         self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs) -> None:
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="off"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="Off"))
         self.schedule_update_ha_state()
 
     async def event_handler(self, e):
@@ -778,9 +776,9 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
 
         if self.states['position'] in e.data and isinstance(e.data[self.states['position']], (int, float)):
             if self._min is not None and self._max is not None:
-                self._position = to_loxone_level_min_max(e.data[self.states['position']], self._min, self._max)
+                self._position = lox2hass_mapped(e.data[self.states['position']], self._min, self._max)
             else:
-                self._position = e.data[self.states['position']]
+                self._position = lox_to_hass(e.data[self.states['position']])
             request_update = True
 
         if request_update:

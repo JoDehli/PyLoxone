@@ -13,9 +13,9 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME)
 from homeassistant.core import callback
 
-from .const import CONF_SCENE_GEN, DEFAULT_IP, DEFAULT_PORT, DOMAIN, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, \
-    CONF_SCENE_GEN_DELAY,DEFAULT_DELAY_SCENE
-
+from .const import (CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
+                    CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE, DEFAULT_IP,
+                    DEFAULT_PORT, DOMAIN)
 
 LOXONE_SCHEMA = vol.Schema(
     {
