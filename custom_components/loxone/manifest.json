@@ -13,5 +13,6 @@
   "codeowners": ["JoDehli"],
   "homeassistant": "0.109.0",
   "render_readme": true,
-  "config_flow": true
+  "config_flow": true,
+  "version": "0.3.3"
 }

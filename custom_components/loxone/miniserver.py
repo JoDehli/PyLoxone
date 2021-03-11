@@ -110,16 +110,16 @@ class MiniServer:
 
                 res = await self.api.async_init()
                 if not res or res == -1:
-                    _LOGGER.error("Error connecting to loxone miniserver")
+                    _LOGGER.error("Error connecting to loxone miniserver #1")
                     return False
 
 
             else:
-                _LOGGER.error("Error connecting to loxone miniserver")
+                _LOGGER.error("Error connecting to loxone miniserver #2")
                 return False
 
         except ConnectionError:
-            _LOGGER.error("Error connecting to loxone miniserver")
+            _LOGGER.error("Error connecting to loxone miniserver  #3")
             return False
         return True
 

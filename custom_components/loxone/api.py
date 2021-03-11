@@ -173,7 +173,7 @@ class LoxWs:
         pass
 
     async def _refresh_token(self):
-        from Crypto.Hash import HMAC, SHA1
+        from Crypto.Hash import HMAC, SHA256
         command = "{}".format(CMD_GET_KEY)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
@@ -185,7 +185,7 @@ class LoxWs:
                 key = resp_json['LL']['value']
                 if key == "":
                     digester = HMAC.new(binascii.unhexlify(key),
-                                        self._token.token.encode("utf-8"), SHA1)
+                                        self._token.token.encode("utf-8"), SHA256)
                     token_hash = digester.hexdigest()
 
         if token_hash is not None:
@@ -265,13 +265,13 @@ class LoxWs:
                 await self._ws.send("keepalive")
 
     async def send_secured(self, device_uuid, value, code):
-        from Crypto.Hash import HMAC, SHA1
+        from Crypto.Hash import HMAC,  SHA256
         pwd_hash_str = code + ":" + self._visual_hash.salt
-        m = hashlib.sha1()
+        m = hashlib.sha256()
         m.update(pwd_hash_str.encode('utf-8'))
         pwd_hash = m.hexdigest().upper()
         digester = HMAC.new(binascii.unhexlify(self._visual_hash.key),
-                            pwd_hash.encode("utf-8"), SHA1)
+                            pwd_hash.encode("utf-8"), SHA256)
 
         command = "jdev/sps/ios/{}/{}/{}".format(digester.hexdigest(), device_uuid, value)
         await self._ws.send(command)
@@ -317,7 +317,7 @@ class LoxWs:
                 new_url = self._loxone_url.replace("https", "wss")
             else:
                 new_url = self._loxone_url.replace("http", "ws")
-            self._ws = await wslib.connect("{}/ws/rfc6455".format(new_url),timeout=TIMEOUT)
+            self._ws = await wslib.connect("{}/ws/rfc6455".format(new_url), timeout=TIMEOUT)
 
             await self._ws.send("{}{}".format(CMD_KEY_EXCHANGE, self._session_key))
 
@@ -347,6 +347,11 @@ class LoxWs:
             res = await self.acquire_token()
         else:
             res = await self.use_token()
+            # Delete old token
+            if res is ERROR_VALUE:
+                self.delete_token()
+                _LOGGER.debug("Old Token found and deleted. Please restart Homeassistant to aquire new token.")
+                return ERROR_VALUE
 
         if res is ERROR_VALUE:
             return ERROR_VALUE
@@ -376,7 +381,6 @@ class LoxWs:
             await asyncio.sleep(5)
             if self._ws.closed:
                 await self.reconnect()
-
 
     async def _async_process_message(self, message):
         """Process the messages."""
@@ -504,7 +508,7 @@ class LoxWs:
 
     async def hash_token(self):
         try:
-            from Crypto.Hash import HMAC, SHA1
+            from Crypto.Hash import HMAC, SHA256
             command = "{}".format(CMD_GET_KEY)
             enc_command = await self.encrypt(command)
             await self._ws.send(enc_command)
@@ -517,7 +521,7 @@ class LoxWs:
                     key = resp_json['LL']['value']
                     if key != "":
                         digester = HMAC.new(binascii.unhexlify(key),
-                                            self._token.token.encode("utf-8"), SHA1)
+                                            self._token.token.encode("utf-8"), SHA256)
                         return digester.hexdigest()
             return ERROR_VALUE
         except:
@@ -595,6 +599,19 @@ class LoxWs:
             _LOGGER.debug("error load_token...")
             return ERROR_VALUE
 
+    def delete_token(self):
+        try:
+            persist_token = os.path.join(get_default_config_dir(),
+                                         self._token_persist_filename)
+            try:
+                os.remove(persist_token)
+            except FileNotFoundError:
+                os.remove(self._token_persist_filename)
+
+        except IOError:
+            _LOGGER.debug("error deleting token...")
+            return ERROR_VALUE
+
     def save_token(self):
         try:
             persist_token = os.path.join(get_default_config_dir(),
@@ -637,14 +654,14 @@ class LoxWs:
 
     def hash_credentials(self, key_salt):
         try:
-            from Crypto.Hash import HMAC, SHA1
+            from Crypto.Hash import HMAC, SHA256
             pwd_hash_str = self._pasword + ":" + key_salt.salt
-            m = hashlib.sha1()
+            m = hashlib.sha256()
             m.update(pwd_hash_str.encode('utf-8'))
             pwd_hash = m.hexdigest().upper()
             pwd_hash = self._username + ":" + pwd_hash
             digester = HMAC.new(binascii.unhexlify(key_salt.key),
-                                pwd_hash.encode("utf-8"), SHA1)
+                                pwd_hash.encode("utf-8"), SHA256)
             _LOGGER.debug("hash_credentials successfully...")
             return digester.hexdigest()
         except ValueError:
@@ -744,6 +761,7 @@ class LoxWs:
         return True
 
     async def get_token_from_file(self):
+        _LOGGER.debug("try to get_token_from_file")
         try:
             persist_token = os.path.join(get_default_config_dir(),
                                          self._token_persist_filename)

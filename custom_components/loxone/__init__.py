@@ -85,7 +85,7 @@ async def async_migrate_entry(hass, config_entry):
         config_entry.version = 2
         _LOGGER.info("Migration to version %s successful", 2)
 
-    if config_entry.version == 3:
+    if config_entry.version == 2:
         new = {**config_entry.options, CONF_SCENE_GEN_DELAY: DEFAULT_DELAY_SCENE}
         config_entry.options = {**new}
         config_entry.version = 3
