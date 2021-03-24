@@ -11,7 +11,7 @@ import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.const import (CONF_NAME, CONF_UNIT_OF_MEASUREMENT,
                                  CONF_VALUE_TEMPLATE, STATE_OFF, STATE_ON,
-                                 STATE_UNKNOWN)
+                                 STATE_UNKNOWN, CONF_DEVICE_CLASS)
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
@@ -32,6 +32,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_ACTIONID): cv.string,
         vol.Optional(CONF_NAME): cv.string,
         vol.Optional(CONF_UNIT_OF_MEASUREMENT): cv.string,
+        vol.Optional(CONF_DEVICE_CLASS): cv.string,
     }
 )
 
@@ -90,10 +91,8 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         )
     )
 
-
-
     async_add_sensors(sensors)
-    #return True
+    # return True
 
 
 class LoxoneCustomSensor(LoxoneEntity):
@@ -107,6 +106,11 @@ class LoxoneCustomSensor(LoxoneEntity):
             self._unit_of_measurement = kwargs['unit_of_measurement']
         else:
             self._unit_of_measurement = ""
+
+        if "device_class" in kwargs:
+            self._device_class = kwargs['device_class']
+        else:
+            self._device_class = None
 
         self._state = STATE_UNKNOWN
 
@@ -137,6 +141,19 @@ class LoxoneCustomSensor(LoxoneEntity):
     def unit_of_measurement(self):
         """Return the unit of measurement of this entity, if any."""
         return self._unit_of_measurement
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
+        return {"uuid": self.uuidAction, "plattform": "loxone", "show_last_changed": "true"}
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return self._device_class
 
 
 class LoxoneVersionSensor(LoxoneEntity):

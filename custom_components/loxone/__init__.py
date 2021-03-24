@@ -184,21 +184,18 @@ async def async_setup_entry(hass, config_entry):
                         attr = s_dict['attributes']
                         if "plattform" in attr and \
                                 attr['plattform'] == DOMAIN:
-                            if attr['device_typ'] == "analog_sensor":
+                            device_typ = attr.get('device_typ', "")
+                            if device_typ == "analog_sensor":
                                 sensors_analog.append(s_dict['entity_id'])
-                            elif attr['device_typ'] == "digital_sensor":
+                            elif device_typ == "digital_sensor":
                                 sensors_digital.append(s_dict['entity_id'])
-                            elif attr['device_typ'] == "Jalousie" or \
-                                    attr['device_typ'] == "Gate" or attr['device_typ'] == "Window":
+                            elif device_typ in ["Jalousie", "Gate", "Window"]:
                                 covers.append(s_dict['entity_id'])
-                            elif attr['device_typ'] == "Switch" or \
-                                    attr['device_typ'] == "Pushbutton" or \
-                                    attr['device_typ'] == "TimedSwitch":
+                            elif device_typ in ["Switch", "Pushbutton","TimedSwitch"]:
                                 switches.append(s_dict['entity_id'])
-                            elif attr['device_typ'] == "LightControllerV2" or \
-                                    attr['device_typ'] == "Dimmer":
+                            elif device_typ in ["LightControllerV2", "Dimmer"]:
                                 lights.append(s_dict['entity_id'])
-                            elif attr['device_typ'] == "IRoomControllerV2":
+                            elif device_typ == "IRoomControllerV2":
                                 climates.append(s_dict['entity_id'])
 
                     sensors_analog.sort()

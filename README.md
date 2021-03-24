@@ -85,6 +85,7 @@ sensor:
     platform: loxone
     uuidAction: "15beed5b-01ab-d81d-ffff2b06d5b9c660"
     unit_of_measurement: "°C"
+    device_class: "temperature"    # Use device classes from homeassitant for example temperature, humidity, voltage   
 ```
 In this example a sensor with the name roomcomforttemperature (sensor.roomcomforttemperature) is created. The sensor is listening to all events from the loxone system with the specified uuid ([How do you get the uuid?](https://github.com/JoDehli/PyLoxone/tree/dev#how-do-you-get-the-uuid)).
 
