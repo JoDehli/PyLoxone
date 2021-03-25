@@ -811,7 +811,7 @@ class LxToken:
 
     def get_seconds_to_expire(self):
         start_date = int(
-            datetime.strptime("1.1.2009", "%d.%m.%Y").strftime('%s'))
+            datetime.strptime("1.1.2009", "%d.%m.%Y").timestamp())
         start_date = int(start_date) + self._vaild_until
         return start_date - int(round(time.time()))
 
