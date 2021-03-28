@@ -17,7 +17,7 @@ import traceback
 import urllib.request as req
 import uuid
 from base64 import b64encode
-from datetime import datetime
+from datetime import datetime, timezone
 from struct import unpack
 
 import requests_async as requests
@@ -810,8 +810,11 @@ class LxToken:
         self._vaild_until = vaild_until
 
     def get_seconds_to_expire(self):
-        start_date = int(
-            datetime.strptime("1.1.2009", "%d.%m.%Y").timestamp())
+        dt = datetime.strptime("1.1.2009", "%d.%m.%Y")
+        try:
+            start_date = int(dt.strftime('%s'))
+        except:
+            start_date = int(dt.timestamp())
         start_date = int(start_date) + self._vaild_until
         return start_date - int(round(time.time()))
 
