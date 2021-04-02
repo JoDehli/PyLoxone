@@ -379,7 +379,10 @@ class LoxWs:
                 await asyncio.sleep(0)
         except:
             await asyncio.sleep(5)
-            if self._ws.closed:
+            if self._ws.closed and self._ws.close_code in [4004,4005]:
+                self.delete_token()
+
+            elif self._ws.closed and self._ws.close_code:
                 await self.reconnect()
 
     async def _async_process_message(self, message):

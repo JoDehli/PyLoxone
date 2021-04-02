@@ -113,9 +113,11 @@ class MiniServer:
                     _LOGGER.error("Error connecting to loxone miniserver #1")
                     return False
 
-
             else:
-                _LOGGER.error("Error connecting to loxone miniserver #2")
+                if request_code in [401, "401"]:
+                    _LOGGER.error("401 - Unauthorized: the requesting user was not authorized (invalid username/password)- Processing an encrypted request failed")
+                else:
+                    _LOGGER.error(f"Error connecting to loxone miniserver #2 Code ({request_code})")
                 return False
 
         except ConnectionError:
