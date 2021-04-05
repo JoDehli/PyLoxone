@@ -173,7 +173,7 @@ class LoxWs:
         pass
 
     async def _refresh_token(self):
-        from Crypto.Hash import HMAC, SHA256
+        from Crypto.Hash import HMAC, SHA1, SHA256
         command = "{}".format(CMD_GET_KEY)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
@@ -184,7 +184,11 @@ class LoxWs:
             if "value" in resp_json['LL']:
                 key = resp_json['LL']['value']
                 if key == "":
-                    digester = HMAC.new(binascii.unhexlify(key),
+                    if self._version < 12.0:
+                        digester = HMAC.new(binascii.unhexlify(key),
+                                            self._token.token.encode("utf-8"), SHA1)
+                    else:
+                        digester = HMAC.new(binascii.unhexlify(key),
                                         self._token.token.encode("utf-8"), SHA256)
                     token_hash = digester.hexdigest()
 
@@ -265,12 +269,16 @@ class LoxWs:
                 await self._ws.send("keepalive")
 
     async def send_secured(self, device_uuid, value, code):
-        from Crypto.Hash import HMAC,  SHA256
+        from Crypto.Hash import HMAC, SHA1, SHA256
         pwd_hash_str = code + ":" + self._visual_hash.salt
         m = hashlib.sha256()
         m.update(pwd_hash_str.encode('utf-8'))
         pwd_hash = m.hexdigest().upper()
-        digester = HMAC.new(binascii.unhexlify(self._visual_hash.key),
+        if self._version < 12.0:
+            digester = HMAC.new(binascii.unhexlify(self._visual_hash.key),
+                                pwd_hash.encode("utf-8"), SHA1)
+        else:
+            digester = HMAC.new(binascii.unhexlify(self._visual_hash.key),
                             pwd_hash.encode("utf-8"), SHA256)
 
         command = "jdev/sps/ios/{}/{}/{}".format(digester.hexdigest(), device_uuid, value)
@@ -511,7 +519,7 @@ class LoxWs:
 
     async def hash_token(self):
         try:
-            from Crypto.Hash import HMAC, SHA256
+            from Crypto.Hash import HMAC, SHA1, SHA256
             command = "{}".format(CMD_GET_KEY)
             enc_command = await self.encrypt(command)
             await self._ws.send(enc_command)
@@ -523,7 +531,11 @@ class LoxWs:
                 if "value" in resp_json['LL']:
                     key = resp_json['LL']['value']
                     if key != "":
-                        digester = HMAC.new(binascii.unhexlify(key),
+                        if self._version < 12.0:
+                            digester = HMAC.new(binascii.unhexlify(key),
+                                                self._token.token.encode("utf-8"), SHA1)
+                        else:
+                            digester = HMAC.new(binascii.unhexlify(key),
                                             self._token.token.encode("utf-8"), SHA256)
                         return digester.hexdigest()
             return ERROR_VALUE
@@ -657,13 +669,17 @@ class LoxWs:
 
     def hash_credentials(self, key_salt):
         try:
-            from Crypto.Hash import HMAC, SHA256
+            from Crypto.Hash import HMAC, SHA1, SHA256
             pwd_hash_str = self._pasword + ":" + key_salt.salt
             m = hashlib.sha256()
             m.update(pwd_hash_str.encode('utf-8'))
             pwd_hash = m.hexdigest().upper()
             pwd_hash = self._username + ":" + pwd_hash
-            digester = HMAC.new(binascii.unhexlify(key_salt.key),
+            if self._version < 12.0:
+                digester = HMAC.new(binascii.unhexlify(key_salt.key),
+                                    pwd_hash.encode("utf-8"), SHA1)
+            else:
+                digester = HMAC.new(binascii.unhexlify(key_salt.key),
                                 pwd_hash.encode("utf-8"), SHA256)
             _LOGGER.debug("hash_credentials successfully...")
             return digester.hexdigest()
