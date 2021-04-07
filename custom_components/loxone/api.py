@@ -271,7 +271,10 @@ class LoxWs:
     async def send_secured(self, device_uuid, value, code):
         from Crypto.Hash import HMAC, SHA1, SHA256
         pwd_hash_str = code + ":" + self._visual_hash.salt
-        m = hashlib.sha256()
+        if self._version < 12.0:
+            m = hashlib.sha1()
+        else:
+            m = hashlib.sha256()
         m.update(pwd_hash_str.encode('utf-8'))
         pwd_hash = m.hexdigest().upper()
         if self._version < 12.0:
@@ -367,6 +370,9 @@ class LoxWs:
         command = "{}".format(CMD_ENABLE_UPDATES)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
+        if self._ws.closed:
+            _LOGGER.debug(f"Connection closed. Reason {self._ws.close_code}")
+            return False
         _ = await self._ws.recv()
         _ = await self._ws.recv()
 
@@ -671,10 +677,14 @@ class LoxWs:
         try:
             from Crypto.Hash import HMAC, SHA1, SHA256
             pwd_hash_str = self._pasword + ":" + key_salt.salt
-            m = hashlib.sha256()
+            if self._version < 12.0:
+                m = hashlib.sha1()
+            else:
+                m = hashlib.sha256()
             m.update(pwd_hash_str.encode('utf-8'))
             pwd_hash = m.hexdigest().upper()
             pwd_hash = self._username + ":" + pwd_hash
+
             if self._version < 12.0:
                 digester = HMAC.new(binascii.unhexlify(key_salt.key),
                                     pwd_hash.encode("utf-8"), SHA1)
