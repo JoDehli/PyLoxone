@@ -537,7 +537,7 @@ class LoxWs:
                 if "value" in resp_json['LL']:
                     key = resp_json['LL']['value']
                     if key != "":
-                        if self._version < 12.0:
+                        if self._token.hash_alg == "SHA1" or self._version < 12.0:
                             digester = HMAC.new(binascii.unhexlify(key),
                                                 self._token.token.encode("utf-8"), SHA1)
                         else:
@@ -590,7 +590,8 @@ class LoxWs:
                         resp_json['LL']['value']:
                     self._token = LxToken(resp_json['LL']['value']['token'],
                                           resp_json['LL']['value'][
-                                              'validUntil'])
+                                              'validUntil'],
+                                          key_and_salt.hash_alg)
 
         if self.save_token() == ERROR_VALUE:
             return ERROR_VALUE
@@ -614,6 +615,8 @@ class LoxWs:
                         return ERROR_VALUE
             self._token.set_token(dict_token['_token'])
             self._token.set_vaild_until(dict_token['_valid_until'])
+            self._token.set_hash_alg(dict_token['_hash_alg'])
+
             _LOGGER.debug("load_token successfully...")
             return True
         except IOError:
@@ -639,7 +642,8 @@ class LoxWs:
                                          self._token_persist_filename)
 
             dict_token = {"_token": self._token.token,
-                          "_valid_until": self._token.vaild_until}
+                          "_valid_until": self._token.vaild_until,
+                          "_hash_alg":self._token.hash_alg}
             try:
                 with open(persist_token, "w") as write_file:
                     json.dump(dict_token, write_file)
@@ -677,7 +681,7 @@ class LoxWs:
         try:
             from Crypto.Hash import HMAC, SHA1, SHA256
             pwd_hash_str = self._pasword + ":" + key_salt.salt
-            if self._version < 12.0:
+            if key_salt.hash_alg == "SHA1" or self._version < 12.0 :
                 m = hashlib.sha1()
             else:
                 m = hashlib.sha256()
@@ -685,7 +689,7 @@ class LoxWs:
             pwd_hash = m.hexdigest().upper()
             pwd_hash = self._username + ":" + pwd_hash
 
-            if self._version < 12.0:
+            if key_salt.hash_alg == "SHA1" or self._version < 12.0:
                 digester = HMAC.new(binascii.unhexlify(key_salt.key),
                                     pwd_hash.encode("utf-8"), SHA1)
             else:
@@ -825,18 +829,20 @@ class LxJsonKeySalt:
         self.salt = None
         self.response = None
         self.time_elapsed_in_seconds = None
+        self.hash_alg = None
 
     def read_user_salt_responce(self, reponse):
         js = json.loads(reponse, strict=False)
         value = js['LL']['value']
         self.key = value['key']
         self.salt = value['salt']
-
+        self.hash_alg = value.get("hashAlg", "SHA256")
 
 class LxToken:
-    def __init__(self, token="", vaild_until=""):
+    def __init__(self, token="", vaild_until="", hash_alg="SHA256"):
         self._token = token
         self._vaild_until = vaild_until
+        self._hash_alg = hash_alg
 
     def get_seconds_to_expire(self):
         dt = datetime.strptime("1.1.2009", "%d.%m.%Y")
@@ -860,3 +866,10 @@ class LxToken:
 
     def set_token(self, token):
         self._token = token
+
+    @property
+    def hash_alg(self):
+        return self._hash_alg
+
+    def set_hash_alg(self, hash_alg):
+        self._hash_alg = hash_alg
