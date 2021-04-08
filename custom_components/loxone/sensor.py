@@ -242,7 +242,7 @@ class Loxonesensor(LoxoneEntity):
     async def event_handler(self, e):
         if self.uuidAction in e.data:
             if self.typ == "analog":
-                self._state = round(e.data[self.uuidAction], 1)
+                self._state = round(e.data[self.uuidAction], 3)
             elif self.typ == "digital":
                 self._state = e.data[self.uuidAction]
                 if self._state == 1.0:
