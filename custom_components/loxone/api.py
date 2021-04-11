@@ -136,7 +136,7 @@ class LoxWs:
         self._token = LxToken()
         self._token_valid_until = 0
         self._salt = ""
-        self._salt_uesed_count = 0
+        self._salt_used_count = 0
         self._salt_time_stamp = 0
         self._public_key = None
         self._rsa_cipher = None
@@ -366,6 +366,10 @@ class LoxWs:
 
         if res is ERROR_VALUE:
             return ERROR_VALUE
+
+        if self._ws.closed:
+            _LOGGER.debug(f"Connection closed. Reason {self._ws.close_code}")
+            return False
 
         command = "{}".format(CMD_ENABLE_UPDATES)
         enc_command = await self.encrypt(command)
@@ -707,12 +711,12 @@ class LoxWs:
         salt = binascii.hexlify(salt).decode("utf-8")
         salt = req.pathname2url(salt)
         self._salt_time_stamp = time_elapsed_in_seconds()
-        self._salt_uesed_count = 0
+        self._salt_used_count = 0
         return salt
 
     def new_salt_needed(self):
-        self._salt_uesed_count += 1
-        if self._salt_uesed_count > SALT_MAX_USE_COUNT or time_elapsed_in_seconds() - self._salt_time_stamp > SALT_MAX_AGE_SECONDS:
+        self._salt_used_count += 1
+        if self._salt_used_count > SALT_MAX_USE_COUNT or time_elapsed_in_seconds() - self._salt_time_stamp > SALT_MAX_AGE_SECONDS:
             return True
         return False
 
