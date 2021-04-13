@@ -234,7 +234,7 @@ class Loxonesensor(LoxoneEntity):
         """Initialize the sensor."""
         self._state = STATE_UNKNOWN
         self._unit_of_measurement = None
-        self._format = None
+        self._format = self._get_format(kwargs.get('details', {}).get('format', ""))
         self._on_state = STATE_ON
         self._off_state = STATE_OFF
         self.extract_attributes()
@@ -242,7 +242,7 @@ class Loxonesensor(LoxoneEntity):
     async def event_handler(self, e):
         if self.uuidAction in e.data:
             if self.typ == "analog":
-                self._state = round(e.data[self.uuidAction], 1)
+                self.state = e.data[self.uuidAction]
             elif self.typ == "digital":
                 self._state = e.data[self.uuidAction]
                 if self._state == 1.0:
@@ -271,11 +271,21 @@ class Loxonesensor(LoxoneEntity):
         """Return the state of the sensor."""
         if self._format is not None and self._state != STATE_UNKNOWN:
             try:
-                return self._format % self._state
+                return self._format % float(self._state)
             except ValueError:
                 return self._state
         else:
             return self._state
+
+    @state.setter
+    def state(self, value):
+        if self._format is not None and self._state != STATE_UNKNOWN:
+            try:
+                self._state = self._format % value
+            except ValueError:
+                self._state = value
+        else:
+            self._state = value
 
     @property
     def unit_of_measurement(self):

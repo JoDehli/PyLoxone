@@ -313,7 +313,7 @@ class LoxoneEntity(Entity):
             if len(_) > 0:
                 cleaned_fields.append(_)
 
-        if len(cleaned_fields) > 1:
+        if len(cleaned_fields) >= 1:
             return cleaned_fields[0]
         return None
 
