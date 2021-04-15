@@ -465,7 +465,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         return "mdi:hubspot"
 
 
-class LoxoneLight(LoxoneEntity, ToggleEntity):
+class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
     """Representation of a light."""
 
     def __init__(self, **kwargs):
@@ -609,6 +609,8 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/0"))
         self.schedule_update_ha_state()
 
+
+
     @property
     def device_state_attributes(self):
         """Return device specific state attributes.
@@ -693,6 +695,9 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
     def icon(self):
         """Return the sensor icon."""
         return "mdi:eyedropper-variant"
+
+
+
 
 class LoxoneDimmer(LoxoneEntity, LightEntity):
     """Representation of a Dimmer."""
@@ -812,3 +817,4 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
     def icon(self):
         """Return the sensor icon."""
         return "mdi:brightness-6"
+
