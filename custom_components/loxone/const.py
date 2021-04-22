@@ -81,4 +81,18 @@ CONF_HVAC_AUTO_MODE = 'hvac_auto_mode'
 STATE_ON = "on"
 STATE_OFF = "off"
 
+
+cfmt='''\
+(                                  # start of capture group 1
+%                                  # literal "%"
+(?:                                # first option
+(?:[-+0 #]{0,5})                   # optional flags
+(?:\d+|\*)?                        # width
+(?:\.(?:\d+|\*))?                  # precision
+(?:h|l|ll|w|I|I32|I64)?            # size
+[cCdiouxXeEfgGaAnpsSZ]             # type
+) |                                # OR
+%%) 
+'''
+
 # End of loxone constants

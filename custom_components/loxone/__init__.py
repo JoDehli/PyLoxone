@@ -5,6 +5,7 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 import asyncio
+import re
 import logging
 import traceback
 
@@ -39,7 +40,7 @@ from .const import (AES_KEY_SIZE, ATTR_CODE, ATTR_COMMAND, ATTR_UUID,
                     SECUREDSENDDOMAIN, SENDDOMAIN, TIMEOUT, TOKEN_PERMISSION,
                     TOKEN_REFRESH_DEFAULT_SECONDS, TOKEN_REFRESH_RETRY_COUNT,
                     TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN,
-                    CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE)
+                    CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE, cfmt)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -290,31 +291,20 @@ class LoxoneEntity(Entity):
 
     @staticmethod
     def _clean_unit(lox_format):
-        cleaned_fields = []
-        fields = lox_format.split(" ")
-        for f in fields:
-            _ = f.strip()
-            if len(_) > 0:
-                cleaned_fields.append(_)
-
-        if len(cleaned_fields) > 1:
-            unit = cleaned_fields[1]
+        search = re.search(cfmt, lox_format, flags=re.X)
+        if search:
+            unit = lox_format.replace(search.group(0).strip(), "").strip()
             if unit == "%%":
-                unit = "%"
+                unit = unit.replace("%%", "%")
             return unit
-        return None
+        else:
+            return lox_format
 
     @staticmethod
     def _get_format(lox_format):
-        cleaned_fields = []
-        fields = lox_format.split(" ")
-        for f in fields:
-            _ = f.strip()
-            if len(_) > 0:
-                cleaned_fields.append(_)
-
-        if len(cleaned_fields) >= 1:
-            return cleaned_fields[0]
+        search = re.search(cfmt, lox_format, flags=re.X)
+        if search:
+            return search.group(0).strip()
         return None
 
     @property
