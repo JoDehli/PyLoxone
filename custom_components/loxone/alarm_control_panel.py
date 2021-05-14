@@ -10,14 +10,14 @@ from homeassistant.components.alarm_control_panel.const import (
     SUPPORT_ALARM_ARM_AWAY, SUPPORT_ALARM_ARM_HOME, SUPPORT_ALARM_ARM_NIGHT)
 from homeassistant.const import (CONF_CODE, CONF_NAME, CONF_PASSWORD,
                                  CONF_USERNAME, STATE_ALARM_ARMED_AWAY,
-                                 STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED)
+                                 STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED,
+                                 STATE_ALARM_PENDING, STATE_ALARM_TRIGGERED)
 
 from . import LoxoneEntity
 from .const import DOMAIN, EVENT, SECUREDSENDDOMAIN, SENDDOMAIN
 from .helpers import (get_all_alarm, get_cat_name_from_cat_uuid,
                       get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_config_entry
-
 DEFAULT_NAME = 'Loxone Alarm'
 DEFAULT_FORCE_UPDATE = False
 
@@ -60,6 +60,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         LoxoneEntity.__init__(self, **kwargs)
         self._state = 0.0
         self._disabled_move = 0.0
+        self._level = 0.0
         self._armed_delay = 0.0
         self._armed_delay_total_delay = 0.0
         self._code = str(kwargs['code']) if kwargs['code'] else None
@@ -107,6 +108,10 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             self._armed_delay_total_delay = e.data[self.states['armedDelayTotal']]
             request_update = True
 
+        if self.states['level'] in e.data:
+            self._level = e.data[self.states['level']]
+            request_update = True
+
         if request_update:
             self.async_schedule_update_ha_state()
 
@@ -121,6 +126,10 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
     @property
     def disabled_move(self):
         return self._disabled_move
+
+    @property
+    def level(self):
+        return self._level 
 
     @property
     def hidden(self) -> bool:
@@ -203,6 +212,10 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
     @property
     def state(self):
         """Return the state of the entity."""
+        if self._level >= 1.0:
+            return STATE_ALARM_TRIGGERED
+        if self._armed_delay:
+            return STATE_ALARM_PENDING
         if self._state and self._disabled_move:
             return STATE_ALARM_ARMED_HOME
         if self._state:
@@ -215,7 +228,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         return {"uuid": self.uuidAction, "room": self.room,
                 "category": self.cat,
                 "device_typ": self.type,
-                "disabled_move": self._disabled_move,
+                "level": self._level,
                 "armed_delay": self._armed_delay,
                 "armed_delay_total_delay": self._armed_delay_total_delay,
                 "plattform": "loxone"}
