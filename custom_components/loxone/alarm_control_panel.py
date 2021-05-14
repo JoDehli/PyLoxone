@@ -11,7 +11,7 @@ from homeassistant.components.alarm_control_panel.const import (
 from homeassistant.const import (CONF_CODE, CONF_NAME, CONF_PASSWORD,
                                  CONF_USERNAME, STATE_ALARM_ARMED_AWAY,
                                  STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED,
-                                 STATE_ALARM_PENDING, STATE_ALARM_TRIGGERED)
+                                 STATE_ALARM_ARMING, STATE_ALARM_TRIGGERED)
 
 from . import LoxoneEntity
 from .const import DOMAIN, EVENT, SECUREDSENDDOMAIN, SENDDOMAIN
@@ -215,7 +215,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         if self._level >= 1.0:
             return STATE_ALARM_TRIGGERED
         if self._armed_delay:
-            return STATE_ALARM_PENDING
+            return STATE_ALARM_ARMING
         if self._state and self._disabled_move:
             return STATE_ALARM_ARMED_HOME
         if self._state:
