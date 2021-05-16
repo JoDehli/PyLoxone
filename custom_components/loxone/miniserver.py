@@ -3,6 +3,7 @@ import traceback
 
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
+from homeassistant.config import get_default_config_dir
 
 
 from pyloxone_api import LoxApp, LoxWs
@@ -120,6 +121,7 @@ class MiniServer:
                     loxconfig=self.lox_config.json,
                     loxone_url=self.lox_config.url,
                 )
+                self.api.config_dir=get_default_config_dir()
 
                 res = await self.api.async_init()
                 if not res or res == -1:
