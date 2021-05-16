@@ -8,30 +8,46 @@ https://github.com/JoDehli/PyLoxone
 import logging
 from typing import Any
 
-from homeassistant.components.cover import (ATTR_POSITION, DEVICE_CLASS_AWNING,
-                                            DEVICE_CLASS_BLIND,
-                                            DEVICE_CLASS_CURTAIN,
-                                            DEVICE_CLASS_DOOR,
-                                            DEVICE_CLASS_GARAGE,
-                                            DEVICE_CLASS_SHUTTER,
-                                            DEVICE_CLASS_WINDOW, SUPPORT_CLOSE,
-                                            SUPPORT_OPEN, CoverEntity)
+from homeassistant.components.cover import (
+    ATTR_POSITION,
+    DEVICE_CLASS_AWNING,
+    DEVICE_CLASS_BLIND,
+    DEVICE_CLASS_CURTAIN,
+    DEVICE_CLASS_DOOR,
+    DEVICE_CLASS_GARAGE,
+    DEVICE_CLASS_SHUTTER,
+    DEVICE_CLASS_WINDOW,
+    SUPPORT_CLOSE,
+    SUPPORT_OPEN,
+    CoverEntity,
+)
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import track_utc_time_change
 
 from . import LoxoneEntity
-from .const import (DOMAIN, SENDDOMAIN, SUPPORT_CLOSE_TILT, SUPPORT_OPEN_TILT,
-                    SUPPORT_SET_POSITION, SUPPORT_SET_TILT_POSITION,
-                    SUPPORT_STOP, SUPPORT_STOP_TILT)
-from .helpers import (get_all_covers, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .const import (
+    SENDDOMAIN,
+    SUPPORT_CLOSE_TILT,
+    SUPPORT_OPEN_TILT,
+    SUPPORT_SET_POSITION,
+    SUPPORT_SET_TILT_POSITION,
+    SUPPORT_STOP,
+    SUPPORT_STOP_TILT,
+    DOMAIN,
+)
+from .helpers import (
+    get_all_covers,
+    get_cat_name_from_cat_uuid,
+    get_room_name_from_room_uuid,
+)
 from .miniserver import get_miniserver_from_config_entry
 
 _LOGGER = logging.getLogger(__name__)
 
 NEW_COVERS = "covers"
+
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
     """Set up the Loxone covers."""
@@ -45,14 +61,18 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     covers = []
 
     for cover in get_all_covers(loxconfig):
-        cover.update({'hass': hass,
-                      'room': get_room_name_from_room_uuid(loxconfig, cover.get('room', '')),
-                      'cat': get_cat_name_from_cat_uuid(loxconfig, cover.get('cat', ''))})
+        cover.update(
+            {
+                "hass": hass,
+                "room": get_room_name_from_room_uuid(loxconfig, cover.get("room", "")),
+                "cat": get_cat_name_from_cat_uuid(loxconfig, cover.get("cat", "")),
+            }
+        )
 
-        if cover['type'] == "Gate":
+        if cover["type"] == "Gate":
             new_gate = LoxoneGate(**cover)
             covers.append(new_gate)
-        elif cover['type'] == "Window":
+        elif cover["type"] == "Window":
             new_window = LoxoneWindow(**cover)
             covers.append(new_window)
         else:
@@ -72,15 +92,14 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     async_add_covers(covers)
 
 
-
 class LoxoneGate(LoxoneEntity, CoverEntity):
     """Loxone Gate"""
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
-        self.hass = kwargs['hass']
-        self._position_uuid = kwargs['states']['position']
-        self._state_uuid = kwargs['states']['active']
+        self.hass = kwargs["hass"]
+        self._position_uuid = kwargs["states"]["position"]
+        self._state_uuid = kwargs["states"]["active"]
         self._position = None
         self._is_opening = False
         self._is_closing = False
@@ -111,7 +130,7 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
 
     @property
     def animation(self):
-        return self.details['animation']
+        return self.details["animation"]
 
     @property
     def current_cover_position(self):
@@ -135,36 +154,36 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
 
     def open_cover(self, **kwargs):
         """Open the cover."""
-        if self._position == 100.:
+        if self._position == 100.0:
             return
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="open"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="open"))
         self.schedule_update_ha_state()
 
     def close_cover(self, **kwargs):
         """Close the cover."""
         if self._position == 0:
             return
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="close"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="close"))
         self.schedule_update_ha_state()
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
         if self.is_closing:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="open"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="open")
+            )
             return
 
         if self.is_opening:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="close"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="close")
+            )
             return
 
     async def event_handler(self, event):
         if self.states["position"] in event.data or self._state_uuid in event.data:
             if self.states["position"] in event.data:
-                self._position = float(event.data[self.states["position"]]) * 100.
+                self._position = float(event.data[self.states["position"]]) * 100.0
                 if self._position == 0:
                     self._closed = True
                 else:
@@ -186,9 +205,13 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self.uuidAction, "device_typ": self.type,
-                "room": self.room, "category": self.cat,
-                "plattform": "loxone"}
+        return {
+            "uuid": self.uuidAction,
+            "device_typ": self.type,
+            "room": self.room,
+            "category": self.cat,
+            "plattform": "loxone",
+        }
 
     @property
     def device_info(self):
@@ -197,7 +220,7 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
             "name": self.name,
             "manufacturer": "Loxone",
             "model": "Gate",
-            "type": self.type
+            "type": self.type,
         }
 
 
@@ -206,18 +229,16 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
     # pylint: disable=no-self-use
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
-        self.hass = kwargs['hass']
+        self.hass = kwargs["hass"]
         self._position = None
         self._closed = True
         self._direction = 0
 
     async def event_handler(self, e):
-        if self.states["position"] in e.data or \
-                self.states["direction"] in e.data:
+        if self.states["position"] in e.data or self.states["direction"] in e.data:
 
             if self.states["position"] in e.data:
-                self._position = float(
-                    e.data[self.states["position"]]) * 100.
+                self._position = float(e.data[self.states["position"]]) * 100.0
                 if self._position == 0:
                     self._closed = True
                 else:
@@ -242,9 +263,13 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         Return device specific state attributes.
         Implemented by platform classes.
         """
-        device_att = {"uuid": self.uuidAction, "device_typ": self.type,
-                      "plattform": "loxone", "room": self.room,
-                      "category": self.cat}
+        device_att = {
+            "uuid": self.uuidAction,
+            "device_typ": self.type,
+            "plattform": "loxone",
+            "room": self.room,
+            "category": self.cat,
+        }
         return device_att
 
     @property
@@ -271,29 +296,35 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         return self._closed
 
     def open_cover(self, **kwargs: Any) -> None:
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="fullopen"))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="fullopen")
+        )
 
     def close_cover(self, **kwargs: Any) -> None:
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="fullclose"))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="fullclose")
+        )
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
 
         if self.is_closing:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="fullopen"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="fullopen")
+            )
 
         elif self.is_opening:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="fullclose"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="fullclose")
+            )
 
     def set_cover_position(self, **kwargs):
         """Return the current tilt position of the cover."""
         position = kwargs.get(ATTR_POSITION)
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="moveToPosition/{}".format(position)))
+        self.hass.bus.async_fire(
+            SENDDOMAIN,
+            dict(uuid=self.uuidAction, value="moveToPosition/{}".format(position)),
+        )
 
     @property
     def device_info(self):
@@ -302,7 +333,7 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
             "name": self.name,
             "manufacturer": "Loxone",
             "model": "Window",
-            "type": self.type
+            "type": self.type,
         }
 
 
@@ -312,12 +343,12 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
     # pylint: disable=no-self-use
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
-        self.hass = kwargs['hass']
+        self.hass = kwargs["hass"]
 
-        if 'autoInfoText' not in self.states:
-            self.states['autoInfoText'] = ""
-        if 'autoState' not in self.states:
-            self.states['autoState'] = ""
+        if "autoInfoText" not in self.states:
+            self.states["autoInfoText"] = ""
+        if "autoState" not in self.states:
+            self.states["autoState"] = ""
         self._position = 0
         self._position_loxone = -1
         self._set_position = None
@@ -333,10 +364,10 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         self._auto_text = ""
         self._auto_state = 0
 
-        if 'isAutomatic' in self.details:
-            self._is_automatic = self.details['isAutomatic']
-        if 'animation' in self.details:
-            self._animation = self.details['animation']
+        if "isAutomatic" in self.details:
+            self._is_automatic = self.details["isAutomatic"]
+        if "animation" in self.details:
+            self._animation = self.details["animation"]
 
         if self._position is None:
             self._closed = True
@@ -361,25 +392,26 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
         if self.current_cover_tilt_position is not None:
             supported_features |= (
-                    SUPPORT_OPEN_TILT
-                    | SUPPORT_CLOSE_TILT
-                    | SUPPORT_STOP_TILT
-                    | SUPPORT_SET_TILT_POSITION
+                SUPPORT_OPEN_TILT
+                | SUPPORT_CLOSE_TILT
+                | SUPPORT_STOP_TILT
+                | SUPPORT_SET_TILT_POSITION
             )
         return supported_features
 
     async def event_handler(self, e):
-        if self.states["position"] in e.data or \
-                self.states["shadePosition"] in e.data or \
-                self.states["up"] in e.data or \
-                self.states["down"] in e.data or \
-                self.states['autoInfoText'] in e.data or \
-                self.states['autoState'] in e.data:
+        if (
+            self.states["position"] in e.data
+            or self.states["shadePosition"] in e.data
+            or self.states["up"] in e.data
+            or self.states["down"] in e.data
+            or self.states["autoInfoText"] in e.data
+            or self.states["autoState"] in e.data
+        ):
 
             if self.states["position"] in e.data:
-                self._position_loxone = float(
-                    e.data[self.states["position"]]) * 100.
-                self._position = round(100. - self._position_loxone, 0)
+                self._position_loxone = float(e.data[self.states["position"]]) * 100.0
+                self._position = round(100.0 - self._position_loxone, 0)
 
                 if self._position == 0:
                     self._closed = True
@@ -398,11 +430,11 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             if self.states["down"] in e.data:
                 self._is_closing = e.data[self.states["down"]]
 
-            if self.states['autoInfoText'] in e.data:
-                self._auto_text = e.data[self.states['autoInfoText']]
+            if self.states["autoInfoText"] in e.data:
+                self._auto_text = e.data[self.states["autoInfoText"]]
 
-            if self.states['autoState'] in e.data:
-                self._auto_state = e.data[self.states['autoState']]
+            if self.states["autoState"] in e.data:
+                self._auto_state = e.data[self.states["autoState"]]
 
             self.schedule_update_ha_state()
 
@@ -450,7 +482,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
     @property
     def animation(self):
-        return self.details['animation']
+        return self.details["animation"]
 
     @property
     def is_automatic(self):
@@ -466,8 +498,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
     @property
     def shade_postion_as_text(self):
         """Returns shade postionn as text"""
-        if self.current_cover_tilt_position == 100 and \
-                self.current_cover_position < 10:
+        if self.current_cover_tilt_position == 100 and self.current_cover_position < 10:
             return "shading on"
         else:
             return " "
@@ -478,20 +509,25 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         Return device specific state attributes.
         Implemented by platform classes.
         """
-        device_att = {"uuid": self.uuidAction, "device_typ": self.type,
-                      "plattform": "loxone", "room": self.room,
-                      "category": self.cat,
-                      "current_position": self.current_cover_position,
-                      "current_shade_mode": self.shade_postion_as_text,
-                      "current_position_loxone_style": round(self._position_loxone, 0),
-                      "extra_data_template": [
-                          "${attributes.current_position} % open",
-                          "${attributes.current_shade_mode}"
-                      ]}
+        device_att = {
+            "uuid": self.uuidAction,
+            "device_typ": self.type,
+            "plattform": "loxone",
+            "room": self.room,
+            "category": self.cat,
+            "current_position": self.current_cover_position,
+            "current_shade_mode": self.shade_postion_as_text,
+            "current_position_loxone_style": round(self._position_loxone, 0),
+            "extra_data_template": [
+                "${attributes.current_position} % open",
+                "${attributes.current_shade_mode}",
+            ],
+        }
 
         if self._is_automatic:
-            device_att.update({'automatic_text': self._auto_text,
-                               'auto_state': self.auto})
+            device_att.update(
+                {"automatic_text": self._auto_text, "auto_state": self.auto}
+            )
 
         return device_att
 
@@ -504,32 +540,34 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             self.schedule_update_ha_state()
             return
 
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="FullDown"))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="FullDown")
+        )
         self.schedule_update_ha_state()
 
     def open_cover(self, **kwargs):
         """Open the cover."""
-        if self._position == 100.:
+        if self._position == 100.0:
             return
         elif self._position is None:
             self._closed = False
             self.schedule_update_ha_state()
             return
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="FullUp"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="FullUp"))
         self.schedule_update_ha_state()
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
 
         if self.is_closing:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="FullUp"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="FullUp")
+            )
 
         elif self.is_opening:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="FullDown"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="FullDown")
+            )
 
         if self._unsub_listener_cover is not None:
             self._unsub_listener_cover()
@@ -540,8 +578,9 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         """Close the cover tilt."""
         if self._tilt_position in (0, None):
             return
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="FullDown"))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="FullDown")
+        )
 
     def open_cover_tilt(self, **kwargs):
         """Close the cover tilt."""
@@ -549,8 +588,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         if self._tilt_position in (100, None):
             return
 
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="shade"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="shade"))
 
     def set_cover_position(self, **kwargs):
         """Return the current tilt position of the cover."""
@@ -569,7 +607,8 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         """Listen for changes in cover."""
         if self._unsub_listener_cover is None:
             self._unsub_listener_cover = track_utc_time_change(
-                self.hass, self._time_changed_cover)
+                self.hass, self._time_changed_cover
+            )
 
     def _time_changed_cover(self, _):
         """Track time changes."""
@@ -587,5 +626,5 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             "name": self.name,
             "manufacturer": "Loxone",
             "model": "Jalousie",
-            "type": self.type
+            "type": self.type,
         }

@@ -9,13 +9,16 @@ from collections import OrderedDict
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
-                                 CONF_USERNAME)
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
 
-from .const import (CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
-                    CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE, DEFAULT_IP,
-                    DEFAULT_PORT, DOMAIN)
+from pyloxone_api.const import DEFAULT_PORT, DEFAULT_IP, DEFAULT_DELAY_SCENE
+from .const import (
+    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN,
+    CONF_SCENE_GEN,
+    CONF_SCENE_GEN_DELAY,
+    DOMAIN,
+)
 
 LOXONE_SCHEMA = vol.Schema(
     {
@@ -77,8 +80,12 @@ class LoxoneOptionsFlowHandler(config_entries.OptionsFlow):
         host = self.config_entry.options.get(CONF_HOST, "")
         port = self.config_entry.options.get(CONF_PORT, 80)
         gen_scenes = self.config_entry.options.get(CONF_SCENE_GEN, True)
-        gen_scene_delay = self.config_entry.options.get(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE)
-        gen_subcontrols = self.config_entry.options.get(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, False)
+        gen_scene_delay = self.config_entry.options.get(
+            CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE
+        )
+        gen_subcontrols = self.config_entry.options.get(
+            CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, False
+        )
 
         options = OrderedDict()
 
@@ -88,7 +95,9 @@ class LoxoneOptionsFlowHandler(config_entries.OptionsFlow):
         options[vol.Required(CONF_PORT, default=port)] = int
         options[vol.Required(CONF_SCENE_GEN, default=gen_scenes)] = bool
         options[vol.Required(CONF_SCENE_GEN_DELAY, default=gen_scene_delay)] = int
-        options[vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=gen_subcontrols)] = bool
+        options[
+            vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=gen_subcontrols)
+        ] = bool
 
         return self.async_show_form(
             step_id="init",

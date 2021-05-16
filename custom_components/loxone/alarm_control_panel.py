@@ -5,20 +5,40 @@ import re
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components.alarm_control_panel import (
-    FORMAT_NUMBER, FORMAT_TEXT, PLATFORM_SCHEMA, AlarmControlPanelEntity)
+    FORMAT_NUMBER,
+    FORMAT_TEXT,
+    PLATFORM_SCHEMA,
+    AlarmControlPanelEntity,
+)
 from homeassistant.components.alarm_control_panel.const import (
-    SUPPORT_ALARM_ARM_AWAY, SUPPORT_ALARM_ARM_HOME, SUPPORT_ALARM_ARM_NIGHT)
-from homeassistant.const import (CONF_CODE, CONF_NAME, CONF_PASSWORD,
-                                 CONF_USERNAME, STATE_ALARM_ARMED_AWAY,
-                                 STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED,
-                                 STATE_ALARM_ARMING, STATE_ALARM_TRIGGERED)
+    SUPPORT_ALARM_ARM_AWAY,
+    SUPPORT_ALARM_ARM_HOME,
+    SUPPORT_ALARM_ARM_NIGHT,
+)
+from homeassistant.const import (
+    CONF_CODE,
+    CONF_NAME,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    STATE_ALARM_ARMED_AWAY,
+    STATE_ALARM_ARMED_HOME,
+    STATE_ALARM_DISARMED,
+    STATE_ALARM_ARMING,
+    STATE_ALARM_TRIGGERED,
+)
 
 from . import LoxoneEntity
-from .const import DOMAIN, EVENT, SECUREDSENDDOMAIN, SENDDOMAIN
-from .helpers import (get_all_alarm, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from pyloxone_api.const import EVENT
+from .const import SECUREDSENDDOMAIN, SENDDOMAIN, DOMAIN
+
+from .helpers import (
+    get_all_alarm,
+    get_cat_name_from_cat_uuid,
+    get_room_name_from_room_uuid,
+)
 from .miniserver import get_miniserver_from_config_entry
-DEFAULT_NAME = 'Loxone Alarm'
+
+DEFAULT_NAME = "Loxone Alarm"
 DEFAULT_FORCE_UPDATE = False
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,9 +64,17 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     loxconfig = miniserver.lox_config.json
     devices = []
     for loxone_alarm in get_all_alarm(loxconfig):
-        loxone_alarm.update({'room': get_room_name_from_room_uuid(loxconfig, loxone_alarm.get('room', '')),
-                             'cat': get_cat_name_from_cat_uuid(loxconfig, loxone_alarm.get('cat', '')),
-                             'code': None})
+        loxone_alarm.update(
+            {
+                "room": get_room_name_from_room_uuid(
+                    loxconfig, loxone_alarm.get("room", "")
+                ),
+                "cat": get_cat_name_from_cat_uuid(
+                    loxconfig, loxone_alarm.get("cat", "")
+                ),
+                "code": None,
+            }
+        )
         new_alarm = LoxoneAlarm(**loxone_alarm)
         hass.bus.async_listen(EVENT, new_alarm.event_handler)
         devices.append(new_alarm)
@@ -55,7 +83,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 
 
 class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
-
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
         self._state = 0.0
@@ -63,7 +90,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         self._level = 0.0
         self._armed_delay = 0.0
         self._armed_delay_total_delay = 0.0
-        self._code = str(kwargs['code']) if kwargs['code'] else None
+        self._code = str(kwargs["code"]) if kwargs["code"] else None
 
         # if "states" in kwargs:
         #     states = kwargs['states']
@@ -92,24 +119,24 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
 
     async def event_handler(self, e):
         request_update = False
-        if self.states['armed'] in e.data:
-            self._state = e.data[self.states['armed']]
+        if self.states["armed"] in e.data:
+            self._state = e.data[self.states["armed"]]
             request_update = True
 
-        if self.states['disabledMove'] in e.data:
-            self._disabled_move = e.data[self.states['disabledMove']]
+        if self.states["disabledMove"] in e.data:
+            self._disabled_move = e.data[self.states["disabledMove"]]
             request_update = True
 
-        if self.states['armedDelay'] in e.data:
-            self._armed_delay = e.data[self.states['armedDelay']]
+        if self.states["armedDelay"] in e.data:
+            self._armed_delay = e.data[self.states["armedDelay"]]
             request_update = True
 
-        if self.states['armedDelayTotal'] in e.data:
-            self._armed_delay_total_delay = e.data[self.states['armedDelayTotal']]
+        if self.states["armedDelayTotal"] in e.data:
+            self._armed_delay_total_delay = e.data[self.states["armedDelayTotal"]]
             request_update = True
 
-        if self.states['level'] in e.data:
-            self._level = e.data[self.states['level']]
+        if self.states["level"] in e.data:
+            self._level = e.data[self.states["level"]]
             request_update = True
 
         if request_update:
@@ -129,7 +156,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
 
     @property
     def level(self):
-        return self._level 
+        return self._level
 
     @property
     def hidden(self) -> bool:
@@ -156,41 +183,47 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
     async def async_alarm_disarm(self, code=None):
         """Send disarm command."""
         if self.isSecured:
-            self.hass.bus.async_fire(SECUREDSENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="off", code=code))
+            self.hass.bus.async_fire(
+                SECUREDSENDDOMAIN, dict(uuid=self.uuidAction, value="off", code=code)
+            )
         else:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="off"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="off")
+            )
         self.schedule_update_ha_state()
 
     async def async_alarm_arm_home(self, code=None):
         """Send arm hom command."""
         if self.isSecured:
-            self.hass.bus.async_fire(SECUREDSENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="on/0", code=code))
+            self.hass.bus.async_fire(
+                SECUREDSENDDOMAIN, dict(uuid=self.uuidAction, value="on/0", code=code)
+            )
         else:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="on/0"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="on/0")
+            )
         self.schedule_update_ha_state()
 
     async def async_alarm_arm_away(self, code=None):
         """Send arm away command."""
         if self.isSecured:
-            self.hass.bus.async_fire(SECUREDSENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="on/1", code=code))
+            self.hass.bus.async_fire(
+                SECUREDSENDDOMAIN, dict(uuid=self.uuidAction, value="on/1", code=code)
+            )
         else:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="on/1"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="on/1")
+            )
         self.schedule_update_ha_state()
 
     def async_alarm_night_away(self, code=None):
         """Send arm away command."""
         if self.isSecured:
-            self.hass.bus.async_fire(SECUREDSENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="on", code=code))
+            self.hass.bus.async_fire(
+                SECUREDSENDDOMAIN, dict(uuid=self.uuidAction, value="on", code=code)
+            )
         else:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="on"))
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
         self.schedule_update_ha_state()
 
     def alarm_trigger(self, code=None):
@@ -199,11 +232,11 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         This method must be run in the event loop and returns a coroutine.
         """
         if self.isSecured:
-            self.hass.bus.async_fire(SECUREDSENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="on", code=code))
+            self.hass.bus.async_fire(
+                SECUREDSENDDOMAIN, dict(uuid=self.uuidAction, value="on", code=code)
+            )
         else:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="on"))
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
         self.schedule_update_ha_state()
 
     def alarm_arm_custom_bypass(self, code=None):
@@ -225,13 +258,16 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
     @property
     def device_state_attributes(self):
         """Return the state attributes."""
-        return {"uuid": self.uuidAction, "room": self.room,
-                "category": self.cat,
-                "device_typ": self.type,
-                "level": self._level,
-                "armed_delay": self._armed_delay,
-                "armed_delay_total_delay": self._armed_delay_total_delay,
-                "plattform": "loxone"}
+        return {
+            "uuid": self.uuidAction,
+            "room": self.room,
+            "category": self.cat,
+            "device_typ": self.type,
+            "level": self._level,
+            "armed_delay": self._armed_delay,
+            "armed_delay_total_delay": self._armed_delay_total_delay,
+            "plattform": "loxone",
+        }
 
     def _validate_code(self, code):
         """Validate given code."""
@@ -256,5 +292,5 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             "name": self.name,
             "manufacturer": "Loxone",
             "model": "Alarm",
-            "type": self.type
+            "type": self.type,
         }
