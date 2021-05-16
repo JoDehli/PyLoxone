@@ -1,19 +1,20 @@
 {
-  "domain": "loxone",
-  "name": "PyLoxone",
-  "documentation": "https://github.com/JoDehli/PyLoxone",
-  "issue_tracker": "https://github.com/JoDehli/PyLoxone/issues",
-  "requirements": [
-    "websockets",
-    "pycryptodome",
-    "numpy",
-    "requests_async"
-  ],
-  "dependencies": [],
-  "codeowners": ["JoDehli"],
-  "iot_class": "local_polling",
-  "homeassistant": "0.109.0",
-  "render_readme": true,
-  "config_flow": true,
-  "version": "0.3.5"
+    "domain": "loxone",
+    "name": "PyLoxone",
+    "documentation": "https://github.com/JoDehli/PyLoxone",
+    "issue_tracker": "https://github.com/JoDehli/PyLoxone/issues",
+    "requirements": [
+        "websockets",
+        "pycryptodome",
+        "numpy",
+        "pyloxone_api==0.1.0"
+        "requests_async"
+    ],
+    "dependencies": [],
+    "codeowners": ["JoDehli"],
+    "iot_class": "local_polling",
+    "homeassistant": "0.109.0",
+    "render_readme": true,
+    "config_flow": true,
+    "version": "0.3.5"
 }

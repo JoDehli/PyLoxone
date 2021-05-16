@@ -4,8 +4,9 @@ import traceback
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME)
 from homeassistant.core import callback
+from homeassistant.config import get_default_config_dir
 
-from .api import LoxApp, LoxWs
+from pyloxone_api import LoxApp, LoxWs
 from .const import (ATTR_CODE, ATTR_UUID, ATTR_VALUE, DEFAULT, DOMAIN, EVENT,
                     SECUREDSENDDOMAIN, SENDDOMAIN)
 from .helpers import get_miniserver_type
@@ -107,7 +108,7 @@ class MiniServer:
                                  port=self.config_entry.options[CONF_PORT],
                                  loxconfig=self.lox_config.json,
                                  loxone_url=self.lox_config.url)
-
+                self.api.config_dir = get_default_config_dir()
                 res = await self.api.async_init()
                 if not res or res == -1:
                     _LOGGER.error("Error connecting to loxone miniserver #1")
