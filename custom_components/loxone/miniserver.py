@@ -7,7 +7,7 @@ from homeassistant.config import get_default_config_dir
 
 
 from pyloxone_api import LoxApp, LoxWs
-from pyloxone_api.const import DOMAIN, EVENT
+from pyloxone_api.const import  EVENT
 
 from .const import (
     ATTR_CODE,
@@ -16,6 +16,7 @@ from .const import (
     DEFAULT,
     SECUREDSENDDOMAIN,
     SENDDOMAIN,
+    DOMAIN
 )
 
 from .helpers import get_miniserver_type

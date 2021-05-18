@@ -25,8 +25,7 @@ from homeassistant.components.climate.const import (
 from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
-from pyloxone_api.const import DOMAIN
-from .const import CONF_HVAC_AUTO_MODE, SENDDOMAIN
+from .const import CONF_HVAC_AUTO_MODE, SENDDOMAIN, DOMAIN
 from .helpers import (
     get_all_roomcontroller_entities,
     get_cat_name_from_cat_uuid,
