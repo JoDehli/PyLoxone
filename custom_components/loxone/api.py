@@ -271,13 +271,13 @@ class LoxWs:
     async def send_secured(self, device_uuid, value, code):
         from Crypto.Hash import HMAC, SHA1, SHA256
         pwd_hash_str = code + ":" + self._visual_hash.salt
-        if self._version < 12.0:
+        if self._visual_hash.hash_alg == "SHA1" or self._version < 12.0:
             m = hashlib.sha1()
         else:
             m = hashlib.sha256()
         m.update(pwd_hash_str.encode('utf-8'))
         pwd_hash = m.hexdigest().upper()
-        if self._version < 12.0:
+        if self._visual_hash.hash_alg == "SHA1" or self._version < 12.0:
             digester = HMAC.new(binascii.unhexlify(self._visual_hash.key),
                                 pwd_hash.encode("utf-8"), SHA1)
         else:
@@ -427,8 +427,7 @@ class LoxWs:
                     if 'value' in resp_json['LL']:
                         if 'key' in resp_json['LL']['value'] and 'salt' in resp_json['LL']['value']:
                             key_and_salt = LxJsonKeySalt()
-                            key_and_salt.key = resp_json['LL']['value']['key']
-                            key_and_salt.salt = resp_json['LL']['value']['salt']
+                            key_and_salt.read_user_salt_responce(parsed_data)
                             key_and_salt.time_elapsed_in_seconds = time_elapsed_in_seconds()
                             self._visual_hash = key_and_salt
 
