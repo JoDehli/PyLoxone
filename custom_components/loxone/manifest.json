@@ -7,7 +7,8 @@
     "websockets",
     "pycryptodome",
     "numpy",
-    "requests_async"
+    "requests_async",
+    "pyloxone-api"
   ],
   "dependencies": [],
   "codeowners": ["JoDehli"],
