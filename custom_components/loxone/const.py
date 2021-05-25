@@ -17,7 +17,10 @@ LOXONE_PLATFORMS = [
 DOMAIN = "loxone"
 SENDDOMAIN = "loxone_send"
 SECUREDSENDDOMAIN = "loxone_send_secured"
+EVENT = 'loxone_event'
 DEFAULT = ""
+DEFAULT_PORT = 8080
+DEFAULT_IP = ""
 
 ATTR_UUID = "uuid"
 

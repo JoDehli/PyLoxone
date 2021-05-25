@@ -12,12 +12,14 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
 
-from pyloxone_api.const import DEFAULT_PORT, DEFAULT_IP, DEFAULT_DELAY_SCENE
 from .const import (
     CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN,
     CONF_SCENE_GEN,
     CONF_SCENE_GEN_DELAY,
     DOMAIN,
+    DEFAULT_PORT,
+    DEFAULT_IP,
+    DEFAULT_DELAY_SCENE,
 )
 
 LOXONE_SCHEMA = vol.Schema(

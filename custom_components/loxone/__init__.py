@@ -30,7 +30,6 @@ from .miniserver import MiniServer, get_miniserver_from_config_entry
 
 REQUIREMENTS = ["websockets", "pycryptodome", "numpy", "requests_async"]
 
-from pyloxone_api.const import DEFAULT_PORT, EVENT
 from .const import (
     ATTR_CODE,
     ATTR_COMMAND,
@@ -46,7 +45,9 @@ from .const import (
     CONF_SCENE_GEN,
     DEFAULT,
     DOMAIN,
-    DEFAULT_DELAY_SCENE
+    DEFAULT_DELAY_SCENE,
+    DEFAULT_PORT,
+    EVENT,
 )
 
 _LOGGER = logging.getLogger(__name__)

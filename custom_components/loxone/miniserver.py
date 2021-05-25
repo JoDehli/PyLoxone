@@ -7,13 +7,13 @@ from homeassistant.config import get_default_config_dir
 
 
 from pyloxone_api import LoxApp, LoxWs
-from pyloxone_api.const import  EVENT
 
 from .const import (
     ATTR_CODE,
     ATTR_UUID,
     ATTR_VALUE,
     DEFAULT,
+    EVENT,
     SECUREDSENDDOMAIN,
     SENDDOMAIN,
     DOMAIN

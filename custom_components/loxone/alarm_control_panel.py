@@ -28,8 +28,7 @@ from homeassistant.const import (
 )
 
 from . import LoxoneEntity
-from pyloxone_api.const import EVENT
-from .const import SECUREDSENDDOMAIN, SENDDOMAIN, DOMAIN
+from .const import SECUREDSENDDOMAIN, SENDDOMAIN, DOMAIN, EVENT
 
 from .helpers import (
     get_all_alarm,
