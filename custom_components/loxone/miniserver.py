@@ -6,7 +6,7 @@ from homeassistant.core import callback
 from homeassistant.config import get_default_config_dir
 
 
-from pyloxone_api import LoxApp, LoxWs
+from pyloxone_api import LoxAPI
 
 from .const import (
     ATTR_CODE,
@@ -49,7 +49,6 @@ class MiniServer:
     def __init__(self, hass, config_entry) -> None:
         self.hass = hass
         self.config_entry = config_entry
-        self.lox_config = None
         self.api = None
         self.callback = None
         self.entities = {}
@@ -75,28 +74,28 @@ class MiniServer:
     @property
     def serial(self):
         try:
-            return self.lox_config.json["msInfo"]["serialNr"]
+            return self.api.json["msInfo"]["serialNr"]
         except:
             return None
 
     @property
     def name(self):
         try:
-            return self.lox_config.json["msInfo"]["msName"]
+            return self.api.json["msInfo"]["msName"]
         except:
             return None
 
     @property
     def software_version(self):
         try:
-            return ".".join([str(x) for x in self.lox_config.json["softwareVersion"]])
+            return ".".join([str(x) for x in self.api.json["softwareVersion"]])
         except:
             return None
 
     @property
     def miniserver_type(self):
         try:
-            return self.lox_config.json["msInfo"]["miniserverType"]
+            return self.api.json["msInfo"]["miniserverType"]
         except:
             return None
 
@@ -106,22 +105,16 @@ class MiniServer:
 
     async def async_setup(self) -> bool:
         try:
-            self.lox_config = LoxApp()
-            self.lox_config.lox_user = self.config_entry.options[CONF_USERNAME]
-            self.lox_config.lox_pass = self.config_entry.options[CONF_PASSWORD]
-            self.lox_config.host = self.config_entry.options[CONF_HOST]
-            self.lox_config.port = self.config_entry.options[CONF_PORT]
-            request_code = await self.lox_config.getJson()
+            self.api = LoxAPI(
+                host=self.config_entry.options[CONF_HOST],
+                port=self.config_entry.options[CONF_PORT],
+                user=self.config_entry.options[CONF_USERNAME],
+                password=self.config_entry.options[CONF_PASSWORD],
+            )
+            request_code = await self.api.getJson()
 
             if request_code == 200 or request_code == "200":
-                self.api = LoxWs(
-                    user=self.config_entry.options[CONF_USERNAME],
-                    password=self.config_entry.options[CONF_PASSWORD],
-                    host=self.config_entry.options[CONF_HOST],
-                    port=self.config_entry.options[CONF_PORT],
-                    loxconfig=self.lox_config.json,
-                    loxone_url=self.lox_config.url,
-                )
+
                 self.api.config_dir=get_default_config_dir()
 
                 res = await self.api.async_init()
