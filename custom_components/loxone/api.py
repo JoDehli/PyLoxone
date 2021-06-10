@@ -69,6 +69,8 @@ class LoxApp(object):
             if 'Code' in req_data['LL'] and 'value' in req_data['LL']:
                 _ = req_data['LL']['value']
                 if isinstance(_, str):
+                    _ = _.replace("false", 'False')
+                    _ = _.replace("true", 'True')
                     try:
                         _ = eval(_)
                     except ValueError:
