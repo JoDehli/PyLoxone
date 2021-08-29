@@ -8,7 +8,9 @@ https://github.com/JoDehli/PyLoxone
 import logging
 from typing import Any
 
-from homeassistant.components.cover import (ATTR_POSITION, DEVICE_CLASS_AWNING,
+from homeassistant.components.cover import (ATTR_POSITION,
+                                            ATTR_TILT_POSITION,
+                                            DEVICE_CLASS_AWNING,
                                             DEVICE_CLASS_BLIND,
                                             DEVICE_CLASS_CURTAIN,
                                             DEVICE_CLASS_DOOR,
@@ -564,6 +566,19 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         else:
             self.open_cover()
         self._listen_cover()
+
+    def set_cover_tilt_position(self, **kwargs):
+        """Move the cover tilt to a specific position."""
+        tilt_position = kwargs.get(ATTR_TILT_POSITION)
+        if tilt_position > 50:
+            tilt_position = 100
+        else:
+            tilt_position = 0
+
+        if tilt_position == 100:
+            self.open_cover_tilt()
+        else:
+            self.close_cover_tilt()
 
     def _listen_cover(self):
         """Listen for changes in cover."""

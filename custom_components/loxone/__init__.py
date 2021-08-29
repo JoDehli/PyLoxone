@@ -51,7 +51,7 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
         vol.Optional(CONF_SCENE_GEN, default=True): cv.boolean,
-        vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE ): cv.positive_int,
+        vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): cv.positive_int,
         vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): bool,
     }),
 }, extra=vol.ALLOW_EXTRA)
@@ -192,7 +192,7 @@ async def async_setup_entry(hass, config_entry):
                                 sensors_digital.append(s_dict['entity_id'])
                             elif device_typ in ["Jalousie", "Gate", "Window"]:
                                 covers.append(s_dict['entity_id'])
-                            elif device_typ in ["Switch", "Pushbutton","TimedSwitch"]:
+                            elif device_typ in ["Switch", "Pushbutton", "TimedSwitch"]:
                                 switches.append(s_dict['entity_id'])
                             elif device_typ in ["LightControllerV2", "Dimmer"]:
                                 lights.append(s_dict['entity_id'])
@@ -224,7 +224,7 @@ async def async_setup_entry(hass, config_entry):
                     await group.Group.async_create_group(
                         hass, "Loxone Room Controllers", object_id="loxone_climates", entity_ids=climates)
 
-                    await hass.async_block_till_done()
+                    await asyncio.sleep(1)
 
                     await group.Group.async_create_group(
                         hass, "Loxone Group", object_id="loxone_group", entity_ids=["group.loxone_analog",
