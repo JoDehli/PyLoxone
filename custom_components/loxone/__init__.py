@@ -4,6 +4,7 @@ Component to create an interface to the Loxone Miniserver.
 For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
+import sys
 import asyncio
 import re
 import logging
@@ -265,7 +266,6 @@ class LoxoneEntity(Entity):
                     setattr(self, key, kwargs[key])
                 except:
                     traceback.print_exc()
-                    import sys
                     sys.exit(-1)
 
         self.listener = None
