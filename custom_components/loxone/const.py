@@ -5,7 +5,15 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 # Loxone constants
-LOXONE_PLATFORMS = ["sensor", "switch",  "cover", "light", "climate", "scene", "alarm_control_panel"]
+LOXONE_PLATFORMS = [
+    "sensor",
+    "switch",
+    "cover",
+    "light",
+    "climate",
+    "scene",
+    "alarm_control_panel",
+]
 
 LOXONE_DEFAULT_PORT = 8080
 
@@ -47,18 +55,18 @@ DEFAULT_PORT = 8080
 DEFAULT_DELAY_SCENE = 3
 DEFAULT_IP = ""
 
-EVENT = 'loxone_event'
-DOMAIN = 'loxone'
-LOX_CONFIG = 'loxconfig'
+EVENT = "loxone_event"
+DOMAIN = "loxone"
+LOX_CONFIG = "loxconfig"
 
 SENDDOMAIN = "loxone_send"
 SECUREDSENDDOMAIN = "loxone_send_secured"
 DEFAULT = ""
 
-ATTR_UUID = 'uuid'
+ATTR_UUID = "uuid"
 
-ATTR_UUID = 'uuid'
-ATTR_VALUE = 'value'
+ATTR_UUID = "uuid"
+ATTR_VALUE = "value"
 ATTR_CODE = "code"
 ATTR_COMMAND = "command"
 DOMAIN_DEVICES = "devices"
@@ -76,13 +84,13 @@ SUPPORT_CLOSE_TILT = 32
 SUPPORT_STOP_TILT = 64
 SUPPORT_SET_TILT_POSITION = 128
 
-CONF_HVAC_AUTO_MODE = 'hvac_auto_mode'
+CONF_HVAC_AUTO_MODE = "hvac_auto_mode"
 
 STATE_ON = "on"
 STATE_OFF = "off"
 
 
-cfmt='''\
+cfmt = """\
 (                                  # start of capture group 1
 %                                  # literal "%"
 (?:                                # first option
@@ -93,6 +101,6 @@ cfmt='''\
 [cCdiouxXeEfgGaAnpsSZ]             # type
 ) |                                # OR
 %%) 
-'''
+"""
 
 # End of loxone constants

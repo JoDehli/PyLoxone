@@ -8,25 +8,35 @@ import logging
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.sensor import PLATFORM_SCHEMA
-from homeassistant.components.sensor import SensorEntity
-from homeassistant.const import (CONF_NAME, CONF_UNIT_OF_MEASUREMENT,
-                                 CONF_VALUE_TEMPLATE, STATE_OFF, STATE_ON,
-                                 STATE_UNKNOWN, CONF_DEVICE_CLASS)
+from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
+from homeassistant.const import (
+    CONF_DEVICE_CLASS,
+    CONF_NAME,
+    CONF_UNIT_OF_MEASUREMENT,
+    CONF_VALUE_TEMPLATE,
+    STATE_OFF,
+    STATE_ON,
+    STATE_UNKNOWN,
+)
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_all_analog_info, get_all_digital_info,
-                      get_cat_name_from_cat_uuid, get_room_name_from_room_uuid)
+from .helpers import (
+    get_all,
+    get_all_analog_info,
+    get_all_digital_info,
+    get_cat_name_from_cat_uuid,
+    get_room_name_from_room_uuid,
+)
 from .miniserver import get_miniserver_from_config_entry
 
 NEW_SENSOR = "sensors"
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_NAME = 'Loxone Sensor'
+DEFAULT_NAME = "Loxone Sensor"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -38,8 +48,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(hass, config, async_add_devices,
-                               discovery_info: object = {}):
+async def async_setup_platform(
+    hass, config, async_add_devices, discovery_info: object = {}
+):
     """Set up Loxone Sensor from yaml"""
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
@@ -60,25 +71,37 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 
     loxconfig = miniserver.lox_config.json
     sensors = []
-    if 'softwareVersion' in loxconfig:
-        sensors.append(LoxoneVersionSensor(loxconfig['softwareVersion']))
+    if "softwareVersion" in loxconfig:
+        sensors.append(LoxoneVersionSensor(loxconfig["softwareVersion"]))
 
     for sensor in get_all_analog_info(loxconfig):
-        sensor.update({'typ': 'analog',
-                       'room': get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
-                       'cat': get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', ''))})
+        sensor.update(
+            {
+                "typ": "analog",
+                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
+                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+            }
+        )
 
         sensors.append(Loxonesensor(**sensor))
 
     for sensor in get_all_digital_info(loxconfig):
-        sensor.update({'typ': 'digital',
-                       'room': get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
-                       'cat': get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', ''))})
+        sensor.update(
+            {
+                "typ": "digital",
+                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
+                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+            }
+        )
         sensors.append(Loxonesensor(**sensor))
 
     for sensor in get_all(loxconfig, "TextInput"):
-        sensor.update({'room': get_room_name_from_room_uuid(loxconfig, sensor.get('room', '')),
-                       'cat': get_cat_name_from_cat_uuid(loxconfig, sensor.get('cat', ''))})
+        sensor.update(
+            {
+                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
+                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+            }
+        )
 
         sensors.append(LoxoneTextSensor(**sensor))
 
@@ -98,18 +121,18 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 
 class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def __init__(self, **kwargs):
-        self._name = kwargs['name']
+        self._name = kwargs["name"]
         if "uuidAction" in kwargs:
-            self.uuidAction = kwargs['uuidAction']
+            self.uuidAction = kwargs["uuidAction"]
         else:
             self.uuidAction = ""
         if "unit_of_measurement" in kwargs:
-            self._unit_of_measurement = kwargs['unit_of_measurement']
+            self._unit_of_measurement = kwargs["unit_of_measurement"]
         else:
             self._unit_of_measurement = ""
 
         if "device_class" in kwargs:
-            self._device_class = kwargs['device_class']
+            self._device_class = kwargs["device_class"]
         else:
             self._device_class = None
 
@@ -149,7 +172,11 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self.uuidAction, "plattform": "loxone", "show_last_changed": "true"}
+        return {
+            "uuid": self.uuidAction,
+            "plattform": "loxone",
+            "show_last_changed": "true",
+        }
 
     @property
     def device_class(self):
@@ -196,8 +223,8 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
         self._state = STATE_UNKNOWN
 
     async def event_handler(self, e):
-        if self.states['text'] in e.data:
-            self._state = str(e.data[self.states['text']])
+        if self.states["text"] in e.data:
+            self._state = str(e.data[self.states["text"]])
             self.schedule_update_ha_state()
 
     @property
@@ -212,8 +239,9 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
 
     async def async_set_value(self, value):
         """Set new value."""
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="{}".format(value)))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="{}".format(value))
+        )
         self.async_schedule_update_ha_state()
 
     @property
@@ -222,9 +250,14 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self.uuidAction, "device_typ": self.type,
-                "plattform": "loxone", "room": self.room, "category": self.cat,
-                "show_last_changed": "true"}
+        return {
+            "uuid": self.uuidAction,
+            "device_typ": self.type,
+            "plattform": "loxone",
+            "room": self.room,
+            "category": self.cat,
+            "show_last_changed": "true",
+        }
 
 
 class Loxonesensor(LoxoneEntity, SensorEntity):
@@ -235,7 +268,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
         """Initialize the sensor."""
         self._state = STATE_UNKNOWN
         self._unit_of_measurement = None
-        self._format = self._get_format(kwargs.get('details', {}).get('format', ""))
+        self._format = self._get_format(kwargs.get("details", {}).get("format", ""))
         self._on_state = STATE_ON
         self._off_state = STATE_OFF
         self.extract_attributes()
@@ -257,11 +290,11 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
     def extract_attributes(self):
         """Extract certain Attributes. Not all."""
         if "text" in self.details:
-            self._on_state = self.details['text']['on']
-            self._off_state = self.details['text']['off']
+            self._on_state = self.details["text"]["on"]
+            self._off_state = self.details["text"]["off"]
         if "format" in self.details:
-            self._format = self._get_format(self.details['format'])
-            self._unit_of_measurement = self._clean_unit(self.details['format'])
+            self._format = self._get_format(self.details["format"])
+            self._unit_of_measurement = self._clean_unit(self.details["format"])
 
     @property
     def should_poll(self):
@@ -305,9 +338,14 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self.uuidAction, "device_typ": self.typ + "_sensor",
-                "plattform": "loxone", "room": self.room, "category": self.cat,
-                "show_last_changed": "true"}
+        return {
+            "uuid": self.uuidAction,
+            "device_typ": self.typ + "_sensor",
+            "plattform": "loxone",
+            "room": self.room,
+            "category": self.cat,
+            "show_last_changed": "true",
+        }
 
     @property
     def device_info(self):
@@ -317,7 +355,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
                 "name": self.name,
                 "manufacturer": "Loxone",
                 "model": "Sensor analog",
-                "type": self.typ
+                "type": self.typ,
             }
         else:
             return {
@@ -325,5 +363,5 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
                 "name": self.name,
                 "manufacturer": "Loxone",
                 "model": "Sensor digital",
-                "type": self.typ
+                "type": self.typ,
             }

@@ -4,58 +4,99 @@ Component to create an interface to the Loxone Miniserver.
 For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
-import sys
 import asyncio
-import re
 import logging
+import re
+import sys
 import traceback
 
 import homeassistant.components.group as group
 import voluptuous as vol
-from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
-                                 CONF_USERNAME, EVENT_COMPONENT_LOADED,
-                                 EVENT_HOMEASSISTANT_START,
-                                 EVENT_HOMEASSISTANT_STOP)
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_USERNAME,
+    EVENT_COMPONENT_LOADED,
+    EVENT_HOMEASSISTANT_START,
+    EVENT_HOMEASSISTANT_STOP,
+)
 from homeassistant.helpers import config_validation as cv
-
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
-from .miniserver import MiniServer, get_miniserver_from_config_entry
-from .api import LoxWs, LoxApp
+from .api import LoxApp, LoxWs
 from .helpers import get_miniserver_type
+from .miniserver import MiniServer, get_miniserver_from_config_entry
 
-REQUIREMENTS = ['websockets', "pycryptodome", "numpy", "requests_async"]
+REQUIREMENTS = ["websockets", "pycryptodome", "numpy", "requests_async"]
 
-from .const import (AES_KEY_SIZE, ATTR_CODE, ATTR_COMMAND, ATTR_UUID,
-                    ATTR_VALUE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
-                    CMD_ENCRYPT_CMD, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
-                    CMD_GET_PUBLIC_KEY, CMD_GET_VISUAL_PASSWD,
-                    CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
-                    CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
-                    CMD_REQUEST_TOKEN_JSON_WEB, CONF_SCENE_GEN, DEFAULT,
-                    DEFAULT_PORT, DEFAULT_TOKEN_PERSIST_NAME, DOMAIN,
-                    DOMAIN_DEVICES, ERROR_VALUE, EVENT, IV_BYTES,
-                    KEEP_ALIVE_PERIOD, LOXAPPPATH, LOXONE_PLATFORMS,
-                    SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
-                    SECUREDSENDDOMAIN, SENDDOMAIN, TIMEOUT, TOKEN_PERMISSION,
-                    TOKEN_REFRESH_DEFAULT_SECONDS, TOKEN_REFRESH_RETRY_COUNT,
-                    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN,
-                    CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE, cfmt)
+from .const import (
+    AES_KEY_SIZE,
+    ATTR_CODE,
+    ATTR_COMMAND,
+    ATTR_UUID,
+    ATTR_VALUE,
+    CMD_AUTH_WITH_TOKEN,
+    CMD_ENABLE_UPDATES,
+    CMD_ENCRYPT_CMD,
+    CMD_GET_KEY,
+    CMD_GET_KEY_AND_SALT,
+    CMD_GET_PUBLIC_KEY,
+    CMD_GET_VISUAL_PASSWD,
+    CMD_KEY_EXCHANGE,
+    CMD_REFRESH_TOKEN,
+    CMD_REFRESH_TOKEN_JSON_WEB,
+    CMD_REQUEST_TOKEN,
+    CMD_REQUEST_TOKEN_JSON_WEB,
+    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN,
+    CONF_SCENE_GEN,
+    CONF_SCENE_GEN_DELAY,
+    DEFAULT,
+    DEFAULT_DELAY_SCENE,
+    DEFAULT_PORT,
+    DEFAULT_TOKEN_PERSIST_NAME,
+    DOMAIN,
+    DOMAIN_DEVICES,
+    ERROR_VALUE,
+    EVENT,
+    IV_BYTES,
+    KEEP_ALIVE_PERIOD,
+    LOXAPPPATH,
+    LOXONE_PLATFORMS,
+    SALT_BYTES,
+    SALT_MAX_AGE_SECONDS,
+    SALT_MAX_USE_COUNT,
+    SECUREDSENDDOMAIN,
+    SENDDOMAIN,
+    TIMEOUT,
+    TOKEN_PERMISSION,
+    TOKEN_REFRESH_DEFAULT_SECONDS,
+    TOKEN_REFRESH_RETRY_COUNT,
+    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY,
+    cfmt,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-CONFIG_SCHEMA = vol.Schema({
-    DOMAIN: vol.Schema({
-        vol.Required(CONF_USERNAME): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-        vol.Required(CONF_HOST): cv.string,
-        vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
-        vol.Optional(CONF_SCENE_GEN, default=True): cv.boolean,
-        vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): cv.positive_int,
-        vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): bool,
-    }),
-}, extra=vol.ALLOW_EXTRA)
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Required(CONF_USERNAME): cv.string,
+                vol.Required(CONF_PASSWORD): cv.string,
+                vol.Required(CONF_HOST): cv.string,
+                vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
+                vol.Optional(CONF_SCENE_GEN, default=True): cv.boolean,
+                vol.Optional(
+                    CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE
+                ): cv.positive_int,
+                vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): bool,
+            }
+        ),
+    },
+    extra=vol.ALLOW_EXTRA,
+)
 
 _UNDEF: dict = {}
 
@@ -63,8 +104,9 @@ _UNDEF: dict = {}
 # TODO: Implement a complete restart of the loxone component without restart HomeAssistant
 # TODO: Unload device
 
+
 async def async_unload_entry(hass, config_entry):
-    """ Restart of Home Assistant needed."""
+    """Restart of Home Assistant needed."""
     return False
 
 
@@ -104,12 +146,11 @@ async def async_set_options(hass, config_entry):
         CONF_PASSWORD: data.pop(CONF_PASSWORD, ""),
         CONF_SCENE_GEN: data.pop(CONF_SCENE_GEN, ""),
         CONF_SCENE_GEN_DELAY: data.pop(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE),
-        CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: data.pop(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, ""),
-
+        CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: data.pop(
+            CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, ""
+        ),
     }
-    hass.config_entries.async_update_entry(
-        config_entry, data=data, options=options
-    )
+    hass.config_entries.async_update_entry(config_entry, data=data, options=options)
 
 
 async def async_config_entry_updated(hass, entry) -> None:
@@ -169,7 +210,7 @@ async def async_setup_entry(hass, config_entry):
 
     async def loxone_discovered(event):
         if "component" in event.data:
-            if event.data['component'] == DOMAIN:
+            if event.data["component"] == DOMAIN:
                 try:
                     _LOGGER.info("loxone discovered")
                     await asyncio.sleep(0.1)
@@ -183,22 +224,21 @@ async def async_setup_entry(hass, config_entry):
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
-                        attr = s_dict['attributes']
-                        if "plattform" in attr and \
-                                attr['plattform'] == DOMAIN:
-                            device_typ = attr.get('device_typ', "")
+                        attr = s_dict["attributes"]
+                        if "plattform" in attr and attr["plattform"] == DOMAIN:
+                            device_typ = attr.get("device_typ", "")
                             if device_typ == "analog_sensor":
-                                sensors_analog.append(s_dict['entity_id'])
+                                sensors_analog.append(s_dict["entity_id"])
                             elif device_typ == "digital_sensor":
-                                sensors_digital.append(s_dict['entity_id'])
+                                sensors_digital.append(s_dict["entity_id"])
                             elif device_typ in ["Jalousie", "Gate", "Window"]:
-                                covers.append(s_dict['entity_id'])
+                                covers.append(s_dict["entity_id"])
                             elif device_typ in ["Switch", "Pushbutton", "TimedSwitch"]:
-                                switches.append(s_dict['entity_id'])
+                                switches.append(s_dict["entity_id"])
                             elif device_typ in ["LightControllerV2", "Dimmer"]:
-                                lights.append(s_dict['entity_id'])
+                                lights.append(s_dict["entity_id"])
                             elif device_typ == "IRoomControllerV2":
-                                climates.append(s_dict['entity_id'])
+                                climates.append(s_dict["entity_id"])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
@@ -208,32 +248,61 @@ async def async_setup_entry(hass, config_entry):
                     climates.sort()
 
                     await group.Group.async_create_group(
-                        hass, "Loxone Analog Sensors", object_id="loxone_analog", entity_ids=sensors_analog)
+                        hass,
+                        "Loxone Analog Sensors",
+                        object_id="loxone_analog",
+                        entity_ids=sensors_analog,
+                    )
 
                     await group.Group.async_create_group(
-                        hass, "Loxone Digital Sensors", object_id="loxone_digital", entity_ids=sensors_digital)
+                        hass,
+                        "Loxone Digital Sensors",
+                        object_id="loxone_digital",
+                        entity_ids=sensors_digital,
+                    )
 
                     await group.Group.async_create_group(
-                        hass, "Loxone Switches", object_id="loxone_switches", entity_ids=switches)
+                        hass,
+                        "Loxone Switches",
+                        object_id="loxone_switches",
+                        entity_ids=switches,
+                    )
 
                     await group.Group.async_create_group(
-                        hass, "Loxone Covers", object_id="loxone_covers", entity_ids=covers)
+                        hass,
+                        "Loxone Covers",
+                        object_id="loxone_covers",
+                        entity_ids=covers,
+                    )
 
                     await group.Group.async_create_group(
-                        hass, "Loxone Lights", object_id="loxone_lights", entity_ids=lights)
+                        hass,
+                        "Loxone Lights",
+                        object_id="loxone_lights",
+                        entity_ids=lights,
+                    )
 
                     await group.Group.async_create_group(
-                        hass, "Loxone Room Controllers", object_id="loxone_climates", entity_ids=climates)
+                        hass,
+                        "Loxone Room Controllers",
+                        object_id="loxone_climates",
+                        entity_ids=climates,
+                    )
 
                     await asyncio.sleep(1)
 
                     await group.Group.async_create_group(
-                        hass, "Loxone Group", object_id="loxone_group", entity_ids=["group.loxone_analog",
-                                                                                    "group.loxone_digital",
-                                                                                    "group.loxone_switches",
-                                                                                    "group.loxone_covers",
-                                                                                    "group.loxone_lights",
-                                                                                    ])
+                        hass,
+                        "Loxone Group",
+                        object_id="loxone_group",
+                        entity_ids=[
+                            "group.loxone_analog",
+                            "group.loxone_digital",
+                            "group.loxone_switches",
+                            "group.loxone_covers",
+                            "group.loxone_lights",
+                        ],
+                    )
                 except:
                     traceback.print_exc()
 
@@ -246,7 +315,9 @@ async def async_setup_entry(hass, config_entry):
     hass.bus.async_listen(SENDDOMAIN, miniserver.listen_loxone_send)
     hass.bus.async_listen(SECUREDSENDDOMAIN, miniserver.listen_loxone_send)
 
-    hass.services.async_register(DOMAIN, 'event_websocket_command', handle_websocket_command)
+    hass.services.async_register(
+        DOMAIN, "event_websocket_command", handle_websocket_command
+    )
 
     return True
 

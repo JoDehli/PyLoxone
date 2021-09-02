@@ -11,8 +11,11 @@ from homeassistant.const import STATE_UNKNOWN
 
 from . import LoxoneEntity
 from .const import SENDDOMAIN
-from .helpers import (get_all_switch_entities, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import (
+    get_all_switch_entities,
+    get_cat_name_from_cat_uuid,
+    get_room_name_from_room_uuid,
+)
 from .miniserver import get_miniserver_from_config_entry
 
 _LOGGER = logging.getLogger(__name__)
@@ -25,26 +28,60 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     devices = []
 
     for switch_entity in get_all_switch_entities(loxconfig):
-        if switch_entity['type'] in ["Pushbutton", "Switch"]:
-            switch_entity.update({'room': get_room_name_from_room_uuid(loxconfig, switch_entity.get('room', '')),
-                                  'cat': get_cat_name_from_cat_uuid(loxconfig, switch_entity.get('cat', ''))})
+        if switch_entity["type"] in ["Pushbutton", "Switch"]:
+            switch_entity.update(
+                {
+                    "room": get_room_name_from_room_uuid(
+                        loxconfig, switch_entity.get("room", "")
+                    ),
+                    "cat": get_cat_name_from_cat_uuid(
+                        loxconfig, switch_entity.get("cat", "")
+                    ),
+                }
+            )
             new_push_button = LoxoneSwitch(**switch_entity)
             devices.append(new_push_button)
 
-        elif switch_entity['type'] == "TimedSwitch":
-            switch_entity.update({'room': get_room_name_from_room_uuid(loxconfig, switch_entity.get('room', '')),
-                                  'cat': get_cat_name_from_cat_uuid(loxconfig, switch_entity.get('cat', ''))})
+        elif switch_entity["type"] == "TimedSwitch":
+            switch_entity.update(
+                {
+                    "room": get_room_name_from_room_uuid(
+                        loxconfig, switch_entity.get("room", "")
+                    ),
+                    "cat": get_cat_name_from_cat_uuid(
+                        loxconfig, switch_entity.get("cat", "")
+                    ),
+                }
+            )
             new_push_button = LoxoneTimedSwitch(**switch_entity)
             devices.append(new_push_button)
 
-        elif switch_entity['type'] == "Intercom":
+        elif switch_entity["type"] == "Intercom":
             if "subControls" in switch_entity:
-                for sub_name in switch_entity['subControls']:
-                    subcontol = switch_entity['subControls'][sub_name]
+                for sub_name in switch_entity["subControls"]:
+                    subcontol = switch_entity["subControls"][sub_name]
                     _ = subcontol
-                    _.update({'name': "{} - {}".format(switch_entity['name'], subcontol['name'])})
-                    _.update({'room': get_room_name_from_room_uuid(loxconfig, switch_entity.get('room', ''))})
-                    _.update({'cat': get_cat_name_from_cat_uuid(loxconfig, switch_entity.get('cat', ''))})
+                    _.update(
+                        {
+                            "name": "{} - {}".format(
+                                switch_entity["name"], subcontol["name"]
+                            )
+                        }
+                    )
+                    _.update(
+                        {
+                            "room": get_room_name_from_room_uuid(
+                                loxconfig, switch_entity.get("room", "")
+                            )
+                        }
+                    )
+                    _.update(
+                        {
+                            "cat": get_cat_name_from_cat_uuid(
+                                loxconfig, switch_entity.get("cat", "")
+                            )
+                        }
+                    )
                     new_push_button = LoxoneIntercomSubControl(**_)
                     devices.append(new_push_button)
 
@@ -67,13 +104,13 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
         self._delay_remain = 0.0
         self._delay_time_total = 0.0
 
-        if 'deactivationDelay' in self.states:
-            self._deactivation_delay = self.states['deactivationDelay']
+        if "deactivationDelay" in self.states:
+            self._deactivation_delay = self.states["deactivationDelay"]
         else:
             self._deactivation_delay = ""
 
-        if 'deactivationDelayTotal' in self.states:
-            self._deactivation_delay_total = self.states['deactivationDelayTotal']
+        if "deactivationDelayTotal" in self.states:
+            self._deactivation_delay_total = self.states["deactivationDelayTotal"]
         else:
             self._deactivation_delay_total = ""
 
@@ -99,15 +136,13 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
 
     def turn_on(self, **kwargs):
         """Turn the switch on."""
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="pulse"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse"))
         self._state = True
         self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="pulse"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse"))
         self._state = False
         self.schedule_update_ha_state()
 
@@ -135,19 +170,24 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
 
         Implemented by platform classes.
         """
-        state_dict = {"uuid": self.uuidAction,
-                      "room": self.room,
-                      "category": self.cat,
-                      "device_typ": self.type,
-                      "plattform": "loxone"}
+        state_dict = {
+            "uuid": self.uuidAction,
+            "room": self.room,
+            "category": self.cat,
+            "device_typ": self.type,
+            "plattform": "loxone",
+        }
 
         if self._state == 0.0:
             state_dict.update({"delay_time_total": str(self._delay_time_total)})
 
         else:
-            state_dict.update({"delay": str(self._delay_remain),
-                               "delay_time_total": str(self._delay_time_total)
-                               })
+            state_dict.update(
+                {
+                    "delay": str(self._delay_remain),
+                    "delay_time_total": str(self._delay_time_total),
+                }
+            )
         return state_dict
 
 
@@ -185,11 +225,13 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
         """Turn the switch on."""
         if not self._state:
             if self.type == "Pushbutton":
-                self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self.uuidAction, value="pulse"))
+                self.hass.bus.async_fire(
+                    SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse")
+                )
             else:
-                self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self.uuidAction, value="On"))
+                self.hass.bus.async_fire(
+                    SENDDOMAIN, dict(uuid=self.uuidAction, value="On")
+                )
             self._state = True
             self.schedule_update_ha_state()
 
@@ -197,18 +239,20 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
         """Turn the device off."""
         if self._state:
             if self.type == "Pushbutton":
-                self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self.uuidAction, value="pulse"))
+                self.hass.bus.async_fire(
+                    SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse")
+                )
             else:
-                self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self.uuidAction, value="Off"))
+                self.hass.bus.async_fire(
+                    SENDDOMAIN, dict(uuid=self.uuidAction, value="Off")
+                )
             self._state = False
             self.schedule_update_ha_state()
 
     async def event_handler(self, event):
-        if self.uuidAction in event.data or self.states['active'] in event.data:
-            if self.states['active'] in event.data:
-                self._state = event.data[self.states['active']]
+        if self.uuidAction in event.data or self.states["active"] in event.data:
+            if self.states["active"] in event.data:
+                self._state = event.data[self.states["active"]]
             self.async_schedule_update_ha_state()
 
     @property
@@ -217,8 +261,14 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self.uuidAction, "state_uuid": self.states['active'], "room": self.room, "category": self.cat,
-                "device_typ": self.type, "plattform": "loxone"}
+        return {
+            "uuid": self.uuidAction,
+            "state_uuid": self.states["active"],
+            "room": self.room,
+            "category": self.cat,
+            "device_typ": self.type,
+            "plattform": "loxone",
+        }
 
 
 class LoxoneIntercomSubControl(LoxoneSwitch):
@@ -227,8 +277,7 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
 
     def turn_on(self, **kwargs):
         """Turn the switch on."""
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="on"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
         self._state = True
         self.schedule_update_ha_state()
 
@@ -238,5 +287,11 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
 
         Implemented by platform classes.
         """
-        return {"uuid": self.uuidAction, "state_uuid": self.states['active'], "room": self.room, "category": self.cat,
-                "device_typ": self.type, "plattform": "loxone"}
+        return {
+            "uuid": self.uuidAction,
+            "state_uuid": self.states["active"],
+            "room": self.room,
+            "category": self.cat,
+            "device_typ": self.type,
+            "plattform": "loxone",
+        }

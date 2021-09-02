@@ -2,28 +2,41 @@ import logging
 from typing import Any
 
 import homeassistant.util.color as color_util
-from homeassistant.components.light import (ATTR_BRIGHTNESS, ATTR_COLOR_TEMP,
-                                            ATTR_EFFECT, ATTR_HS_COLOR,
-                                            SUPPORT_BRIGHTNESS, SUPPORT_COLOR,
-                                            SUPPORT_COLOR_TEMP, SUPPORT_EFFECT,
-                                            LightEntity, ToggleEntity)
+from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
+    ATTR_COLOR_TEMP,
+    ATTR_EFFECT,
+    ATTR_HS_COLOR,
+    SUPPORT_BRIGHTNESS,
+    SUPPORT_COLOR,
+    SUPPORT_COLOR_TEMP,
+    SUPPORT_EFFECT,
+    LightEntity,
+    ToggleEntity,
+)
 from homeassistant.const import STATE_UNKNOWN
 
 from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN, STATE_OFF, STATE_ON
-from .helpers import (get_all_dimmer, get_all_light_controller,
-                      get_cat_name_from_cat_uuid, get_room_name_from_room_uuid,
-                      hass_to_lox, lox2hass_mapped, lox_to_hass,
-                      to_hass_color_temp, to_loxone_color_temp)
+from .helpers import (
+    get_all_dimmer,
+    get_all_light_controller,
+    get_cat_name_from_cat_uuid,
+    get_room_name_from_room_uuid,
+    hass_to_lox,
+    lox2hass_mapped,
+    lox_to_hass,
+    to_hass_color_temp,
+    to_loxone_color_temp,
+)
 from .miniserver import get_miniserver_from_config_entry
 
 _LOGGER = logging.getLogger(__name__)
-DEFAULT_NAME = 'Loxone Light Controller V2'
+DEFAULT_NAME = "Loxone Light Controller V2"
 DEFAULT_FORCE_UPDATE = False
 
 
-async def async_setup_platform(hass, config, async_add_devices,
-                               discovery_info=None):
+async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     """Set up Loxone Light Controller."""
     return True
 
@@ -31,9 +44,11 @@ async def async_setup_platform(hass, config, async_add_devices,
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up Loxone Light Controller."""
     miniserver = get_miniserver_from_config_entry(hass, config_entry)
-    generate_subcontrols = config_entry.options.get("generate_lightcontroller_subcontrols", False)
+    generate_subcontrols = config_entry.options.get(
+        "generate_lightcontroller_subcontrols", False
+    )
     loxconfig = miniserver.lox_config.json
-    identify = loxconfig['msInfo']['serialNr']
+    identify = loxconfig["msInfo"]["serialNr"]
     devices = []
     all_dimmers = []
     all_light_controller_dimmers = []
@@ -42,36 +57,76 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     all_dimmers = get_all_dimmer(loxconfig)
 
     for light_controller in get_all_light_controller(loxconfig):
-        light_controller.update({'room': get_room_name_from_room_uuid(loxconfig, light_controller.get('room', '')),
-                                 'cat': get_cat_name_from_cat_uuid(loxconfig, light_controller.get('cat', '')),
-                                 'async_add_devices': async_add_devices
-                                 })
+        light_controller.update(
+            {
+                "room": get_room_name_from_room_uuid(
+                    loxconfig, light_controller.get("room", "")
+                ),
+                "cat": get_cat_name_from_cat_uuid(
+                    loxconfig, light_controller.get("cat", "")
+                ),
+                "async_add_devices": async_add_devices,
+            }
+        )
         new_light_controller = LoxonelightcontrollerV2(**light_controller)
-        if 'subControls' in light_controller:
+        if "subControls" in light_controller:
             if generate_subcontrols:
-                for sub_controll in light_controller['subControls']:
-                    if sub_controll.find("masterValue") > -1 or sub_controll.find("masterColor") > 1:
+                for sub_controll in light_controller["subControls"]:
+                    if (
+                        sub_controll.find("masterValue") > -1
+                        or sub_controll.find("masterColor") > 1
+                    ):
                         continue
-                    if light_controller['subControls'][sub_controll]['type'] == "Dimmer":
-                        light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
-                        light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
-                        light_controller['subControls'][sub_controll][
-                            'lightcontroller_id'] = new_light_controller.unique_id
-                        all_light_controller_dimmers.append(light_controller['subControls'][sub_controll])
+                    if (
+                        light_controller["subControls"][sub_controll]["type"]
+                        == "Dimmer"
+                    ):
+                        light_controller["subControls"][sub_controll][
+                            "room"
+                        ] = light_controller.get("room", "")
+                        light_controller["subControls"][sub_controll][
+                            "cat"
+                        ] = light_controller.get("cat", "")
+                        light_controller["subControls"][sub_controll][
+                            "lightcontroller_id"
+                        ] = new_light_controller.unique_id
+                        all_light_controller_dimmers.append(
+                            light_controller["subControls"][sub_controll]
+                        )
 
-                    elif light_controller['subControls'][sub_controll]['type'] == "Switch":
-                        light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
-                        light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
-                        light_controller['subControls'][sub_controll][
-                            'lightcontroller_id'] = new_light_controller.unique_id
-                        all_switches.append(light_controller['subControls'][sub_controll])
+                    elif (
+                        light_controller["subControls"][sub_controll]["type"]
+                        == "Switch"
+                    ):
+                        light_controller["subControls"][sub_controll][
+                            "room"
+                        ] = light_controller.get("room", "")
+                        light_controller["subControls"][sub_controll][
+                            "cat"
+                        ] = light_controller.get("cat", "")
+                        light_controller["subControls"][sub_controll][
+                            "lightcontroller_id"
+                        ] = new_light_controller.unique_id
+                        all_switches.append(
+                            light_controller["subControls"][sub_controll]
+                        )
 
-                    elif light_controller['subControls'][sub_controll]['type'] == "ColorPickerV2":
-                        light_controller['subControls'][sub_controll]['room'] = light_controller.get('room', '')
-                        light_controller['subControls'][sub_controll]['cat'] = light_controller.get('cat', '')
-                        light_controller['subControls'][sub_controll][
-                            'lightcontroller_id'] = new_light_controller.unique_id
-                        all_color_picker.append(light_controller['subControls'][sub_controll])
+                    elif (
+                        light_controller["subControls"][sub_controll]["type"]
+                        == "ColorPickerV2"
+                    ):
+                        light_controller["subControls"][sub_controll][
+                            "room"
+                        ] = light_controller.get("room", "")
+                        light_controller["subControls"][sub_controll][
+                            "cat"
+                        ] = light_controller.get("cat", "")
+                        light_controller["subControls"][sub_controll][
+                            "lightcontroller_id"
+                        ] = new_light_controller.unique_id
+                        all_color_picker.append(
+                            light_controller["subControls"][sub_controll]
+                        )
 
         devices.append(new_light_controller)
 
@@ -79,32 +134,58 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 
     for dimmer in _:
         if dimmer in all_light_controller_dimmers:
-            dimmer.update({'room': get_room_name_from_room_uuid(loxconfig, light_controller.get('room', '')),
-                           'cat': get_cat_name_from_cat_uuid(loxconfig, light_controller.get('cat', '')),
-                           'async_add_devices': async_add_devices
-                           })
+            dimmer.update(
+                {
+                    "room": get_room_name_from_room_uuid(
+                        loxconfig, light_controller.get("room", "")
+                    ),
+                    "cat": get_cat_name_from_cat_uuid(
+                        loxconfig, light_controller.get("cat", "")
+                    ),
+                    "async_add_devices": async_add_devices,
+                }
+            )
         else:
-            dimmer.update({'room': get_room_name_from_room_uuid(loxconfig, dimmer.get('room', '')),
-                           'cat': get_cat_name_from_cat_uuid(loxconfig, dimmer.get('cat', '')),
-                           'async_add_devices': async_add_devices
-                           })
+            dimmer.update(
+                {
+                    "room": get_room_name_from_room_uuid(
+                        loxconfig, dimmer.get("room", "")
+                    ),
+                    "cat": get_cat_name_from_cat_uuid(loxconfig, dimmer.get("cat", "")),
+                    "async_add_devices": async_add_devices,
+                }
+            )
 
         new_dimmer = LoxoneDimmer(**dimmer)
         devices.append(new_dimmer)
 
     for switch in all_switches:
-        switch.update({'room': get_room_name_from_room_uuid(loxconfig, light_controller.get('room', '')),
-                       'cat': get_cat_name_from_cat_uuid(loxconfig, light_controller.get('cat', '')),
-                       'async_add_devices': async_add_devices
-                       })
+        switch.update(
+            {
+                "room": get_room_name_from_room_uuid(
+                    loxconfig, light_controller.get("room", "")
+                ),
+                "cat": get_cat_name_from_cat_uuid(
+                    loxconfig, light_controller.get("cat", "")
+                ),
+                "async_add_devices": async_add_devices,
+            }
+        )
         new_switch = LoxoneLight(**switch)
         devices.append(new_switch)
 
     for color_picker in all_color_picker:
-        color_picker.update({'room': get_room_name_from_room_uuid(loxconfig, light_controller.get('room', '')),
-                             'cat': get_cat_name_from_cat_uuid(loxconfig, light_controller.get('cat', '')),
-                             'async_add_devices': async_add_devices
-                             })
+        color_picker.update(
+            {
+                "room": get_room_name_from_room_uuid(
+                    loxconfig, light_controller.get("room", "")
+                ),
+                "cat": get_cat_name_from_cat_uuid(
+                    loxconfig, light_controller.get("cat", "")
+                ),
+                "async_add_devices": async_add_devices,
+            }
+        )
         new_color_picker = LoxoneColorPickerV2(**color_picker)
         devices.append(new_color_picker)
 
@@ -121,7 +202,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         self._active_moods = []
         self._moodlist = []
         self._additional_moodlist = []
-        self._async_add_devices = kwargs['async_add_devices']
+        self._async_add_devices = kwargs["async_add_devices"]
 
         self._master_brightness = STATE_UNKNOWN
         self._master_color = STATE_UNKNOWN
@@ -132,72 +213,119 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         self._uuid_dict = {}
 
         self._features = None
-        details = kwargs['details']
-        self.states['masterColor'] = details.get("masterColor", None)
-        self.states['masterValue'] = details.get("masterValue", None)
+        details = kwargs["details"]
+        self.states["masterColor"] = details.get("masterColor", None)
+        self.states["masterValue"] = details.get("masterValue", None)
         self._features = None
 
         if len(kwargs.get("subControls", {})) == 1:
             control = kwargs.get("subControls")[next(iter(kwargs.get("subControls")))]
-            if control['type'] == "ColorPickerV2":
-                if control['details']['pickerType'] == "Lumitech":
-                    self.states['masterColor'] = control.get("states", {}).get("color", None)
-                    self._features = SUPPORT_EFFECT | SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
-                elif control['details']['pickerType'] == "Rgb":
-                    self.states['masterColor'] = control.get("states", {}).get("color", None)
-                    self._uuid_dict[self.states['masterColor']] = control['uuidAction']
-                    self._features = SUPPORT_EFFECT | SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
+            if control["type"] == "ColorPickerV2":
+                if control["details"]["pickerType"] == "Lumitech":
+                    self.states["masterColor"] = control.get("states", {}).get(
+                        "color", None
+                    )
+                    self._features = (
+                        SUPPORT_EFFECT
+                        | SUPPORT_BRIGHTNESS
+                        | SUPPORT_COLOR
+                        | SUPPORT_COLOR_TEMP
+                    )
+                elif control["details"]["pickerType"] == "Rgb":
+                    self.states["masterColor"] = control.get("states", {}).get(
+                        "color", None
+                    )
+                    self._uuid_dict[self.states["masterColor"]] = control["uuidAction"]
+                    self._features = (
+                        SUPPORT_EFFECT
+                        | SUPPORT_BRIGHTNESS
+                        | SUPPORT_COLOR
+                        | SUPPORT_COLOR_TEMP
+                    )
                 else:
-                    _LOGGER.error("Type not implemented! {}".format(control['details']['pickerType']))
-            elif control['type'] == "Dimmer":
-                self.states['masterValue'] = control.get("states", {}).get("position", None)
-                self._uuid_dict[self.states['masterValue']] = control['uuidAction']
+                    _LOGGER.error(
+                        "Type not implemented! {}".format(
+                            control["details"]["pickerType"]
+                        )
+                    )
+            elif control["type"] == "Dimmer":
+                self.states["masterValue"] = control.get("states", {}).get(
+                    "position", None
+                )
+                self._uuid_dict[self.states["masterValue"]] = control["uuidAction"]
                 self._features = SUPPORT_EFFECT | SUPPORT_BRIGHTNESS
-            elif control['type'] == "Switch":
+            elif control["type"] == "Switch":
                 self._features = 0
             else:
-                _LOGGER.error("Type not implemented! {}".format(control['type']))
+                _LOGGER.error("Type not implemented! {}".format(control["type"]))
         else:
             sub_types = []
             for uuid, control in kwargs.get("subControls", {}).items():
-                if control['type'] not in sub_types:
-                    sub_types.append(control['type'])
+                if control["type"] not in sub_types:
+                    sub_types.append(control["type"])
                 if uuid.find("masterValue") > -1:
-                    self.states["masterValue"] = control.get('states', {}).get('position', None)
-                    self._uuid_dict[self.states['masterValue']] = control['uuidAction']
+                    self.states["masterValue"] = control.get("states", {}).get(
+                        "position", None
+                    )
+                    self._uuid_dict[self.states["masterValue"]] = control["uuidAction"]
 
                 if uuid.find("masterColor") > -1:
-                    self.states["masterColor"] = control.get('states', {}).get('color', None)
-                    self.states["masterTemp"] = control.get('states', {}).get('color', None)
-                    self._uuid_dict[self.states['masterColor']] = control['uuidAction']
+                    self.states["masterColor"] = control.get("states", {}).get(
+                        "color", None
+                    )
+                    self.states["masterTemp"] = control.get("states", {}).get(
+                        "color", None
+                    )
+                    self._uuid_dict[self.states["masterColor"]] = control["uuidAction"]
 
             if "ColorPickerV2" in sub_types and self.states["masterColor"] is None:
                 for uuid, control in kwargs.get("subControls", {}).items():
-                    if control.get('states', {}).get('color', None):
-                        self.states["masterColor"] = control.get('states', {}).get('color')
-                        self.states["masterTemp"] = control.get('states', {}).get('color')
-                        self._uuid_dict[self.states['masterColor']] = control['uuidAction']
+                    if control.get("states", {}).get("color", None):
+                        self.states["masterColor"] = control.get("states", {}).get(
+                            "color"
+                        )
+                        self.states["masterTemp"] = control.get("states", {}).get(
+                            "color"
+                        )
+                        self._uuid_dict[self.states["masterColor"]] = control[
+                            "uuidAction"
+                        ]
 
             if len(sub_types) == 1:
-                if 'Switch' in sub_types:
+                if "Switch" in sub_types:
                     self._features = SUPPORT_EFFECT
-                elif 'ColorPickerV2' in sub_types:
-                    self._features = SUPPORT_EFFECT | SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
-                elif 'Dimmer' in sub_types:
+                elif "ColorPickerV2" in sub_types:
+                    self._features = (
+                        SUPPORT_EFFECT
+                        | SUPPORT_BRIGHTNESS
+                        | SUPPORT_COLOR
+                        | SUPPORT_COLOR_TEMP
+                    )
+                elif "Dimmer" in sub_types:
                     self._features = SUPPORT_EFFECT | SUPPORT_BRIGHTNESS
                 else:
                     _LOGGER.error("Case not implemented! {}".format(sub_types))
             else:
-                if 'ColorPickerV2' in sub_types:
-                    self._features = SUPPORT_EFFECT | SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
+                if "ColorPickerV2" in sub_types:
+                    self._features = (
+                        SUPPORT_EFFECT
+                        | SUPPORT_BRIGHTNESS
+                        | SUPPORT_COLOR
+                        | SUPPORT_COLOR_TEMP
+                    )
 
-                elif 'Dimmer' in sub_types:
+                elif "Dimmer" in sub_types:
                     self._features = SUPPORT_EFFECT | SUPPORT_BRIGHTNESS
-                elif 'Switch' in sub_types:
+                elif "Switch" in sub_types:
                     self._features = SUPPORT_EFFECT
                 else:
                     _LOGGER.error("Case not implemented! {}".format(sub_types))
-                self._features = SUPPORT_EFFECT | SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
+                self._features = (
+                    SUPPORT_EFFECT
+                    | SUPPORT_BRIGHTNESS
+                    | SUPPORT_COLOR
+                    | SUPPORT_COLOR_TEMP
+                )
 
     @property
     def supported_features(self):
@@ -234,15 +362,15 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
     def get_moodname_by_id(self, _id):
         for mood in self._moodlist:
             if "id" in mood and "name" in mood:
-                if mood['id'] == _id:
-                    return mood['name']
+                if mood["id"] == _id:
+                    return mood["name"]
         return _id
 
     def get_id_by_moodname(self, _name):
         for mood in self._moodlist:
             if "id" in mood and "name" in mood:
-                if mood['name'] == _name:
-                    return mood['id']
+                if mood["name"] == _name:
+                    return mood["id"]
         return _name
 
     @property
@@ -251,7 +379,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         moods = []
         for mood in self._moodlist:
             if "name" in mood:
-                moods.append(mood['name'])
+                moods.append(mood["name"])
         return moods
 
     @property
@@ -263,15 +391,18 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
 
     def turn_on(self, **kwargs) -> None:
         if ATTR_EFFECT in kwargs:
-            effects = kwargs['effect'].split(",")
+            effects = kwargs["effect"].split(",")
             if len(effects) == 1:
-                mood_id = self.get_id_by_moodname(kwargs['effect'])
-                if mood_id != kwargs['effect']:
-                    self.hass.bus.async_fire(SENDDOMAIN,
-                                             dict(uuid=self.uuidAction, value="changeTo/{}".format(mood_id)))
+                mood_id = self.get_id_by_moodname(kwargs["effect"])
+                if mood_id != kwargs["effect"]:
+                    self.hass.bus.async_fire(
+                        SENDDOMAIN,
+                        dict(uuid=self.uuidAction, value="changeTo/{}".format(mood_id)),
+                    )
                 else:
-                    self.hass.bus.async_fire(SENDDOMAIN,
-                                             dict(uuid=self.uuidAction, value="plus"))
+                    self.hass.bus.async_fire(
+                        SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
+                    )
             else:
                 effect_ids = []
                 for _ in effects:
@@ -279,51 +410,86 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
                     if mood_id != _:
                         effect_ids.append(mood_id)
 
-                self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self.uuidAction, value="on"))
+                self.hass.bus.async_fire(
+                    SENDDOMAIN, dict(uuid=self.uuidAction, value="on")
+                )
 
                 for _ in effect_ids:
-                    self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="addMood/{}".format(_)))
+                    self.hass.bus.async_fire(
+                        SENDDOMAIN,
+                        dict(uuid=self.uuidAction, value="addMood/{}".format(_)),
+                    )
 
         if ATTR_BRIGHTNESS in kwargs:
             if self.states.get("masterValue", None):
-                self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self._uuid_dict.get(self.states.get("masterValue"), self.uuidAction),
-                                              value='{}'.format(round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])))))
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self._uuid_dict.get(
+                            self.states.get("masterValue"), self.uuidAction
+                        ),
+                        value="{}".format(round(hass_to_lox(kwargs[ATTR_BRIGHTNESS]))),
+                    ),
+                )
             elif self.color_temp:
-                self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self.uuidAction,
-                                              value='temp({},{})'.format(
-                                                  round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])),
-                                                  int(to_loxone_color_temp(self.color_temp)))))
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self.uuidAction,
+                        value="temp({},{})".format(
+                            round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])),
+                            int(to_loxone_color_temp(self.color_temp)),
+                        ),
+                    ),
+                )
             elif self.hs_color:
                 r, g, b = color_util.color_hs_to_RGB(self.hs_color[0], self.hs_color[1])
                 h, s, v = color_util.color_RGB_to_hsv(r, g, b)
-                self.hass.bus.async_fire(SENDDOMAIN,
-                                         dict(uuid=self._uuid_dict.get(self.states.get("masterColor"), self.uuidAction),
-                                              value='hsv({},{},{})'.format(h, s,
-                                                                           round(hass_to_lox(
-                                                                               kwargs[ATTR_BRIGHTNESS])))))
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self._uuid_dict.get(
+                            self.states.get("masterColor"), self.uuidAction
+                        ),
+                        value="hsv({},{},{})".format(
+                            h, s, round(hass_to_lox(kwargs[ATTR_BRIGHTNESS]))
+                        ),
+                    ),
+                )
 
         if ATTR_HS_COLOR in kwargs:
-            r, g, b = color_util.color_hs_to_RGB(kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1])
+            r, g, b = color_util.color_hs_to_RGB(
+                kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1]
+            )
             h, s, v = color_util.color_RGB_to_hsv(r, g, b)
             if self.brightness:
                 v = round(hass_to_lox(self.brightness))
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid_dict.get(self.states.get("masterColor"), self.uuidAction),
-                                          value='hsv({},{},{})'.format(h, s, v)))
+            self.hass.bus.async_fire(
+                SENDDOMAIN,
+                dict(
+                    uuid=self._uuid_dict.get(
+                        self.states.get("masterColor"), self.uuidAction
+                    ),
+                    value="hsv({},{},{})".format(h, s, v),
+                ),
+            )
 
         if ATTR_COLOR_TEMP in kwargs:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self._uuid_dict.get(self.states.get("masterColor"), self.uuidAction),
-                                          value='temp({},{})'.format(round(hass_to_lox(self.brightness)),
-                                                                     int(to_loxone_color_temp(
-                                                                         kwargs[ATTR_COLOR_TEMP])))))
+            self.hass.bus.async_fire(
+                SENDDOMAIN,
+                dict(
+                    uuid=self._uuid_dict.get(
+                        self.states.get("masterColor"), self.uuidAction
+                    ),
+                    value="temp({},{})".format(
+                        round(hass_to_lox(self.brightness)),
+                        int(to_loxone_color_temp(kwargs[ATTR_COLOR_TEMP])),
+                    ),
+                ),
+            )
 
         if kwargs == {}:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value="on"))
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
         self.schedule_update_ha_state()
 
     @property
@@ -343,11 +509,12 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
     def hs_color(self):
         if self._master_color is STATE_UNKNOWN or self._master_color is None:
             return None
-        return color_util.color_RGB_to_hs(self._master_color[0], self._master_color[1], self._master_color[2])
+        return color_util.color_RGB_to_hs(
+            self._master_color[0], self._master_color[1], self._master_color[2]
+        )
 
     def turn_off(self, **kwargs) -> None:
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="off"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="off"))
         self.schedule_update_ha_state()
 
     async def event_handler(self, event):
@@ -362,35 +529,39 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
             request_update = True
 
         if self.states["moodList"] in event.data:
-            event.data[self.states["moodList"]] = event.data[self.states["moodList"]].replace("true", "True")
-            event.data[self.states["moodList"]] = event.data[self.states["moodList"]].replace("false", "False")
+            event.data[self.states["moodList"]] = event.data[
+                self.states["moodList"]
+            ].replace("true", "True")
+            event.data[self.states["moodList"]] = event.data[
+                self.states["moodList"]
+            ].replace("false", "False")
             self._moodlist = eval(event.data[self.states["moodList"]])
             request_update = True
 
         if self.states["additionalMoods"] in event.data:
-            self._additional_moodlist = eval(event.data[self.states['additionalMoods']])
+            self._additional_moodlist = eval(event.data[self.states["additionalMoods"]])
             request_update = True
 
-        if event.data.get(self.states['masterColor'], None):
-            color = event.data.get(self.states['masterColor'])
-            if color.startswith('hsv'):
-                color = color.replace('hsv', '')
+        if event.data.get(self.states["masterColor"], None):
+            color = event.data.get(self.states["masterColor"])
+            if color.startswith("hsv"):
+                color = color.replace("hsv", "")
                 color = eval(color)
                 self._master_color = color_util.color_hs_to_RGB(color[0], color[1])
                 self._master_color_temp = None
                 self._master_brightness = lox_to_hass(color[2])
                 request_update = True
 
-            elif color.startswith('temp'):
-                color = color.replace('temp', '')
+            elif color.startswith("temp"):
+                color = color.replace("temp", "")
                 color = eval(color)
                 self._master_color_temp = to_hass_color_temp(color[1])
                 self._master_brightness = lox_to_hass(color[0])
                 self._master_color = None
                 request_update = True
 
-        if event.data.get(self.states['masterValue'], None):
-            brightness = event.data.get(self.states['masterValue'])
+        if event.data.get(self.states["masterValue"], None):
+            brightness = event.data.get(self.states["masterValue"])
             if isinstance(brightness, (int, float)):
                 self._master_brightness = lox_to_hass(brightness)
                 self._master_color = None
@@ -454,10 +625,14 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self.uuidAction, "room": self.room,
-                "category": self.cat,
-                "selected_scene": self.effect,
-                "device_typ": self.type, "plattform": "loxone"}
+        return {
+            "uuid": self.uuidAction,
+            "room": self.room,
+            "category": self.cat,
+            "selected_scene": self.effect,
+            "device_typ": self.type,
+            "plattform": "loxone",
+        }
 
     @property
     def icon(self):
@@ -471,7 +646,7 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
         self._state = STATE_UNKNOWN
-        self._async_add_devices = kwargs['async_add_devices']
+        self._async_add_devices = kwargs["async_add_devices"]
         self.light_controller_id = kwargs.get("lightcontroller_id", None)
 
     @property
@@ -482,7 +657,7 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
                 "name": self.name,
                 "manufacturer": "Loxone",
                 "model": "LightControllerV2",
-                "type": self.type
+                "type": self.type,
             }
         else:
             return {
@@ -490,7 +665,7 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
                 "name": self.name,
                 "manufacturer": "Loxone",
                 "model": "Light",
-                "type": self.type
+                "type": self.type,
             }
 
     @property
@@ -506,13 +681,11 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
             return False
 
     def turn_on(self, **kwargs: Any) -> None:
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="on"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
         self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs: Any) -> None:
-        self.hass.bus.async_fire(SENDDOMAIN,
-                                 dict(uuid=self.uuidAction, value="off"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="off"))
         self.schedule_update_ha_state()
 
     @property
@@ -521,9 +694,13 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self.uuidAction, "room": self.room,
-                "category": self.cat,
-                "device_typ": self.type, "plattform": "loxone"}
+        return {
+            "uuid": self.uuidAction,
+            "room": self.room,
+            "category": self.cat,
+            "device_typ": self.type,
+            "plattform": "loxone",
+        }
 
     @property
     def supported_features(self):
@@ -532,9 +709,9 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
 
     async def event_handler(self, event):
         request_update = False
-        if 'active' in self.states:
-            if self.states['active'] in event.data:
-                self._state = event.data[self.states['active']]
+        if "active" in self.states:
+            if self.states["active"] in event.data:
+                self._state = event.data[self.states["active"]]
                 request_update = True
 
         if request_update:
@@ -542,10 +719,9 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
 
 
 class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
-
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
-        self._async_add_devices = kwargs['async_add_devices']
+        self._async_add_devices = kwargs["async_add_devices"]
         self._position = 0
         self._color_temp = 0
         self._rgb_color = color_util.color_hs_to_RGB(0, 0)
@@ -584,32 +760,48 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
 
     def turn_on(self, **kwargs) -> None:
         if ATTR_BRIGHTNESS in kwargs:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction,
-                                          value='temp({},{})'.format(round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])),
-                                                                     int(to_loxone_color_temp(self._color_temp)))))
+            self.hass.bus.async_fire(
+                SENDDOMAIN,
+                dict(
+                    uuid=self.uuidAction,
+                    value="temp({},{})".format(
+                        round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])),
+                        int(to_loxone_color_temp(self._color_temp)),
+                    ),
+                ),
+            )
 
         elif ATTR_COLOR_TEMP in kwargs:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value='temp({},{})'.format(self._position,
-                                                                                           int(to_loxone_color_temp(
-                                                                                               kwargs[
-                                                                                                   ATTR_COLOR_TEMP]))
-                                                                                           )))
+            self.hass.bus.async_fire(
+                SENDDOMAIN,
+                dict(
+                    uuid=self.uuidAction,
+                    value="temp({},{})".format(
+                        self._position,
+                        int(to_loxone_color_temp(kwargs[ATTR_COLOR_TEMP])),
+                    ),
+                ),
+            )
         elif ATTR_HS_COLOR in kwargs:
-            r, g, b = color_util.color_hs_to_RGB(kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1])
+            r, g, b = color_util.color_hs_to_RGB(
+                kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1]
+            )
             h, s, v = color_util.color_RGB_to_hsv(r, g, b)
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value='hsv({},{},{})'.format(h, s, v)))
+            self.hass.bus.async_fire(
+                SENDDOMAIN,
+                dict(uuid=self.uuidAction, value="hsv({},{},{})".format(h, s, v)),
+            )
         else:
-            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/1"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/1")
+            )
         self.schedule_update_ha_state()
 
     def turn_off(self) -> None:
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/0"))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/0")
+        )
         self.schedule_update_ha_state()
-
-
 
     @property
     def device_state_attributes(self):
@@ -617,25 +809,27 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self.uuidAction,
-                "room": self.room,
-                "category": self.cat,
-                "device_typ": self.type,
-                "plattform": "loxone"}
+        return {
+            "uuid": self.uuidAction,
+            "room": self.room,
+            "category": self.cat,
+            "device_typ": self.type,
+            "plattform": "loxone",
+        }
 
     async def event_handler(self, e):
         request_update = False
-        if self.states['color'] in e.data:
-            color = e.data[self.states['color']]
-            if color.startswith('hsv'):
-                color = color.replace('hsv', '')
+        if self.states["color"] in e.data:
+            color = e.data[self.states["color"]]
+            if color.startswith("hsv"):
+                color = color.replace("hsv", "")
                 color = eval(color)
                 self._rgb_color = color_util.color_hs_to_RGB(color[0], color[1])
                 self._position = color[2]
                 request_update = True
 
-            elif color.startswith('temp'):
-                color = color.replace('temp', '')
+            elif color.startswith("temp"):
+                color = color.replace("temp", "")
                 color = eval(color)
                 self._color_temp = to_hass_color_temp(color[1])
                 self._position = color[0]
@@ -651,7 +845,9 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
 
     @property
     def hs_color(self):
-        return color_util.color_RGB_to_hs(self._rgb_color[0], self._rgb_color[1], self._rgb_color[2])
+        return color_util.color_RGB_to_hs(
+            self._rgb_color[0], self._rgb_color[1], self._rgb_color[2]
+        )
 
     @property
     def color_temp(self):
@@ -697,8 +893,6 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
         return "mdi:eyedropper-variant"
 
 
-
-
 class LoxoneDimmer(LoxoneEntity, LightEntity):
     """Representation of a Dimmer."""
 
@@ -713,7 +907,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         self._min = STATE_UNKNOWN
         self._max = STATE_UNKNOWN
         self._step = 1
-        self._async_add_devices = kwargs['async_add_devices']
+        self._async_add_devices = kwargs["async_add_devices"]
         self.light_controller_id = kwargs.get("lightcontroller_id", None)
 
     @property
@@ -755,8 +949,13 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
 
     def turn_on(self, **kwargs) -> None:
         if ATTR_BRIGHTNESS in kwargs:
-            self.hass.bus.async_fire(SENDDOMAIN,
-                                     dict(uuid=self.uuidAction, value=round(hass_to_lox(kwargs[ATTR_BRIGHTNESS]))))
+            self.hass.bus.async_fire(
+                SENDDOMAIN,
+                dict(
+                    uuid=self.uuidAction,
+                    value=round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])),
+                ),
+            )
         else:
             self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
         self.schedule_update_ha_state()
@@ -779,11 +978,15 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
             self._step = e.data[self._step_uuid]
             request_update = True
 
-        if self.states['position'] in e.data and isinstance(e.data[self.states['position']], (int, float)):
+        if self.states["position"] in e.data and isinstance(
+            e.data[self.states["position"]], (int, float)
+        ):
             if self._min is not None and self._max is not None:
-                self._position = lox2hass_mapped(e.data[self.states['position']], self._min, self._max)
+                self._position = lox2hass_mapped(
+                    e.data[self.states["position"]], self._min, self._max
+                )
             else:
-                self._position = lox_to_hass(e.data[self.states['position']])
+                self._position = lox_to_hass(e.data[self.states["position"]])
             request_update = True
 
         if request_update:
@@ -804,10 +1007,15 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
 
         Implemented by platform classes.
         """
-        return {"uuid": self.uuidAction, "room": self.room,
-                "category": self.cat,
-                "device_typ": self.type, "plattform": "loxone",
-                "max": self._max, "min": self._min}
+        return {
+            "uuid": self.uuidAction,
+            "room": self.room,
+            "category": self.cat,
+            "device_typ": self.type,
+            "plattform": "loxone",
+            "max": self._max,
+            "min": self._min,
+        }
 
     @property
     def supported_features(self):
@@ -817,4 +1025,3 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
     def icon(self):
         """Return the sensor icon."""
         return "mdi:brightness-6"
-

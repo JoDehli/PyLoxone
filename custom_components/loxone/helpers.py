@@ -45,21 +45,21 @@ def to_loxone_color_temp(temp):
 
 def get_room_name_from_room_uuid(lox_config, room_uuid):
     if "rooms" in lox_config:
-        if room_uuid in lox_config['rooms']:
-            return lox_config['rooms'][room_uuid]['name']
+        if room_uuid in lox_config["rooms"]:
+            return lox_config["rooms"][room_uuid]["name"]
 
     return ""
 
 
 def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
     if "cats" in lox_config:
-        if cat_uuid in lox_config['cats']:
-            return lox_config['cats'][cat_uuid]['name']
+        if cat_uuid in lox_config["cats"]:
+            return lox_config["cats"][cat_uuid]["name"]
     return ""
 
 
 def get_all_roomcontroller_entities(json_data):
-    return get_all(json_data, 'IRoomControllerV2')
+    return get_all(json_data, "IRoomControllerV2")
 
 
 def get_all_switch_entities(json_data):
@@ -67,27 +67,27 @@ def get_all_switch_entities(json_data):
 
 
 def get_all_covers(json_data):
-    return get_all(json_data, ["Jalousie", "Gate", 'Window'])
+    return get_all(json_data, ["Jalousie", "Gate", "Window"])
 
 
 def get_all_analog_info(json_data):
-    return get_all(json_data, 'InfoOnlyAnalog')
+    return get_all(json_data, "InfoOnlyAnalog")
 
 
 def get_all_digital_info(json_data):
-    return get_all(json_data, 'InfoOnlyDigital')
+    return get_all(json_data, "InfoOnlyDigital")
 
 
 def get_all_light_controller(json_data):
-    return get_all(json_data, 'LightControllerV2')
+    return get_all(json_data, "LightControllerV2")
 
 
 def get_all_alarm(json_data):
-    return get_all(json_data, 'Alarm')
+    return get_all(json_data, "Alarm")
 
 
 def get_all_dimmer(json_data):
-    return get_all(json_data, 'Dimmer')
+    return get_all(json_data, "Dimmer")
 
 
 def get_miniserver_type(t):
@@ -103,11 +103,11 @@ def get_miniserver_type(t):
 def get_all(json_data, name):
     controls = []
     if isinstance(name, list):
-        for c in json_data['controls'].keys():
-            if json_data['controls'][c]['type'] in name:
-                controls.append(json_data['controls'][c])
+        for c in json_data["controls"].keys():
+            if json_data["controls"][c]["type"] in name:
+                controls.append(json_data["controls"][c])
     else:
-        for c in json_data['controls'].keys():
-            if json_data['controls'][c]['type'] == name:
-                controls.append(json_data['controls'][c])
+        for c in json_data["controls"].keys():
+            if json_data["controls"][c]["type"] == name:
+                controls.append(json_data["controls"][c])
     return controls
