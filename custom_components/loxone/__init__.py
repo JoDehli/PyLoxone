@@ -289,7 +289,7 @@ async def async_setup_entry(hass, config_entry):
                         entity_ids=climates,
                     )
 
-                    await asyncio.sleep(1)
+                    await hass.async_block_till_done()
 
                     await group.Group.async_create_group(
                         hass,
