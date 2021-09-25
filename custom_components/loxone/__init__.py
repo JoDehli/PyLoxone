@@ -22,6 +22,8 @@ from homeassistant.const import (
     EVENT_HOMEASSISTANT_STOP,
 )
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
@@ -37,6 +39,7 @@ from .const import (
     ATTR_COMMAND,
     ATTR_UUID,
     ATTR_VALUE,
+    ATTR_AREA_CREATE,
     CMD_AUTH_WITH_TOKEN,
     CMD_ENABLE_UPDATES,
     CMD_ENCRYPT_CMD,
@@ -208,12 +211,37 @@ async def async_setup_entry(hass, config_entry):
         device_uuid = call.data.get(ATTR_UUID, DEFAULT)
         await miniserver.api.send_websocket_command(device_uuid, value)
 
+    async def sync_areas_with_loxone(data={}):
+        create_areas = data.get(ATTR_AREA_CREATE, DEFAULT)
+        if create_areas not in [True, False]:
+            create_areas = False
+        lox_items = []
+        er_registry = er.async_get(hass)
+        ar_registry = ar.async_get(hass)
+        for id, entry in er_registry.entities.items():
+            if entry.platform == DOMAIN:
+                state = hass.states.get(entry.entity_id)
+                if hasattr(state, "attributes") and "room" in state.attributes:
+                    area = ar_registry.async_get_area_by_name(state.attributes["room"])
+                    if area is None and create_areas:
+                        area = ar_registry.async_get_or_create(state.attributes["room"])
+                    if area and entry.area_id is None:
+                        lox_items.append((entry.entity_id, area.id))
+
+        for _ in lox_items:
+            er_registry.async_update_entity(_[0], area_id=_[1])
+
+    async def handle_sync_areas_with_loxone(call):
+        await sync_areas_with_loxone(call.data)
+
+
     async def loxone_discovered(event):
         if "component" in event.data:
             if event.data["component"] == DOMAIN:
                 try:
                     _LOGGER.info("loxone discovered")
                     await asyncio.sleep(0.1)
+                    await sync_areas_with_loxone()
                     entity_ids = hass.states.async_all()
                     sensors_analog = []
                     sensors_digital = []
@@ -317,6 +345,10 @@ async def async_setup_entry(hass, config_entry):
 
     hass.services.async_register(
         DOMAIN, "event_websocket_command", handle_websocket_command
+    )
+
+    hass.services.async_register(
+        DOMAIN, "sync_areas", handle_sync_areas_with_loxone
     )
 
     return True

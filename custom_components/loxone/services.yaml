@@ -3,9 +3,27 @@
 event_websocket_command:
   description: Send websocket commands to the loxone server. More infos and commands https://www.loxone.com/dede/kb/api/
   fields:
-      uuid:
-        description: Uuid for device which you want to send a command
-        example: 0f1e0b31-0178-7f77-ffff402fb0c34b9e
-      value:
-        description: Command which you want to send
-        example: pulse
+    uuid:
+      name: UUID
+      description: Uuid for device which you want to send a command
+      example: 0f1e0b31-0178-7f77-ffff402fb0c34b9e
+      selector:
+        text:
+    value:
+      name: Command
+      description: Command which you want to send
+      example: pulse
+      selector:
+        text:
+
+sync_areas:
+  description: Applies areas to the loxone entites based on the room from loxone. If area not exists entites will not be
+    changed
+  fields:
+    create_areas:
+      name: Area create
+      description:  Force to create areas when they not exist in HA
+      example: true
+      default: false
+      selector:
+        boolean:
