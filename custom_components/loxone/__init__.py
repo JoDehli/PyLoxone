@@ -12,73 +12,37 @@ import traceback
 
 import homeassistant.components.group as group
 import voluptuous as vol
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_PASSWORD,
-    CONF_PORT,
-    CONF_USERNAME,
-    EVENT_COMPONENT_LOADED,
-    EVENT_HOMEASSISTANT_START,
-    EVENT_HOMEASSISTANT_STOP,
-)
+from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
+                                 CONF_USERNAME, EVENT_COMPONENT_LOADED,
+                                 EVENT_HOMEASSISTANT_START,
+                                 EVENT_HOMEASSISTANT_STOP)
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
 from .api import LoxApp, LoxWs
+from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
+                    ATTR_UUID, ATTR_VALUE, CMD_AUTH_WITH_TOKEN,
+                    CMD_ENABLE_UPDATES, CMD_ENCRYPT_CMD, CMD_GET_KEY,
+                    CMD_GET_KEY_AND_SALT, CMD_GET_PUBLIC_KEY,
+                    CMD_GET_VISUAL_PASSWD, CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
+                    CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
+                    CMD_REQUEST_TOKEN_JSON_WEB,
+                    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
+                    CONF_SCENE_GEN_DELAY, DEFAULT, DEFAULT_DELAY_SCENE,
+                    DEFAULT_PORT, DEFAULT_TOKEN_PERSIST_NAME, DOMAIN,
+                    DOMAIN_DEVICES, ERROR_VALUE, EVENT, IV_BYTES,
+                    KEEP_ALIVE_PERIOD, LOXAPPPATH, LOXONE_PLATFORMS,
+                    SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
+                    SECUREDSENDDOMAIN, SENDDOMAIN, TIMEOUT, TOKEN_PERMISSION,
+                    TOKEN_REFRESH_DEFAULT_SECONDS, TOKEN_REFRESH_RETRY_COUNT,
+                    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, cfmt)
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_config_entry
 
 REQUIREMENTS = ["websockets", "pycryptodome", "numpy", "requests_async"]
-
-from .const import (
-    AES_KEY_SIZE,
-    ATTR_CODE,
-    ATTR_COMMAND,
-    ATTR_UUID,
-    ATTR_VALUE,
-    ATTR_AREA_CREATE,
-    CMD_AUTH_WITH_TOKEN,
-    CMD_ENABLE_UPDATES,
-    CMD_ENCRYPT_CMD,
-    CMD_GET_KEY,
-    CMD_GET_KEY_AND_SALT,
-    CMD_GET_PUBLIC_KEY,
-    CMD_GET_VISUAL_PASSWD,
-    CMD_KEY_EXCHANGE,
-    CMD_REFRESH_TOKEN,
-    CMD_REFRESH_TOKEN_JSON_WEB,
-    CMD_REQUEST_TOKEN,
-    CMD_REQUEST_TOKEN_JSON_WEB,
-    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN,
-    CONF_SCENE_GEN,
-    CONF_SCENE_GEN_DELAY,
-    DEFAULT,
-    DEFAULT_DELAY_SCENE,
-    DEFAULT_PORT,
-    DEFAULT_TOKEN_PERSIST_NAME,
-    DOMAIN,
-    DOMAIN_DEVICES,
-    ERROR_VALUE,
-    EVENT,
-    IV_BYTES,
-    KEEP_ALIVE_PERIOD,
-    LOXAPPPATH,
-    LOXONE_PLATFORMS,
-    SALT_BYTES,
-    SALT_MAX_AGE_SECONDS,
-    SALT_MAX_USE_COUNT,
-    SECUREDSENDDOMAIN,
-    SENDDOMAIN,
-    TIMEOUT,
-    TOKEN_PERMISSION,
-    TOKEN_REFRESH_DEFAULT_SECONDS,
-    TOKEN_REFRESH_RETRY_COUNT,
-    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY,
-    cfmt,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -234,14 +198,13 @@ async def async_setup_entry(hass, config_entry):
     async def handle_sync_areas_with_loxone(call):
         await sync_areas_with_loxone(call.data)
 
-
     async def loxone_discovered(event):
         if "component" in event.data:
             if event.data["component"] == DOMAIN:
                 try:
                     _LOGGER.info("loxone discovered")
                     await asyncio.sleep(0.1)
-                    await sync_areas_with_loxone()
+                    # await sync_areas_with_loxone()
                     entity_ids = hass.states.async_all()
                     sensors_analog = []
                     sensors_digital = []
@@ -347,9 +310,7 @@ async def async_setup_entry(hass, config_entry):
         DOMAIN, "event_websocket_command", handle_websocket_command
     )
 
-    hass.services.async_register(
-        DOMAIN, "sync_areas", handle_sync_areas_with_loxone
-    )
+    hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
 
     return True
 

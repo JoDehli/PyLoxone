@@ -55,7 +55,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
     return True
 
 
-async def async_setup_entry(hass, config_entry, async_add_devices):
+async def async_setup_entry(hass, config_entry, async_add_entites):
     """Set Loxone covers."""
     miniserver = get_miniserver_from_config_entry(hass, config_entry)
     loxconfig = miniserver.lox_config.json
@@ -82,16 +82,14 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 
     @callback
     def async_add_covers(_):
-        async_add_devices(_, True)
+        async_add_entites(_)
 
     miniserver.listeners.append(
         async_dispatcher_connect(
-            hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_covers
+            hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_entites
         )
     )
-
-    async_add_covers(covers)
-
+    async_add_entites(covers)
 
 class LoxoneGate(LoxoneEntity, CoverEntity):
     """Loxone Gate"""
@@ -209,7 +207,6 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
         return {
             "uuid": self.uuidAction,
             "device_typ": self.type,
-            "room": self.room,
             "category": self.cat,
             "plattform": "loxone",
         }
@@ -222,6 +219,7 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
             "manufacturer": "Loxone",
             "model": "Gate",
             "type": self.type,
+            "suggested_area": self.room
         }
 
 
@@ -334,7 +332,7 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
             "name": self.name,
             "manufacturer": "Loxone",
             "model": "Window",
-            "type": self.type,
+             "suggested_area": self.room
         }
 
 
@@ -641,4 +639,5 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             "manufacturer": "Loxone",
             "model": "Jalousie",
             "type": self.type,
+            "suggested_area": self.room
         }

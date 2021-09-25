@@ -291,4 +291,5 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             "manufacturer": "Loxone",
             "model": "Alarm",
             "type": self.type,
+            "suggested_area": self.room
         }

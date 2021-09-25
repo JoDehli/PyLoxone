@@ -10,7 +10,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import STATE_UNKNOWN
 
 from . import LoxoneEntity
-from .const import SENDDOMAIN
+from .const import SENDDOMAIN, DOMAIN
 from .helpers import (
     get_all_switch_entities,
     get_cat_name_from_cat_uuid,
@@ -21,11 +21,11 @@ from .miniserver import get_miniserver_from_config_entry
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, config_entry, async_add_devices):
+async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up entry."""
     miniserver = get_miniserver_from_config_entry(hass, config_entry)
     loxconfig = miniserver.lox_config.json
-    devices = []
+    entites = []
 
     for switch_entity in get_all_switch_entities(loxconfig):
         if switch_entity["type"] in ["Pushbutton", "Switch"]:
@@ -40,7 +40,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                 }
             )
             new_push_button = LoxoneSwitch(**switch_entity)
-            devices.append(new_push_button)
+            entites.append(new_push_button)
 
         elif switch_entity["type"] == "TimedSwitch":
             switch_entity.update(
@@ -54,7 +54,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                 }
             )
             new_push_button = LoxoneTimedSwitch(**switch_entity)
-            devices.append(new_push_button)
+            entites.append(new_push_button)
 
         elif switch_entity["type"] == "Intercom":
             if "subControls" in switch_entity:
@@ -83,10 +83,9 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                         }
                     )
                     new_push_button = LoxoneIntercomSubControl(**_)
-                    devices.append(new_push_button)
+                    entites.append(new_push_button)
 
-    async_add_devices(devices, True)
-    return True
+    async_add_entities(entites)
 
 
 async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
@@ -190,6 +189,16 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             )
         return state_dict
 
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": self.typ,
+            "suggested_area": self.room
+        }
+
 
 class LoxoneSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch or pushbutton"""
@@ -270,6 +279,16 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
             "plattform": "loxone",
         }
 
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": self.typ,
+            "suggested_area": self.room
+        }
+
 
 class LoxoneIntercomSubControl(LoxoneSwitch):
     def __init__(self, **kwargs):
@@ -294,4 +313,14 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
             "category": self.cat,
             "device_typ": self.type,
             "plattform": "loxone",
+        }
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": self.typ,
+            "suggested_area": self.room
         }
