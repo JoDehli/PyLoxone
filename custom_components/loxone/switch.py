@@ -195,7 +195,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             "identifiers": {(DOMAIN, self.unique_id)},
             "name": self.name,
             "manufacturer": "Loxone",
-            "model": self.typ,
+            "model": self.type,
             "suggested_area": self.room
         }
 
@@ -285,7 +285,7 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
             "identifiers": {(DOMAIN, self.unique_id)},
             "name": self.name,
             "manufacturer": "Loxone",
-            "model": self.typ,
+            "model": self.type,
             "suggested_area": self.room
         }
 
@@ -321,6 +321,6 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
             "identifiers": {(DOMAIN, self.unique_id)},
             "name": self.name,
             "manufacturer": "Loxone",
-            "model": self.typ,
+            "model": self.type,
             "suggested_area": self.room
         }

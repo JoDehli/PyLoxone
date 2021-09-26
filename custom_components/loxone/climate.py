@@ -65,11 +65,11 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
     return True
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up LoxoneRoomControllerV2."""
     miniserver = get_miniserver_from_config_entry(hass, config_entry)
     loxconfig = miniserver.lox_config.json
-    entites = []
+    devices = []
 
     for climate in get_all_roomcontroller_entities(loxconfig):
         climate.update(
@@ -84,9 +84,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         )
 
         new_thermostat = LoxoneRoomControllerV2(**climate)
-        entites.append(new_thermostat)
+        devices.append(new_thermostat)
 
-    async_add_entities(entites, True)
+    async_add_devices(devices)
+
 
 
 class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):

@@ -38,10 +38,10 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                         uuid = entity.uuidAction
                         devices.append(
                             Loxonelightscene(
-                                "{}-{}".format(entity.name, effect), mood_id, uuid
+                                "{}-{}".format(entity.name, effect), mood_id, uuid, entity.unique_id
                             )
                         )
-        async_add_devices(devices, True)
+        async_add_devices(devices)
 
     if miniserver.config_entry.options.get(CONF_SCENE_GEN, False):
         async_call_later(hass, delay_scene, gen_scenes)
@@ -55,10 +55,16 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
 
 
 class Loxonelightscene(Scene):
-    def __init__(self, name, mood_id, uuid):
+    def __init__(self, name, mood_id, uuid, light_controller_id):
         self._name = name
         self.mood_id = mood_id
         self.uuidAction = uuid
+        self._light_controller_id = light_controller_id
+
+    @property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return f"{self._light_controller_id}-{self.mood_id}"
 
     @property
     def name(self):
