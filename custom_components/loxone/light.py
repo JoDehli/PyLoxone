@@ -618,7 +618,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
             return False
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes.
 
         Implemented by platform classes.
@@ -804,7 +804,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
         self.schedule_update_ha_state()
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes.
 
         Implemented by platform classes.
@@ -1006,7 +1006,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         return self._position > 0
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes.
 
         Implemented by platform classes.

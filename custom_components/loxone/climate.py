@@ -139,7 +139,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         )
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes.
 
         Implemented by platform classes.
