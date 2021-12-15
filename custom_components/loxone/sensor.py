@@ -175,7 +175,7 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
         """
         return {
             "uuid": self.uuidAction,
-            "plattform": "loxone",
+            "platform": "loxone",
         }
 
     @property
@@ -253,7 +253,7 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
         return {
             "uuid": self.uuidAction,
             "device_typ": self.type,
-            "plattform": "loxone",
+            "platform": "loxone",
             "category": self.cat,
         }
 
@@ -339,7 +339,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
         return {
             "uuid": self.uuidAction,
             "device_typ": self.typ + "_sensor",
-            "plattform": "loxone",
+            "platform": "loxone",
             "category": self.cat,
         }
 

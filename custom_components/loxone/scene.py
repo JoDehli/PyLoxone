@@ -30,7 +30,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         for _ in entity_ids:
             state = hass.states.get(_)
             att = state.attributes
-            if "plattform" in att and att["plattform"] == DOMAIN:
+            if "platform" in att and att["platform"] == DOMAIN:
                 entity = hass.data["light"].get_entity(state.entity_id)
                 if entity.device_class == "LightControllerV2":
                     for effect in entity.effect_list:

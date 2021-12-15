@@ -12,7 +12,7 @@
   "dependencies": [],
   "codeowners": ["JoDehli"],
   "iot_class": "local_polling",
-  "homeassistant": "0.109.0",
+  "homeassistant": "2021.12.0",
   "render_readme": true,
   "config_flow": true,
   "version": "0.3.8"
