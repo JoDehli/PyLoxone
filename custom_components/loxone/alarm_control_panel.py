@@ -264,7 +264,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             "level": self._level,
             "armed_delay": self._armed_delay,
             "armed_delay_total_delay": self._armed_delay_total_delay,
-            "plattform": "loxone",
+            "platform": "loxone",
         }
 
     def _validate_code(self, code):

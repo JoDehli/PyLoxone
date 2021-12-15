@@ -174,7 +174,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             "room": self.room,
             "category": self.cat,
             "device_typ": self.type,
-            "plattform": "loxone",
+            "platform": "loxone",
         }
 
         if self._state == 0.0:
@@ -276,7 +276,7 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
             "room": self.room,
             "category": self.cat,
             "device_typ": self.type,
-            "plattform": "loxone",
+            "platform": "loxone",
         }
 
     @property
@@ -312,7 +312,7 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
             "room": self.room,
             "category": self.cat,
             "device_typ": self.type,
-            "plattform": "loxone",
+            "platform": "loxone",
         }
 
     @property
