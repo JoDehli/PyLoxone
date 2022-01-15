@@ -8,7 +8,7 @@ import logging
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
+from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity, SensorStateClass
 from homeassistant.const import (
     CONF_DEVICE_CLASS,
     CONF_NAME,
@@ -37,6 +37,7 @@ NEW_SENSOR = "sensors"
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = "Loxone Sensor"
+CONF_STATE_CLASS = "state_class"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -44,6 +45,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_NAME): cv.string,
         vol.Optional(CONF_UNIT_OF_MEASUREMENT): cv.string,
         vol.Optional(CONF_DEVICE_CLASS): cv.string,
+        vol.Optional(CONF_STATE_CLASS): cv.string,
     }
 )
 
@@ -135,6 +137,11 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
         else:
             self._device_class = None
 
+        if "state_class" in kwargs:
+            self._state_class = kwargs["state_class"]
+        else:
+            self._state_class = None
+
         self._state = STATE_UNKNOWN
 
     async def event_handler(self, e):
@@ -182,6 +189,10 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
         return self._device_class
+
+    @property
+    def state_class(self):
+        return self._state_class
 
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
