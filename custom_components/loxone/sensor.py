@@ -298,9 +298,9 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
 
     def extract_attributes(self):
         """Extract certain Attributes. Not all."""
-        if "text" in self.details:
-            self._on_state = self.details["text"]["on"]
-            self._off_state = self.details["text"]["off"]
+        # if "text" in self.details:
+        #     self._on_state = self.details["text"]["on"]
+        #     self._off_state = self.details["text"]["off"]
         if "format" in self.details:
             self._format = self._get_format(self.details["format"])
             self._unit_of_measurement = self._clean_unit(self.details["format"])
