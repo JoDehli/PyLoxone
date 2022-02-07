@@ -10,19 +10,15 @@ import logging
 from homeassistant.components.scene import Scene
 from homeassistant.helpers.entity_platform import async_call_later
 
-from .const import CONF_SCENE_GEN, DEFAULT_DELAY_SCENE, DOMAIN, SENDDOMAIN
-from .miniserver import get_miniserver_from_config
+from .const import CONF_SCENE_GEN, CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE, DOMAIN, SENDDOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up Scenes."""
-    delay_scene = config_entry.options.get("generate_scenes_delay", DEFAULT_DELAY_SCENE)
-
-    miniserver = get_miniserver_from_config(hass, hass.data[DOMAIN])
-    if miniserver is None:
-        return False
+    delay_scene = config_entry.options.get(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE)
+    create_scene = config_entry.options.get(CONF_SCENE_GEN, False)
 
     async def gen_scenes(_):
         devices = []
@@ -43,7 +39,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                         )
         async_add_devices(devices)
 
-    if miniserver.config_entry.options.get(CONF_SCENE_GEN, False):
+    if create_scene:
         async_call_later(hass, delay_scene, gen_scenes)
 
     return True
