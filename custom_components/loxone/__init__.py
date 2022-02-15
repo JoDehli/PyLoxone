@@ -161,9 +161,7 @@ async def async_setup_entry(hass, config_entry):
             config_entry, unique_id=miniserver.serial, data=new_data
         )
         # Workaround
-        await asyncio.sleep(5)
-
-
+        #await asyncio.sleep(5)
 
     await miniserver.async_update_device_registry()
 
@@ -300,6 +298,16 @@ async def async_setup_entry(hass, config_entry):
                     traceback.print_exc()
 
     await miniserver.async_set_callback(message_callback)
+
+    res = await miniserver.start_ws()
+    if not res:
+        return False
+
+    for platform in ["scene"]:
+        _LOGGER.debug("starting loxone {}...".format(platform))
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(config_entry, platform)
+        )
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, miniserver.start_loxone)
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, miniserver.stop_loxone)

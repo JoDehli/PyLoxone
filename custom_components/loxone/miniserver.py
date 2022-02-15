@@ -100,6 +100,13 @@ class MiniServer:
     async def shutdown(self, event) -> None:
         await self.api.stop()
 
+    async def start_ws(self):
+        res = await self.api.async_init()
+        if not res or res == -1:
+            _LOGGER.error("Error connecting to loxone miniserver #1")
+            return False
+        return True
+
     async def async_setup(self) -> bool:
         try:
             self.lox_config = LoxApp()
@@ -107,6 +114,7 @@ class MiniServer:
             self.lox_config.lox_pass = self.config_entry.options[CONF_PASSWORD]
             self.lox_config.host = self.config_entry.options[CONF_HOST]
             self.lox_config.port = self.config_entry.options[CONF_PORT]
+
             request_code = await self.lox_config.getJson()
 
             if request_code == 200 or request_code == "200":
@@ -118,12 +126,7 @@ class MiniServer:
                     loxconfig=self.lox_config.json,
                     loxone_url=self.lox_config.url,
                 )
-
-                res = await self.api.async_init()
-                if not res or res == -1:
-                    _LOGGER.error("Error connecting to loxone miniserver #1")
-                    return False
-
+                return True
             else:
                 if request_code in [401, "401"]:
                     _LOGGER.error(
@@ -140,7 +143,6 @@ class MiniServer:
         except ConnectionError:
             _LOGGER.error("Error connecting to loxone miniserver  #3")
             return False
-        return True
 
     async def async_set_callback(self, message_callback):
         self.api.message_call_back = message_callback

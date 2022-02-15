@@ -11,7 +11,6 @@ LOXONE_PLATFORMS = [
     "cover",
     "light",
     "climate",
-    "scene",
     "alarm_control_panel",
 ]
 
