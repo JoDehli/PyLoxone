@@ -143,14 +143,20 @@ async def async_setup_entry(hass, config_entry):
 
     hass.data[DOMAIN][miniserver.serial] = miniserver
 
+    setup_tasks = []
+
     for platform in LOXONE_PLATFORMS:
         _LOGGER.debug("starting loxone {}...".format(platform))
+
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(config_entry, platform)
         )
-        hass.async_create_task(
+        setup_tasks.append(hass.async_create_task(
             async_load_platform(hass, platform, DOMAIN, {}, config_entry)
-        )
+        ))
+
+    if setup_tasks:
+        await asyncio.wait(setup_tasks)
 
     config_entry.add_update_listener(async_config_entry_updated)
 
@@ -161,7 +167,7 @@ async def async_setup_entry(hass, config_entry):
             config_entry, unique_id=miniserver.serial, data=new_data
         )
         # Workaround
-        #await asyncio.sleep(5)
+        await asyncio.sleep(5)
 
     await miniserver.async_update_device_registry()
 

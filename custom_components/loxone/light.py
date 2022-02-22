@@ -489,7 +489,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
             )
 
         if kwargs == {}:
-            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="plus"))
         self.schedule_update_ha_state()
 
     @property
