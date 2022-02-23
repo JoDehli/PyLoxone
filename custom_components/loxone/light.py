@@ -394,9 +394,6 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         return None
 
     def turn_on(self, **kwargs) -> None:
-
-        print("turn_on", kwargs)
-
         if ATTR_EFFECT in kwargs:
             effects = kwargs["effect"].split(",")
             if len(effects) == 1:
