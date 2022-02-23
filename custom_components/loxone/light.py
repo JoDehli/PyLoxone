@@ -189,7 +189,11 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         new_color_picker = LoxoneColorPickerV2(**color_picker)
         entites.append(new_color_picker)
 
-    async_add_entities(entites)
+    e = []
+    for _ in entites:
+        if _.name == 'Licht 1 RGB':
+            e.append(_)
+    async_add_entities(e)
 
 
 class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
@@ -390,6 +394,9 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         return None
 
     def turn_on(self, **kwargs) -> None:
+
+        print("turn_on", kwargs)
+
         if ATTR_EFFECT in kwargs:
             effects = kwargs["effect"].split(",")
             if len(effects) == 1:
@@ -470,7 +477,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
                     uuid=self._uuid_dict.get(
                         self.states.get("masterColor"), self.uuidAction
                     ),
-                    value="hsv({},{},{})".format(h, s, v),
+                    value="hsv({},{},{})".format(h, s, round(hass_to_lox(kwargs.get(ATTR_BRIGHTNESS, v)))),
                 ),
             )
 
@@ -482,7 +489,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
                         self.states.get("masterColor"), self.uuidAction
                     ),
                     value="temp({},{})".format(
-                        round(hass_to_lox(self.brightness)),
+                        round(hass_to_lox(kwargs.get(ATTR_BRIGHTNESS, self.brightness))),
                         int(to_loxone_color_temp(kwargs[ATTR_COLOR_TEMP])),
                     ),
                 ),
