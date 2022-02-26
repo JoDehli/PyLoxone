@@ -20,7 +20,7 @@ from base64 import b64encode
 from datetime import datetime, timezone
 from struct import unpack
 
-import requests_async as requests
+import httpx
 from homeassistant.config import get_default_config_dir
 from requests.auth import HTTPBasicAuth
 
@@ -54,6 +54,38 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+class LoxoneException(Exception):
+    """Base class for all Loxone Exceptions"""
+
+
+class LoxoneHTTPStatusError(LoxoneException):
+    """An exception indicating an unusual http response from the miniserver"""
+
+
+class LoxoneRequestError(Exception):
+    """An exception raised during an http request"""
+
+
+async def raise_if_not_200(response: httpx.Response) -> None:
+    """An httpx event hook, to ensure that http responses other than 200
+    raise an exception"""
+    # Loxone response codes are a bit odd. It is not clear whether a response which
+    # is not 200 is ever OK (eg it is unclear whether redirect response are issued).
+    # json responses also have a "Code" key, but it is unclear whether this is ever
+    # different from the http response code. At the moment, we ignore it.
+    #
+    # And there are references to non-standard codes in the docs (eg a 900 error).
+    # At present, treat any non-200 code as an exception.
+    if response.status_code != 200:
+        if response.is_stream_consumed:
+            raise LoxoneHTTPStatusError(
+                f"Code {response.status_code}. Miniserver response was {response.text}"
+            )
+        else:
+            raise LoxoneHTTPStatusError(
+                f"Miniserver response code {response.status_code}"
+            )
+
 class LoxApp(object):
     def __init__(self):
         self.host = None
@@ -69,17 +101,25 @@ class LoxApp(object):
         self.url = ""
 
     async def getJson(self):
-        if self.port == 80:
-            url_api = "http://{}/jdev/cfg/apiKey".format(self.host)
-        else:
-            url_api = "http://{}:{}/jdev/cfg/apiKey".format(self.host, self.port)
+        auth = None
+        if self.lox_user is not None and self.lox_pass is not None:
+            auth = (self.lox_user, self.lox_pass)
 
-        api_resp = await requests.get(
-            url_api,
-            auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
-            verify=False,
+        if self.port == 80:
+            _base_url = "http://{}".format(self.host)
+        else:
+            _base_url = "http://{}:{}".format(self.host, self.port)
+        self.url = _base_url
+        client = httpx.AsyncClient(
+            auth=auth,
+            base_url= _base_url,
+            verify=True,
             timeout=TIMEOUT,
+            event_hooks={"response": [raise_if_not_200]},
         )
+
+        api_resp = await client.get("/jdev/cfg/apiKey")
+
         if api_resp.status_code != 200:
             _LOGGER.error(
                 f"Could not connect to Loxone! Status code {api_resp.status_code}."
@@ -87,43 +127,30 @@ class LoxApp(object):
             return False
 
         req_data = api_resp.json()
+        self._local = True
         if "LL" in req_data:
             if "Code" in req_data["LL"] and "value" in req_data["LL"]:
                 _ = req_data["LL"]["value"]
-                if isinstance(_, str):
-                    _ = _.replace("false", "False")
-                    _ = _.replace("true", "True")
-                    try:
-                        _ = eval(_)
-                    except ValueError:
-                        pass
-                if isinstance(_, dict):
-                    if "httpsStatus" in _:
-                        self.https_status = _["httpsStatus"]
+                value = json.loads(_.replace("'", '"'))
+                self.https_status = value.get("httpsStatus")
+                self.version = (
+                    [int(x) for x in value.get("version").split(".")] if self.version else []
+                )
+                self._local = value.get("local", True)
 
-        self.url = api_resp.url.replace("/jdev/cfg/apiKey", "")
+        if not self._local:
+            _base_url = str(api_resp.url).replace("/jdev/cfg/apiKey", "")
+            client = httpx.AsyncClient(
+                auth=auth,
+                base_url=_base_url,
+                verify=self._tls_check_hostname,
+                timeout=TIMEOUT,
+                event_hooks={"response": [raise_if_not_200]},
+            )
+            self.url = _base_url
 
-        url_version = f"{self.url}/jdev/cfg/version"
-        version_resp = await requests.get(
-            url_version,
-            auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
-            verify=False,
-            timeout=TIMEOUT,
-        )
+        my_response = await client.get(LOXAPPPATH)
 
-        if version_resp.status_code == 200:
-            vjson = version_resp.json()
-            if "LL" in vjson:
-                if "Code" in vjson["LL"] and "value" in vjson["LL"]:
-                    self.version = [int(x) for x in vjson["LL"]["value"].split(".")]
-
-        url_lox_app = f"{self.url}{self.loxapppath}"
-        my_response = await requests.get(
-            url_lox_app,
-            auth=HTTPBasicAuth(self.lox_user, self.lox_pass),
-            verify=False,
-            timeout=TIMEOUT,
-        )
         if my_response.status_code == 200:
             self.json = my_response.json()
             if self.version is not None:
@@ -131,6 +158,7 @@ class LoxApp(object):
         else:
             self.json = None
         self.responsecode = my_response.status_code
+        await  client.aclose()
         return self.responsecode
 
 
@@ -918,11 +946,16 @@ class LoxWs:
     async def get_public_key(self):
         command = f"{self._loxone_url}/{CMD_GET_PUBLIC_KEY}"
         _LOGGER.debug("try to get public key: {}".format(command))
-
         try:
-            response = await requests.get(
-                command, auth=(self._username, self._pasword), timeout=TIMEOUT
+            client = httpx.AsyncClient(
+                auth=(self._username, self._pasword),
+                base_url=self._loxone_url,
+                verify=True,
+                timeout=TIMEOUT,
+                event_hooks={"response": [raise_if_not_200]},
             )
+            response = await client.get(f"/{CMD_GET_PUBLIC_KEY}")
+            await client.aclose()
         except:
             return False
 
