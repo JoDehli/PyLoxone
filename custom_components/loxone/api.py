@@ -22,7 +22,6 @@ from struct import unpack
 
 import httpx
 from homeassistant.config import get_default_config_dir
-from requests.auth import HTTPBasicAuth
 
 from .const import (
     AES_KEY_SIZE,
