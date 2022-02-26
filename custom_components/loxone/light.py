@@ -189,11 +189,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         new_color_picker = LoxoneColorPickerV2(**color_picker)
         entites.append(new_color_picker)
 
-    e = []
-    for _ in entites:
-        if _.name == 'Licht 1 RGB':
-            e.append(_)
-    async_add_entities(e)
+    async_add_entities(entites)
 
 
 class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
