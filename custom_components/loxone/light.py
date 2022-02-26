@@ -411,7 +411,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
                         effect_ids.append(mood_id)
 
                 self.hass.bus.async_fire(
-                    SENDDOMAIN, dict(uuid=self.uuidAction, value="on")
+                    SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
                 )
 
                 for _ in effect_ids:
