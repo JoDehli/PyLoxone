@@ -462,15 +462,18 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
                 kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1]
             )
             h, s, v = color_util.color_RGB_to_hsv(r, g, b)
-            if self.brightness:
-                v = round(hass_to_lox(self.brightness))
             self.hass.bus.async_fire(
                 SENDDOMAIN,
                 dict(
                     uuid=self._uuid_dict.get(
                         self.states.get("masterColor"), self.uuidAction
                     ),
-                    value="hsv({},{},{})".format(h, s, round(hass_to_lox(kwargs.get(ATTR_BRIGHTNESS, v)))),
+                    value="hsv({},{},{})".format(h, s,
+                                                 round(hass_to_lox(
+                                                     kwargs.get(
+                                                         ATTR_BRIGHTNESS,
+                                                         hass_to_lox(self.brightness)
+                                                     )))),
                 ),
             )
 
@@ -761,38 +764,58 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
         return self._position > 0
 
     def turn_on(self, **kwargs) -> None:
-        if ATTR_BRIGHTNESS in kwargs:
-            self.hass.bus.async_fire(
-                SENDDOMAIN,
-                dict(
-                    uuid=self.uuidAction,
-                    value="temp({},{})".format(
-                        round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])),
-                        int(to_loxone_color_temp(self._color_temp)),
-                    ),
-                ),
-            )
-
-        elif ATTR_COLOR_TEMP in kwargs:
-            self.hass.bus.async_fire(
-                SENDDOMAIN,
-                dict(
-                    uuid=self.uuidAction,
-                    value="temp({},{})".format(
-                        self._position,
-                        int(to_loxone_color_temp(kwargs[ATTR_COLOR_TEMP])),
-                    ),
-                ),
-            )
+        color_temp = None
+        rgb = None
+        brightness = None
+        if ATTR_COLOR_TEMP in kwargs:
+            color_temp = int(to_loxone_color_temp(kwargs[ATTR_COLOR_TEMP]))
         elif ATTR_HS_COLOR in kwargs:
-            r, g, b = color_util.color_hs_to_RGB(
-                kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1]
-            )
-            h, s, v = color_util.color_RGB_to_hsv(r, g, b)
+             r, g, b = color_util.color_hs_to_RGB(kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1])
+             rgb = (r,g,b)
+        if ATTR_BRIGHTNESS in kwargs:
+            brightness = round(hass_to_lox(kwargs[ATTR_BRIGHTNESS]))
+
+        if not brightness:
+            brightness = round(hass_to_lox(self.brightness))
+
+        if color_temp:
             self.hass.bus.async_fire(
                 SENDDOMAIN,
-                dict(uuid=self.uuidAction, value="hsv({},{},{})".format(h, s, v)),
+                dict(
+                    uuid=self.uuidAction,
+                    value="temp({},{})".format(
+                        brightness,
+                        color_temp
+                    ),
+                ),
             )
+        elif rgb:
+            h, s, v = color_util.color_RGB_to_hsv(rgb[0], rgb[1], rgb[2])
+            self.hass.bus.async_fire(
+                SENDDOMAIN,
+                dict(uuid=self.uuidAction,
+                     value="hsv({},{},{})".format(h, s, brightness)),
+            )
+        elif brightness:
+            if self._attr_color_mode == COLOR_MODE_HS:
+                r, g, b = color_util.color_hs_to_RGB(self.hs_color[0], self.hs_color[1])
+                h, s, v = color_util.color_RGB_to_hsv(r, g, b)
+                self.hass.bus.async_fire(
+                        SENDDOMAIN,
+                        dict(uuid=self.uuidAction,
+                             value="hsv({},{},{})".format(h, s, brightness)),
+                    )
+            else:
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self.uuidAction,
+                        value="temp({},{})".format(
+                            brightness,
+                            int(to_loxone_color_temp(self._color_temp))
+                        ),
+                    ),
+                )
         else:
             self.hass.bus.async_fire(
                 SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/1")
