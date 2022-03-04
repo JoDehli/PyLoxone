@@ -517,10 +517,6 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             "current_position": self.current_cover_position,
             "current_shade_mode": self.shade_postion_as_text,
             "current_position_loxone_style": round(self._position_loxone, 0),
-            "extra_data_template": [
-                "${attributes.current_position} % open",
-                "${attributes.current_shade_mode}",
-            ],
         }
 
         if self._is_automatic:

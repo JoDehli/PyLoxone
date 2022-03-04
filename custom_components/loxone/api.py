@@ -158,7 +158,7 @@ class LoxApp(object):
         else:
             self.json = None
         self.responsecode = my_response.status_code
-        await  client.aclose()
+        await client.aclose()
         return self.responsecode
 
 
