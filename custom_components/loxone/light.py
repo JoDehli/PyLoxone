@@ -818,7 +818,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
                 )
         else:
             self.hass.bus.async_fire(
-                SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/1")
+                SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/2")
             )
         self.schedule_update_ha_state()
 

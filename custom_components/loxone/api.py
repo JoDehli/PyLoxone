@@ -98,6 +98,7 @@ class LoxApp(object):
         self.version = None
         self.https_status = None
         self.url = ""
+        self._local = True
 
     async def getJson(self):
         auth = None
@@ -142,7 +143,7 @@ class LoxApp(object):
             client = httpx.AsyncClient(
                 auth=auth,
                 base_url=_base_url,
-                verify=self._tls_check_hostname,
+                verify=True,
                 timeout=TIMEOUT,
                 event_hooks={"response": [raise_if_not_200]},
             )
