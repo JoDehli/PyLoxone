@@ -42,7 +42,7 @@ from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_config_entry
 
-REQUIREMENTS = ["websockets", "pycryptodome", "numpy", "requests_async"]
+REQUIREMENTS = ["websockets", "pycryptodome", "numpy"]
 
 _LOGGER = logging.getLogger(__name__)
 
