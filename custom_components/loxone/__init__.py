@@ -11,6 +11,7 @@ import sys
 import traceback
 
 import homeassistant.components.group as group
+from homeassistant.exceptions import HomeAssistantError
 import voluptuous as vol
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
@@ -40,7 +41,7 @@ from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
                     TOKEN_REFRESH_DEFAULT_SECONDS, TOKEN_REFRESH_RETRY_COUNT,
                     TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, cfmt)
 from .helpers import get_miniserver_type
-from .miniserver import MiniServer, get_miniserver_from_config_entry
+from .miniserver import MiniServer, get_miniserver_from_hass, get_miniserver_from_config
 
 REQUIREMENTS = ["websockets", "pycryptodome", "numpy"]
 
@@ -129,6 +130,20 @@ async def async_config_entry_updated(hass, entry) -> None:
     pass
 
 
+async def create_group_for_loxone_enties(hass, entites, name, object_id):
+    try:
+        await group.Group.async_create_group(
+            hass,
+            name,
+            object_id=object_id,
+            entity_ids=entites,
+        )
+    except HomeAssistantError as err:
+        _LOGGER.error("Can't create group '%s' with error: %s", name, err)
+    except Exception as err:
+        _LOGGER.error("Can't create group '%s' with error: %s", name, err)
+
+
 async def async_setup_entry(hass, config_entry):
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
@@ -205,7 +220,8 @@ async def async_setup_entry(hass, config_entry):
         await sync_areas_with_loxone(call.data)
 
     async def loxone_discovered(event):
-        if "component" in event.data:
+        miniserver = get_miniserver_from_hass(hass)
+        if miniserver.miniserver_type < 2 and "component" in event.data:
             if event.data["component"] == DOMAIN:
                 try:
                     _LOGGER.info("loxone discovered")
@@ -244,64 +260,22 @@ async def async_setup_entry(hass, config_entry):
                     lights.sort()
                     climates.sort()
 
-                    await group.Group.async_create_group(
-                        hass,
-                        "Loxone Analog Sensors",
-                        object_id="loxone_analog",
-                        entity_ids=sensors_analog,
-                    )
-
-                    await group.Group.async_create_group(
-                        hass,
-                        "Loxone Digital Sensors",
-                        object_id="loxone_digital",
-                        entity_ids=sensors_digital,
-                    )
-
-                    await group.Group.async_create_group(
-                        hass,
-                        "Loxone Switches",
-                        object_id="loxone_switches",
-                        entity_ids=switches,
-                    )
-
-                    await group.Group.async_create_group(
-                        hass,
-                        "Loxone Covers",
-                        object_id="loxone_covers",
-                        entity_ids=covers,
-                    )
-
-                    await group.Group.async_create_group(
-                        hass,
-                        "Loxone Lights",
-                        object_id="loxone_lights",
-                        entity_ids=lights,
-                    )
-
-                    await group.Group.async_create_group(
-                        hass,
-                        "Loxone Room Controllers",
-                        object_id="loxone_climates",
-                        entity_ids=climates,
-                    )
-
+                    await create_group_for_loxone_enties(hass, sensors_analog, "Loxone Analog Sensors","loxone_analog")
+                    await create_group_for_loxone_enties(hass, sensors_digital, "Loxone Digital Sensors", "loxone_digital")
+                    await create_group_for_loxone_enties(hass, switches, "Loxone Switches", "loxone_switches")
+                    await create_group_for_loxone_enties(hass, covers, "Loxone Covers", "loxone_covers")
+                    await create_group_for_loxone_enties(hass, lights, "Loxone Lights", "loxone_lights")
+                    await create_group_for_loxone_enties(hass, climates, "Loxone Room Controllers", "loxone_climates")
                     await hass.async_block_till_done()
-
-                    await group.Group.async_create_group(
-                        hass,
-                        "Loxone Group",
-                        object_id="loxone_group",
-                        entity_ids=[
+                    await create_group_for_loxone_enties(hass, [
                             "group.loxone_analog",
                             "group.loxone_digital",
                             "group.loxone_switches",
                             "group.loxone_covers",
                             "group.loxone_lights",
-                        ],
-                    )
-                except:
-                    traceback.print_exc()
+                        ], "Loxone Group", "loxone_group")
+                except Exception as err:
+                    _LOGGER.error("Error Group generation: %s", err)
 
     await miniserver.async_set_callback(message_callback)
 

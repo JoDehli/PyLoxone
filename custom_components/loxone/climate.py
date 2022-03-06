@@ -31,7 +31,7 @@ from .helpers import (
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
 )
-from .miniserver import get_miniserver_from_config_entry
+from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up LoxoneRoomControllerV2."""
-    miniserver = get_miniserver_from_config_entry(hass, config_entry)
+    miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
     devices = []
 

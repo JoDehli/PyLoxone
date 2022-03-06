@@ -34,7 +34,7 @@ from .helpers import (
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
 )
-from .miniserver import get_miniserver_from_config_entry
+from .miniserver import get_miniserver_from_hass
 
 DEFAULT_NAME = "Loxone Alarm"
 DEFAULT_FORCE_UPDATE = False
@@ -58,7 +58,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up Loxone Alarms."""
-    miniserver = get_miniserver_from_config_entry(hass, config_entry)
+    miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
     devices = []
     for loxone_alarm in get_all_alarm(loxconfig):

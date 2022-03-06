@@ -30,7 +30,7 @@ from .helpers import (
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
 )
-from .miniserver import get_miniserver_from_config_entry
+from .miniserver import get_miniserver_from_hass
 
 NEW_SENSOR = "sensors"
 
@@ -69,7 +69,7 @@ async def async_setup_platform(
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up entry."""
-    miniserver = get_miniserver_from_config_entry(hass, config_entry)
+    miniserver = get_miniserver_from_hass(hass)
 
     loxconfig = miniserver.lox_config.json
     sensors = []

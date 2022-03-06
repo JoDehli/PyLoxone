@@ -113,7 +113,7 @@ class LoxApp(object):
         client = httpx.AsyncClient(
             auth=auth,
             base_url= _base_url,
-            verify=True,
+            verify=False,
             timeout=TIMEOUT,
             event_hooks={"response": [raise_if_not_200]},
         )
@@ -134,12 +134,13 @@ class LoxApp(object):
                 value = json.loads(_.replace("'", '"'))
                 self.https_status = value.get("httpsStatus")
                 self.version = (
-                    [int(x) for x in value.get("version").split(".")] if self.version else []
+                    [int(x) for x in value.get("version").split(".")]
                 )
                 self._local = value.get("local", True)
 
         if not self._local:
             _base_url = str(api_resp.url).replace("/jdev/cfg/apiKey", "")
+            await client.aclose()
             client = httpx.AsyncClient(
                 auth=auth,
                 base_url=_base_url,

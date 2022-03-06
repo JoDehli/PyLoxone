@@ -28,9 +28,9 @@ NEW_COVERS = "covers"
 
 
 @callback
-def get_miniserver_from_config_entry(hass, config_entry):
+def get_miniserver_from_hass(hass):
     """Return Miniserver with a matching bridge id."""
-    return hass.data[DOMAIN][config_entry.unique_id]
+    return hass.data[DOMAIN][list(hass.data[DOMAIN].keys())[0]]
 
 
 @callback

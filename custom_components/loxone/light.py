@@ -31,7 +31,7 @@ from .helpers import (
     to_hass_color_temp,
     to_loxone_color_temp,
 )
-from .miniserver import get_miniserver_from_config_entry
+from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
 DEFAULT_NAME = "Loxone Light Controller V2"
@@ -45,7 +45,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up Loxone Light Controller."""
-    miniserver = get_miniserver_from_config_entry(hass, config_entry)
+    miniserver = get_miniserver_from_hass(hass)
     generate_subcontrols = config_entry.options.get(
         "generate_lightcontroller_subcontrols", False
     )
