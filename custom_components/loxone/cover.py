@@ -6,6 +6,7 @@ https://github.com/JoDehli/PyLoxone
 """
 
 import logging
+import random
 from typing import Any
 
 from homeassistant.components.cover import (
@@ -42,6 +43,7 @@ from .helpers import (
     get_all_covers,
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
+    map_range
 )
 from .miniserver import get_miniserver_from_hass
 
@@ -350,6 +352,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             self.states["autoState"] = ""
         self._position = 0
         self._position_loxone = -1
+        self._tilt_position_loxone = 1
         self._set_position = None
         self._set_tilt_position = None
         self._tilt_position = 0
@@ -393,7 +396,6 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             supported_features |= (
                 SUPPORT_OPEN_TILT
                 | SUPPORT_CLOSE_TILT
-                | SUPPORT_STOP_TILT
                 | SUPPORT_SET_TILT_POSITION
             )
         return supported_features
@@ -410,7 +412,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
             if self.states["position"] in e.data:
                 self._position_loxone = float(e.data[self.states["position"]]) * 100.0
-                self._position = round(100.0 - self._position_loxone, 0)
+                self._position = map_range(self._position_loxone, 0, 100, 100, 0)
 
                 if self._position == 0:
                     self._closed = True
@@ -418,10 +420,8 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
                     self._closed = False
 
             if self.states["shadePosition"] in e.data:
-                if e.data[self.states["shadePosition"]] == 1:
-                    self._tilt_position = 0
-                else:
-                    self._tilt_position = 100
+                self._tilt_position_loxone = float(e.data[self.states["shadePosition"]]) * 100.0
+                self._tilt_position = map_range(self._tilt_position_loxone, 0, 100, 100, 0)
 
             if self.states["up"] in e.data:
                 self._is_opening = e.data[self.states["up"]]
@@ -553,79 +553,39 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
-
-        if self.is_closing:
-            self.hass.bus.async_fire(
-                SENDDOMAIN, dict(uuid=self.uuidAction, value="FullUp")
-            )
-
-        elif self.is_opening:
-            self.hass.bus.async_fire(
-                SENDDOMAIN, dict(uuid=self.uuidAction, value="FullDown")
-            )
-
-        if self._unsub_listener_cover is not None:
-            self._unsub_listener_cover()
-            self._unsub_listener_cover = None
-            self._set_position = None
-
-    def close_cover_tilt(self, **kwargs):
-        """Close the cover tilt."""
-        if self._tilt_position in (0, None):
-            return
+        print("Stop")
         self.hass.bus.async_fire(
-            SENDDOMAIN, dict(uuid=self.uuidAction, value="FullDown")
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="stop")
         )
-
-    def open_cover_tilt(self, **kwargs):
-        """Close the cover tilt."""
-
-        if self._tilt_position in (100, None):
-            return
-
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="shade"))
 
     def set_cover_position(self, **kwargs):
         """Return the current tilt position of the cover."""
         position = kwargs.get(ATTR_POSITION)
-        self._set_position = position
-        if self._position == position:
-            return
-        self._requested_closing = position < self._position
-        if position < self._position:
-            self.close_cover()
-        else:
-            self.open_cover()
-        self._listen_cover()
+        mapped_pos = map_range(position, 0, 100, 100, 0)
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualPosition/{mapped_pos}"))
+
+    def open_cover_tilt(self, **kwargs):
+        """Close the cover tilt."""
+        position = 0.0 + random.uniform(0.000000001, 0.00900000)
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}"))
+
+    def stop_cover_tilt(self, **kwargs):
+        """Stop the cover."""
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="stop")
+        )
+
+    def close_cover_tilt(self, **kwargs):
+        """Close the cover tilt."""
+        position = 100.0 + random.uniform(0.000000001, 0.00900000)
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}"))
 
     def set_cover_tilt_position(self, **kwargs):
         """Move the cover tilt to a specific position."""
         tilt_position = kwargs.get(ATTR_TILT_POSITION)
-        if tilt_position > 50:
-            tilt_position = 100
-        else:
-            tilt_position = 0
-
-        if tilt_position == 100:
-            self.open_cover_tilt()
-        else:
-            self.close_cover_tilt()
-
-    def _listen_cover(self):
-        """Listen for changes in cover."""
-        if self._unsub_listener_cover is None:
-            self._unsub_listener_cover = track_utc_time_change(
-                self.hass, self._time_changed_cover
-            )
-
-    def _time_changed_cover(self, _):
-        """Track time changes."""
-        if abs(self._position - self._set_position) < 5:
-            self.stop_cover()
-        elif self._requested_closing and self._position <= self._set_position:
-            self.stop_cover()
-        elif not self._requested_closing and self._position >= self._set_position:
-            self.stop_cover()
+        mapped_pos = map_range(tilt_position, 0, 100, 100, 0)
+        position = mapped_pos + random.uniform(0.000000001, 0.00900000)
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}"))
 
     @property
     def device_info(self):

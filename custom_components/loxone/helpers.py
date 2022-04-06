@@ -7,6 +7,10 @@ https://home-assistant.io/components/loxone/
 import numpy as np
 
 
+def map_range(value, in_min, in_max, out_min, out_max):
+    return out_min + (((value - in_min) / (in_max - in_min)) * (out_max - out_min))
+
+
 def hass_to_lox(level):
     """Convert the given HASS light level (0-255) to Loxone (0.0-100.0)."""
     return (level * 100.0) / 255.0
