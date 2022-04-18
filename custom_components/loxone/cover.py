@@ -553,7 +553,6 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
-        print("Stop")
         self.hass.bus.async_fire(
             SENDDOMAIN, dict(uuid=self.uuidAction, value="stop")
         )
