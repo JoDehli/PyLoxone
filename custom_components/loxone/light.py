@@ -309,7 +309,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         if ATTR_EFFECT in kwargs:
             self.got_effect(**kwargs)
         elif kwargs == {}:
-            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="plus"))
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
         self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs) -> None:
