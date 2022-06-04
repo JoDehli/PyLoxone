@@ -90,7 +90,7 @@ async def async_setup(hass, config):
 
 
 async def async_migrate_entry(hass, config_entry):
-    _LOGGER.debug("Migrating from version %s", config_entry.version)
+    # _LOGGER.debug("Migrating from version %s", config_entry.version)
     if config_entry.version == 1:
         new = {**config_entry.options, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: True}
         config_entry.options = {**new}

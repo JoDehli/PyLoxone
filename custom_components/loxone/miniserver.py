@@ -1,6 +1,6 @@
 import logging
 import traceback
-
+from homeassistant.helpers import device_registry as dr
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
 
@@ -178,8 +178,7 @@ class MiniServer:
         await self.api.send_websocket_command(device_uuid, value)
 
     async def async_update_device_registry(self) -> None:
-        device_registry = await self.hass.helpers.device_registry.async_get_registry()
-
+        device_registry = dr.async_get(self.hass)
         # Host device
         # device_registry.async_get_or_create(
         #     config_entry_id=self.config_entry.entry_id,
