@@ -749,7 +749,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         if self.states["position"] in e.data and isinstance(
             e.data[self.states["position"]], (int, float)
         ):
-            if self._min is not None and self._max is not None:
+            if self._min is not None and self._max is not None and self._min != "unknown" and self._max != "unknown":
                 self._position = lox2hass_mapped(
                     e.data[self.states["position"]], self._min, self._max
                 )

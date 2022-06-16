@@ -91,7 +91,7 @@ def get_all_alarm(json_data):
 
 
 def get_all_dimmer(json_data):
-    return get_all(json_data, "Dimmer")
+    return get_all(json_data, ["Dimmer", "EIBDimmer"])
 
 
 def get_miniserver_type(t):
