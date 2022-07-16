@@ -87,15 +87,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
         sensors.append(Loxonesensor(**sensor))
 
-    for sensor in get_all_digital_info(loxconfig):
-        sensor.update(
-            {
-                "typ": "digital",
-                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
-            }
-        )
-        sensors.append(Loxonesensor(**sensor))
 
     for sensor in get_all(loxconfig, "TextInput"):
         sensor.update(

@@ -5,13 +5,17 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 # Loxone constants
-LOXONE_PLATFORMS = [
-    "sensor",
-    "switch",
-    "cover",
-    "light",
-    "climate",
-    "alarm_control_panel",
+from typing import Final
+from homeassistant.const import Platform
+
+LOXONE_PLATFORMS: Final[list[Platform]] = [
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.SWITCH,
+    Platform.COVER,
+    Platform.LIGHT,
+    Platform.CLIMATE,
+    Platform.ALARM_CONTROL_PANEL
 ]
 
 LOXONE_DEFAULT_PORT = 8080
