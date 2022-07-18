@@ -9,11 +9,9 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from . import LoxoneEntity
-from .helpers import (
-    get_all_digital_info,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-)
+from .const import DOMAIN
+from .helpers import (get_all_digital_info, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_hass
 
 
@@ -54,6 +52,32 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
         self._format = self._get_format(kwargs.get("details", {}).get("format", ""))
         self._on_state = STATE_ON
         self._off_state = STATE_OFF
+        self._attr_available = True
+
+    @property
+    def extra_state_attributes(self):
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
+        return {
+            "uuid": self.uuidAction,
+            "state_uuid": self.states["active"],
+            "room": self.room,
+            "category": self.cat,
+            "device_typ": self.type,
+            "platform": "loxone",
+        }
+
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": self.type,
+            "suggested_area": self.room,
+        }
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
