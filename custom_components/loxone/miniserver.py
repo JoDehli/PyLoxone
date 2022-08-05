@@ -160,12 +160,22 @@ class MiniServer:
             if event.event_type == SENDDOMAIN and isinstance(event.data, dict):
                 value = event.data.get(ATTR_VALUE, DEFAULT)
                 device_uuid = event.data.get(ATTR_UUID, DEFAULT)
+                if value is None:
+                    value = DEFAULT
+                if device_uuid is None:
+                    device_uuid = DEFAULT
                 await self.api.send_websocket_command(device_uuid, value)
 
             elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data, dict):
                 value = event.data.get(ATTR_VALUE, DEFAULT)
                 device_uuid = event.data.get(ATTR_UUID, DEFAULT)
                 code = event.data.get(ATTR_CODE, DEFAULT)
+                if code is None:
+                    code = DEFAULT
+                if value is None:
+                    value = DEFAULT
+                if device_uuid is None:
+                    device_uuid = DEFAULT
                 await self.api.send_secured__websocket_command(device_uuid, value, code)
 
         except ValueError:
