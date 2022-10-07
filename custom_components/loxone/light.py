@@ -286,30 +286,45 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
                 )
             else:
                 self.hass.bus.async_fire(
-                    SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
-                )
-        else:
-            effect_ids = []
-            for _ in effects:
-                mood_id = self.get_id_by_moodname(_.strip())
-                if mood_id != _:
-                    effect_ids.append(mood_id)
-
-            self.hass.bus.async_fire(
-                SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
-            )
-
-            for _ in effect_ids:
-                self.hass.bus.async_fire(
                     SENDDOMAIN,
-                    dict(uuid=self.uuidAction, value="addMood/{}".format(_)),
+                    dict(uuid=self.uuidAction, value="off"),
                 )
+
+        # if len(effects) == 1:
+        #     mood_id = self.get_id_by_moodname(kwargs["effect"])
+        #     if mood_id != kwargs["effect"]:
+        #         self.hass.bus.async_fire(
+        #             SENDDOMAIN,
+        #             dict(uuid=self.uuidAction, value="changeTo/{}".format(mood_id)),
+        #         )
+        #     else:
+        #         if self.state == STATE_OFF:
+        #             self.hass.bus.async_fire(
+        #                 SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
+        #             )
+        # else:
+        #     effect_ids = []
+        #     for _ in effects:
+        #         mood_id = self.get_id_by_moodname(_.strip())
+        #         if mood_id != _:
+        #             effect_ids.append(mood_id)
+        #     if self.state == STATE_OFF:
+        #         self.hass.bus.async_fire(
+        #             SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
+        #         )
+        #
+        #         for _ in effect_ids:
+        #             self.hass.bus.async_fire(
+        #                 SENDDOMAIN,
+        #                 dict(uuid=self.uuidAction, value="addMood/{}".format(_)),
+        #             )
 
     def turn_on(self, **kwargs) -> None:
         if ATTR_EFFECT in kwargs:
             self.got_effect(**kwargs)
         elif kwargs == {}:
-            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="plus"))
+            if self.state == STATE_OFF:
+                self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="plus"))
         self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs) -> None:
