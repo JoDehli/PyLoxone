@@ -1,4 +1,5 @@
 import logging
+from abc import ABC
 from typing import Any
 
 import homeassistant.util.color as color_util
@@ -275,9 +276,10 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
             return self.get_moodname_by_id(self._active_moods[0])
         return None
 
-    def got_effect(self, **kwargs):
+    async def got_effect(self, **kwargs):
         effects = kwargs["effect"].split(",")
         if len(effects) == 1:
+            print("got effect", kwargs)
             mood_id = self.get_id_by_moodname(kwargs["effect"])
             if mood_id != kwargs["effect"]:
                 self.hass.bus.async_fire(
@@ -289,7 +291,8 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
                     SENDDOMAIN,
                     dict(uuid=self.uuidAction, value="off"),
                 )
-
+        else:
+            print("Else path", kwargs)
         # if len(effects) == 1:
         #     mood_id = self.get_id_by_moodname(kwargs["effect"])
         #     if mood_id != kwargs["effect"]:
@@ -319,17 +322,17 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         #                 dict(uuid=self.uuidAction, value="addMood/{}".format(_)),
         #             )
 
-    def turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs) -> None:
         if ATTR_EFFECT in kwargs:
-            self.got_effect(**kwargs)
+            await self.got_effect(**kwargs)
         elif kwargs == {}:
             if self.state == STATE_OFF:
                 self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="plus"))
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
-    def turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs) -> None:
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="off"))
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
     async def event_handler(self, event):
         request_update = False
@@ -393,7 +396,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         return "mdi:hubspot"
 
 
-class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
+class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity, ABC):
     """Representation of a light."""
 
     def __init__(self, **kwargs):
@@ -435,13 +438,13 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
         else:
             return False
 
-    def turn_on(self, **kwargs: Any) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
-    def turn_off(self, **kwargs: Any) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="off"))
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
     @property
     def state_attributes(self):
@@ -473,7 +476,7 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity):
             self.async_schedule_update_ha_state()
 
 
-class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
+class LoxoneColorPickerV2(LoxoneEntity, LightEntity, ABC):
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
         self._async_add_devices = kwargs["async_add_devices"]
@@ -513,7 +516,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
     def is_on(self) -> bool:
         return self._position > 0
 
-    def turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs) -> None:
         color_temp = None
         rgb = None
         brightness = None
@@ -570,13 +573,13 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
             self.hass.bus.async_fire(
                 SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/2")
             )
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
-    def turn_off(self) -> None:
+    async def async_turn_off(self) -> None:
         self.hass.bus.async_fire(
             SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/0")
         )
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
     @property
     def extra_state_attributes(self):
@@ -611,7 +614,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
                 self._rgb_color = color_util.color_hs_to_RGB(0, 0)
                 self._color_temp = to_hass_color_temp(color[1])
                 self._position = color[0]
-                self._attr_color_mode = COLOR_MODE_COLOR_TEMP 
+                self._attr_color_mode = COLOR_MODE_COLOR_TEMP
                 request_update = True
 
         if request_update:
@@ -674,7 +677,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity):
         return "mdi:eyedropper-variant"
 
 
-class LoxoneDimmer(LoxoneEntity, LightEntity):
+class LoxoneDimmer(LoxoneEntity, LightEntity, ABC):
     """Representation of a Dimmer."""
 
     def __init__(self, **kwargs):
@@ -730,7 +733,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         """Return the icon to use in the frontend, if any."""
         return None
 
-    def turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs) -> None:
         if ATTR_BRIGHTNESS in kwargs:
             self.hass.bus.async_fire(
                 SENDDOMAIN,
@@ -741,11 +744,11 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
             )
         else:
             self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
-    def turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs) -> None:
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="Off"))
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
     async def event_handler(self, e):
         request_update = False
