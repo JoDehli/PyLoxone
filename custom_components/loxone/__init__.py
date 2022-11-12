@@ -71,7 +71,7 @@ _UNDEF: dict = {}
 
 # TODO: Implement a complete restart of the loxone component without restart HomeAssistant
 # TODO: Unload device
-
+# TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
 
 async def async_unload_entry(hass, config_entry):
     """Restart of Home Assistant needed."""
