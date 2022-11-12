@@ -26,7 +26,6 @@ from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
 from .helpers import (
     get_all,
     get_all_analog_info,
-    get_all_digital_info,
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
 )
@@ -51,7 +50,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 
 async def async_setup_platform(
-    hass, config, async_add_devices, discovery_info: object = {}
+        hass, config, async_add_devices, discovery_info: object = {}
 ):
     """Set up Loxone Sensor from yaml"""
     value_template = config.get(CONF_VALUE_TEMPLATE)
@@ -86,7 +85,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         )
 
         sensors.append(Loxonesensor(**sensor))
-
 
     for sensor in get_all(loxconfig, "TextInput"):
         sensor.update(

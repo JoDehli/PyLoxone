@@ -233,6 +233,7 @@ async def async_setup_entry(hass, config_entry):
                     switches = []
                     covers = []
                     lights = []
+                    dimmers = []
                     climates = []
 
                     for s in entity_ids:
@@ -248,8 +249,10 @@ async def async_setup_entry(hass, config_entry):
                                 covers.append(s_dict["entity_id"])
                             elif device_typ in ["Switch", "Pushbutton", "TimedSwitch"]:
                                 switches.append(s_dict["entity_id"])
-                            elif device_typ in ["LightControllerV2", "Dimmer"]:
+                            elif device_typ in ["LightControllerV2"]:
                                 lights.append(s_dict["entity_id"])
+                            elif device_typ == "Dimmer":
+                                dimmers.append(s_dict["entity_id"])
                             elif device_typ == "IRoomControllerV2":
                                 climates.append(s_dict["entity_id"])
 
@@ -259,12 +262,14 @@ async def async_setup_entry(hass, config_entry):
                     switches.sort()
                     lights.sort()
                     climates.sort()
+                    dimmers.sort()
 
                     await create_group_for_loxone_enties(hass, sensors_analog, "Loxone Analog Sensors","loxone_analog")
                     await create_group_for_loxone_enties(hass, sensors_digital, "Loxone Digital Sensors", "loxone_digital")
                     await create_group_for_loxone_enties(hass, switches, "Loxone Switches", "loxone_switches")
                     await create_group_for_loxone_enties(hass, covers, "Loxone Covers", "loxone_covers")
-                    await create_group_for_loxone_enties(hass, lights, "Loxone Lights", "loxone_lights")
+                    await create_group_for_loxone_enties(hass, lights, "Loxone LightControllers", "loxone_lights")
+                    await create_group_for_loxone_enties(hass, lights, "Loxone Dimmer", "loxone_dimmers")
                     await create_group_for_loxone_enties(hass, climates, "Loxone Room Controllers", "loxone_climates")
                     await hass.async_block_till_done()
                     await create_group_for_loxone_enties(hass, [
