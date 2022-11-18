@@ -54,55 +54,24 @@ def get_room_name_from_room_uuid(lox_config, room_uuid):
 
     return ""
 
-
 def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
     if "cats" in lox_config:
         if cat_uuid in lox_config["cats"]:
             return lox_config["cats"][cat_uuid]["name"]
     return ""
 
-
-def get_all_roomcontroller_entities(json_data):
-    return get_all(json_data, "IRoomControllerV2")
-
-
-def get_all_switch_entities(json_data):
-    return get_all(json_data, ["Pushbutton", "Switch", "TimedSwitch", "Intercom"])
-
-
-def get_all_covers(json_data):
-    return get_all(json_data, ["Jalousie", "Gate", "Window"])
-
-
-def get_all_analog_info(json_data):
-    return get_all(json_data, "InfoOnlyAnalog")
-
-
-def get_all_digital_info(json_data):
-    return get_all(json_data, "InfoOnlyDigital")
-
-
-def get_all_light_controller(json_data):
-    return get_all(json_data, "LightControllerV2")
-
-
-def get_all_alarm(json_data):
-    return get_all(json_data, "Alarm")
-
-
-def get_all_dimmer(json_data):
-    return get_all(json_data, ["Dimmer", "EIBDimmer"])
-
-
 def get_miniserver_type(t):
     if t == 0:
-        return "Miniserver Gen 1"
+        return "Miniserver (Gen 1)"
     elif t == 1:
-        return "Miniserver Go"
+        return "Miniserver Go (Gen 1)"
     elif t == 2:
-        return "Miniserver"
+        return "Miniserver (Gen 2)"
+    elif t == 3:
+        return "Miniserver Go (Gen 2)"
+    elif t == 4:
+        return "Miniserver Compact"
     return "Unknown Typ"
-
 
 def get_all(json_data, name):
     controls = []

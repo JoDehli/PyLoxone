@@ -8,14 +8,29 @@ https://github.com/JoDehli/PyLoxone
 import logging
 
 from homeassistant.components.scene import Scene
-from homeassistant.helpers.entity_platform import async_call_later
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.entity_platform import async_call_later, AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from .const import CONF_SCENE_GEN, CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE, DOMAIN, SENDDOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
+    """Set up Scenes."""
+    return True
 
-async def async_setup_entry(hass, config_entry, async_add_devices):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up Scenes."""
     delay_scene = config_entry.options.get(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE)
     create_scene = config_entry.options.get(CONF_SCENE_GEN, False)
@@ -37,16 +52,11 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
                                 "{}-{}".format(entity.name, effect), mood_id, uuid, entity.unique_id
                             )
                         )
-        async_add_devices(devices)
+        async_add_entities(devices)
 
     if create_scene:
         async_call_later(hass, delay_scene, gen_scenes)
 
-    return True
-
-
-async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
-    """Set up Scenes."""
     return True
 
 

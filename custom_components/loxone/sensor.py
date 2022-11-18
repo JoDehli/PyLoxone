@@ -5,6 +5,7 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 import logging
+from re import match
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -18,15 +19,16 @@ from homeassistant.const import (
     STATE_ON,
     STATE_UNKNOWN,
 )
-from homeassistant.core import callback
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
 from .helpers import (
     get_all,
-    get_all_analog_info,
-    get_all_digital_info,
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
 )
@@ -51,8 +53,11 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 
 async def async_setup_platform(
-    hass, config, async_add_devices, discovery_info: object = {}
-):
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_devices: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
     """Set up Loxone Sensor from yaml"""
     value_template = config.get(CONF_VALUE_TEMPLATE)
     if value_template is not None:
@@ -67,7 +72,11 @@ async def async_setup_platform(
     return True
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
 
@@ -76,7 +85,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     if "softwareVersion" in loxconfig:
         sensors.append(LoxoneVersionSensor(loxconfig["softwareVersion"]))
 
-    for sensor in get_all_analog_info(loxconfig):
+    for sensor in get_all(loxconfig, "InfoOnlyAnalog"):
         sensor.update(
             {
                 "typ": "analog",
@@ -271,6 +280,9 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
         self._format = self._get_format(kwargs.get("details", {}).get("format", ""))
         self._on_state = STATE_ON
         self._off_state = STATE_OFF
+        self._parent_id = kwargs.get("parent_id", None)
+        self._device_class = kwargs.get("device_class", None)
+        self._state_class = kwargs.get("state_class", None)
         self.extract_attributes()
 
     async def event_handler(self, e):
@@ -292,7 +304,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
         # if "text" in self.details:
         #     self._on_state = self.details["text"]["on"]
         #     self._off_state = self.details["text"]["off"]
-        if "format" in self.details:
+        if hasattr(self, "details") and "format" in self.details:
             self._format = self._get_format(self.details["format"])
             self._unit_of_measurement = self._clean_unit(self.details["format"])
 
@@ -329,8 +341,18 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
     @property
     def icon(self):
         """Return the sensor icon."""
-        if self.typ == "analog":
-            return "mdi:chart-bell-curve"
+        if self._device_class:
+            if self._device_class == 'humidity':
+                return "mdi:water-percent"
+            elif self._device_class == 'carbon_dioxide':
+                return "mdi:molecule-co2"
+            elif self._device_class == 'temperature':
+                return "mdi:thermometer"
+            else:
+                return "mdi:chart-bell-curve"
+        else:
+            if self.typ == "analog":
+                return "mdi:chart-bell-curve"
 
     @property
     def extra_state_attributes(self):
@@ -347,9 +369,14 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
 
     @property
     def device_info(self):
+        _uuid = self.unique_id
+
+        if self._parent_id:
+            _uuid = self._parent_id
+
         if self.typ == "analog":
             return {
-                "identifiers": {(DOMAIN, self.unique_id)},
+                "identifiers": {(DOMAIN, _uuid)},
                 "name": self.name,
                 "manufacturer": "Loxone",
                 "model": "Sensor analog",
@@ -358,10 +385,25 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
             }
         else:
             return {
-                "identifiers": {(DOMAIN, self.unique_id)},
+                "identifiers": {(DOMAIN, _uuid)},
                 "name": self.name,
                 "manufacturer": "Loxone",
                 "model": "Sensor digital",
                 "type": self.typ,
                 "suggested_area": self.room
             }
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return self._device_class
+
+    @device_class.setter
+    def device_class(self, device_class):
+        if not hasattr(self, "_device_class"):
+            setattr(self, "_device_class", device_class)
+        else:
+            self._device_class = device_class
+
+    @property
+    def state_class(self):
+        return self._state_class

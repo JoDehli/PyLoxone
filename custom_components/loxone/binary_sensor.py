@@ -1,27 +1,79 @@
 """Support for Fritzbox binary sensors."""
 from __future__ import annotations
+import logging
 
 from typing import Literal, final
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
-from homeassistant.core import callback
+import homeassistant.helpers.config_validation as cv
+import voluptuous as vol
+#from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity, SensorStateClass
+from homeassistant.components.binary_sensor import PLATFORM_SCHEMA, BinarySensorEntity, BinarySensorDeviceClass
+from homeassistant.const import (
+    CONF_DEVICE_CLASS,
+    CONF_NAME,
+    CONF_VALUE_TEMPLATE,
+    STATE_OFF,
+    STATE_ON,
+    STATE_UNKNOWN,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from . import LoxoneEntity
-from .const import DOMAIN
-from .helpers import (get_all_digital_info, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
+from .helpers import (
+    get_all,
+    get_cat_name_from_cat_uuid,
+    get_room_name_from_room_uuid,
+)
 from .miniserver import get_miniserver_from_hass
 
+_LOGGER = logging.getLogger(__name__)
+NEW_SENSOR = "binairy_sensors"
+DEFAULT_NAME = "Loxone Binary Sensor"
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_ACTIONID): cv.string,
+        vol.Optional(CONF_NAME): cv.string,
+        vol.Optional(CONF_DEVICE_CLASS): cv.string,
+    }
+)
+
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
+    """Set up Loxone Sensor from yaml"""
+    value_template = config.get(CONF_VALUE_TEMPLATE)
+    if value_template is not None:
+        value_template.hass = hass
+
+    # Devices from yaml
+    if config != {}:
+        # Here setup all Sensors in Yaml-File
+        new_sensor = LoxoneDigitalSensor(**config)
+        async_add_entities([new_sensor])
+        return True
+    return True
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
     digital_sensors = []
 
-    for sensor in get_all_digital_info(loxconfig):
+    for sensor in get_all(loxconfig, "InfoOnlyDigital"):
         sensor.update(
             {
                 "typ": "digital",
@@ -31,13 +83,33 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         )
         digital_sensors.append(LoxoneDigitalSensor(**sensor))
 
+    for sensor in get_all(loxconfig, "PresenceDetector"):
+        sensor.update(
+            {
+                "typ": "presence",
+                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
+                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+            }
+        )
+        digital_sensors.append(LoxoneDigitalSensor(**sensor))
+
+    for sensor in get_all(loxconfig, "SmokeAlarm"):
+        sensor.update(
+            {
+                "typ": "smoke",
+                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
+                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+            }
+        )
+        digital_sensors.append(LoxoneDigitalSensor(**sensor))
+
     @callback
-    def async_add_sensors(_):
+    def async_add_binary_sensors(_):
         async_add_entities(_, True)
 
     miniserver.listeners.append(
         async_dispatcher_connect(
-            hass, miniserver.async_signal_new_device("sensors"), async_add_sensors
+            hass, miniserver.async_signal_new_device("sensors"), async_add_binary_sensors
         )
     )
     async_add_entities(digital_sensors)
@@ -47,9 +119,24 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
     """Representation of a binary Loxone device."""
 
     def __init__(self, **kwargs):
+        self._from_loxone_config = False
+
         LoxoneEntity.__init__(self, **kwargs)
+
+        if 'typ' in kwargs and 'room' in kwargs and 'cat' in kwargs and hasattr(self, "states"):
+            self._from_loxone_config = True
+            if self.typ == "smoke":
+                self._state_uuid = self.states["areAlarmSignalsOff"]
+            if self.typ == "presence":
+                self._state_uuid = self.states["active"]
+            elif 'active' in self.states:
+                self._state_uuid = self.uuidAction
+        else:
+            self._state_uuid = self.uuidAction
+
         self._state = STATE_UNKNOWN
         self._format = self._get_format(kwargs.get("details", {}).get("format", ""))
+        self._parent_id = kwargs.get("parent_id", None)
         self._on_state = STATE_ON
         self._off_state = STATE_OFF
         self._attr_available = True
@@ -60,28 +147,94 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
 
         Implemented by platform classes.
         """
-        return {
-            "uuid": self.uuidAction,
-            "state_uuid": self.states["active"],
-            "room": self.room,
-            "category": self.cat,
-            "device_typ": self.type,
-            "platform": "loxone",
-        }
+        if self._from_loxone_config:
+            return {
+                "uuid": self.uuidAction,
+                "state_uuid": self._state_uuid,
+                "room": self.room,
+                "category": self.cat,
+                "device_typ": self.type,
+                "platform": "loxone",
+            }
+        else:
+            return {
+                "uuid": self.uuidAction,
+                "platform": "loxone",
+                "device_typ": self.device_class,
+            }
+
+    #@property
+    #def name(self):
+    #    """Return the name of the sensor."""
+    #    return self._name
+
+    @property
+    def icon(self):
+        if self._from_loxone_config:
+            if self.typ == "presence":
+                """Return the sensor icon."""
+                return "mdi:motion-sensor"
+            elif self.typ == "smoke":
+                """Return the sensor icon."""
+                return "mdi:smoke-detector"
+            elif self.typ == "digital":
+                """Return the sensor icon."""
+                return "mdi:checkbox-blank-circle-outline"
+        else:
+            if self.device_class:
+                if self.device_class == "presence":
+                    """Return the sensor icon."""
+                    return "mdi:motion-sensor"
+                elif self.device_class == "smoke":
+                    """Return the sensor icon."""
+                    return "mdi:smoke-detector"
+                elif self.device_class == "digital":
+                    """Return the sensor icon."""
+                    return "mdi:checkbox-blank-circle-outline"
+                """Return the sensor icon."""
+            else:
+                return "mdi:checkbox-blank-circle-outline"
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        if not hasattr(self, "_device_class"):
+            return None
+        else:
+            return self._device_class
+
+    @device_class.setter
+    def device_class(self, device_class):
+        if not hasattr(self, "_device_class"):
+            setattr(self, "_device_class", device_class)
+        else:
+            self._device_class = device_class
 
     @property
     def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
-        }
+       _uuid = self.unique_id
+
+       if self._parent_id:
+           _uuid = self._parent_id
+
+       if self._from_loxone_config:
+           return {
+               "identifiers": {(DOMAIN, _uuid)},
+               "name": self.name,
+               "manufacturer": "Loxone",
+               "model": self.type,
+               "suggested_area": self.room,
+            }
+       else:
+            return {
+                "identifiers": {(DOMAIN, _uuid)},
+                "name": self.name,
+                "manufacturer": "Loxone",
+             }
 
     async def event_handler(self, e):
-        if self.uuidAction in e.data:
-            self._state = e.data[self.uuidAction]
+        if self._state_uuid in e.data:
+            self._state = e.data[self._state_uuid]
             if self._state == 1.0:
                 self._state = self._on_state
             else:

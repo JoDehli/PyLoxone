@@ -22,6 +22,9 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.device_registry import DeviceEntry
 
 from .api import LoxApp, LoxWs
 from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
@@ -234,6 +237,7 @@ async def async_setup_entry(hass, config_entry):
                     covers = []
                     lights = []
                     climates = []
+                    fans = []
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
@@ -252,6 +256,8 @@ async def async_setup_entry(hass, config_entry):
                                 lights.append(s_dict["entity_id"])
                             elif device_typ == "IRoomControllerV2":
                                 climates.append(s_dict["entity_id"])
+                            elif device_typ == "Ventilation":
+                                fans.append(s_dict["entity_id"])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
@@ -259,6 +265,7 @@ async def async_setup_entry(hass, config_entry):
                     switches.sort()
                     lights.sort()
                     climates.sort()
+                    fans.sort()
 
                     await create_group_for_loxone_enties(hass, sensors_analog, "Loxone Analog Sensors","loxone_analog")
                     await create_group_for_loxone_enties(hass, sensors_digital, "Loxone Digital Sensors", "loxone_digital")
@@ -266,6 +273,7 @@ async def async_setup_entry(hass, config_entry):
                     await create_group_for_loxone_enties(hass, covers, "Loxone Covers", "loxone_covers")
                     await create_group_for_loxone_enties(hass, lights, "Loxone Lights", "loxone_lights")
                     await create_group_for_loxone_enties(hass, climates, "Loxone Room Controllers", "loxone_climates")
+                    await create_group_for_loxone_enties(hass, fans, "Loxone Ventilation Controllers", "loxone_ventilations")
                     await hass.async_block_till_done()
                     await create_group_for_loxone_enties(hass, [
                             "group.loxone_analog",
@@ -273,6 +281,7 @@ async def async_setup_entry(hass, config_entry):
                             "group.loxone_switches",
                             "group.loxone_covers",
                             "group.loxone_lights",
+                            "group.loxone_ventilations",
                         ], "Loxone Group", "loxone_group")
                 except Exception as err:
                     _LOGGER.error("Error Group generation: %s", err)
@@ -304,6 +313,11 @@ async def async_setup_entry(hass, config_entry):
 
     return True
 
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
+) -> bool:
+    """Remove a config entry from a device."""
+    return True
 
 class LoxoneEntity(Entity):
     """

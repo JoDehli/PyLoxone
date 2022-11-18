@@ -26,7 +26,10 @@ from homeassistant.components.cover import (
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.event import track_utc_time_change
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import (
@@ -40,7 +43,7 @@ from .const import (
     SUPPORT_STOP_TILT,
 )
 from .helpers import (
-    get_all_covers,
+    get_all,
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
     map_range
@@ -51,19 +54,27 @@ _LOGGER = logging.getLogger(__name__)
 
 NEW_COVERS = "covers"
 
-
-async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
     """Set up the Loxone covers."""
     return True
 
 
-async def async_setup_entry(hass, config_entry, async_add_entites):
+async def async_setup_entry(
+        hass: HomeAssistant,
+        config_entry: ConfigEntry,
+        async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set Loxone covers."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
     covers = []
 
-    for cover in get_all_covers(loxconfig):
+    for cover in get_all(loxconfig, ["Jalousie", "Gate", "Window"]):
         cover.update(
             {
                 "hass": hass,
@@ -84,14 +95,14 @@ async def async_setup_entry(hass, config_entry, async_add_entites):
 
     @callback
     def async_add_covers(_):
-        async_add_entites(_)
+        async_add_entities(_)
 
     miniserver.listeners.append(
         async_dispatcher_connect(
-            hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_entites
+            hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_entities
         )
     )
-    async_add_entites(covers)
+    async_add_entities(covers)
 
 class LoxoneGate(LoxoneEntity, CoverEntity):
     """Loxone Gate"""

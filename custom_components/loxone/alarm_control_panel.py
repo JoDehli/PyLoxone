@@ -26,11 +26,15 @@ from homeassistant.const import (
     STATE_ALARM_DISARMED,
     STATE_ALARM_TRIGGERED,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DOMAIN, EVENT, SECUREDSENDDOMAIN, SENDDOMAIN
 from .helpers import (
-    get_all_alarm,
+    get_all,
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
 )
@@ -51,17 +55,25 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
     """Set up Loxone Alarms."""
     return True
 
-
-async def async_setup_entry(hass, config_entry, async_add_devices):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up Loxone Alarms."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
     devices = []
-    for loxone_alarm in get_all_alarm(loxconfig):
+    for loxone_alarm in get_all(loxconfig, "Alarm"):
         loxone_alarm.update(
             {
                 "room": get_room_name_from_room_uuid(
@@ -76,7 +88,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         new_alarm = LoxoneAlarm(**loxone_alarm)
         hass.bus.async_listen(EVENT, new_alarm.event_handler)
         devices.append(new_alarm)
-    async_add_devices(devices, True)
+    async_add_entities(devices, True)
     return True
 
 

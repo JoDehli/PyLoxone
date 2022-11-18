@@ -26,7 +26,6 @@ NEW_SCENE = "scenes"
 NEW_SENSOR = "sensors"
 NEW_COVERS = "covers"
 
-
 @callback
 def get_miniserver_from_hass(hass):
     """Return Miniserver with a matching bridge id."""
@@ -93,6 +92,25 @@ class MiniServer:
     def miniserver_type(self):
         try:
             return self.lox_config.json["msInfo"]["miniserverType"]
+        except:
+            return None
+    @property
+    def local_url(self):
+        try:
+            return self.lox_config.json["msInfo"]["localUrl"]
+        except:
+            return None
+
+    @property
+    def remote_url(self):
+        try:
+            return self.lox_config.json["msInfo"]["remoteUrl"]
+        except:
+            return None
+    @property
+    def project_name(self):
+        try:
+            return self.lox_config.json["msInfo"]["projectName"]
         except:
             return None
 
@@ -206,8 +224,10 @@ class MiniServer:
             identifiers={(DOMAIN, self.serial)},
             name=self.name,
             manufacturer="Loxone",
+            default_manufacturer="Loxone",
             sw_version=self.software_version,
             model=get_miniserver_type(self.miniserver_type),
+            configuration_url="http://{host}:{port}".format(host=self.lox_config.host, port=self.lox_config.port)
         )
 
     @property

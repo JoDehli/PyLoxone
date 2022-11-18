@@ -22,12 +22,17 @@ from homeassistant.components.climate.const import (
     HVAC_MODE_HEAT_COOL,
     HVAC_MODE_OFF,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+
 from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
 from .const import CONF_HVAC_AUTO_MODE, DOMAIN, SENDDOMAIN
 from .helpers import (
-    get_all_roomcontroller_entities,
+    get_all,
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
 )
@@ -55,7 +60,12 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 
 # noinspection PyUnusedLocal
-async def async_setup_platform(hass, config, async_add_devices, discovery_info={}):
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
     # value_template = config.get(CONF_VALUE_TEMPLATE)
     # auto_mode = 0 if config.get(CONF_HVAC_AUTO_MODE) is None else config.get(CONF_HVAC_AUTO_MODE)
     #
@@ -64,14 +74,17 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info={
     # config = hass.data[DOMAIN]
     return True
 
-
-async def async_setup_entry(hass, config_entry, async_add_devices):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up LoxoneRoomControllerV2."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
     devices = []
 
-    for climate in get_all_roomcontroller_entities(loxconfig):
+    for climate in get_all(loxconfig, "IRoomControllerV2"):
         climate.update(
             {
                 "hass": hass,
@@ -86,9 +99,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         new_thermostat = LoxoneRoomControllerV2(**climate)
         devices.append(new_thermostat)
 
-    async_add_devices(devices)
-
-
+    async_add_entities(devices)
 
 class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller"""

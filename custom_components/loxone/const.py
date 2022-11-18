@@ -13,6 +13,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.BINARY_SENSOR,
     Platform.SWITCH,
     Platform.COVER,
+    Platform.FAN,
     Platform.LIGHT,
     Platform.CLIMATE,
     Platform.ALARM_CONTROL_PANEL
@@ -92,7 +93,6 @@ CONF_HVAC_AUTO_MODE = "hvac_auto_mode"
 
 STATE_ON = "on"
 STATE_OFF = "off"
-
 
 cfmt = """\
 (                                  # start of capture group 1

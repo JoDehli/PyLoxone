@@ -17,12 +17,15 @@ from homeassistant.components.light import (
     ToggleEntity,
 )
 from homeassistant.const import STATE_UNKNOWN
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import callback, HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN, STATE_OFF, STATE_ON
 from .helpers import (
-    get_all_dimmer,
-    get_all_light_controller,
+    get_all,
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
     hass_to_lox,
@@ -38,12 +41,21 @@ DEFAULT_NAME = "Loxone Light Controller V2"
 DEFAULT_FORCE_UPDATE = False
 
 
-async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
     """Set up Loxone Light Controller."""
     return True
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up Loxone Light Controller."""
     miniserver = get_miniserver_from_hass(hass)
     generate_subcontrols = config_entry.options.get(
@@ -54,9 +66,9 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     all_light_controller_dimmers = []
     all_color_picker = []
     all_switches = []
-    all_dimmers = get_all_dimmer(loxconfig)
+    all_dimmers = get_all(loxconfig, ["Dimmer", "EIBDimmer"])
 
-    for light_controller in get_all_light_controller(loxconfig):
+    for light_controller in get_all(loxconfig, "LightControllerV2"):
         light_controller.update(
             {
                 "room": get_room_name_from_room_uuid(
