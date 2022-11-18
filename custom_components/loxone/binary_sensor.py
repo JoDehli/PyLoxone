@@ -239,7 +239,7 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
                 self._state = self._on_state
             else:
                 self._state = self._off_state
-            self.schedule_update_ha_state()
+            self.async_schedule_update_ha_state()
 
     @final
     @property

@@ -392,6 +392,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
                 "type": self.typ,
                 "suggested_area": self.room
             }
+
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
