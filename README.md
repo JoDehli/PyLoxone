@@ -40,20 +40,7 @@ Here is an example config:
 
 
 ## Configuration over yaml (deprecated)
-Add the following entries to your configuration.yaml:
-
-```yaml
-loxone:
-  port: 8080
-  host: hostadress
-  username: username
-  password: password
-  generate_scenes: false # default is true
-  generate_scenes_delay: 5
-  generate_lightcontroller_subcontrols: false
-```
-
-
+Not supported anymore.
 
 ## Websocket direct command
 Send command direct to the loxone for example a pulse event to a switch:
@@ -72,6 +59,7 @@ Send command direct to the loxone for example a pulse event to a switch:
 - Intercom
 - LightControllerV2
 - Alarm
+- Fan (thanks for them implementation [cabeljunky](https://github.com/cabeljunky) )
 - RoomControllerV2 (thanks for the implementation [ztamas83](https://github.com/ztamas83) )
 
 ### If your Device is not supported
