@@ -54,11 +54,13 @@ def get_room_name_from_room_uuid(lox_config, room_uuid):
 
     return ""
 
+
 def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
     if "cats" in lox_config:
         if cat_uuid in lox_config["cats"]:
             return lox_config["cats"][cat_uuid]["name"]
     return ""
+
 
 def get_miniserver_type(t):
     if t == 0:
@@ -72,6 +74,7 @@ def get_miniserver_type(t):
     elif t == 4:
         return "Miniserver Compact"
     return "Unknown Typ"
+
 
 def get_all(json_data, name):
     controls = []

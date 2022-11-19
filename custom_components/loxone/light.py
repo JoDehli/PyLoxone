@@ -8,18 +8,18 @@ from homeassistant.components.light import (
     ATTR_COLOR_TEMP,
     ATTR_EFFECT,
     ATTR_HS_COLOR,
+    COLOR_MODE_COLOR_TEMP,
+    COLOR_MODE_HS,
     SUPPORT_BRIGHTNESS,
     SUPPORT_COLOR,
     SUPPORT_COLOR_TEMP,
     SUPPORT_EFFECT,
-    COLOR_MODE_COLOR_TEMP,
-    COLOR_MODE_HS,
     LightEntity,
     ToggleEntity,
 )
-from homeassistant.const import STATE_UNKNOWN
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback, HomeAssistant
+from homeassistant.const import STATE_UNKNOWN
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
@@ -219,11 +219,15 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         self.kwargs = kwargs
         self._uuid_dict = {}
 
-        self._features = (SUPPORT_EFFECT)
+        self._features = SUPPORT_EFFECT
         from collections import OrderedDict
+
         self._sub_controls = OrderedDict({})
         for uuid, control in kwargs.get("subControls", {}).items():
-            self._sub_controls[uuid] = {"name":control["name"], "type":control["type"]}
+            self._sub_controls[uuid] = {
+                "name": control["name"],
+                "type": control["type"],
+            }
 
     @property
     def supported_features(self):
@@ -236,7 +240,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
             "name": self.name,
             "manufacturer": "Loxone",
             "model": "LightControllerV2",
-            "suggested_area": self.room
+            "suggested_area": self.room,
         }
 
     @property
@@ -323,7 +327,9 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
             await self.got_effect(**kwargs)
         elif kwargs == {}:
             if self.state == STATE_OFF:
-                self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="plus"))
+                self.hass.bus.async_fire(
+                    SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
+                )
         self.async_schedule_update_ha_state()
 
     async def async_turn_off(self, **kwargs) -> None:
@@ -383,7 +389,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
             "selected_scene": self.effect,
             "device_typ": self.type,
             "platform": "loxone",
-            "subcontrols":self._sub_controls
+            "subcontrols": self._sub_controls,
         }
 
     @property
@@ -519,8 +525,10 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity, ABC):
         if ATTR_COLOR_TEMP in kwargs:
             color_temp = int(to_loxone_color_temp(kwargs[ATTR_COLOR_TEMP]))
         elif ATTR_HS_COLOR in kwargs:
-             r, g, b = color_util.color_hs_to_RGB(kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1])
-             rgb = (r,g,b)
+            r, g, b = color_util.color_hs_to_RGB(
+                kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1]
+            )
+            rgb = (r, g, b)
         if ATTR_BRIGHTNESS in kwargs:
             brightness = round(hass_to_lox(kwargs[ATTR_BRIGHTNESS]))
 
@@ -532,36 +540,35 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity, ABC):
                 SENDDOMAIN,
                 dict(
                     uuid=self.uuidAction,
-                    value="temp({},{})".format(
-                        brightness,
-                        color_temp
-                    ),
+                    value="temp({},{})".format(brightness, color_temp),
                 ),
             )
         elif rgb:
             h, s, v = color_util.color_RGB_to_hsv(rgb[0], rgb[1], rgb[2])
             self.hass.bus.async_fire(
                 SENDDOMAIN,
-                dict(uuid=self.uuidAction,
-                     value="hsv({},{},{})".format(h, s, brightness)),
+                dict(
+                    uuid=self.uuidAction, value="hsv({},{},{})".format(h, s, brightness)
+                ),
             )
         elif brightness:
             if self._attr_color_mode == COLOR_MODE_HS:
                 r, g, b = color_util.color_hs_to_RGB(self.hs_color[0], self.hs_color[1])
                 h, s, v = color_util.color_RGB_to_hsv(r, g, b)
                 self.hass.bus.async_fire(
-                        SENDDOMAIN,
-                        dict(uuid=self.uuidAction,
-                             value="hsv({},{},{})".format(h, s, brightness)),
-                    )
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self.uuidAction,
+                        value="hsv({},{},{})".format(h, s, brightness),
+                    ),
+                )
             else:
                 self.hass.bus.async_fire(
                     SENDDOMAIN,
                     dict(
                         uuid=self.uuidAction,
                         value="temp({},{})".format(
-                            brightness,
-                            int(to_loxone_color_temp(self._color_temp))
+                            brightness, int(to_loxone_color_temp(self._color_temp))
                         ),
                     ),
                 )
@@ -698,7 +705,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity, ABC):
                 "name": self.name,
                 "manufacturer": "Loxone",
                 "model": "LightControllerV2",
-                "suggested_area": self.room
+                "suggested_area": self.room,
             }
         else:
             return {
@@ -706,7 +713,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity, ABC):
                 "name": self.name,
                 "manufacturer": "Loxone",
                 "model": "Dimmer",
-                "suggested_area": self.room
+                "suggested_area": self.room,
             }
 
     @property
@@ -763,7 +770,12 @@ class LoxoneDimmer(LoxoneEntity, LightEntity, ABC):
         if self.states["position"] in e.data and isinstance(
             e.data[self.states["position"]], (int, float)
         ):
-            if self._min is not None and self._max is not None and self._min != "unknown" and self._max != "unknown":
+            if (
+                self._min is not None
+                and self._max is not None
+                and self._min != "unknown"
+                and self._max != "unknown"
+            ):
                 self._position = lox2hass_mapped(
                     e.data[self.states["position"]], self._min, self._max
                 )

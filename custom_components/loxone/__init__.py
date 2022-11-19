@@ -11,40 +11,75 @@ import sys
 import traceback
 
 import homeassistant.components.group as group
-from homeassistant.exceptions import HomeAssistantError
 import voluptuous as vol
-from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
-                                 CONF_USERNAME, EVENT_COMPONENT_LOADED,
-                                 EVENT_HOMEASSISTANT_START,
-                                 EVENT_HOMEASSISTANT_STOP)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_USERNAME,
+    EVENT_COMPONENT_LOADED,
+    EVENT_HOMEASSISTANT_START,
+    EVENT_HOMEASSISTANT_STOP,
+)
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback, HomeAssistant
-from homeassistant.helpers.device_registry import DeviceEntry
 
 from .api import LoxApp, LoxWs
-from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
-                    ATTR_UUID, ATTR_VALUE, CMD_AUTH_WITH_TOKEN,
-                    CMD_ENABLE_UPDATES, CMD_ENCRYPT_CMD, CMD_GET_KEY,
-                    CMD_GET_KEY_AND_SALT, CMD_GET_PUBLIC_KEY,
-                    CMD_GET_VISUAL_PASSWD, CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
-                    CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
-                    CMD_REQUEST_TOKEN_JSON_WEB,
-                    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
-                    CONF_SCENE_GEN_DELAY, DEFAULT, DEFAULT_DELAY_SCENE,
-                    DEFAULT_PORT, DEFAULT_TOKEN_PERSIST_NAME, DOMAIN,
-                    DOMAIN_DEVICES, ERROR_VALUE, EVENT, IV_BYTES,
-                    KEEP_ALIVE_PERIOD, LOXAPPPATH, LOXONE_PLATFORMS,
-                    SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
-                    SECUREDSENDDOMAIN, SENDDOMAIN, TIMEOUT, TOKEN_PERMISSION,
-                    TOKEN_REFRESH_DEFAULT_SECONDS, TOKEN_REFRESH_RETRY_COUNT,
-                    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, cfmt)
+from .const import (
+    AES_KEY_SIZE,
+    ATTR_AREA_CREATE,
+    ATTR_CODE,
+    ATTR_COMMAND,
+    ATTR_UUID,
+    ATTR_VALUE,
+    CMD_AUTH_WITH_TOKEN,
+    CMD_ENABLE_UPDATES,
+    CMD_ENCRYPT_CMD,
+    CMD_GET_KEY,
+    CMD_GET_KEY_AND_SALT,
+    CMD_GET_PUBLIC_KEY,
+    CMD_GET_VISUAL_PASSWD,
+    CMD_KEY_EXCHANGE,
+    CMD_REFRESH_TOKEN,
+    CMD_REFRESH_TOKEN_JSON_WEB,
+    CMD_REQUEST_TOKEN,
+    CMD_REQUEST_TOKEN_JSON_WEB,
+    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN,
+    CONF_SCENE_GEN,
+    CONF_SCENE_GEN_DELAY,
+    DEFAULT,
+    DEFAULT_DELAY_SCENE,
+    DEFAULT_PORT,
+    DEFAULT_TOKEN_PERSIST_NAME,
+    DOMAIN,
+    DOMAIN_DEVICES,
+    ERROR_VALUE,
+    EVENT,
+    IV_BYTES,
+    KEEP_ALIVE_PERIOD,
+    LOXAPPPATH,
+    LOXONE_PLATFORMS,
+    SALT_BYTES,
+    SALT_MAX_AGE_SECONDS,
+    SALT_MAX_USE_COUNT,
+    SECUREDSENDDOMAIN,
+    SENDDOMAIN,
+    TIMEOUT,
+    TOKEN_PERMISSION,
+    TOKEN_REFRESH_DEFAULT_SECONDS,
+    TOKEN_REFRESH_RETRY_COUNT,
+    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY,
+    cfmt,
+)
 from .helpers import get_miniserver_type
-from .miniserver import MiniServer, get_miniserver_from_hass, get_miniserver_from_config
+from .miniserver import MiniServer, get_miniserver_from_config, get_miniserver_from_hass
 
 REQUIREMENTS = ["websockets", "pycryptodome", "numpy"]
 
@@ -75,6 +110,7 @@ _UNDEF: dict = {}
 # TODO: Implement a complete restart of the loxone component without restart HomeAssistant
 # TODO: Unload device
 # TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
+
 
 async def async_unload_entry(hass, config_entry):
     """Restart of Home Assistant needed."""
@@ -169,9 +205,11 @@ async def async_setup_entry(hass, config_entry):
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(config_entry, platform)
         )
-        setup_tasks.append(hass.async_create_task(
-            async_load_platform(hass, platform, DOMAIN, {}, config_entry)
-        ))
+        setup_tasks.append(
+            hass.async_create_task(
+                async_load_platform(hass, platform, DOMAIN, {}, config_entry)
+            )
+        )
 
     if setup_tasks:
         await asyncio.wait(setup_tasks)
@@ -271,23 +309,50 @@ async def async_setup_entry(hass, config_entry):
                     dimmers.sort()
                     fans.sort()
 
-                    await create_group_for_loxone_enties(hass, sensors_analog, "Loxone Analog Sensors","loxone_analog")
-                    await create_group_for_loxone_enties(hass, sensors_digital, "Loxone Digital Sensors", "loxone_digital")
-                    await create_group_for_loxone_enties(hass, switches, "Loxone Switches", "loxone_switches")
-                    await create_group_for_loxone_enties(hass, covers, "Loxone Covers", "loxone_covers")
-                    await create_group_for_loxone_enties(hass, lights, "Loxone LightControllers", "loxone_lights")
-                    await create_group_for_loxone_enties(hass, lights, "Loxone Dimmer", "loxone_dimmers")
-                    await create_group_for_loxone_enties(hass, climates, "Loxone Room Controllers", "loxone_climates")
-                    await create_group_for_loxone_enties(hass, fans, "Loxone Ventilation Controllers", "loxone_ventilations")
+                    await create_group_for_loxone_enties(
+                        hass, sensors_analog, "Loxone Analog Sensors", "loxone_analog"
+                    )
+                    await create_group_for_loxone_enties(
+                        hass,
+                        sensors_digital,
+                        "Loxone Digital Sensors",
+                        "loxone_digital",
+                    )
+                    await create_group_for_loxone_enties(
+                        hass, switches, "Loxone Switches", "loxone_switches"
+                    )
+                    await create_group_for_loxone_enties(
+                        hass, covers, "Loxone Covers", "loxone_covers"
+                    )
+                    await create_group_for_loxone_enties(
+                        hass, lights, "Loxone LightControllers", "loxone_lights"
+                    )
+                    await create_group_for_loxone_enties(
+                        hass, lights, "Loxone Dimmer", "loxone_dimmers"
+                    )
+                    await create_group_for_loxone_enties(
+                        hass, climates, "Loxone Room Controllers", "loxone_climates"
+                    )
+                    await create_group_for_loxone_enties(
+                        hass,
+                        fans,
+                        "Loxone Ventilation Controllers",
+                        "loxone_ventilations",
+                    )
                     await hass.async_block_till_done()
-                    await create_group_for_loxone_enties(hass, [
+                    await create_group_for_loxone_enties(
+                        hass,
+                        [
                             "group.loxone_analog",
                             "group.loxone_digital",
                             "group.loxone_switches",
                             "group.loxone_covers",
                             "group.loxone_lights",
                             "group.loxone_ventilations",
-                        ], "Loxone Group", "loxone_group")
+                        ],
+                        "Loxone Group",
+                        "loxone_group",
+                    )
                 except Exception as err:
                     _LOGGER.error("Error Group generation: %s", err)
 
@@ -318,11 +383,13 @@ async def async_setup_entry(hass, config_entry):
 
     return True
 
+
 async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
 ) -> bool:
     """Remove a config entry from a device."""
     return True
+
 
 class LoxoneEntity(Entity):
     """

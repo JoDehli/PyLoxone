@@ -7,22 +7,19 @@ https://github.com/JoDehli/PyLoxone
 import logging
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import STATE_UNKNOWN
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback, HomeAssistant
+from homeassistant.const import STATE_UNKNOWN
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
-from .const import SENDDOMAIN, DOMAIN
-from .helpers import (
-    get_all,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-)
+from .const import DOMAIN, SENDDOMAIN
+from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_platform(
     hass: HomeAssistant,
@@ -32,6 +29,7 @@ async def async_setup_platform(
 ) -> None:
     """Set up Loxone Switch."""
     return True
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -43,7 +41,9 @@ async def async_setup_entry(
     loxconfig = miniserver.lox_config.json
     entites = []
 
-    for switch_entity in get_all(loxconfig, ["Pushbutton", "Switch", "TimedSwitch", "Intercom"]):
+    for switch_entity in get_all(
+        loxconfig, ["Pushbutton", "Switch", "TimedSwitch", "Intercom"]
+    ):
         if switch_entity["type"] in ["Pushbutton", "Switch"]:
             switch_entity.update(
                 {
@@ -208,7 +208,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             "name": self.name,
             "manufacturer": "Loxone",
             "model": self.type,
-            "suggested_area": self.room
+            "suggested_area": self.room,
         }
 
 
@@ -298,7 +298,7 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
             "name": self.name,
             "manufacturer": "Loxone",
             "model": self.type,
-            "suggested_area": self.room
+            "suggested_area": self.room,
         }
 
 
@@ -334,5 +334,5 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
             "name": self.name,
             "manufacturer": "Loxone",
             "model": self.type,
-            "suggested_area": self.room
+            "suggested_area": self.room,
         }

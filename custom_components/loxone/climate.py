@@ -23,19 +23,14 @@ from homeassistant.components.climate.const import (
     HVAC_MODE_OFF,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback, HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-
 from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
 from .const import CONF_HVAC_AUTO_MODE, DOMAIN, SENDDOMAIN
-from .helpers import (
-    get_all,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-)
+from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -74,6 +69,7 @@ async def async_setup_platform(
     # config = hass.data[DOMAIN]
     return True
 
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -100,6 +96,7 @@ async def async_setup_entry(
         devices.append(new_thermostat)
 
     async_add_entities(devices)
+
 
 class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller"""
@@ -276,5 +273,5 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             "manufacturer": "Loxone",
             "model": "RoomControllerV2",
             "type": self.type,
-            "suggested_area": self.room
+            "suggested_area": self.room,
         }

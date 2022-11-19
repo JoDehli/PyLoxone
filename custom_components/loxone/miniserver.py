@@ -1,8 +1,9 @@
 import logging
 import traceback
-from homeassistant.helpers import device_registry as dr
+
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
+from homeassistant.helpers import device_registry as dr
 
 from .api import LoxApp, LoxWs
 from .const import (
@@ -25,6 +26,7 @@ NEW_LIGHT = "lights"
 NEW_SCENE = "scenes"
 NEW_SENSOR = "sensors"
 NEW_COVERS = "covers"
+
 
 @callback
 def get_miniserver_from_hass(hass):
@@ -94,6 +96,7 @@ class MiniServer:
             return self.lox_config.json["msInfo"]["miniserverType"]
         except:
             return None
+
     @property
     def local_url(self):
         try:
@@ -107,6 +110,7 @@ class MiniServer:
             return self.lox_config.json["msInfo"]["remoteUrl"]
         except:
             return None
+
     @property
     def project_name(self):
         try:
@@ -227,7 +231,9 @@ class MiniServer:
             default_manufacturer="Loxone",
             sw_version=self.software_version,
             model=get_miniserver_type(self.miniserver_type),
-            configuration_url="http://{host}:{port}".format(host=self.lox_config.host, port=self.lox_config.port)
+            configuration_url="http://{host}:{port}".format(
+                host=self.lox_config.host, port=self.lox_config.port
+            ),
         )
 
     @property

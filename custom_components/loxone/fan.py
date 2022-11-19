@@ -1,38 +1,25 @@
-"""Support for Fritzbox binary sensors."""
+"""Interfaces with Alarm.com alarm control panels."""
 from __future__ import annotations
+
 import logging
 
-from typing import Literal, final
-
-import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
 from homeassistant.components.fan import (
     SUPPORT_PRESET_MODE,
     SUPPORT_SET_SPEED,
     FanEntity,
-    FanEntityFeature,
-    NotValidPresetModeError,
-)
-from homeassistant.const import (
-    STATE_UNKNOWN,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback, HomeAssistant
+from homeassistant.const import STATE_UNKNOWN
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .binary_sensor import LoxoneDigitalSensor
-from .sensor import Loxonesensor, LoxoneCustomSensor
-from .const import (
-    DOMAIN, 
-    SENDDOMAIN,
-)
-from .helpers import (
-    get_all,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-)
+from .const import DOMAIN, SENDDOMAIN
+from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
 from .miniserver import get_miniserver_from_hass
+from .sensor import Loxonesensor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,17 +27,24 @@ DEFAULT_FAN_SPEED_HOME = 30
 DEFAULT_FAN_SPEED_AWAY = 10
 DEFAULT_FAN_SPEED_BOOST = 100
 
-VENTELATION_INT_TO_STR = {
-    2: "Low",
-    3: "Medium",
-    4: "High",
-    5: "Auto",
-    6: "Away"
-}
+VENTELATION_INT_TO_STR = {2: "Low", 3: "Medium", 4: "High", 5: "Auto", 6: "Away"}
 
 STR_TO_VENTILATION_PROFILE_SETTABLE = {
     value: key for (key, value) in VENTELATION_INT_TO_STR.items()
 }
+
+
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_devices: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
+    """
+    For now, we do nothing. Function is only to get rid of the error message of missing async_setup_platform
+    """
+    pass
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -81,7 +75,7 @@ async def async_setup_entry(
                 "cat": fan.get("cat", ""),
                 "name": fan["name"] + " - Presence",
                 "device_class": "presence",
-                "async_add_devices": async_add_entities
+                "async_add_devices": async_add_entities,
             }
             entites.append(LoxoneDigitalSensor(**presence))
         if fan["details"]["hasIndoorHumidity"] and "humidityIndoor" in fan["states"]:
@@ -92,11 +86,9 @@ async def async_setup_entry(
                 "room": fan.get("room", ""),
                 "cat": fan.get("cat", ""),
                 "name": fan["name"] + " - Humidity",
-                "details": {
-                    "format": "%.1f%"
-                },
+                "details": {"format": "%.1f%"},
                 "device_class": "humidity",
-                "async_add_devices": async_add_entities
+                "async_add_devices": async_add_entities,
             }
             entites.append(Loxonesensor(**humidity))
         if fan["details"]["hasAirQuality"] and "airQualityIndoor" in fan["states"]:
@@ -107,11 +99,9 @@ async def async_setup_entry(
                 "room": fan.get("room", ""),
                 "cat": fan.get("cat", ""),
                 "name": fan["name"] + " - Air Quality",
-                "details": {
-                    "format": "%.1fppm"
-                },
+                "details": {"format": "%.1fppm"},
                 "device_class": "carbon_dioxide",
-                "async_add_devices": async_add_entities
+                "async_add_devices": async_add_entities,
             }
             entites.append(Loxonesensor(**air_quality))
         # if "temperatureIndoor" in fan["states"]:
@@ -136,11 +126,9 @@ async def async_setup_entry(
                 "room": fan.get("room", ""),
                 "cat": fan.get("cat", ""),
                 "name": fan["name"] + " - Temperature",
-                "details": {
-                    "format": "%.1f°"
-                },
+                "details": {"format": "%.1f°"},
                 "device_class": "temperature",
-                "async_add_devices": async_add_entities
+                "async_add_devices": async_add_entities,
             }
             entites.append(Loxonesensor(**temperature))
 
@@ -152,7 +140,7 @@ async def async_setup_entry(
 class LoxoneVentilation(LoxoneEntity, FanEntity):
     """Representation of a ventilation Loxone device."""
 
-    def __init__(self, **kwargs)-> None:
+    def __init__(self, **kwargs) -> None:
         """Initialize the fan."""
         LoxoneEntity.__init__(self, **kwargs)
 
@@ -186,7 +174,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
             "manufacturer": "Loxone",
             "model": self.type,
             "suggested_area": self.room,
-         }
+        }
 
     @property
     def supported_features(self):
@@ -235,7 +223,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
     @property
     def preset_mode(self) -> str | None:
         """Return a list of available preset modes."""
-        return VENTELATION_INT_TO_STR.get( self.get_state_value("mode") )
+        return VENTELATION_INT_TO_STR.get(self.get_state_value("mode"))
 
     @property
     def percentage(self) -> Optional[int]:
@@ -273,23 +261,24 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
     #             **kwargs: Any) -> None:
     #     """Turn on the fan."""
 
-    async def async_turn_on(self,
+    async def async_turn_on(
+        self,
         percentage: int | None = None,
         preset_mode: str | None = None,
         **kwargs: Any,
     ) -> None:
         """Turn the fan on."""
         if preset_mode:
-            self.set_preset_mode( preset_mode )
+            self.set_preset_mode(preset_mode)
         if percentage:
-            self.set_percentage( percentage )
+            self.set_percentage(percentage)
         _LOGGER.debug("Turn on")
 
     def turn_off(self, **kwargs: Any) -> None:
         """Turn the fan off."""
         if hasattr(self, "preset_mode"):
-            self.set_preset_mode( kwargs.get("preset_mode", "Auto") )
-        self.set_percentage( 0 )
+            self.set_preset_mode(kwargs.get("preset_mode", "Auto"))
+        self.set_percentage(0)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the fan off."""

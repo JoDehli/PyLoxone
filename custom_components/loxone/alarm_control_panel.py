@@ -15,6 +15,7 @@ from homeassistant.components.alarm_control_panel.const import (
     SUPPORT_ALARM_ARM_HOME,
     SUPPORT_ALARM_ARM_NIGHT,
 )
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_CODE,
     CONF_NAME,
@@ -26,18 +27,13 @@ from homeassistant.const import (
     STATE_ALARM_DISARMED,
     STATE_ALARM_TRIGGERED,
 )
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback, HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DOMAIN, EVENT, SECUREDSENDDOMAIN, SENDDOMAIN
-from .helpers import (
-    get_all,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-)
+from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
 from .miniserver import get_miniserver_from_hass
 
 DEFAULT_NAME = "Loxone Alarm"
@@ -63,6 +59,7 @@ async def async_setup_platform(
 ) -> None:
     """Set up Loxone Alarms."""
     return True
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -303,5 +300,5 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             "manufacturer": "Loxone",
             "model": "Alarm",
             "type": self.type,
-            "suggested_area": self.room
+            "suggested_area": self.room,
         }

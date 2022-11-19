@@ -23,11 +23,10 @@ from homeassistant.components.cover import (
     SUPPORT_OPEN,
     CoverEntity,
 )
-from homeassistant.const import STATE_OFF, STATE_ON
-from homeassistant.core import callback
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback, HomeAssistant
+from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
@@ -46,13 +45,14 @@ from .helpers import (
     get_all,
     get_cat_name_from_cat_uuid,
     get_room_name_from_room_uuid,
-    map_range
+    map_range,
 )
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
 
 NEW_COVERS = "covers"
+
 
 async def async_setup_platform(
     hass: HomeAssistant,
@@ -65,9 +65,9 @@ async def async_setup_platform(
 
 
 async def async_setup_entry(
-        hass: HomeAssistant,
-        config_entry: ConfigEntry,
-        async_add_entities: AddEntitiesCallback,
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set Loxone covers."""
     miniserver = get_miniserver_from_hass(hass)
@@ -103,6 +103,7 @@ async def async_setup_entry(
         )
     )
     async_add_entities(covers)
+
 
 class LoxoneGate(LoxoneEntity, CoverEntity):
     """Loxone Gate"""
@@ -232,7 +233,7 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
             "manufacturer": "Loxone",
             "model": "Gate",
             "type": self.type,
-            "suggested_area": self.room
+            "suggested_area": self.room,
         }
 
 
@@ -345,7 +346,7 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
             "name": self.name,
             "manufacturer": "Loxone",
             "model": "Window",
-             "suggested_area": self.room
+            "suggested_area": self.room,
         }
 
 
@@ -405,9 +406,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
         if self.current_cover_tilt_position is not None:
             supported_features |= (
-                SUPPORT_OPEN_TILT
-                | SUPPORT_CLOSE_TILT
-                | SUPPORT_SET_TILT_POSITION
+                SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT | SUPPORT_SET_TILT_POSITION
             )
         return supported_features
 
@@ -431,8 +430,12 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
                     self._closed = False
 
             if self.states["shadePosition"] in e.data:
-                self._tilt_position_loxone = float(e.data[self.states["shadePosition"]]) * 100.0
-                self._tilt_position = map_range(self._tilt_position_loxone, 0, 100, 100, 0)
+                self._tilt_position_loxone = (
+                    float(e.data[self.states["shadePosition"]]) * 100.0
+                )
+                self._tilt_position = map_range(
+                    self._tilt_position_loxone, 0, 100, 100, 0
+                )
 
             if self.states["up"] in e.data:
                 self._is_opening = e.data[self.states["up"]]
@@ -564,38 +567,42 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
-        self.hass.bus.async_fire(
-            SENDDOMAIN, dict(uuid=self.uuidAction, value="stop")
-        )
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stop"))
 
     def set_cover_position(self, **kwargs):
         """Return the current tilt position of the cover."""
         position = kwargs.get(ATTR_POSITION)
         mapped_pos = map_range(position, 0, 100, 100, 0)
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualPosition/{mapped_pos}"))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualPosition/{mapped_pos}")
+        )
 
     def open_cover_tilt(self, **kwargs):
         """Close the cover tilt."""
         position = 0.0 + random.uniform(0.000000001, 0.00900000)
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}"))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}")
+        )
 
     def stop_cover_tilt(self, **kwargs):
         """Stop the cover."""
-        self.hass.bus.async_fire(
-            SENDDOMAIN, dict(uuid=self.uuidAction, value="stop")
-        )
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stop"))
 
     def close_cover_tilt(self, **kwargs):
         """Close the cover tilt."""
         position = 100.0 + random.uniform(0.000000001, 0.00900000)
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}"))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}")
+        )
 
     def set_cover_tilt_position(self, **kwargs):
         """Move the cover tilt to a specific position."""
         tilt_position = kwargs.get(ATTR_TILT_POSITION)
         mapped_pos = map_range(tilt_position, 0, 100, 100, 0)
         position = mapped_pos + random.uniform(0.000000001, 0.00900000)
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}"))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}")
+        )
 
     @property
     def device_info(self):
@@ -605,5 +612,5 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             "manufacturer": "Loxone",
             "model": "Jalousie",
             "type": self.type,
-            "suggested_area": self.room
+            "suggested_area": self.room,
         }

@@ -85,6 +85,7 @@ async def raise_if_not_200(response: httpx.Response) -> None:
                 f"Miniserver response code {response.status_code}"
             )
 
+
 class LoxApp(object):
     def __init__(self):
         self.host = None
@@ -112,7 +113,7 @@ class LoxApp(object):
         self.url = _base_url
         client = httpx.AsyncClient(
             auth=auth,
-            base_url= _base_url,
+            base_url=_base_url,
             verify=False,
             timeout=TIMEOUT,
             event_hooks={"response": [raise_if_not_200]},
@@ -133,9 +134,7 @@ class LoxApp(object):
                 _ = req_data["LL"]["value"]
                 value = json.loads(_.replace("'", '"'))
                 self.https_status = value.get("httpsStatus")
-                self.version = (
-                    [int(x) for x in value.get("version").split(".")]
-                )
+                self.version = [int(x) for x in value.get("version").split(".")]
                 self._local = value.get("local", True)
 
         if not self._local:

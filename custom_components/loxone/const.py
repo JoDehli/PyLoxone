@@ -6,6 +6,7 @@ https://github.com/JoDehli/PyLoxone
 """
 # Loxone constants
 from typing import Final
+
 from homeassistant.const import Platform
 
 LOXONE_PLATFORMS: Final[list[Platform]] = [
@@ -16,7 +17,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.FAN,
     Platform.LIGHT,
     Platform.CLIMATE,
-    Platform.ALARM_CONTROL_PANEL
+    Platform.ALARM_CONTROL_PANEL,
 ]
 
 LOXONE_DEFAULT_PORT = 8080

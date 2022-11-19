@@ -9,7 +9,12 @@ from re import match
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import (
+    PLATFORM_SCHEMA,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_DEVICE_CLASS,
     CONF_NAME,
@@ -19,19 +24,14 @@ from homeassistant.const import (
     STATE_ON,
     STATE_UNKNOWN,
 )
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import callback, HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
-from .helpers import (
-    get_all,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-)
+from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
 from .miniserver import get_miniserver_from_hass
 
 NEW_SENSOR = "sensors"
@@ -95,7 +95,6 @@ async def async_setup_entry(
         )
 
         sensors.append(Loxonesensor(**sensor))
-
 
     for sensor in get_all(loxconfig, "TextInput"):
         sensor.update(
@@ -342,11 +341,11 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
     def icon(self):
         """Return the sensor icon."""
         if self._device_class:
-            if self._device_class == 'humidity':
+            if self._device_class == "humidity":
                 return "mdi:water-percent"
-            elif self._device_class == 'carbon_dioxide':
+            elif self._device_class == "carbon_dioxide":
                 return "mdi:molecule-co2"
-            elif self._device_class == 'temperature':
+            elif self._device_class == "temperature":
                 return "mdi:thermometer"
             else:
                 return "mdi:chart-bell-curve"
@@ -381,7 +380,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
                 "manufacturer": "Loxone",
                 "model": "Sensor analog",
                 "type": self.typ,
-                "suggested_area": self.room
+                "suggested_area": self.room,
             }
         else:
             return {
@@ -390,7 +389,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
                 "manufacturer": "Loxone",
                 "model": "Sensor digital",
                 "type": self.typ,
-                "suggested_area": self.room
+                "suggested_area": self.room,
             }
 
     @property
