@@ -59,7 +59,7 @@ Send command direct to the loxone for example a pulse event to a switch:
 - Intercom
 - LightControllerV2
 - Alarm
-- Fan (thanks for them implementation [cabeljunky](https://github.com/cabeljunky) )
+- Fan (thanks for the implementation [cabeljunky](https://github.com/cabeljunky) )
 - RoomControllerV2 (thanks for the implementation [ztamas83](https://github.com/ztamas83) )
 
 ### If your Device is not supported
