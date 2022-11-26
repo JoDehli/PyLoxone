@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-
+from voluptuous import Optional, Any
 from homeassistant.components.fan import (
     SUPPORT_PRESET_MODE,
     SUPPORT_SET_SPEED,
@@ -182,7 +182,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
         return SUPPORT_PRESET_MODE | SUPPORT_SET_SPEED
 
     async def event_handler(self, event):
-        _LOGGER.debug(f"Fan Event data: {event.data}")
+        # _LOGGER.debug(f"Fan Event data: {event.data}")
         update = False
 
         for key in set(self._stateAttribUuids.values()) & event.data.keys():
@@ -192,7 +192,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
         if update:
             self.schedule_update_ha_state()
 
-        _LOGGER.debug(f"State attribs after event handling: {self._stateAttribValues}")
+        # _LOGGER.debug(f"State attribs after event handling: {self._stateAttribValues}")
 
     @property
     def icon(self):
@@ -224,6 +224,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
     def preset_mode(self) -> str | None:
         """Return a list of available preset modes."""
         return VENTELATION_INT_TO_STR.get(self.get_state_value("mode"))
+
 
     @property
     def percentage(self) -> Optional[int]:
