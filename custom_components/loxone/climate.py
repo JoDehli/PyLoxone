@@ -7,12 +7,11 @@ https://github.com/JoDehli/PyLoxone
 
 import logging
 from abc import ABC
-
+from homeassistant.const import TEMP_CELSIUS, TEMP_FAHRENHEIT
 from homeassistant.components.climate import (
     PLATFORM_SCHEMA,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
-    TEMP_CELSIUS,
     ClimateEntity,
 )
 from homeassistant.components.climate.const import (
@@ -128,7 +127,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return self.type
 
     async def event_handler(self, event):
-        _LOGGER.debug(f"Climate Event data: {event.data}")
+        # _LOGGER.debug(f"Climate Event data: {event.data}")
         update = False
 
         for key in set(self._stateAttribUuids.values()) & event.data.keys():
@@ -138,7 +137,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         if update:
             self.schedule_update_ha_state()
 
-        _LOGGER.debug(f"State attribs after event handling: {self._stateAttribValues}")
+        # _LOGGER.debug(f"State attribs after event handling: {self._stateAttribValues}")
 
     def get_state_value(self, name):
         uuid = self._stateAttribUuids[name]
@@ -158,7 +157,21 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             "room": self.room,
             "category": self.cat,
             "platform": "loxone",
+            "is_overridden": self.is_overridden,
         }
+
+    @property
+    def is_overridden(self) -> bool:
+        # Needed because loxone uses these variables names. Simply workaround define it also here.
+        true = True
+        false = False
+        null = None
+        _override_entries = self.get_state_value("overrideEntries")
+        if _override_entries:
+            _override_entries = eval(_override_entries)
+            if isinstance(_override_entries, list) and len(_override_entries) > 0:
+                return True
+        return False
 
     @property
     def current_temperature(self):
@@ -205,7 +218,10 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     @property
     def temperature_unit(self):
         """Return the unit of measurement used by the platform."""
-
+        if "format" in self.details:
+            if self.details["format"].find("°"):
+                return TEMP_CELSIUS
+            return TEMP_FAHRENHEIT
         return TEMP_CELSIUS
 
     @property
