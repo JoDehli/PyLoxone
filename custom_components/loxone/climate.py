@@ -30,7 +30,7 @@ from voluptuous import All, Optional, Range
 from . import LoxoneEntity
 from .const import CONF_HVAC_AUTO_MODE, DOMAIN, SENDDOMAIN
 from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
-from .miniserver import get_miniserver_from_hass
+from . import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up LoxoneRoomControllerV2."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.structure
     devices = []
 
     for climate in get_all(loxconfig, "IRoomControllerV2"):

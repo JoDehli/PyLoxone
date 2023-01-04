@@ -28,7 +28,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
 from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
-from .miniserver import get_miniserver_from_hass
+from . import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
 NEW_SENSOR = "binairy_sensors"
@@ -70,7 +70,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.structure
     digital_sensors = []
 
     for sensor in get_all(loxconfig, "InfoOnlyDigital"):
@@ -107,13 +107,13 @@ async def async_setup_entry(
     def async_add_binary_sensors(_):
         async_add_entities(_, True)
 
-    miniserver.listeners.append(
-        async_dispatcher_connect(
-            hass,
-            miniserver.async_signal_new_device("sensors"),
-            async_add_binary_sensors,
-        )
-    )
+    # miniserver.listeners.append(
+    #     async_dispatcher_connect(
+    #         hass,
+    #         miniserver.async_signal_new_device("sensors"),
+    #         async_add_binary_sensors,
+    #     )
+    # )
     async_add_entities(digital_sensors)
 
 

@@ -16,7 +16,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN
 from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
-from .miniserver import get_miniserver_from_hass
+from . import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.structure
     entites = []
 
     for switch_entity in get_all(

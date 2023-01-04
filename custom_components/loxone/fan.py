@@ -18,7 +18,7 @@ from . import LoxoneEntity
 from .binary_sensor import LoxoneDigitalSensor
 from .const import DOMAIN, SENDDOMAIN
 from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
-from .miniserver import get_miniserver_from_hass
+from  . import get_miniserver_from_hass
 from .sensor import Loxonesensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.structure
     entites = []
 
     for fan in get_all(loxconfig, "Ventilation"):

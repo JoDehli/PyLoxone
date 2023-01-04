@@ -47,7 +47,7 @@ from .helpers import (
     get_room_name_from_room_uuid,
     map_range,
 )
-from .miniserver import get_miniserver_from_hass
+from . import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ async def async_setup_entry(
 ) -> None:
     """Set Loxone covers."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.structure
     covers = []
 
     for cover in get_all(loxconfig, ["Jalousie", "Gate", "Window"]):
@@ -97,11 +97,11 @@ async def async_setup_entry(
     def async_add_covers(_):
         async_add_entities(_)
 
-    miniserver.listeners.append(
-        async_dispatcher_connect(
-            hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_entities
-        )
-    )
+    # miniserver.listeners.append(
+    #     async_dispatcher_connect(
+    #         hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_entities
+    #     )
+    # )
     async_add_entities(covers)
 
 
