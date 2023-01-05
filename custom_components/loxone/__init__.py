@@ -231,7 +231,7 @@ async def async_setup_entry(hass, config_entry):
         value = call.data.get(ATTR_VALUE, DEFAULT)
         device_uuid = call.data.get(ATTR_UUID, DEFAULT)
         value = value.strip()
-        vdevice_uuid  = device_uuid .strip()
+        device_uuid  = device_uuid.strip()
         _LOGGER.debug(f"send command: jdev/sps/io/{device_uuid}/{value}")
         await miniserver.send_control_command(device_uuid, value)
 
@@ -247,18 +247,18 @@ async def async_setup_entry(hass, config_entry):
                     value = DEFAULT
                 await miniserver.send_control_command(device_uuid, value)
             elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data, dict):
-                print("Not implemented ")
-                # value = event.data.get(ATTR_VALUE, DEFAULT)
-                # device_uuid = event.data.get(ATTR_UUID, DEFAULT)
-                # code = event.data.get(ATTR_CODE, DEFAULT)
-                # if code is None:
-                #     code = DEFAULT
-                # if device_uuid is None:
-                #     device_uuid = DEFAULT
-                # if value is None:
-                #     value = DEFAULT
-                # miniserver.send_secured_control_command(device_uuid, value)
-                # miniserver.send_secure((device_uuid, value, code))
+                value = event.data.get(ATTR_VALUE, DEFAULT)
+                device_uuid = event.data.get(ATTR_UUID, DEFAULT)
+                code = event.data.get(ATTR_CODE, DEFAULT)
+                if code is None:
+                    code = DEFAULT
+                if device_uuid is None:
+                    device_uuid = DEFAULT
+                if value is None:
+                    value = DEFAULT
+                miniserver.visual_password = code
+                await miniserver.send_secured_control_command(device_uuid, value)
+                miniserver.visual_password = ""
         except ValueError:
             traceback.print_exc()
 
@@ -275,11 +275,12 @@ async def async_setup_entry(hass, config_entry):
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_miniserver())
     hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
     hass.bus.async_listen(SENDDOMAIN, send_to_loxone)
+    hass.bus.async_listen(SECUREDSENDDOMAIN, send_to_loxone)
     hass.services.async_register(
         DOMAIN, "event_websocket_command", handle_websocket_command
     )
 
-    # hass.bus.async_listen(SECUREDSENDDOMAIN, send_to_loxone)
+
 
     # hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
     #

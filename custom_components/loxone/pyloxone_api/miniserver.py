@@ -110,6 +110,10 @@ class Miniserver(ConnectorMixin, TokensMixin):
     def visual_password(self) -> str:
         return self._visual_password
 
+    @visual_password.setter
+    def visual_password(self, visual_password) -> NoReturn:
+        self._visual_password = visual_password
+
     @property
     def version(self) -> list[int]:
         """The Miniserver software version, as a list of ints eg [12,0,1,2]"""
