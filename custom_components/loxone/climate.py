@@ -220,9 +220,9 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         """Return the unit of measurement used by the platform."""
         if "format" in self.details:
             if self.details["format"].find("°"):
-                return  UnitOfTemperature.TEMP_CELSIUS
-            return  UnitOfTemperature.TEMP_FAHRENHEIT
-        return  UnitOfTemperature.TEMP_CELSIUS
+                return  UnitOfTemperature.CELSIUS
+            return  UnitOfTemperature.FAHRENHEIT
+        return  UnitOfTemperature.CELSIUS
 
     @property
     def target_temperature(self):
