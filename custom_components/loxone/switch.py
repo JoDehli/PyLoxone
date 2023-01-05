@@ -53,6 +53,7 @@ async def async_setup_entry(
                     "cat": get_cat_name_from_cat_uuid(
                         loxconfig, switch_entity.get("cat", "")
                     ),
+                    "config_entry": config_entry
                 }
             )
             new_push_button = LoxoneSwitch(**switch_entity)
@@ -67,6 +68,7 @@ async def async_setup_entry(
                     "cat": get_cat_name_from_cat_uuid(
                         loxconfig, switch_entity.get("cat", "")
                     ),
+                    "config_entry": config_entry
                 }
             )
             new_push_button = LoxoneTimedSwitch(**switch_entity)
@@ -88,7 +90,7 @@ async def async_setup_entry(
                         {
                             "room": get_room_name_from_room_uuid(
                                 loxconfig, switch_entity.get("room", "")
-                            )
+                            ),
                         }
                     )
                     _.update(
@@ -98,6 +100,12 @@ async def async_setup_entry(
                             )
                         }
                     )
+                    _.update(
+                        {
+                            "config_entry": config_entry
+                        }
+                    )
+
                     new_push_button = LoxoneIntercomSubControl(**_)
                     entites.append(new_push_button)
 

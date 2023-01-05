@@ -91,6 +91,7 @@ async def async_setup_entry(
                 "typ": "analog",
                 "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+                "config_entry": config_entry
             }
         )
 
@@ -101,6 +102,7 @@ async def async_setup_entry(
             {
                 "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+                "config_entry": config_entry
             }
         )
 

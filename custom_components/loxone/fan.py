@@ -63,6 +63,7 @@ async def async_setup_entry(
                 "room": get_room_name_from_room_uuid(loxconfig, fan.get("room", "")),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, fan.get("cat", "")),
                 "async_add_devices": async_add_entities,
+                "config_entry": config_entry
             }
         )
 
@@ -76,6 +77,7 @@ async def async_setup_entry(
                 "name": fan["name"] + " - Presence",
                 "device_class": "presence",
                 "async_add_devices": async_add_entities,
+                "config_entry": config_entry
             }
             entites.append(LoxoneDigitalSensor(**presence))
         if fan["details"]["hasIndoorHumidity"] and "humidityIndoor" in fan["states"]:
@@ -89,6 +91,7 @@ async def async_setup_entry(
                 "details": {"format": "%.1f%"},
                 "device_class": "humidity",
                 "async_add_devices": async_add_entities,
+                "config_entry": config_entry
             }
             entites.append(Loxonesensor(**humidity))
         if fan["details"]["hasAirQuality"] and "airQualityIndoor" in fan["states"]:
@@ -102,6 +105,7 @@ async def async_setup_entry(
                 "details": {"format": "%.1fppm"},
                 "device_class": "carbon_dioxide",
                 "async_add_devices": async_add_entities,
+                "config_entry": config_entry
             }
             entites.append(Loxonesensor(**air_quality))
         # if "temperatureIndoor" in fan["states"]:
@@ -129,6 +133,7 @@ async def async_setup_entry(
                 "details": {"format": "%.1f°"},
                 "device_class": "temperature",
                 "async_add_devices": async_add_entities,
+                "config_entry": config_entry
             }
             entites.append(Loxonesensor(**temperature))
 

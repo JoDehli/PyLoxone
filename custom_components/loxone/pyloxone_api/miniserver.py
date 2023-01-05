@@ -272,7 +272,7 @@ class Miniserver(ConnectorMixin, TokensMixin):
             command = f"jdev/sys/enc/{enc_cipher}"
 
         await self._ws.send_str(command)
-        # According to the API docs, "The Miniserver will answer every command
+         # According to the API docs, "The Miniserver will answer every command
         # it receives, it will return a TextMessage as confirmation." The
         # returned message will have a control attribute which should be the
         # same as the command.

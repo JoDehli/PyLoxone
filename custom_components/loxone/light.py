@@ -79,6 +79,7 @@ async def async_setup_entry(
                     loxconfig, light_controller.get("cat", "")
                 ),
                 "async_add_devices": async_add_entities,
+                "config_entry": config_entry
             }
         )
         new_light_controller = LoxonelightcontrollerV2(**light_controller)
@@ -156,6 +157,7 @@ async def async_setup_entry(
                         loxconfig, light_controller.get("cat", "")
                     ),
                     "async_add_devices": async_add_entities,
+                    "config_entry": config_entry
                 }
             )
         else:
@@ -166,6 +168,7 @@ async def async_setup_entry(
                     ),
                     "cat": get_cat_name_from_cat_uuid(loxconfig, dimmer.get("cat", "")),
                     "async_add_devices": async_add_entities,
+                    "config_entry": config_entry
                 }
             )
 
@@ -182,6 +185,7 @@ async def async_setup_entry(
                     loxconfig, light_controller.get("cat", "")
                 ),
                 "async_add_devices": async_add_entities,
+                "config_entry": config_entry
             }
         )
         new_switch = LoxoneLight(**switch)
@@ -197,6 +201,7 @@ async def async_setup_entry(
                     loxconfig, light_controller.get("cat", "")
                 ),
                 "async_add_devices": async_add_entities,
+                "config_entry": config_entry
             }
         )
         new_color_picker = LoxoneColorPickerV2(**color_picker)
@@ -207,6 +212,12 @@ async def async_setup_entry(
 
 class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
     """Representation of a Light Controller V2."""
+
+    def turn_on(self, **kwargs: Any) -> None:
+        pass
+
+    def turn_off(self, **kwargs: Any) -> None:
+        pass
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)

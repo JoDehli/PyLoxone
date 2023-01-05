@@ -9,6 +9,7 @@ import logging
 import re
 import sys
 import traceback
+from collections.abc import Callable
 
 import homeassistant.components.group as group
 import voluptuous as vol
@@ -64,10 +65,25 @@ CONFIG_SCHEMA = vol.Schema(
 _UNDEF: dict = {}
 
 
-
 # TODO: Implement a complete restart of the loxone component without restart HomeAssistant
 # TODO: Unload device
 # TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
+
+
+# class GlobalListeners:
+#     def __init__(self):
+#         self.listeners: list[Callable[[], None]] = []
+#
+#     @callback
+#     def async_add_listener(self, update_callback):
+#         """Listen for data updates."""
+#         # This is the first listener, set up interval.
+#         self.listeners.append(update_callback)
+#
+#     @callback
+#     def async_remove_listener(self, update_callback):
+#         """Remove data update."""
+#         self.listeners.remove(update_callback)
 
 @callback
 def get_miniserver_from_config_entry(hass, config_entry) -> Miniserver:
@@ -78,7 +94,12 @@ def get_miniserver_from_config_entry(hass, config_entry) -> Miniserver:
 @callback
 def get_miniserver_from_hass(hass) -> Miniserver:
     """Return Miniserver with a matching bridge id."""
-    return hass.data[DOMAIN][list(hass.data[DOMAIN].keys())[0]]
+    return hass.data[DOMAIN][list(hass.data[DOMAIN].keys())[0]]['miniserver']
+
+# @callback
+# def get_listeners_from_hass(hass) -> GlobalListeners:
+#     """Return Miniserver with a matching bridge id."""
+#     return hass.data[DOMAIN][list(hass.data[DOMAIN].keys())[0]]['listeners']
 
 
 @callback
@@ -88,11 +109,6 @@ def get_miniserver_from_config(hass, config):
         return None
     return config[next(iter(config))]
 
-
-
-async def async_unload_entry(hass, config_entry):
-    """Restart of Home Assistant needed."""
-    return False
 
 
 async def async_setup(hass, config):
@@ -160,19 +176,39 @@ async def create_group_for_loxone_enties(hass, entites, name, object_id):
     except Exception as err:
         _LOGGER.error("Can't create group '%s' with error: %s", name, err)
 
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Restart of Home Assistant needed."""
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, LOXONE_PLATFORMS)
 
-async def async_setup_entry(hass, config_entry):
+    if not unload_ok:
+        return False
+
+    if unload_ok:
+        hass.services.async_remove(DOMAIN, "event_websocket_command")
+        miniserver = get_miniserver_from_hass(hass)
+        await miniserver.close()
+    await asyncio.sleep(1)
+    return True
+
+
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+
     if DOMAIN not in hass.data:
-        hass.data[DOMAIN] = {}
+        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
+            'miniserver': None,
+            #"listeners": GlobalListeners()
+        }
 
-    if not config_entry.options:
-        await async_set_options(hass, config_entry)
+    if not entry.options:
+        await async_set_options(hass, entry)
 
     miniserver = Miniserver(
-        user=config_entry.options.get("username"),
-        password=config_entry.options.get("password"),
-        host=config_entry.options.get("host"),
-        port=config_entry.options.get("port"),
+        user=entry.options.get("username"),
+        password=entry.options.get("password"),
+        host=entry.options.get("host"),
+        port=entry.options.get("port"),
         use_tls=False
     )
 
@@ -181,34 +217,38 @@ async def async_setup_entry(hass, config_entry):
     # _LOGGER.addHandler(logging.StreamHandler())
 
     await miniserver.connect()
-    hass.data[DOMAIN][miniserver.snr] = miniserver
+    hass.data[DOMAIN][entry.entry_id].update({"miniserver":miniserver})
+
 
 
     setup_tasks = []
 
     for platform in LOXONE_PLATFORMS:
+    # for platform in [Platform.SENSOR]:
         _LOGGER.debug("starting loxone {}...".format(platform))
 
         hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(config_entry, platform)
+            hass.config_entries.async_forward_entry_setup(entry, platform)
         )
         setup_tasks.append(
             hass.async_create_task(
-                async_load_platform(hass, platform, DOMAIN, {}, config_entry)
+                async_load_platform(hass, platform, DOMAIN, {}, entry)
             )
         )
 
     if setup_tasks:
         await asyncio.wait(setup_tasks)
 
-    for platform in ["scene"]:
-        _LOGGER.debug("starting loxone {}...".format(platform))
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(config_entry, platform)
-        )
+    entry.add_update_listener(async_config_entry_updated)
 
 
-    async def enable_state_updates():
+    # for platform in ["scene"]:
+    #     _LOGGER.debug("starting loxone {}...".format(platform))
+    #     hass.async_create_task(
+    #         hass.config_entries.async_forward_entry_setup(entry, platform)
+    #     )
+
+    async def enable_state_updates(event):
         await miniserver.enable_state_updates()
 
     async def message_callback():
@@ -263,24 +303,29 @@ async def async_setup_entry(hass, config_entry):
             traceback.print_exc()
 
 
-    async def stop_miniserver():
-        # message_update.cancel()
+    async def stop_miniserver(event):
         await miniserver.close()
 
     async def loxone_discovered(event):
         _LOGGER.debug("Loxone discovered")
         pass
 
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, enable_state_updates())
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_miniserver())
-    hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
-    hass.bus.async_listen(SENDDOMAIN, send_to_loxone)
-    hass.bus.async_listen(SECUREDSENDDOMAIN, send_to_loxone)
+    entry.async_on_unload(
+        hass.bus.async_listen(SENDDOMAIN, send_to_loxone)
+    )
+    entry.async_on_unload(
+        hass.bus.async_listen(SECUREDSENDDOMAIN, send_to_loxone)
+    )
+    entry.async_on_unload(
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_miniserver)
+    )
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, loxone_discovered)
+
     hass.services.async_register(
         DOMAIN, "event_websocket_command", handle_websocket_command
     )
 
-
+    await miniserver.enable_state_updates()
 
     # hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
     #
@@ -533,15 +578,17 @@ class LoxoneEntity(Entity):
                     traceback.print_exc()
                     sys.exit(-1)
 
-        self.listener = None
 
     async def async_added_to_hass(self):
         """Subscribe to device events."""
-        self.listener = self.hass.bus.async_listen(EVENT, self.event_handler)
+        await super().async_added_to_hass()
+        self.config_entry.async_on_unload(
+            self.hass.bus.async_listen(EVENT, self.event_handler)
+        )
 
     async def async_will_remove_from_hass(self):
         """Disconnect callbacks."""
-        self.listener = None
+        await super().async_will_remove_from_hass()
 
     async def event_handler(self, e):
         pass

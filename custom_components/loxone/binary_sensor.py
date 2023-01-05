@@ -79,6 +79,7 @@ async def async_setup_entry(
                 "typ": "digital",
                 "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+                "config_entry": config_entry
             }
         )
         digital_sensors.append(LoxoneDigitalSensor(**sensor))
@@ -89,6 +90,7 @@ async def async_setup_entry(
                 "typ": "presence",
                 "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+                "config_entry": config_entry
             }
         )
         digital_sensors.append(LoxoneDigitalSensor(**sensor))
@@ -99,6 +101,7 @@ async def async_setup_entry(
                 "typ": "smoke",
                 "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+                "config_entry": config_entry
             }
         )
         digital_sensors.append(LoxoneDigitalSensor(**sensor))

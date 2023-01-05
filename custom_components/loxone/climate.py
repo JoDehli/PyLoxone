@@ -88,6 +88,7 @@ async def async_setup_entry(
                 ),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, climate.get("cat", "")),
                 CONF_HVAC_AUTO_MODE: 0,
+                "config_entry": config_entry
             }
         )
 

@@ -80,6 +80,7 @@ async def async_setup_entry(
                 "hass": hass,
                 "room": get_room_name_from_room_uuid(loxconfig, cover.get("room", "")),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, cover.get("cat", "")),
+                "config_entry": config_entry
             }
         )
 

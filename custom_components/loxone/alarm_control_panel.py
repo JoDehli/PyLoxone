@@ -80,10 +80,13 @@ async def async_setup_entry(
                     loxconfig, loxone_alarm.get("cat", "")
                 ),
                 "code": None,
+                "config_entry": config_entry
             }
         )
         new_alarm = LoxoneAlarm(**loxone_alarm)
-        hass.bus.async_listen(EVENT, new_alarm.event_handler)
+        config_entry.async_on_unload(
+            hass.bus.async_listen(EVENT, new_alarm.event_handler)
+        )
         devices.append(new_alarm)
     async_add_entities(devices, True)
     return True
