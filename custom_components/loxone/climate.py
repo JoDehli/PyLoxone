@@ -7,7 +7,7 @@ https://github.com/JoDehli/PyLoxone
 
 import logging
 from abc import ABC
-from homeassistant.const import TEMP_CELSIUS, TEMP_FAHRENHEIT
+from homeassistant.const import UnitOfTemperature
 from homeassistant.components.climate import (
     PLATFORM_SCHEMA,
     SUPPORT_PRESET_MODE,
@@ -220,9 +220,9 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         """Return the unit of measurement used by the platform."""
         if "format" in self.details:
             if self.details["format"].find("°"):
-                return TEMP_CELSIUS
-            return TEMP_FAHRENHEIT
-        return TEMP_CELSIUS
+                return  UnitOfTemperature.TEMP_CELSIUS
+            return  UnitOfTemperature.TEMP_FAHRENHEIT
+        return  UnitOfTemperature.TEMP_CELSIUS
 
     @property
     def target_temperature(self):
