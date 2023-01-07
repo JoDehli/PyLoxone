@@ -20,6 +20,8 @@ class MiniserverProtocol(Protocol):
     _password: str
     _port: int
     _tls_check_hostname: bool
+    _http_base_url: str
+    _http_session: aiohttp.ClientSession | None
     if TYPE_CHECKING:
         _token: LoxoneToken
     _use_tls: bool

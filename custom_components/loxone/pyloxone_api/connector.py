@@ -3,6 +3,7 @@ for connecting to the Miniserver."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import ssl
@@ -19,12 +20,13 @@ from .exceptions import (
     LoxoneException,
     LoxoneHTTPStatusError,
     LoxoneRequestError,
+    LoxoneUnauthorisedError,
 )
 from .message import LoxoneResponse
 from .loxone_types import MiniserverProtocol
 
 _LOGGER = logging.getLogger(__name__)
-TIMEOUT: Final = 10
+HTTP_CONNECTION_TIMEOUT: Final = 10
 
 
 class ConnectorMixin(MiniserverProtocol):
@@ -45,80 +47,73 @@ class ConnectorMixin(MiniserverProtocol):
     # 9. Autheticate with the token (if it exists), or acquire a token
     # 10. Done!
 
-    # Step 1: Ensure the miniserver is reachable. It is convenient, whilst we
-    # have an http connection, to use it to obtain the Loxone Structure File as
-    # well
+    # Step 1: Ensure the miniserver is reachable. Retry if necessary.
+    async def _ensure_reachable(self) -> None:
+        """Set up the http session, and check for reachability.
+
+        Retry several times if necessary.
+        """
+        if self._http_session is None or self._http_session.closed:  # type: ignore
+            scheme = "https" if self._use_tls else "http"
+            self._http_base_url = f"{scheme}://{self._host}:{self._port}"
+            auth = (
+                aiohttp.BasicAuth(self._user, self._password)
+                if (self._user and self._password)
+                else None
+            )
+            # Loxone response codes are a bit odd. It is not clear whether a
+            # response which is not 200 is ever OK, though there are reports of
+            # the occasional 307. JSON responses also have a "Code" key, but it
+            # is unclear whether this is ever different from the http response
+            # code. At the moment, we ignore it.
+            #
+            # And there are references to non-standard codes in the docs (eg a
+            # 900 error). At present, treat any >=400 code as an exception, and
+            # raise anexception
+
+            # TODO: Check what happens with Cloud server and external access
+            self._http_session = aiohttp.ClientSession(
+                auth=auth,
+                timeout=aiohttp.ClientTimeout(connect=HTTP_CONNECTION_TIMEOUT),
+                raise_for_status=True,
+            )
+        for interval in [10, 10, 20, 40, 60]:
+            try:
+                response = await self._http_session.get(
+                    f"{self._http_base_url}/jdev/cfg/apiKey",
+                    ssl=self._tls_check_hostname,
+                )
+                break
+            except aiohttp.ServerTimeoutError:
+                _LOGGER.debug(f"Cannot connect. Retrying in {interval} seconds")
+                await asyncio.sleep(interval)
+                continue
+        else:
+            await self._http_session.close()
+            raise LoxoneException("Cannot connect. Are the host/port details correct?")
+
+        value = LoxoneResponse(await response.text()).value
+        _LOGGER.debug("Retrieved API key data")
+        # The json returned by the miniserver is invalid. It contains " and '.
+        # We need to normalise it
+        value_dict: dict[str, Any] = json.loads(value.replace("'", '"'))
+        self._https_status = value_dict.get("httpsStatus", 0)
+        self._version = value_dict.get("version", "")
+        self._snr = value_dict.get("snr", "")
+        self._local = value_dict.get("local", True)
+        if not self._local:
+            url = str(response.url)
+            self._http_base_url = url.replace("/jdev/cfg/apiKey", "")
+
     # Step 2: Acquire the miniserver's public key
-    async def _ensure_reachable_and_get_structure(self) -> None:
-        scheme = "https" if self._use_tls else "http"
-        _base_url = f"{scheme}://{self._host}:{self._port}"
-        auth = (
-            aiohttp.BasicAuth(self._user, self._password)
-            if (self._user and self._password)
-            else None
-        )
-        # Create the http session.
-
-        # Loxone response codes are a bit odd. It is not clear whether a response
-        # which is not 200 is ever OK, though there are reports of the occasional
-        # 307. JSON responses also have a "Code" key, but it is unclear whether this
-        # is ever different from the http response code. At the moment, we ignore
-        # it.
-        #
-        # And there are references to non-standard codes in the docs (eg a 900
-        # error). At present, treat any >=400 code as an exception.
-
-        # TODO: Check what happens with Cloud server and external access
-        session = aiohttp.ClientSession(
-            auth=auth,
-            read_timeout=TIMEOUT,
-            raise_for_status=True,
-        )
-
+    #
+    # It is convenient, whilst we have an http connection, to use it to obtain
+    # the Loxone Structure File as well
+    async def _get_public_key_and_structure_file(self) -> None:
         try:
-            response = await session.get(
-                f"{_base_url}/jdev/cfg/apiKey",
-                ssl=self._tls_check_hostname,
-            )
-            value = LoxoneResponse(await response.text()).value
-            _LOGGER.debug("Retrieved API key data")
-            # The json returned by the miniserver is invalid. It contains " and '.
-            # We need to normalise it
-            value_dict: dict[str, Any] = json.loads(value.replace("'", '"'))
-            self._https_status = value_dict.get("httpsStatus", 0)
-            self._version = value_dict.get("version", "")
-            self._snr = value_dict.get("snr", "")
-            self._local = value_dict.get("local", True)
-            if not self._local:
-                url = str(response.url)
-                _base_url = url.replace("/jdev/cfg/apiKey", "")
-
-            # The Loxone Structure File is described in a document available at
-            # https://www.loxone.com/enen/kb/api/  It describes certain global
-            # and external information, such as weather servers and infformation
-            # about the miniserver itself, as well as information which does not
-            # change frequently (eg categories, controls etc).
-
-            # It is convenient to fetch it here, whilst we have an httpx client
-
-            structure_file = await session.get(
-                f"{_base_url}/data/LoxAPP3.json",
-                ssl=self._tls_check_hostname,
-            )
-            _LOGGER.debug("Retrieved structure file")
-            self._structure = dict(await structure_file.json())
-
-            # The msInfo record contains static information about the
-            # miniserver. It is part of the structure file.
-            # Create an msInfo attribute. Dynamically add sub-attributes
-            # representing each member of the msInfo dict. eg,
-            # self.msInfo.msName, self.msInfo.projectName, etc
-            MsInfo = namedtuple("MsInfo", self._structure["msInfo"].keys())  # type: ignore
-            self._msInfo = MsInfo._make(self._structure["msInfo"].values())
-
             # Get the miniserver's public key
-            pk_data = await session.get(
-                f"{_base_url}/jdev/sys/getPublicKey",
+            pk_data = await self._http_session.get(
+                f"{self._http_base_url}/jdev/sys/getPublicKey",
                 ssl=self._tls_check_hostname,
             )
             _LOGGER.debug("Retrieved public key data")
@@ -133,11 +128,40 @@ class ConnectorMixin(MiniserverProtocol):
                 "-----BEGIN CERTIFICATE-----", "-----BEGIN PUBLIC KEY-----\n"
             ).replace("-----END CERTIFICATE-----", "\n-----END PUBLIC KEY-----")
 
+            # The Loxone Structure File is described in a document available at
+            # https://www.loxone.com/enen/kb/api/  It describes certain global
+            # and external information, such as weather servers and infformation
+            # about the miniserver itself, as well as information which does not
+            # change frequently (eg categories, controls etc).
+
+            # It is convenient to fetch it here, whilst we have an http client
+            structure_file = await self._http_session.get(
+                f"{self._http_base_url}/data/LoxAPP3.json",
+                ssl=self._tls_check_hostname,
+            )
+            _LOGGER.debug("Retrieved structure file")
+            self._structure = dict(await structure_file.json())
+
+            # The msInfo record contains static information about the
+            # miniserver. It is part of the structure file.
+            # Create an msInfo attribute. Dynamically add sub-attributes
+            # representing each member of the msInfo dict. eg,
+            # self.msInfo.msName, self.msInfo.projectName, etc
+            MsInfo = namedtuple("MsInfo", self._structure["msInfo"].keys())  # type: ignore
+            self._msInfo = MsInfo._make(self._structure["msInfo"].values())
+
         # Handle errors. An http error getting any of the required data is
         # probably fatal, so log it and raise it for handling elsewhere. Other errors
         # are (hopefully) unlikely, but are not handled here, so will be raised
         # normally.
         except aiohttp.ClientResponseError as exc:
+            if exc.status == 401:
+                # Unautorised. This is a fatal error - do not retry or the user may be
+                # locked out.
+                raise LoxoneUnauthorisedError(
+                    "Cannot log in. Check username and password."
+                ) from exc
+
             _LOGGER.error(
                 f'An error "{exc.code}: {exc.message}" occurred while'
                 f"requesting {exc.request_info.url!r}."
@@ -149,8 +173,8 @@ class ConnectorMixin(MiniserverProtocol):
         else:
             return
         finally:
-            # Async httpx client must always be closed
-            await session.close()
+            # Async http client must always be closed
+            await self._http_session.close()
 
     # Step 3: Open a websocket connection
     async def _open_websocket(self) -> None:
@@ -164,14 +188,14 @@ class ConnectorMixin(MiniserverProtocol):
                 ssl_context.check_hostname = self._tls_check_hostname
                 self._ws = await self._ws_session.ws_connect(
                     url,
-                    timeout=TIMEOUT,
+                    timeout=HTTP_CONNECTION_TIMEOUT,
                     ssl_context=ssl_context,
                     protocols=["remotecontrol"],
                 )
             else:
                 self._ws = await self._ws_session.ws_connect(
                     url,
-                    timeout=TIMEOUT,
+                    timeout=HTTP_CONNECTION_TIMEOUT,
                     protocols=["remotecontrol"],
                 )
         except aiohttp.WSServerHandshakeError as exc:

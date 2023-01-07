@@ -264,7 +264,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             await asyncio.sleep(0)
 
-    miniserver._run_in_background(message_callback())
+    _task = asyncio.create_task(message_callback(), name='message_callback')
+
+    entry.async_on_unload(
+        _task
+    )
 
     async def handle_websocket_command(call):
         """Handle websocket command services."""
