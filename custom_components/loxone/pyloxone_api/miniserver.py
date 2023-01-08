@@ -341,7 +341,7 @@ class Miniserver(ConnectorMixin, TokensMixin):
         """Close and re-open the connection, following a Miniserver reboot."""
 
         async def _do_restart() -> None:
-            await asyncio.sleep(60)
+            await asyncio.sleep(10)  # Maybe we do not need this. But for safty we leave it for now.
             await self.connect()
             await self.enable_state_updates()
 
