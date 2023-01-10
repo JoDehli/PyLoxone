@@ -92,12 +92,15 @@ class ConnectorMixin(MiniserverProtocol):
                 await asyncio.sleep(interval)
                 continue
             except aiohttp.ClientResponseError as e:
-                if hasattr(e, "message"):
-                    _LOGGER.debug(f"Cannot connect. Message: {e.message}. Retrying in {interval} seconds")
+                if e.status == 503:
+                    if hasattr(e, "message"):
+                        _LOGGER.debug(f"Cannot connect. Message: {e.message}. Retrying in {interval} seconds")
+                    else:
+                        _LOGGER.debug(f"Cannot connect. Retrying in {interval} seconds")
+                    await asyncio.sleep(interval)
+                    continue
                 else:
-                    _LOGGER.debug(f"Cannot connect. Retrying in {interval} seconds")
-                await asyncio.sleep(interval)
-                continue
+                    raise e
 
         else:
             await self._http_session.close()
