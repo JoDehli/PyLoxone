@@ -14,5 +14,4 @@ __all__ = [
     "Miniserver",
 ]
 
-
 _LOGGER = logging.getLogger(__name__)

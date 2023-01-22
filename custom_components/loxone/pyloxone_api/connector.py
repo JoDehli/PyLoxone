@@ -44,7 +44,7 @@ class ConnectorMixin(MiniserverProtocol):
     # 6. RSA Encrypt the AES key+iv with the public key
     # 7. Pass the encrypted session-key to the miniserver
     # 8. Generate a random salt
-    # 9. Autheticate with the token (if it exists), or acquire a token
+    # 9. Authenticate with the token (if it exists), or acquire a token
     # 10. Done!
 
     # Step 1: Ensure the miniserver is reachable. Retry if necessary.
@@ -69,7 +69,7 @@ class ConnectorMixin(MiniserverProtocol):
             #
             # And there are references to non-standard codes in the docs (eg a
             # 900 error). At present, treat any >=400 code as an exception, and
-            # raise anexception
+            # raise an exception
 
             # TODO: Check what happens with Cloud server and external access
             self._http_session = aiohttp.ClientSession(
@@ -84,23 +84,26 @@ class ConnectorMixin(MiniserverProtocol):
                     ssl=self._tls_check_hostname,
                 )
                 break
-            except aiohttp.ServerTimeoutError as e:
-                if hasattr(e, "message"):
-                    _LOGGER.debug(f"Cannot connect. Message: {e.message}. Retrying in {interval} seconds")
+            except aiohttp.ServerTimeoutError as exc:
+                if hasattr(exc, "message"):
+                    _LOGGER.debug(f"Cannot connect. Message: {exc.message}. Retrying in {interval} seconds")
                 else:
                     _LOGGER.debug(f"Cannot connect. Retrying in {interval} seconds")
                 await asyncio.sleep(interval)
                 continue
-            except aiohttp.ClientResponseError as e:
-                if e.status == 503:
-                    if hasattr(e, "message"):
-                        _LOGGER.debug(f"Cannot connect. Message: {e.message}. Retrying in {interval} seconds")
+            except aiohttp.ClientResponseError as exc:
+                if exc.status == 503:
+                    if hasattr(exc, "message"):
+                        _LOGGER.debug(
+                            f"Cannot connect. Message: {exc.message}. "
+                            f"Retrying in {interval} seconds")
                     else:
-                        _LOGGER.debug(f"Cannot connect. Retrying in {interval} seconds")
+                        _LOGGER.debug(
+                            f"Cannot connect. Retrying in {interval} seconds")
                     await asyncio.sleep(interval)
                     continue
                 else:
-                    raise e
+                    raise exc
 
         else:
             await self._http_session.close()
@@ -144,7 +147,7 @@ class ConnectorMixin(MiniserverProtocol):
 
             # The Loxone Structure File is described in a document available at
             # https://www.loxone.com/enen/kb/api/  It describes certain global
-            # and external information, such as weather servers and infformation
+            # and external information, such as weather servers and information
             # about the miniserver itself, as well as information which does not
             # change frequently (eg categories, controls etc).
 
@@ -170,7 +173,7 @@ class ConnectorMixin(MiniserverProtocol):
         # normally.
         except aiohttp.ClientResponseError as exc:
             if exc.status == 401:
-                # Unautorised. This is a fatal error - do not retry or the user may be
+                # Unauthorised. This is a fatal error - do not retry or the user may be
                 # locked out.
                 raise LoxoneUnauthorisedError(
                     "Cannot log in. Check username and password."
@@ -237,10 +240,10 @@ class ConnectorMixin(MiniserverProtocol):
         except ValueError as exc:
             _LOGGER.error(f"Error creating RSA cipher: {exc}")
             raise LoxoneException(exc) from exc
-        _LOGGER.debug("Succesfully generated session key")
+        _LOGGER.debug("Successfully generated session key")
         # Pass the encrypted session key to the miniserver
         await self._send_text_command(f"jdev/sys/keyexchange/{encrypted_session_key}")
-        _LOGGER.debug("Succesfully exchanged encrypted session key")
+        _LOGGER.debug("Successfully exchanged encrypted session key")
 
     # Step 8. Generate a random salt
     def _generate_salt(self) -> None:
@@ -248,7 +251,7 @@ class ConnectorMixin(MiniserverProtocol):
         self._salt = get_random_bytes(4).hex()
         self._salt_has_expired = False
 
-    # Step 9. Autheticate with the token (if it exists), or acquire a token
+    # Step 9. Authenticate with the token (if it exists), or acquire a token
     async def _authenticate_with_token(self) -> None:
         # A Loxone token can be fairly long lived (eg 4 weeks). So we could save
         # it to a file, and retrieve it on the next connection (if still valid).

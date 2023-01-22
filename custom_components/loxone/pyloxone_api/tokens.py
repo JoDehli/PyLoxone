@@ -39,7 +39,7 @@ class LoxoneToken:
         ).total_seconds()
         # work out how many seconds are left
         if self.valid_until == 0:
-            raise ValueError("Cannnot have valid_until == 0")
+            raise ValueError("Cannot have valid_until == 0")
         return int(self.valid_until - current_seconds_since_epoch)
 
 
@@ -60,7 +60,7 @@ class TokensMixin(MiniserverProtocol):
         self._user_salt = message.value_as_dict["salt"]
         self._hash_alg = message.value_as_dict.get("hashAlg", None)
         new_hash = self._hash_credentials()
-        # Request a JSON web token. uuid uniquely identiﬁes the client to the
+        # Request a JSON web token. uuid uniquely identifies the client to the
         # Miniserver, and allows it to look up all the client's tokens.
         UUID = uuid.UUID(int=uuid.getnode())
         # PERMISSION can be 2 for for a 'short' lifespan token (days), or 4 for
