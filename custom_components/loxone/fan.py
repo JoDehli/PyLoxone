@@ -43,7 +43,7 @@ async def async_setup_platform(
     """
     For now, we do nothing. Function is only to get rid of the error message of missing async_setup_platform
     """
-    pass
+    return True
 
 
 async def async_setup_entry(
@@ -51,7 +51,7 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up entry."""
+    """Set up fan entry."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.structure
     entites = []
@@ -149,6 +149,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
         """Initialize the fan."""
         LoxoneEntity.__init__(self, **kwargs)
 
+        self._device_class = None
         self._state = STATE_UNKNOWN
         self._format = self._get_format(kwargs.get("details", {}).get("format", ""))
         self._attr_available = True

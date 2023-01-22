@@ -48,7 +48,9 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
-    """Set up Loxone Light Controller."""
+    """
+    For now, we do nothing. Function is only to get rid of the error message of missing async_setup_platform
+    """
     return True
 
 

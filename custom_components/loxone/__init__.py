@@ -177,9 +177,14 @@ async def create_group_for_loxone_enties(hass, entites, name, object_id):
         _LOGGER.error("Can't create group '%s' with error: %s", name, err)
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
-    """Restart of Home Assistant needed."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, LOXONE_PLATFORMS)
-
+    unload_ok = all(
+        await asyncio.gather(
+            *[
+                hass.config_entries.async_forward_entry_unload(entry, component)
+                for component in LOXONE_PLATFORMS
+            ]
+        )
+    )
     if not unload_ok:
         return False
 
@@ -188,7 +193,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         miniserver = get_miniserver_from_hass(hass)
         await miniserver.close()
     await asyncio.sleep(1)
-    return True
+
+    return unload_ok
 
 
 
@@ -219,8 +225,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await miniserver.connect()
     hass.data[DOMAIN][entry.entry_id].update({"miniserver":miniserver})
 
-
-
     setup_tasks = []
 
     for platform in LOXONE_PLATFORMS:
@@ -239,18 +243,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if setup_tasks:
         await asyncio.wait(setup_tasks)
 
-    entry.add_update_listener(async_config_entry_updated)
-
-
-    # for platform in ["scene"]:
-    #     _LOGGER.debug("starting loxone {}...".format(platform))
-    #     hass.async_create_task(
-    #         hass.config_entries.async_forward_entry_setup(entry, platform)
-    #     )
-
     async def enable_state_updates(event):
         await miniserver.enable_state_updates()
 
+    @callback
     async def message_callback():
         """Fire message on HomeAssistant Bus."""
         while True:
@@ -261,14 +257,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 message = eval(message)
             _LOGGER.debug(message)
             hass.bus.async_fire(EVENT, message)
-
             await asyncio.sleep(0)
 
-    _task = asyncio.create_task(message_callback(), name='message_callback')
+    message_listening_task = asyncio.create_task(message_callback(), name='message_callback')
 
-    entry.async_on_unload(
-        _task
-    )
 
     async def handle_websocket_command(call):
         """Handle websocket command services."""
@@ -308,11 +300,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
     async def stop_miniserver(event):
+        message_listening_task.cancel()
         await miniserver.close()
 
     async def loxone_discovered(event):
         _LOGGER.debug("Loxone discovered")
-        pass
 
     entry.async_on_unload(
         hass.bus.async_listen(SENDDOMAIN, send_to_loxone)
@@ -331,6 +323,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await miniserver.enable_state_updates()
 
+    return True
     # hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
     #
     # hass.bus.async_listen(SENDDOMAIN, miniserver.listen_loxone_send)
@@ -555,7 +548,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     #
     # hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
 
-    return True
 
 
 async def async_remove_config_entry_device(
@@ -581,18 +573,18 @@ class LoxoneEntity(Entity):
                 except:
                     traceback.print_exc()
                     sys.exit(-1)
-
+        self.listener : Callable | None = None
 
     async def async_added_to_hass(self):
         """Subscribe to device events."""
         await super().async_added_to_hass()
-        self.config_entry.async_on_unload(
-            self.hass.bus.async_listen(EVENT, self.event_handler)
-        )
+        self.listener = self.hass.bus.async_listen(EVENT, self.event_handler)
 
     async def async_will_remove_from_hass(self):
         """Disconnect callbacks."""
         await super().async_will_remove_from_hass()
+        if self.listener:
+            self.listener()
 
     async def event_handler(self, e):
         pass

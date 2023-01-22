@@ -57,7 +57,9 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
-    """Set up Loxone Alarms."""
+    """
+    For now, we do nothing. Function is only to get rid of the error message of missing async_setup_platform
+    """
     return True
 
 
@@ -69,7 +71,7 @@ async def async_setup_entry(
     """Set up Loxone Alarms."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.structure
-    devices = []
+    entities = []
     for loxone_alarm in get_all(loxconfig, "Alarm"):
         loxone_alarm.update(
             {
@@ -84,12 +86,9 @@ async def async_setup_entry(
             }
         )
         new_alarm = LoxoneAlarm(**loxone_alarm)
-        config_entry.async_on_unload(
-            hass.bus.async_listen(EVENT, new_alarm.event_handler)
-        )
-        devices.append(new_alarm)
-    async_add_entities(devices, True)
-    return True
+        entities.append(new_alarm)
+    async_add_entities(entities)
+
 
 
 class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
