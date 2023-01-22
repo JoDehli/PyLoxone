@@ -82,8 +82,8 @@ async def async_setup_entry(
 
     loxconfig = miniserver.structure
     sensors = []
-    if "softwareVersion" in loxconfig:
-        sensors.append(LoxoneVersionSensor(loxconfig["softwareVersion"]))
+    if hasattr(miniserver, "version"):
+        sensors.append(LoxoneVersionSensor(miniserver.version))
 
     for sensor in get_all(loxconfig, "InfoOnlyAnalog"):
         sensor.update(
