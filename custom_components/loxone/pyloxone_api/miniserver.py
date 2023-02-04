@@ -12,9 +12,11 @@ import asyncio
 import hashlib
 import logging
 import types
+import dataclasses
+import binascii
 import urllib.parse
 from base64 import b64decode, b64encode
-from typing import Any, Coroutine, Iterable, NoReturn
+from typing import Any, Coroutine, Iterable, NoReturn, TextIO
 
 from aiohttp import ClientSession, ClientWebSocketResponse
 from Crypto.Cipher import AES
@@ -42,6 +44,7 @@ class Miniserver(ConnectorMixin, TokensMixin):
         port: int = 80,
         user: str = "",
         password: str = "",
+        token_store: dict | None = None,
         visual_password: str = "",
         use_tls: bool = False,
     ):
@@ -50,7 +53,22 @@ class Miniserver(ConnectorMixin, TokensMixin):
         self._user = user
         self._password = password
         self._visual_password = visual_password or password  # Default to password
-        self._token = LoxoneToken()
+
+        if token_store:
+            token = token_store.get("token", "")
+            valid_until = token_store.get("valid_until", 0)
+            key = token_store.get("key", "")
+            hash_alg = token_store.get("hash_alg", "")
+            self._token = LoxoneToken(token=token, valid_until=valid_until, key=key, hash_alg=hash_alg)
+            self.has_token = True
+            self._hash_alg = hash_alg
+            if self._token.seconds_to_expire() < 3600:
+                self.has_token = False
+                self._token = LoxoneToken()
+        else:
+            self.has_token = False
+            self._token = LoxoneToken()
+
         self._use_tls = use_tls
         # If use_tls is True, certificate hostnames will be checked. This means
         # that an IP address cannot be used as a hostname. Set
@@ -117,6 +135,10 @@ class Miniserver(ConnectorMixin, TokensMixin):
         self._visual_password = visual_password
 
     @property
+    def token_dict(self) -> dict:
+        return dataclasses.asdict(self._token, dict_factory=dict)
+
+    @property
     def version(self) -> list[int]:
         """The Miniserver software version, as a list of ints eg [12,0,1,2]"""
         return [int(x) for x in self._version.split(".")] if self._version else []
@@ -138,7 +160,20 @@ class Miniserver(ConnectorMixin, TokensMixin):
         self._run_in_background(self._process_message())
         await self._generate_and_pass_key()
         self._generate_salt()
-        await self._acquire_token()
+
+        if self.has_token:
+            try:
+                await self._use_token()
+            except LoxoneCommandError as exp:
+                if exp.code == 401:
+                    _LOGGER.debug("Token is invalid or expired! Try to reconnect and aquire new token.")
+                    self.has_token = False
+                    self._token = LoxoneToken()
+                    await self.close()
+                    await self.connect()
+        else:
+            await self._acquire_token()
+
         self._run_in_background(self._update_salt())
         self._run_in_background(self._keep_alive())
         self._run_in_background(self._refresh_token())

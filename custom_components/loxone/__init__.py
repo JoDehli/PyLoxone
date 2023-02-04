@@ -5,7 +5,9 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 import asyncio
+import json
 import logging
+import os
 import re
 import sys
 import traceback
@@ -13,16 +15,14 @@ from collections.abc import Callable
 
 import homeassistant.components.group as group
 import voluptuous as vol
+from custom_components.loxone.const import *
+from custom_components.loxone.pyloxone_api import *
+from homeassistant.config import get_default_config_dir
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_PASSWORD,
-    CONF_PORT,
-    CONF_USERNAME,
-    EVENT_COMPONENT_LOADED,
-    EVENT_HOMEASSISTANT_START,
-    EVENT_HOMEASSISTANT_STOP,
-)
+from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
+                                 CONF_USERNAME, EVENT_COMPONENT_LOADED,
+                                 EVENT_HOMEASSISTANT_START,
+                                 EVENT_HOMEASSISTANT_STOP)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar
@@ -31,15 +31,14 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
-from custom_components.loxone.const import *
 
-from custom_components.loxone.pyloxone_api import *
 # from .helpers import get_miniserver_type
 
 
 # from .minismerver import MiniServer, get_miniserver_from_config_entry
 
 REQUIREMENTS = ["pycryptodome", "numpy"]
+DEFAULT_TOKEN_PERSIST_NAME = "lox_token.cfg"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,6 +84,7 @@ _UNDEF: dict = {}
 #         """Remove data update."""
 #         self.listeners.remove(update_callback)
 
+
 @callback
 def get_miniserver_from_config_entry(hass, config_entry) -> Miniserver:
     """Return Miniserver with a matching bridge id."""
@@ -94,7 +94,8 @@ def get_miniserver_from_config_entry(hass, config_entry) -> Miniserver:
 @callback
 def get_miniserver_from_hass(hass) -> Miniserver:
     """Return Miniserver with a matching bridge id."""
-    return hass.data[DOMAIN][list(hass.data[DOMAIN].keys())[0]]['miniserver']
+    return hass.data[DOMAIN][list(hass.data[DOMAIN].keys())[0]]["miniserver"]
+
 
 # @callback
 # def get_listeners_from_hass(hass) -> GlobalListeners:
@@ -109,6 +110,37 @@ def get_miniserver_from_config(hass, config):
         return None
     return config[next(iter(config))]
 
+
+def safe_token(dict_token: dict) -> None:
+    try:
+        persist_token = os.path.join(
+            get_default_config_dir(), DEFAULT_TOKEN_PERSIST_NAME
+        )
+        with open(persist_token, "w") as write_file:
+            json.dump(dict_token, write_file)
+            _LOGGER.debug("save_token successfully...")
+    except IOError:
+        _LOGGER.debug("error save_token...")
+        _LOGGER.debug("tokenpath: {}".format(persist_token))
+
+def load_token() -> None | dict:
+    try:
+        persist_token = os.path.join(
+            get_default_config_dir(), DEFAULT_TOKEN_PERSIST_NAME
+        )
+        if os.path.exists(persist_token):
+            with open(persist_token) as f:
+                try:
+                    dict_token = json.load(f)
+                    _LOGGER.debug("load_token successfully...")
+                    return dict_token
+                except ValueError:
+                    return None
+        _LOGGER.debug("not token file found...")
+        return None
+    except IOError:
+        _LOGGER.debug("error load_token...")
+        return None
 
 
 async def async_setup(hass, config):
@@ -176,6 +208,7 @@ async def create_group_for_loxone_enties(hass, entites, name, object_id):
     except Exception as err:
         _LOGGER.error("Can't create group '%s' with error: %s", name, err)
 
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     unload_ok = all(
         await asyncio.gather(
@@ -197,25 +230,26 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     return unload_ok
 
 
-
-
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if DOMAIN not in hass.data:
         hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-            'miniserver': None,
-            #"listeners": GlobalListeners()
+            "miniserver": None,
+            # "listeners": GlobalListeners()
         }
 
     if not entry.options:
         await async_set_options(hass, entry)
+
+    token = load_token()
 
     miniserver = Miniserver(
         user=entry.options.get("username"),
         password=entry.options.get("password"),
         host=entry.options.get("host"),
         port=entry.options.get("port"),
-        use_tls=False
+        use_tls=False,
+        token_store=token
     )
 
     # _LOGGER = logging.getLogger("pyloxone_api")
@@ -223,16 +257,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # _LOGGER.addHandler(logging.StreamHandler())
 
     await miniserver.connect()
-    hass.data[DOMAIN][entry.entry_id].update({"miniserver":miniserver})
+    hass.data[DOMAIN][entry.entry_id].update({"miniserver": miniserver})
 
     setup_tasks = []
 
     for platform in LOXONE_PLATFORMS:
-    # for platform in [Platform.SENSOR]:
+        # for platform in [Platform.SENSOR]:
         _LOGGER.debug("starting loxone {}...".format(platform))
-
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, platform)
+        setup_tasks.append(
+            hass.async_create_task(
+                hass.config_entries.async_forward_entry_setup(entry, platform)
+            )
         )
         setup_tasks.append(
             hass.async_create_task(
@@ -255,19 +290,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             message = e.as_dict()
             if isinstance(message, str):
                 message = eval(message)
-            _LOGGER.debug(message)
+            if message != {}:
+                _LOGGER.debug(message)
             hass.bus.async_fire(EVENT, message)
             await asyncio.sleep(0)
 
-    message_listening_task = asyncio.create_task(message_callback(), name='message_callback')
+    message_listening_task = asyncio.create_task(
+        message_callback(), name="message_callback"
+    )
 
+    new_data = _UNDEF
+
+    if entry.unique_id is None:
+        hass.config_entries.async_update_entry(
+            entry, unique_id=miniserver.snr, data=new_data
+        )
+        # Workaround
+        await asyncio.sleep(5)
 
     async def handle_websocket_command(call):
         """Handle websocket command services."""
         value = call.data.get(ATTR_VALUE, DEFAULT)
         device_uuid = call.data.get(ATTR_UUID, DEFAULT)
         value = value.strip()
-        device_uuid  = device_uuid.strip()
+        device_uuid = device_uuid.strip()
         _LOGGER.debug(f"send command: jdev/sps/io/{device_uuid}/{value}")
         await miniserver.send_control_command(device_uuid, value)
 
@@ -298,20 +344,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         except ValueError:
             traceback.print_exc()
 
-
     async def stop_miniserver(event):
+        safe_token(miniserver.token_dict)
         message_listening_task.cancel()
         await miniserver.close()
 
     async def loxone_discovered(event):
         _LOGGER.debug("Loxone discovered")
 
-    entry.async_on_unload(
-        hass.bus.async_listen(SENDDOMAIN, send_to_loxone)
-    )
-    entry.async_on_unload(
-        hass.bus.async_listen(SECUREDSENDDOMAIN, send_to_loxone)
-    )
+    entry.async_on_unload(hass.bus.async_listen(SENDDOMAIN, send_to_loxone))
+    entry.async_on_unload(hass.bus.async_listen(SECUREDSENDDOMAIN, send_to_loxone))
     entry.async_on_unload(
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_miniserver)
     )
@@ -334,7 +376,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # )
     #
     # hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
-
 
     # If you want to receive status updates from the Miniserver, you need to
     # tell it!
@@ -549,7 +590,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
 
 
-
 async def async_remove_config_entry_device(
     hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
 ) -> bool:
@@ -573,7 +613,7 @@ class LoxoneEntity(Entity):
                 except:
                     traceback.print_exc()
                     sys.exit(-1)
-        self.listener : Callable | None = None
+        self.listener: Callable | None = None
 
     async def async_added_to_hass(self):
         """Subscribe to device events."""

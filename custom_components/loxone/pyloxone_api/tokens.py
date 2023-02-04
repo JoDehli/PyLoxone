@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime
 import hashlib
+import json
 import logging
 import types
 import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Final, NoReturn
 
 from Crypto.Hash import HMAC, SHA1, SHA256
 
-from .exceptions import LoxoneException
+from .exceptions import LoxoneException, LoxoneCommandError
 from .message import LoxoneResponse
 from .loxone_types import MiniserverProtocol
 
@@ -29,6 +31,8 @@ class LoxoneToken:
     token: str = ""
     valid_until: float = 0  # seconds since 1.1.2009
     key: str = ""
+    hash_alg: str = ""
+    unsecure_password: bool | None = None
 
     def seconds_to_expire(self) -> int:
         """The number of seconds until this token expires."""
@@ -48,8 +52,22 @@ class TokensMixin(MiniserverProtocol):
 
     Do not instantiate this. It is intended only to be mixed in to the Miniserver class."""
 
+    async def _use_token(self) -> None:
+        _LOGGER.debug("Try to use stored token.")
+        cmd = "jdev/sys/getkey"
+        message = await self._send_text_command(cmd, encrypted=True)
+        token_hash = self._hash_token(message.value)
+        cmd = f"authwithtoken/{token_hash}/{self._user}"
+        message = await self._send_text_command(cmd, encrypted=True)
+
+        if "unsecurePass" in message.value_as_dict:
+            self._token.unsecure_password = message.value_as_dict["unsecurePass"]
+
+        _LOGGER.debug("Loaded token is valid and will be used.")
+
     async def _acquire_token(self) -> None:
-        """Acquire a new authentication token from the Miniserver"""
+        """Acquire a new authentication token from the token store (if any), or
+        from the Miniserver"""
         _LOGGER.debug("Acquiring token from miniserver")
         command = f"jdev/sys/getkey2/{self._user}"
         # There is no need for this to be encrypted, if TLS is used, but the docs suggest
@@ -79,6 +97,10 @@ class TokensMixin(MiniserverProtocol):
         self._token.token = response.value_as_dict["token"]
         self._token.valid_until = response.value_as_dict["validUntil"]
         self._token.key = response.value_as_dict["key"]
+        self._token.hash_alg = self._hash_alg
+
+        if "unsecurePass" in response.value_as_dict:
+            self._token.unsecure_password = response.value_as_dict["unsecurePass"]
 
     async def _kill_token(self) -> None:
         """Remove the token from the Miniserver's storage.
@@ -96,13 +118,15 @@ class TokensMixin(MiniserverProtocol):
         # Token does not need to be hashed for Loxone >=11.2
         # token_hash = await self._hash_token()
         while True:
+            lifetime = self._token.seconds_to_expire()
+            await asyncio.sleep(lifetime * 0.8)  # Renew after 80% lifetime, to be safe
             command = f"jdev/sys/refreshjwt/{self._token.token}/{self._user}"
             message = await self._send_text_command(command, encrypted=False)
             _LOGGER.debug("Refreshing token")
             self._token.token = message.value_as_dict["token"]
             self._token.valid_until = message.value_as_dict["validUntil"]
-            lifetime = self._token.seconds_to_expire()
-            await asyncio.sleep(lifetime * 0.8)  # Renew after 80% lifetime, to be safe
+            if "unsecurePass" in message.value_as_dict:
+                self._token.unsecure_password = message.value_as_dict["unsecurePass"]
 
     async def _check_token(self) -> None:
         """Check whether a token is still valid, without renewing it"""
@@ -134,8 +158,9 @@ class TokensMixin(MiniserverProtocol):
         )
         return digester.hexdigest()
 
-    def _hash_token(self) -> str:
-        key = self._token.key
+    def _hash_token(self, key=None) -> str:
+        if key is None:
+            key = self._token.key
         if self._hash_alg == "SHA1":
             digester = HMAC.new(
                 bytes.fromhex(key),

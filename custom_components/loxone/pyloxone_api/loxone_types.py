@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, TextIO
+
+from async_upnp_client import aiohttp
 
 from .message import TextMessage
 
@@ -20,6 +22,7 @@ class MiniserverProtocol(Protocol):
     _password: str
     _port: int
     _tls_check_hostname: bool
+    _token_store: dict| None
     _http_base_url: str
     _http_session: aiohttp.ClientSession | None
     if TYPE_CHECKING:
