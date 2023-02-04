@@ -112,34 +112,49 @@ def get_miniserver_from_config(hass, config):
 
 
 def safe_token(dict_token: dict) -> None:
+    persist_token = ""
     try:
         persist_token = os.path.join(
             get_default_config_dir(), DEFAULT_TOKEN_PERSIST_NAME
         )
-        with open(persist_token, "w") as write_file:
-            json.dump(dict_token, write_file)
-            _LOGGER.debug("save_token successfully...")
+        try:
+            with open(persist_token, "w") as write_file:
+                json.dump(dict_token, write_file)
+            _LOGGER.debug("Token saved successfully...")
+        except FileNotFoundError:
+            persist_token = DEFAULT_TOKEN_PERSIST_NAME
+            with open(persist_token, "w") as write_file:
+                json.dump(dict_token, write_file)
+            _LOGGER.debug("Token saved successfully...")
+
     except IOError:
-        _LOGGER.debug("error save_token...")
-        _LOGGER.debug("tokenpath: {}".format(persist_token))
+        _LOGGER.debug("Error while saving token...")
+        _LOGGER.debug(f"Tokenpath: {persist_token}")
+
 
 def load_token() -> None | dict:
     try:
         persist_token = os.path.join(
             get_default_config_dir(), DEFAULT_TOKEN_PERSIST_NAME
         )
-        if os.path.exists(persist_token):
+        try:
             with open(persist_token) as f:
                 try:
                     dict_token = json.load(f)
-                    _LOGGER.debug("load_token successfully...")
+                    _LOGGER.debug("Loading token successfully...")
                     return dict_token
                 except ValueError:
                     return None
-        _LOGGER.debug("not token file found...")
-        return None
+        except FileNotFoundError:
+            with open(DEFAULT_TOKEN_PERSIST_NAME) as f:
+                try:
+                    dict_token = json.load(f)
+                    _LOGGER.debug("Loading token successfully...")
+                    return dict_token
+                except ValueError:
+                    return None
     except IOError:
-        _LOGGER.debug("error load_token...")
+        _LOGGER.debug("Error while loading token...")
         return None
 
 
@@ -242,6 +257,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await async_set_options(hass, entry)
 
     token = load_token()
+
+    # check if old token format. if old do not use
+    if "_token" in token:
+        _LOGGER.debug("Old token format found. Token will not be used.")
+        token = None
 
     miniserver = Miniserver(
         user=entry.options.get("username"),
