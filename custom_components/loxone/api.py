@@ -767,9 +767,14 @@ class LoxWs:
                         dict_token = json.load(f)
                     except ValueError:
                         return ERROR_VALUE
-            self._token.set_token(dict_token["_token"])
-            self._token.set_vaild_until(dict_token["_valid_until"])
-            self._token.set_hash_alg(dict_token["_hash_alg"])
+            try:
+                self._token.set_token(dict_token["_token"])
+                self._token.set_vaild_until(dict_token["_valid_until"])
+                self._token.set_hash_alg(dict_token["_hash_alg"])
+            except KeyError as e:
+                self._token.set_token(dict_token["token"])
+                self._token.set_vaild_until(dict_token["valid_until"])
+                self._token.set_hash_alg(dict_token["hash_alg"])
 
             _LOGGER.debug("load_token successfully...")
             return True
