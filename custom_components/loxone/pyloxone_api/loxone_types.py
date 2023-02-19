@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol, TextIO
 
-from async_upnp_client import aiohttp
+import aiohttp
 
 from .message import TextMessage
 
