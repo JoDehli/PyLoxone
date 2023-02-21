@@ -332,7 +332,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Handle websocket command services."""
         value = call.data.get(ATTR_VALUE, DEFAULT)
         device_uuid = call.data.get(ATTR_UUID, DEFAULT)
-        value = value.strip()
+        value = value
         device_uuid = device_uuid.strip()
         _LOGGER.debug(f"send command: jdev/sps/io/{device_uuid}/{value}")
         await miniserver.send_control_command(device_uuid, value)
