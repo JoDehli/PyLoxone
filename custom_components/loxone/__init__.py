@@ -32,6 +32,8 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
+from custom_components.loxone.pyloxone_api.exceptions import LoxoneCommandError
+
 # from .helpers import get_miniserver_type
 
 
@@ -332,10 +334,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Handle websocket command services."""
         value = call.data.get(ATTR_VALUE, DEFAULT)
         device_uuid = call.data.get(ATTR_UUID, DEFAULT)
-        value = value
-        device_uuid = device_uuid.strip()
+        if value is None or device_uuid is None:
+            _LOGGER.error(f"Can not send command. Please fill in all required data.")
+            return False
+        if not isinstance(value, str):
+            value = str(value).strip()
+        if not isinstance(device_uuid, str):
+            device_uuid = str(value).strip()
         _LOGGER.debug(f"send command: jdev/sps/io/{device_uuid}/{value}")
-        await miniserver.send_control_command(device_uuid, value)
+        try:
+            await miniserver.send_control_command(device_uuid, value)
+        except LoxoneCommandError as e:
+            _LOGGER.error(f"Error on sending command jdev/sps/io/{device_uuid}/{value}: {str(e)}")
+            _LOGGER.error(f"Error code {e.code} -> message: {e.message}")
 
     async def send_to_loxone(event):
         """Listen for change Events from Loxone Components"""
