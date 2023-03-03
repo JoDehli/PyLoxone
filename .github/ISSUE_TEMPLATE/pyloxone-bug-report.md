@@ -11,7 +11,7 @@ assignees: ''
 
 **Which software version does your loxone use?**
 
-**How did you install HomeAssistant? Over Hassio oder manual install?**
+**How did you install HomeAssistant? Over Hassio or manual install?**
 
 **Which Version do you use of HomeAssistant?**
 
