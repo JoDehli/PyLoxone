@@ -11,49 +11,25 @@ from typing import Any, final
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.sensor import (
-    PLATFORM_SCHEMA,
-    SensorDeviceClass,
-    SensorEntity,
-    SensorEntityDescription,
-    SensorStateClass,
-)
+from homeassistant.components.sensor import (PLATFORM_SCHEMA,
+                                             SensorDeviceClass, SensorEntity,
+                                             SensorEntityDescription,
+                                             SensorStateClass)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONDUCTIVITY,
-    CONF_DEVICE_CLASS,
-    CONF_NAME,
-    CONF_UNIT_OF_MEASUREMENT,
-    CONF_VALUE_TEMPLATE,
-    DEGREE,
-    ENERGY_KILO_WATT_HOUR,
-    ENERGY_WATT_HOUR,
-    LIGHT_LUX,
-    PERCENTAGE,
-    POWER_WATT,
-    PRECIPITATION_MILLIMETERS,
-    SPEED_KILOMETERS_PER_HOUR,
-    STATE_OFF,
-    STATE_ON,
-    STATE_UNKNOWN,
-    TEMP_CELSIUS,
-    TEMP_FAHRENHEIT,
-    TEMP_KELVIN,
-    Platform,
-    UnitOfApparentPower,
-    UnitOfElectricCurrent,
-    UnitOfElectricPotential,
-    UnitOfEnergy,
-    UnitOfFrequency,
-    UnitOfLength,
-    UnitOfMass,
-    UnitOfPower,
-    UnitOfPrecipitationDepth,
-    UnitOfSoundPressure,
-    UnitOfSpeed,
-    UnitOfTemperature,
-    UnitOfVolume,
-)
+from homeassistant.const import (CONDUCTIVITY, CONF_DEVICE_CLASS, CONF_NAME,
+                                 CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
+                                 DEGREE, ENERGY_KILO_WATT_HOUR,
+                                 ENERGY_WATT_HOUR, LIGHT_LUX, PERCENTAGE,
+                                 POWER_WATT, PRECIPITATION_MILLIMETERS,
+                                 SPEED_KILOMETERS_PER_HOUR, STATE_OFF,
+                                 STATE_ON, STATE_UNKNOWN, TEMP_CELSIUS,
+                                 TEMP_FAHRENHEIT, TEMP_KELVIN, Platform,
+                                 UnitOfApparentPower, UnitOfElectricCurrent,
+                                 UnitOfElectricPotential, UnitOfEnergy,
+                                 UnitOfFrequency, UnitOfLength, UnitOfMass,
+                                 UnitOfPower, UnitOfPrecipitationDepth,
+                                 UnitOfSoundPressure, UnitOfSpeed,
+                                 UnitOfTemperature, UnitOfVolume)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -61,7 +37,8 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_hass
 
 NEW_SENSOR = "sensors"
@@ -138,14 +115,6 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
         device_class=SensorDeviceClass.PRECIPITATION,
         state_class=SensorStateClass.MEASUREMENT,
-    ),
-    LoxoneEntityDescription(
-        key="kwh",
-        name="Kilowatt per hour",
-        loxone_format_string=ENERGY_KILO_WATT_HOUR,
-        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        device_class=SensorDeviceClass.ENERGY,
     ),
     LoxoneEntityDescription(
         key="kwh",
