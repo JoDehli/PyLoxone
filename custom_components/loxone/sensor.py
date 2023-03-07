@@ -6,8 +6,6 @@ https://github.com/JoDehli/PyLoxone
 """
 import logging
 from dataclasses import dataclass
-from re import match
-from typing import Any, final
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -16,20 +14,15 @@ from homeassistant.components.sensor import (PLATFORM_SCHEMA,
                                              SensorEntityDescription,
                                              SensorStateClass)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (CONDUCTIVITY, CONF_DEVICE_CLASS, CONF_NAME,
+from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
                                  CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
-                                 DEGREE, ENERGY_KILO_WATT_HOUR,
-                                 ENERGY_WATT_HOUR, LIGHT_LUX, PERCENTAGE,
-                                 POWER_WATT, PRECIPITATION_MILLIMETERS,
-                                 SPEED_KILOMETERS_PER_HOUR, STATE_OFF,
-                                 STATE_ON, STATE_UNKNOWN, TEMP_CELSIUS,
-                                 TEMP_FAHRENHEIT, TEMP_KELVIN, Platform,
-                                 UnitOfApparentPower, UnitOfElectricCurrent,
-                                 UnitOfElectricPotential, UnitOfEnergy,
-                                 UnitOfFrequency, UnitOfLength, UnitOfMass,
+                                 ENERGY_KILO_WATT_HOUR, ENERGY_WATT_HOUR,
+                                 LIGHT_LUX, PERCENTAGE, POWER_WATT,
+                                 PRECIPITATION_MILLIMETERS,
+                                 SPEED_KILOMETERS_PER_HOUR, STATE_UNKNOWN,
+                                 TEMP_CELSIUS, TEMP_FAHRENHEIT, UnitOfEnergy,
                                  UnitOfPower, UnitOfPrecipitationDepth,
-                                 UnitOfSoundPressure, UnitOfSpeed,
-                                 UnitOfTemperature, UnitOfVolume)
+                                 UnitOfSpeed, UnitOfTemperature)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -107,14 +100,6 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.WIND_SPEED,
-    ),
-    LoxoneEntityDescription(
-        key="rain",
-        name="Rain",
-        loxone_format_string=PRECIPITATION_MILLIMETERS,
-        native_unit_of_measurement=UnitOfPrecipitationDepth.MILLIMETERS,
-        device_class=SensorDeviceClass.PRECIPITATION,
-        state_class=SensorStateClass.MEASUREMENT,
     ),
     LoxoneEntityDescription(
         key="kwh",
@@ -406,7 +391,6 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
-            # self._attr_native_value = self._get_lox_rounded_value(e.data[self.uuidAction])
             self._attr_native_value = e.data[self.uuidAction]
             self.schedule_update_ha_state()
 
