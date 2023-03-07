@@ -404,7 +404,9 @@ class LoxoneEntity(Entity):
             else:
                 try:
                     setattr(self, key, kwargs[key])
-                except:
+                except AttributeError:
+                    _LOGGER.error(f"Could set {key} for {self._name}" )
+                except (Exception,):
                     traceback.print_exc()
                     sys.exit(-1)
 
