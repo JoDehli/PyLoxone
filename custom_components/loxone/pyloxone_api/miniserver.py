@@ -412,6 +412,7 @@ class Miniserver(ConnectorMixin, TokensMixin):
             await self._ws.send_str("keepalive")
             await self._get_message([MessageType.KEEPALIVE])
 
+
     async def _receive_and_add_to_queue(self) -> NoReturn:
         """Listen to all messages from the Miniserver, and add them to a queue.
 
@@ -492,7 +493,8 @@ class Miniserver(ConnectorMixin, TokensMixin):
                         self._message_queue.remove(message)
                         future.set_result(message)
                         break
-            await asyncio.sleep(0)
+            # quick and dirty fix for high cpu usage
+            await asyncio.sleep(0.1)
 
     # ---------------------------------------------------------------------------- #
     #                         Context manager magic methods                        #
