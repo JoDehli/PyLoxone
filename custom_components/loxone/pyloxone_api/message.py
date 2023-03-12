@@ -97,6 +97,8 @@ class BaseMessage:
         """Return the contents of the message as a dict"""
         return {}
 
+    def __repr__(self):
+        return str(self.message_type)
 
 class TextMessage(BaseMessage):
     message_type = MessageType.TEXT
