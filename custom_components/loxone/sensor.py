@@ -86,14 +86,6 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         device_class=SensorDeviceClass.TEMPERATURE,
     ),
     LoxoneEntityDescription(
-        key="humidity",
-        name="Humidity",
-        loxone_format_string=PERCENTAGE,
-        native_unit_of_measurement=PERCENTAGE,
-        state_class=SensorStateClass.MEASUREMENT,
-        device_class=SensorDeviceClass.HUMIDITY,
-    ),
-    LoxoneEntityDescription(
         key="windstrength",
         name="Wind Strength",
         loxone_format_string=SPEED_KILOMETERS_PER_HOUR,
@@ -110,7 +102,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENERGY,
     ),
     LoxoneEntityDescription(
-        key="kh",
+        key="wh",
         name="Watt per hour",
         loxone_format_string=ENERGY_WATT_HOUR,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
