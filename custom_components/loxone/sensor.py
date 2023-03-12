@@ -5,25 +5,27 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 import logging
-from re import match
+from dataclasses import dataclass
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components.sensor import (
     PLATFORM_SCHEMA,
-    SensorEntity,
-    SensorStateClass,
-)
+                                             SensorDeviceClass, SensorEntity,
+                                             SensorEntityDescription,
+                                             SensorStateClass)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_DEVICE_CLASS,
     CONF_NAME,
-    CONF_UNIT_OF_MEASUREMENT,
-    CONF_VALUE_TEMPLATE,
-    STATE_OFF,
-    STATE_ON,
-    STATE_UNKNOWN,
-)
+                                 CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
+                                 ENERGY_KILO_WATT_HOUR, ENERGY_WATT_HOUR,
+                                 LIGHT_LUX, PERCENTAGE, POWER_WATT,
+                                 PRECIPITATION_MILLIMETERS,
+                                 SPEED_KILOMETERS_PER_HOUR, STATE_UNKNOWN,
+                                 TEMP_CELSIUS, TEMP_FAHRENHEIT, UnitOfEnergy,
+                                 UnitOfPower, UnitOfPrecipitationDepth,
+                                 UnitOfSpeed, UnitOfTemperature)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -50,6 +52,85 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_STATE_CLASS): cv.string,
     }
 )
+
+
+@dataclass
+class LoxoneRequiredKeysMixin:
+    """Mixin for required keys."""
+
+    loxone_format_string: str
+
+
+@dataclass
+class LoxoneEntityDescription(SensorEntityDescription, LoxoneRequiredKeysMixin):
+    """Describes Loxone sensor entity."""
+
+
+# https://github.com/jbouwh/core/blob/bf2d40efd436556908c885e3e103168719ae1471/homeassistant/components/mysensors/sensor.py
+# https://github.com/jbouwh/core/blob/a5cf8210ae0080a388425bcdc7d21325d3b032c6/homeassistant/components/netatmo/sensor.py
+
+
+SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
+    LoxoneEntityDescription(
+        key="temperature",
+        name="Temperature",
+        loxone_format_string=TEMP_CELSIUS,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+    ),
+    LoxoneEntityDescription(
+        key="temperature_fahrenheit",
+        name="Temperature",
+        loxone_format_string=TEMP_FAHRENHEIT,
+        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.TEMPERATURE,
+    ),
+    LoxoneEntityDescription(
+        key="windstrength",
+        name="Wind Strength",
+        loxone_format_string=SPEED_KILOMETERS_PER_HOUR,
+        native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.WIND_SPEED,
+    ),
+    LoxoneEntityDescription(
+        key="kwh",
+        name="Kilowatt per hour",
+        loxone_format_string=ENERGY_KILO_WATT_HOUR,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.ENERGY,
+    ),
+    LoxoneEntityDescription(
+        key="wh",
+        name="Watt per hour",
+        loxone_format_string=ENERGY_WATT_HOUR,
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.ENERGY,
+    ),
+    LoxoneEntityDescription(
+        key="power",
+        name="Watt",
+        loxone_format_string=POWER_WATT,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.POWER,
+    ),
+    LoxoneEntityDescription(
+        key="light_level",
+        name="Light Level",
+        loxone_format_string=LIGHT_LUX,
+        native_unit_of_measurement=LIGHT_LUX,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.ILLUMINANCE,
+    ),
+)
+
+
+SENSOR_FORMATS = [desc.loxone_format_string for desc in SENSOR_TYPES]
 
 
 async def async_setup_platform(
@@ -197,10 +278,11 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
 
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
-    def __init__(self, version_list):
+    def __init__(self, version_list, **kwargs):
+        super().__init__(**kwargs)
         try:
             self.version = ".".join([str(x) for x in version_list])
-        except:
+        except Exception:
             self.version = STATE_UNKNOWN
 
     @property
@@ -271,89 +353,42 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
 
 
 class Loxonesensor(LoxoneEntity, SensorEntity):
-    """Representation of a Sensor."""
+    """Representation of a Loxone Sensor."""
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
         """Initialize the sensor."""
-        self._state = STATE_UNKNOWN
-        self._unit_of_measurement = None
-        self._format = self._get_format(kwargs.get("details", {}).get("format", ""))
-        self._on_state = STATE_ON
-        self._off_state = STATE_OFF
+        self._format = self._get_format(self.details["format"])
+        self._attr_should_poll = False
+        self._attr_native_unit_of_measurement = self._clean_unit(self.details["format"])
         self._parent_id = kwargs.get("parent_id", None)
-        self._device_class = kwargs.get("device_class", None)
-        self._state_class = kwargs.get("state_class", None)
-        self.extract_attributes()
+
+        if entity_description := self._get_entity_description():
+            self.entity_description = entity_description
+
+    def _get_entity_description(self) -> SensorEntityDescription | None:
+        """Return the sensor entity description."""
+        if self._attr_native_unit_of_measurement in SENSOR_FORMATS:
+            return SENSOR_TYPES[
+                SENSOR_FORMATS.index(self._attr_native_unit_of_measurement)
+            ]
+        return None
+
+    @property
+    def available(self) -> bool:
+        """Return entity availability."""
+        return self.state is not None
+
+    def _get_lox_rounded_value(self, value):
+        try:
+            return float(self._format % float(value))
+        except ValueError:
+            return value
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
-            if self.typ == "analog":
-                self._state = e.data[self.uuidAction]
-            elif self.typ == "digital":
-                self._state = e.data[self.uuidAction]
-                if self._state == 1.0:
-                    self._state = self._on_state
-                else:
-                    self._state = self._off_state
-            else:
-                self._state = e.data[self.uuidAction]
+            self._attr_native_value = e.data[self.uuidAction]
             self.schedule_update_ha_state()
-
-    def extract_attributes(self):
-        """Extract certain Attributes. Not all."""
-        # if "text" in self.details:
-        #     self._on_state = self.details["text"]["on"]
-        #     self._off_state = self.details["text"]["off"]
-        if hasattr(self, "details") and "format" in self.details:
-            self._format = self._get_format(self.details["format"])
-            self._unit_of_measurement = self._clean_unit(self.details["format"])
-
-    @property
-    def should_poll(self):
-        return False
-
-    @property
-    def native_value(self):
-        """Return the state of the sensor."""
-        if self._format is not None and self._state != STATE_UNKNOWN:
-            try:
-                return self._format % float(self._state)
-            except ValueError:
-                return self._state
-        else:
-            return self._state
-
-    @native_value.setter
-    def native_value(self, value):
-        if self._format is not None and self._state != STATE_UNKNOWN:
-            try:
-                self._state = self._format % value
-            except ValueError:
-                self._state = value
-        else:
-            self._state = value
-
-    @property
-    def native_unit_of_measurement(self):
-        """Return the unit of measurement."""
-        return self._unit_of_measurement
-
-    @property
-    def icon(self):
-        """Return the sensor icon."""
-        if self._device_class:
-            if self._device_class == "humidity":
-                return "mdi:water-percent"
-            elif self._device_class == "carbon_dioxide":
-                return "mdi:molecule-co2"
-            elif self._device_class == "temperature":
-                return "mdi:thermometer"
-            else:
-                return "mdi:chart-bell-curve"
-        else:
-            if self.typ == "analog":
-                return "mdi:chart-bell-curve"
 
     @property
     def extra_state_attributes(self):
@@ -374,38 +409,11 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
 
         if self._parent_id:
             _uuid = self._parent_id
-
-        if self.typ == "analog":
             return {
                 "identifiers": {(DOMAIN, _uuid)},
                 "name": self.name,
                 "manufacturer": "Loxone",
                 "model": "Sensor analog",
-                "type": self.typ,
+                "uuid": self.uuidAction,
                 "suggested_area": self.room,
             }
-        else:
-            return {
-                "identifiers": {(DOMAIN, _uuid)},
-                "name": self.name,
-                "manufacturer": "Loxone",
-                "model": "Sensor digital",
-                "type": self.typ,
-                "suggested_area": self.room,
-            }
-
-    @property
-    def device_class(self):
-        """Return the class of this device, from component DEVICE_CLASSES."""
-        return self._device_class
-
-    @device_class.setter
-    def device_class(self, device_class):
-        if not hasattr(self, "_device_class"):
-            setattr(self, "_device_class", device_class)
-        else:
-            self._device_class = device_class
-
-    @property
-    def state_class(self):
-        return self._state_class
