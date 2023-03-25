@@ -81,7 +81,7 @@ class TokensMixin(MiniserverProtocol):
         # Request a JSON web token. uuid uniquely identifies the client to the
         # Miniserver, and allows it to look up all the client's tokens.
         UUID = uuid.UUID(int=uuid.getnode())
-        # PERMISSION can be 2 for for a 'short' lifespan token (days), or 4 for
+        # PERMISSION can be 2 for a 'short' lifespan token (days), or 4 for
         # a longer lifespan (weeks). We ask for shorter token here. Renewing it
         # is relatively easy, and the lifespan ensures that the tokens don't
         # stick around for too long in the miniserver's memory if we have

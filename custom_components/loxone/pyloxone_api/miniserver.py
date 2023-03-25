@@ -16,7 +16,7 @@ import dataclasses
 import binascii
 import urllib.parse
 from base64 import b64decode, b64encode
-from typing import Any, Coroutine, Iterable, NoReturn, TextIO
+from typing import Any, Coroutine, Iterable, NoReturn
 
 from aiohttp import ClientSession, ClientWebSocketResponse
 from Crypto.Cipher import AES
@@ -83,6 +83,7 @@ class Miniserver(ConnectorMixin, TokensMixin):
         self._key: str = ""
         self._local: bool = False
         self._message_queue: list[BaseMessage] = []
+        self._message_queue_has_message: asyncio.Event = asyncio.Event()
         self._message_listeners: list[
             tuple[asyncio.Future[Any], Iterable[MessageType], str]
         ] = []
@@ -412,7 +413,6 @@ class Miniserver(ConnectorMixin, TokensMixin):
             await self._ws.send_str("keepalive")
             await self._get_message([MessageType.KEEPALIVE])
 
-
     async def _receive_and_add_to_queue(self) -> NoReturn:
         """Listen to all messages from the Miniserver, and add them to a queue.
 
@@ -468,12 +468,18 @@ class Miniserver(ConnectorMixin, TokensMixin):
             message = parse_message(message_data, header.message_type)
             self._message_queue.append(message)
             _LOGGER.debug(f"Current state of queue is {self._message_queue}")
+            self._message_queue_has_message.set()
 
     async def _process_message(self) -> NoReturn:
-        """Process messages in the queue and send them to awaiting coroutines."""
+        """Process any messages in the queue and send them to awaiting coroutines."""
         while True:
+
+            # Wait until the `_receive_and_add_to_queue` method sets an
+            # asyncio.Event to indicate that there is something in the queue to
+            # process.
+            await self._message_queue_has_message.wait()
             # Find all listeners waiting for a message which is in the queue.
-            # This is very inefficient, but it works for now
+            # This is very inefficient, but it works for now.
             for message in self._message_queue:
                 for listener in self._message_listeners:
                     (future, message_types, expected_control) = listener
@@ -493,7 +499,9 @@ class Miniserver(ConnectorMixin, TokensMixin):
                         self._message_queue.remove(message)
                         future.set_result(message)
                         break
-            # quick and dirty fix for high cpu usage
+            # Once there are no more messages, resent the Event so that the loop stops.
+            if not self._message_queue:
+                self._message_queue_has_message.clear()
             await asyncio.sleep(0.1)
 
     # ---------------------------------------------------------------------------- #
