@@ -510,9 +510,10 @@ class LoxWs:
                 _LOGGER.debug("Keep alive response received...")
         else:
             parsed_data = await self._parse_loxone_message(message)
-            _LOGGER.debug(
-                "message [type:{}]):{}".format(self._current_message_typ, parsed_data)
-            )
+            if parsed_data != {}:
+                _LOGGER.debug(
+                    "message [type:{}]):{}".format(self._current_message_typ, parsed_data)
+                )
 
             try:
                 resp_json = json.loads(parsed_data)
