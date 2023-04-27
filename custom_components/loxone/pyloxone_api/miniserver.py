@@ -18,7 +18,7 @@ import urllib.parse
 from base64 import b64decode, b64encode
 from typing import Any, Coroutine, Iterable, NoReturn
 
-from aiohttp import ClientSession, ClientWebSocketResponse
+from aiohttp import ClientSession, ClientWebSocketResponse, WSMsgType, WSMessage
 from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.Util import Padding
@@ -439,13 +439,21 @@ class Miniserver(ConnectorMixin, TokensMixin):
         # And:
         #
         # a keepalive header is sent by itself. No message body follows it.
-
         while True:
-            header_data = await self._ws.receive_bytes()
-            if not isinstance(header_data, bytes):
-                raise LoxoneException(
-                    f"Expected a bytes header, but received {header_data}"
+            ws_msg = await self._ws.receive()
+            if isinstance(ws_msg, WSMessage) and ws_msg.type != WSMsgType.BINARY:
+                _LOGGER.error(
+                    f"Expected a bytes header, but received {ws_msg.type}. Try to ignore error!"
                 )
+                continue
+            elif not isinstance(ws_msg, WSMessage):
+
+                _LOGGER.error(
+                    f"Expected a bytes header, but received {ws_msg}. Try to ignore error!"
+                )
+                continue
+            header_data = ws_msg.data
+
             _LOGGER.debug(f"Parsing header {header_data[:80]!r}")
             header = parse_header(header_data)
             if header.message_type is MessageType.OUT_OF_SERVICE:
