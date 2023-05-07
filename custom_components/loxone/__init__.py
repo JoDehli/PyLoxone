@@ -15,8 +15,6 @@ from collections.abc import Callable
 
 import homeassistant.components.group as group
 import voluptuous as vol
-from custom_components.loxone.const import *
-from custom_components.loxone.pyloxone_api import *
 from homeassistant.config import get_default_config_dir
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
@@ -25,14 +23,14 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  EVENT_HOMEASSISTANT_STOP)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
-from custom_components.loxone.pyloxone_api.exceptions import LoxoneCommandError
+from .const import *
+from .pyloxone_api import *
+from .pyloxone_api.exceptions import LoxoneCommandError
 
 # from .helpers import get_miniserver_type
 
@@ -248,7 +246,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-
     if DOMAIN not in hass.data:
         hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
             "miniserver": None,
@@ -271,7 +268,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         host=entry.options.get("host"),
         port=entry.options.get("port"),
         use_tls=False,
-        token_store=token
+        token_store=token,
     )
 
     # _LOGGER = logging.getLogger("pyloxone_api")
@@ -345,7 +342,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         try:
             await miniserver.send_control_command(device_uuid, value)
         except LoxoneCommandError as e:
-            _LOGGER.error(f"Error on sending command jdev/sps/io/{device_uuid}/{value}: {str(e)}")
+            _LOGGER.error(
+                f"Error on sending command jdev/sps/io/{device_uuid}/{value}: {str(e)}"
+            )
             _LOGGER.error(f"Error code {e.code} -> message: {e.message}")
 
     async def send_to_loxone(event):
@@ -642,7 +641,7 @@ class LoxoneEntity(Entity):
                 try:
                     setattr(self, key, kwargs[key])
                 except AttributeError:
-                    _LOGGER.info(f"Could set {key} for {self._name}" )
+                    _LOGGER.info(f"Could set {key} for {self._name}")
                 except (Exception,):
                     traceback.print_exc()
                     sys.exit(-1)

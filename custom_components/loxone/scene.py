@@ -9,17 +9,13 @@ import logging
 
 from homeassistant.components.scene import Scene
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback, async_call_later
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import (AddEntitiesCallback,
+                                                   async_call_later)
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from .const import (
-    CONF_SCENE_GEN,
-    CONF_SCENE_GEN_DELAY,
-    DEFAULT_DELAY_SCENE,
-    DOMAIN,
-    SENDDOMAIN,
-)
+from .const import (CONF_SCENE_GEN, CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE,
+                    DOMAIN, SENDDOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -3,39 +3,25 @@ from abc import ABC
 from typing import Any
 
 import homeassistant.util.color as color_util
-from homeassistant.components.light import (
-    ATTR_BRIGHTNESS,
-    ATTR_COLOR_TEMP,
-    ATTR_EFFECT,
-    ATTR_HS_COLOR,
-    COLOR_MODE_COLOR_TEMP,
-    COLOR_MODE_HS,
-    SUPPORT_BRIGHTNESS,
-    SUPPORT_COLOR,
-    SUPPORT_COLOR_TEMP,
-    SUPPORT_EFFECT,
-    LightEntity,
-    ToggleEntity,
-)
+from homeassistant.components.light import (ATTR_BRIGHTNESS, ATTR_COLOR_TEMP,
+                                            ATTR_EFFECT, ATTR_HS_COLOR,
+                                            COLOR_MODE_COLOR_TEMP,
+                                            COLOR_MODE_HS, SUPPORT_BRIGHTNESS,
+                                            SUPPORT_COLOR, SUPPORT_COLOR_TEMP,
+                                            SUPPORT_EFFECT, LightEntity,
+                                            ToggleEntity)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from . import LoxoneEntity
+from . import LoxoneEntity, get_miniserver_from_hass
 from .const import DOMAIN, SENDDOMAIN, STATE_OFF, STATE_ON
-from .helpers import (
-    get_all,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-    hass_to_lox,
-    lox2hass_mapped,
-    lox_to_hass,
-    to_hass_color_temp,
-    to_loxone_color_temp,
-)
-from . import get_miniserver_from_hass
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid, hass_to_lox,
+                      lox2hass_mapped, lox_to_hass, to_hass_color_temp,
+                      to_loxone_color_temp)
 
 _LOGGER = logging.getLogger(__name__)
 DEFAULT_NAME = "Loxone Light Controller V2"
@@ -81,7 +67,7 @@ async def async_setup_entry(
                     loxconfig, light_controller.get("cat", "")
                 ),
                 "async_add_devices": async_add_entities,
-                "config_entry": config_entry
+                "config_entry": config_entry,
             }
         )
         new_light_controller = LoxonelightcontrollerV2(**light_controller)
@@ -159,7 +145,7 @@ async def async_setup_entry(
                         loxconfig, light_controller.get("cat", "")
                     ),
                     "async_add_devices": async_add_entities,
-                    "config_entry": config_entry
+                    "config_entry": config_entry,
                 }
             )
         else:
@@ -170,7 +156,7 @@ async def async_setup_entry(
                     ),
                     "cat": get_cat_name_from_cat_uuid(loxconfig, dimmer.get("cat", "")),
                     "async_add_devices": async_add_entities,
-                    "config_entry": config_entry
+                    "config_entry": config_entry,
                 }
             )
 
@@ -187,7 +173,7 @@ async def async_setup_entry(
                     loxconfig, light_controller.get("cat", "")
                 ),
                 "async_add_devices": async_add_entities,
-                "config_entry": config_entry
+                "config_entry": config_entry,
             }
         )
         new_switch = LoxoneLight(**switch)
@@ -203,7 +189,7 @@ async def async_setup_entry(
                     loxconfig, light_controller.get("cat", "")
                 ),
                 "async_add_devices": async_add_entities,
-                "config_entry": config_entry
+                "config_entry": config_entry,
             }
         )
         new_color_picker = LoxoneColorPickerV2(**color_picker)

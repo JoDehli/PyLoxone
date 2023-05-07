@@ -7,30 +7,27 @@ https://github.com/JoDehli/PyLoxone
 
 import logging
 from abc import ABC
-from homeassistant.const import UnitOfTemperature
-from homeassistant.components.climate import (
-    PLATFORM_SCHEMA,
-    SUPPORT_PRESET_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
-    ClimateEntity,
-)
-from homeassistant.components.climate.const import (
-    HVAC_MODE_AUTO,
-    HVAC_MODE_COOL,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_HEAT_COOL,
-    HVAC_MODE_OFF,
-)
+
+from homeassistant.components.climate import (PLATFORM_SCHEMA,
+                                              SUPPORT_PRESET_MODE,
+                                              SUPPORT_TARGET_TEMPERATURE,
+                                              ClimateEntity)
+from homeassistant.components.climate.const import (HVAC_MODE_AUTO,
+                                                    HVAC_MODE_COOL,
+                                                    HVAC_MODE_HEAT,
+                                                    HVAC_MODE_HEAT_COOL,
+                                                    HVAC_MODE_OFF)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import UnitOfTemperature
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from voluptuous import All, Optional, Range
 
-from . import LoxoneEntity
+from . import LoxoneEntity, get_miniserver_from_hass
 from .const import CONF_HVAC_AUTO_MODE, DOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
-from . import get_miniserver_from_hass
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,7 +85,7 @@ async def async_setup_entry(
                 ),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, climate.get("cat", "")),
                 CONF_HVAC_AUTO_MODE: 0,
-                "config_entry": config_entry
+                "config_entry": config_entry,
             }
         )
 
@@ -221,9 +218,9 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         """Return the unit of measurement used by the platform."""
         if "format" in self.details:
             if self.details["format"].find("°"):
-                return  UnitOfTemperature.CELSIUS
-            return  UnitOfTemperature.FAHRENHEIT
-        return  UnitOfTemperature.CELSIUS
+                return UnitOfTemperature.CELSIUS
+            return UnitOfTemperature.FAHRENHEIT
+        return UnitOfTemperature.CELSIUS
 
     @property
     def target_temperature(self):

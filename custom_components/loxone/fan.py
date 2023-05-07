@@ -2,23 +2,21 @@
 from __future__ import annotations
 
 import logging
-from voluptuous import Optional, Any
-from homeassistant.components.fan import (
-    SUPPORT_PRESET_MODE,
-    SUPPORT_SET_SPEED,
-    FanEntity,
-)
+
+from homeassistant.components.fan import (SUPPORT_PRESET_MODE,
+                                          SUPPORT_SET_SPEED, FanEntity)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from voluptuous import Any, Optional
 
-from . import LoxoneEntity
+from . import LoxoneEntity, get_miniserver_from_hass
 from .binary_sensor import LoxoneDigitalSensor
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
-from  . import get_miniserver_from_hass
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 from .sensor import Loxonesensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,7 +61,7 @@ async def async_setup_entry(
                 "room": get_room_name_from_room_uuid(loxconfig, fan.get("room", "")),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, fan.get("cat", "")),
                 "async_add_devices": async_add_entities,
-                "config_entry": config_entry
+                "config_entry": config_entry,
             }
         )
 
@@ -77,7 +75,7 @@ async def async_setup_entry(
                 "name": fan["name"] + " - Presence",
                 "device_class": "presence",
                 "async_add_devices": async_add_entities,
-                "config_entry": config_entry
+                "config_entry": config_entry,
             }
             entites.append(LoxoneDigitalSensor(**presence))
         if fan["details"]["hasIndoorHumidity"] and "humidityIndoor" in fan["states"]:
@@ -91,7 +89,7 @@ async def async_setup_entry(
                 "details": {"format": "%.1f%"},
                 "device_class": "humidity",
                 "async_add_devices": async_add_entities,
-                "config_entry": config_entry
+                "config_entry": config_entry,
             }
             entites.append(Loxonesensor(**humidity))
         if fan["details"]["hasAirQuality"] and "airQualityIndoor" in fan["states"]:
@@ -105,7 +103,7 @@ async def async_setup_entry(
                 "details": {"format": "%.1fppm"},
                 "device_class": "carbon_dioxide",
                 "async_add_devices": async_add_entities,
-                "config_entry": config_entry
+                "config_entry": config_entry,
             }
             entites.append(Loxonesensor(**air_quality))
         # if "temperatureIndoor" in fan["states"]:
@@ -133,7 +131,7 @@ async def async_setup_entry(
                 "details": {"format": "%.1f°"},
                 "device_class": "temperature",
                 "async_add_devices": async_add_entities,
-                "config_entry": config_entry
+                "config_entry": config_entry,
             }
             entites.append(Loxonesensor(**temperature))
 
@@ -230,7 +228,6 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
     def preset_mode(self) -> str | None:
         """Return a list of available preset modes."""
         return VENTELATION_INT_TO_STR.get(self.get_state_value("mode"))
-
 
     @property
     def percentage(self) -> Optional[int]:

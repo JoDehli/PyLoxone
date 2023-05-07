@@ -13,10 +13,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from . import LoxoneEntity
+from . import LoxoneEntity, get_miniserver_from_hass
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
-from . import get_miniserver_from_hass
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ async def async_setup_entry(
                     "cat": get_cat_name_from_cat_uuid(
                         loxconfig, switch_entity.get("cat", "")
                     ),
-                    "config_entry": config_entry
+                    "config_entry": config_entry,
                 }
             )
             new_push_button = LoxoneSwitch(**switch_entity)
@@ -68,7 +68,7 @@ async def async_setup_entry(
                     "cat": get_cat_name_from_cat_uuid(
                         loxconfig, switch_entity.get("cat", "")
                     ),
-                    "config_entry": config_entry
+                    "config_entry": config_entry,
                 }
             )
             new_push_button = LoxoneTimedSwitch(**switch_entity)
@@ -100,11 +100,7 @@ async def async_setup_entry(
                             )
                         }
                     )
-                    _.update(
-                        {
-                            "config_entry": config_entry
-                        }
-                    )
+                    _.update({"config_entry": config_entry})
 
                     new_push_button = LoxoneIntercomSubControl(**_)
                     entites.append(new_push_button)

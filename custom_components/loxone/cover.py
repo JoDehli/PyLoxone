@@ -9,45 +9,27 @@ import logging
 import random
 from typing import Any
 
-from homeassistant.components.cover import (
-    ATTR_POSITION,
-    ATTR_TILT_POSITION,
-    DEVICE_CLASS_AWNING,
-    DEVICE_CLASS_BLIND,
-    DEVICE_CLASS_CURTAIN,
-    DEVICE_CLASS_DOOR,
-    DEVICE_CLASS_GARAGE,
-    DEVICE_CLASS_SHUTTER,
-    DEVICE_CLASS_WINDOW,
-    SUPPORT_CLOSE,
-    SUPPORT_OPEN,
-    CoverEntity,
-)
+from homeassistant.components.cover import (ATTR_POSITION, ATTR_TILT_POSITION,
+                                            DEVICE_CLASS_AWNING,
+                                            DEVICE_CLASS_BLIND,
+                                            DEVICE_CLASS_CURTAIN,
+                                            DEVICE_CLASS_DOOR,
+                                            DEVICE_CLASS_GARAGE,
+                                            DEVICE_CLASS_SHUTTER,
+                                            DEVICE_CLASS_WINDOW, SUPPORT_CLOSE,
+                                            SUPPORT_OPEN, CoverEntity)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from . import LoxoneEntity
-from .const import (
-    DOMAIN,
-    SENDDOMAIN,
-    SUPPORT_CLOSE_TILT,
-    SUPPORT_OPEN_TILT,
-    SUPPORT_SET_POSITION,
-    SUPPORT_SET_TILT_POSITION,
-    SUPPORT_STOP,
-    SUPPORT_STOP_TILT,
-)
-from .helpers import (
-    get_all,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-    map_range,
-)
-from . import get_miniserver_from_hass
+from . import LoxoneEntity, get_miniserver_from_hass
+from .const import (DOMAIN, SENDDOMAIN, SUPPORT_CLOSE_TILT, SUPPORT_OPEN_TILT,
+                    SUPPORT_SET_POSITION, SUPPORT_SET_TILT_POSITION,
+                    SUPPORT_STOP)
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid, map_range)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,7 +62,7 @@ async def async_setup_entry(
                 "hass": hass,
                 "room": get_room_name_from_room_uuid(loxconfig, cover.get("room", "")),
                 "cat": get_cat_name_from_cat_uuid(loxconfig, cover.get("cat", "")),
-                "config_entry": config_entry
+                "config_entry": config_entry,
             }
         )
 
@@ -239,7 +221,6 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
 
 
 class LoxoneWindow(LoxoneEntity, CoverEntity):
-
     # pylint: disable=no-self-use
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
@@ -250,7 +231,6 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
 
     async def event_handler(self, e):
         if self.states["position"] in e.data or self.states["direction"] in e.data:
-
             if self.states["position"] in e.data:
                 self._position = float(e.data[self.states["position"]]) * 100.0
                 if self._position == 0:
@@ -420,7 +400,6 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             or self.states["autoInfoText"] in e.data
             or self.states["autoState"] in e.data
         ):
-
             if self.states["position"] in e.data:
                 self._position_loxone = float(e.data[self.states["position"]]) * 100.0
                 self._position = map_range(self._position_loxone, 0, 100, 100, 0)
