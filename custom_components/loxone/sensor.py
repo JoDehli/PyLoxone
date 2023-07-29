@@ -218,7 +218,7 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
         else:
             self._state_class = None
 
-        self._state = STATE_UNKNOWN
+        self._state = None
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
