@@ -8,6 +8,7 @@ from homeassistant.components.fan import (SUPPORT_PRESET_MODE,
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from voluptuous import Any, Optional
@@ -156,6 +157,14 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
         self._stateAttribValues = {}
         self._details = kwargs["details"]
 
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=f"{DOMAIN} {self.name}",
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model="Fan",
+        )
+
     @property
     def extra_state_attributes(self):
         """Return device specific state attributes.
@@ -168,16 +177,6 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
             "category": self.cat,
             "device_typ": self.type,
             "platform": "loxone",
-        }
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
         }
 
     @property

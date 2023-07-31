@@ -21,6 +21,7 @@ from homeassistant.components.cover import (ATTR_POSITION, ATTR_TILT_POSITION,
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
@@ -369,6 +370,14 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         else:
             self._closed = self.current_cover_position <= 0
 
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=f"{DOMAIN} {self.name}",
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model="Jalousie"
+        )
+
     @property
     def name(self):
         return self._name
@@ -583,14 +592,3 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         self.hass.bus.async_fire(
             SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}")
         )
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": "Jalousie",
-            "type": self.type,
-            "suggested_area": self.room,
-        }

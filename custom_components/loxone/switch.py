@@ -10,6 +10,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
@@ -129,6 +130,14 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
         else:
             self._deactivation_delay_total = ""
 
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=f"{DOMAIN} {self.name}",
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model=self.type
+        )
+
     @property
     def should_poll(self):
         """No polling needed for a demo switch."""
@@ -204,16 +213,6 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
                 }
             )
         return state_dict
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
-        }
 
 
 class LoxoneSwitch(LoxoneEntity, SwitchEntity):
