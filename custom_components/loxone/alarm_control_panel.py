@@ -28,6 +28,7 @@ from homeassistant.const import (
     STATE_ALARM_TRIGGERED,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
@@ -109,6 +110,13 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         #
         #     if "armedDelay" in states:
         #         self._armed_delay_total_delay_uuid = states["armedDelayTotal"]
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=f"{DOMAIN} {self.name}",
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model="Alarm",
+        )
 
     @property
     def supported_features(self):
@@ -291,14 +299,3 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         if isinstance(self._code, str) and re.search("^\\d+$", self._code):
             return FORMAT_NUMBER
         return FORMAT_TEXT
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": "Alarm",
-            "type": self.type,
-            "suggested_area": self.room,
-        }

@@ -10,6 +10,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
@@ -53,6 +54,7 @@ async def async_setup_entry(
                     "cat": get_cat_name_from_cat_uuid(
                         loxconfig, switch_entity.get("cat", "")
                     ),
+                    "config_entry": config_entry,
                 }
             )
             new_push_button = LoxoneSwitch(**switch_entity)
@@ -67,6 +69,7 @@ async def async_setup_entry(
                     "cat": get_cat_name_from_cat_uuid(
                         loxconfig, switch_entity.get("cat", "")
                     ),
+                    "config_entry": config_entry,
                 }
             )
             new_push_button = LoxoneTimedSwitch(**switch_entity)
@@ -88,7 +91,7 @@ async def async_setup_entry(
                         {
                             "room": get_room_name_from_room_uuid(
                                 loxconfig, switch_entity.get("room", "")
-                            )
+                            ),
                         }
                     )
                     _.update(
@@ -98,6 +101,8 @@ async def async_setup_entry(
                             )
                         }
                     )
+                    _.update({"config_entry": config_entry})
+
                     new_push_button = LoxoneIntercomSubControl(**_)
                     entites.append(new_push_button)
 
@@ -124,6 +129,14 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             self._deactivation_delay_total = self.states["deactivationDelayTotal"]
         else:
             self._deactivation_delay_total = ""
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=f"{DOMAIN} {self.name}",
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model=self.type
+        )
 
     @property
     def should_poll(self):
@@ -200,16 +213,6 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
                 }
             )
         return state_dict
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
-        }
 
 
 class LoxoneSwitch(LoxoneEntity, SwitchEntity):

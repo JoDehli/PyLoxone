@@ -225,12 +225,11 @@ class MiniServer:
             connections={
                 (CONNECTION_NETWORK_MAC, self.config_entry.options[CONF_HOST])
             },
-            identifiers={(DOMAIN, self.serial)},
             name=self.name,
-            manufacturer="Loxone",
-            default_manufacturer="Loxone",
-            sw_version=self.software_version,
             model=get_miniserver_type(self.miniserver_type),
+            identifiers={(DOMAIN, self.serial)},
+            manufacturer="Loxone",
+            sw_version=self.software_version,
             configuration_url="http://{host}:{port}".format(
                 host=self.lox_config.host, port=self.lox_config.port
             ),

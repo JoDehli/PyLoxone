@@ -23,6 +23,7 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from voluptuous import All, Optional, Range
@@ -110,6 +111,14 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         self._stateAttribValues = {}
 
         self._modeList = kwargs["details"]["timerModes"]
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=f"{DOMAIN} {self.name}",
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model="RoomControllerV2"
+        )
 
     def get_mode_from_id(self, mode_id):
         for mode in self._modeList:
@@ -220,9 +229,9 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         """Return the unit of measurement used by the platform."""
         if "format" in self.details:
             if self.details["format"].find("°"):
-                return  UnitOfTemperature.CELSIUS
-            return  UnitOfTemperature.FAHRENHEIT
-        return  UnitOfTemperature.CELSIUS
+                return UnitOfTemperature.CELSIUS
+            return UnitOfTemperature.FAHRENHEIT
+        return UnitOfTemperature.CELSIUS
 
     @property
     def target_temperature(self):
@@ -281,13 +290,3 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             )
             self.schedule_update_ha_state()
 
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": "RoomControllerV2",
-            "type": self.type,
-            "suggested_area": self.room,
-        }
