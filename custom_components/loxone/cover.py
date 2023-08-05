@@ -106,6 +106,14 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
         else:
             self._closed = self.current_cover_position <= 0
 
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=self.name,
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model="Gate",
+        )
+
     @property
     def supported_features(self):
         """Flag supported features."""
@@ -209,17 +217,6 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
             "platform": "loxone",
         }
 
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": "Gate",
-            "type": self.type,
-            "suggested_area": self.room,
-        }
-
 
 class LoxoneWindow(LoxoneEntity, CoverEntity):
     # pylint: disable=no-self-use
@@ -229,6 +226,14 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         self._position = None
         self._closed = True
         self._direction = 0
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=self.name,
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model="Window",
+        )
 
     async def event_handler(self, e):
         if self.states["position"] in e.data or self.states["direction"] in e.data:
@@ -320,16 +325,6 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
             SENDDOMAIN,
             dict(uuid=self.uuidAction, value="moveToPosition/{}".format(position)),
         )
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": "Window",
-            "suggested_area": self.room,
-        }
 
 
 class LoxoneJalousie(LoxoneEntity, CoverEntity):
