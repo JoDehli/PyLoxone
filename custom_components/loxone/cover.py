@@ -9,20 +9,15 @@ import logging
 import random
 from typing import Any
 
-from homeassistant.components.cover import (
-    ATTR_POSITION,
-    ATTR_TILT_POSITION,
-    DEVICE_CLASS_AWNING,
-    DEVICE_CLASS_BLIND,
-    DEVICE_CLASS_CURTAIN,
-    DEVICE_CLASS_DOOR,
-    DEVICE_CLASS_GARAGE,
-    DEVICE_CLASS_SHUTTER,
-    DEVICE_CLASS_WINDOW,
-    SUPPORT_CLOSE,
-    SUPPORT_OPEN,
-    CoverEntity,
-)
+from homeassistant.components.cover import (ATTR_POSITION, ATTR_TILT_POSITION,
+                                            DEVICE_CLASS_AWNING,
+                                            DEVICE_CLASS_BLIND,
+                                            DEVICE_CLASS_CURTAIN,
+                                            DEVICE_CLASS_DOOR,
+                                            DEVICE_CLASS_GARAGE,
+                                            DEVICE_CLASS_SHUTTER,
+                                            DEVICE_CLASS_WINDOW, SUPPORT_CLOSE,
+                                            SUPPORT_OPEN, CoverEntity)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
@@ -32,22 +27,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
-from .const import (
-    DOMAIN,
-    SENDDOMAIN,
-    SUPPORT_CLOSE_TILT,
-    SUPPORT_OPEN_TILT,
-    SUPPORT_SET_POSITION,
-    SUPPORT_SET_TILT_POSITION,
-    SUPPORT_STOP,
-    SUPPORT_STOP_TILT,
-)
-from .helpers import (
-    get_all,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-    map_range,
-)
+from .const import (DOMAIN, SENDDOMAIN, SUPPORT_CLOSE_TILT, SUPPORT_OPEN_TILT,
+                    SUPPORT_SET_POSITION, SUPPORT_SET_TILT_POSITION,
+                    SUPPORT_STOP)
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid, map_range)
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -122,6 +106,14 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
             self._closed = True
         else:
             self._closed = self.current_cover_position <= 0
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=self.name,
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model="Gate",
+        )
 
     @property
     def supported_features(self):
@@ -226,20 +218,8 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
             "platform": "loxone",
         }
 
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": "Gate",
-            "type": self.type,
-            "suggested_area": self.room,
-        }
-
 
 class LoxoneWindow(LoxoneEntity, CoverEntity):
-
     # pylint: disable=no-self-use
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
@@ -248,9 +228,16 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         self._closed = True
         self._direction = 0
 
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=self.name,
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model="Window",
+        )
+
     async def event_handler(self, e):
         if self.states["position"] in e.data or self.states["direction"] in e.data:
-
             if self.states["position"] in e.data:
                 self._position = float(e.data[self.states["position"]]) * 100.0
                 if self._position == 0:
@@ -340,16 +327,6 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
             dict(uuid=self.uuidAction, value="moveToPosition/{}".format(position)),
         )
 
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": "Window",
-            "suggested_area": self.room,
-        }
-
 
 class LoxoneJalousie(LoxoneEntity, CoverEntity):
     """Loxone Jalousie"""
@@ -394,7 +371,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             name=f"{DOMAIN} {self.name}",
             manufacturer="Loxone",
             suggested_area=self.room,
-            model="Jalousie"
+            model="Jalousie",
         )
 
     @property
@@ -428,7 +405,6 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             or self.states["autoInfoText"] in e.data
             or self.states["autoState"] in e.data
         ):
-
             if self.states["position"] in e.data:
                 self._position_loxone = float(e.data[self.states["position"]]) * 100.0
                 self._position = map_range(self._position_loxone, 0, 100, 100, 0)
