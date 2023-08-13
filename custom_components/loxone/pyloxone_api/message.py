@@ -1,7 +1,3 @@
-"""Classes for handling messages from a Miniserver"""
-
-from __future__ import annotations
-
 import json
 import math
 import struct
@@ -9,7 +5,7 @@ import uuid
 from enum import IntEnum
 from typing import Any
 
-from .exceptions import LoxoneException
+from loxone_exceptions import LoxoneException
 
 
 class LoxoneResponse:
@@ -99,6 +95,7 @@ class BaseMessage:
 
     def __repr__(self):
         return str(self.message_type)
+
 
 class TextMessage(BaseMessage):
     message_type = MessageType.TEXT

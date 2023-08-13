@@ -15,9 +15,10 @@ from typing import Final, NoReturn
 
 from Crypto.Hash import HMAC, SHA1, SHA256
 
-from .exceptions import LoxoneException, LoxoneCommandError
-from .message import LoxoneResponse
-from .loxone_types import MiniserverProtocol
+from const import PERMISSION, CMD_GET_KEY2
+from loxone_exceptions import LoxoneException
+from loxone_types import MiniserverProtocol
+from message import LoxoneResponse
 
 _LOGGER = logging.getLogger(__name__)
 # Loxone epoch is 1.1.2009
@@ -50,7 +51,8 @@ class LoxoneToken:
 class TokensMixin(MiniserverProtocol):
     """Methods relating to tokens.
 
-    Do not instantiate this. It is intended only to be mixed in to the Miniserver class."""
+    Do not instantiate this. It is intended only to be mixed in to the Miniserver class.
+    """
 
     async def _use_token(self) -> None:
         _LOGGER.debug("Try to use stored token.")
@@ -69,38 +71,33 @@ class TokensMixin(MiniserverProtocol):
         """Acquire a new authentication token from the token store (if any), or
         from the Miniserver"""
         _LOGGER.debug("Acquiring token from miniserver")
-        command = f"jdev/sys/getkey2/{self._user}"
+        command = f"{CMD_GET_KEY2}/{self._user}"
         # There is no need for this to be encrypted, if TLS is used, but the docs suggest
         # it should be
-        message = await self._send_text_command(command, encrypted=True)
+        await self._send_text_command(command, encrypted=True)
 
-        self._key = message.value_as_dict["key"]
-        self._user_salt = message.value_as_dict["salt"]
-        self._hash_alg = message.value_as_dict.get("hashAlg", None)
-        new_hash = self._hash_credentials()
-        # Request a JSON web token. uuid uniquely identifies the client to the
-        # Miniserver, and allows it to look up all the client's tokens.
-        UUID = uuid.UUID(int=uuid.getnode())
-        # PERMISSION can be 2 for a 'short' lifespan token (days), or 4 for
-        # a longer lifespan (weeks). We ask for shorter token here. Renewing it
-        # is relatively easy, and the lifespan ensures that the tokens don't
-        # stick around for too long in the miniserver's memory if we have
-        # frequent restarts.
-        PERMISSION = 2
-        command = (
-            f"jdev/sys/getjwt/{new_hash}/{self._user}/{PERMISSION}/{UUID}/pyloxone_api"
-        )
-        # According to the docs, this request MUST be encrypted, though in fact
-        # it doesn’t
-        message = await self._send_text_command(command, encrypted=True)
-        response = LoxoneResponse(message.message)
-        self._token.token = response.value_as_dict["token"]
-        self._token.valid_until = response.value_as_dict["validUntil"]
-        self._token.key = response.value_as_dict["key"]
-        self._token.hash_alg = self._hash_alg
-
-        if "unsecurePass" in response.value_as_dict:
-            self._token.unsecure_password = response.value_as_dict["unsecurePass"]
+        # self._key = message.value_as_dict["key"]
+        # self._user_salt = message.value_as_dict["salt"]
+        # self._hash_alg = message.value_as_dict.get("hashAlg", None)
+        # new_hash = self._hash_credentials()
+        # # Request a JSON web token. uuid uniquely identifies the client to the
+        # # Miniserver, and allows it to look up all the client's tokens.
+        # UUID = uuid.UUID(int=uuid.getnode())
+        #
+        # command = (
+        #     f"jdev/sys/getjwt/{new_hash}/{self._user}/{PERMISSION}/{UUID}/pyloxone_api"
+        # )
+        # # According to the docs, this request MUST be encrypted, though in fact
+        # # it doesn’t
+        # message = await self._send_text_command(command, encrypted=True)
+        # response = LoxoneResponse(message.message)
+        # self._token.token = response.value_as_dict["token"]
+        # self._token.valid_until = response.value_as_dict["validUntil"]
+        # self._token.key = response.value_as_dict["key"]
+        # self._token.hash_alg = self._hash_alg
+        #
+        # if "unsecurePass" in response.value_as_dict:
+        #     self._token.unsecure_password = response.value_as_dict["unsecurePass"]
 
     async def _kill_token(self) -> None:
         """Remove the token from the Miniserver's storage.

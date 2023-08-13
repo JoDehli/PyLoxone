@@ -246,6 +246,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+
     if DOMAIN not in hass.data:
         hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
             "miniserver": None,
@@ -258,7 +259,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     token = load_token()
 
     # check if old token format. if old do not use
-    if "_token" in token:
+    if token and "_token" in token:
         _LOGGER.debug("Old token format found. Token will not be used.")
         token = None
 
@@ -276,126 +277,126 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # _LOGGER.addHandler(logging.StreamHandler())
 
     await miniserver.connect()
-    hass.data[DOMAIN][entry.entry_id].update({"miniserver": miniserver})
-
-    setup_tasks = []
-
-    for platform in LOXONE_PLATFORMS:
-        # for platform in [Platform.SENSOR]:
-        _LOGGER.debug("starting loxone {}...".format(platform))
-        setup_tasks.append(
-            hass.async_create_task(
-                hass.config_entries.async_forward_entry_setup(entry, platform)
-            )
-        )
-        setup_tasks.append(
-            hass.async_create_task(
-                async_load_platform(hass, platform, DOMAIN, {}, entry)
-            )
-        )
-
-    if setup_tasks:
-        await asyncio.wait(setup_tasks)
-
-    async def enable_state_updates(event):
-        await miniserver.enable_state_updates()
-
-    @callback
-    async def message_callback():
-        """Fire message on HomeAssistant Bus."""
-        while True:
-            # Wait for and then print a state update
-            e = await miniserver.get_state_updates()
-            message = e.as_dict()
-            if isinstance(message, str):
-                message = eval(message)
-            if message != {}:
-                _LOGGER.debug(message)
-            hass.bus.async_fire(EVENT, message)
-            await asyncio.sleep(0)
-
-    message_listening_task = asyncio.create_task(
-        message_callback(), name="message_callback"
-    )
-
-    new_data = _UNDEF
-
-    if entry.unique_id is None:
-        hass.config_entries.async_update_entry(
-            entry, unique_id=miniserver.snr, data=new_data
-        )
-        # Workaround
-        await asyncio.sleep(5)
-
-    async def handle_websocket_command(call):
-        """Handle websocket command services."""
-        value = call.data.get(ATTR_VALUE, DEFAULT)
-        device_uuid = call.data.get(ATTR_UUID, DEFAULT)
-        if value is None or device_uuid is None:
-            _LOGGER.error(f"Can not send command. Please fill in all required data.")
-            return False
-        if not isinstance(value, str):
-            value = str(value).strip()
-        if not isinstance(device_uuid, str):
-            device_uuid = str(value).strip()
-        _LOGGER.debug(f"send command: jdev/sps/io/{device_uuid}/{value}")
-        try:
-            await miniserver.send_control_command(device_uuid, value)
-        except LoxoneCommandError as e:
-            _LOGGER.error(
-                f"Error on sending command jdev/sps/io/{device_uuid}/{value}: {str(e)}"
-            )
-            _LOGGER.error(f"Error code {e.code} -> message: {e.message}")
-
-    async def send_to_loxone(event):
-        """Listen for change Events from Loxone Components"""
-        try:
-            if event.event_type == SENDDOMAIN and isinstance(event.data, dict):
-                value = event.data.get(ATTR_VALUE, DEFAULT)
-                device_uuid = event.data.get(ATTR_UUID, DEFAULT)
-                if device_uuid is None:
-                    device_uuid = DEFAULT
-                if value is None:
-                    value = DEFAULT
-                await miniserver.send_control_command(device_uuid, value)
-            elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data, dict):
-                value = event.data.get(ATTR_VALUE, DEFAULT)
-                device_uuid = event.data.get(ATTR_UUID, DEFAULT)
-                code = event.data.get(ATTR_CODE, DEFAULT)
-                if code is None:
-                    code = DEFAULT
-                if device_uuid is None:
-                    device_uuid = DEFAULT
-                if value is None:
-                    value = DEFAULT
-                miniserver.visual_password = code
-                await miniserver.send_secured_control_command(device_uuid, value)
-                miniserver.visual_password = ""
-        except ValueError:
-            traceback.print_exc()
-
-    async def stop_miniserver(event):
-        safe_token(miniserver.token_dict)
-        message_listening_task.cancel()
-        await miniserver.close()
-
-    async def loxone_discovered(event):
-        _LOGGER.debug("Loxone discovered")
-
-    entry.async_on_unload(hass.bus.async_listen(SENDDOMAIN, send_to_loxone))
-    entry.async_on_unload(hass.bus.async_listen(SECUREDSENDDOMAIN, send_to_loxone))
-    entry.async_on_unload(
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_miniserver)
-    )
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, loxone_discovered)
-
-    hass.services.async_register(
-        DOMAIN, "event_websocket_command", handle_websocket_command
-    )
-
-    await miniserver.enable_state_updates()
-
-    return True
+    # hass.data[DOMAIN][entry.entry_id].update({"miniserver": miniserver})
+    #
+    # setup_tasks = []
+    #
+    # for platform in LOXONE_PLATFORMS:
+    #     # for platform in [Platform.SENSOR]:
+    #     _LOGGER.debug("starting loxone {}...".format(platform))
+    #     setup_tasks.append(
+    #         hass.async_create_task(
+    #             hass.config_entries.async_forward_entry_setup(entry, platform)
+    #         )
+    #     )
+    #     setup_tasks.append(
+    #         hass.async_create_task(
+    #             async_load_platform(hass, platform, DOMAIN, {}, entry)
+    #         )
+    #     )
+    #
+    # if setup_tasks:
+    #     await asyncio.wait(setup_tasks)
+    #
+    # async def enable_state_updates(event):
+    #     await miniserver.enable_state_updates()
+    #
+    # @callback
+    # async def message_callback():
+    #     """Fire message on HomeAssistant Bus."""
+    #     while True:
+    #         # Wait for and then print a state update
+    #         e = await miniserver.get_state_updates()
+    #         message = e.as_dict()
+    #         if isinstance(message, str):
+    #             message = eval(message)
+    #         if message != {}:
+    #             _LOGGER.debug(message)
+    #         hass.bus.async_fire(EVENT, message)
+    #         await asyncio.sleep(0)
+    #
+    # message_listening_task = asyncio.create_task(
+    #     message_callback(), name="message_callback"
+    # )
+    #
+    # new_data = _UNDEF
+    #
+    # if entry.unique_id is None:
+    #     hass.config_entries.async_update_entry(
+    #         entry, unique_id=miniserver.snr, data=new_data
+    #     )
+    #     # Workaround
+    #     await asyncio.sleep(5)
+    #
+    # async def handle_websocket_command(call):
+    #     """Handle websocket command services."""
+    #     value = call.data.get(ATTR_VALUE, DEFAULT)
+    #     device_uuid = call.data.get(ATTR_UUID, DEFAULT)
+    #     if value is None or device_uuid is None:
+    #         _LOGGER.error(f"Can not send command. Please fill in all required data.")
+    #         return False
+    #     if not isinstance(value, str):
+    #         value = str(value).strip()
+    #     if not isinstance(device_uuid, str):
+    #         device_uuid = str(value).strip()
+    #     _LOGGER.debug(f"send command: jdev/sps/io/{device_uuid}/{value}")
+    #     try:
+    #         await miniserver.send_control_command(device_uuid, value)
+    #     except LoxoneCommandError as e:
+    #         _LOGGER.error(
+    #             f"Error on sending command jdev/sps/io/{device_uuid}/{value}: {str(e)}"
+    #         )
+    #         _LOGGER.error(f"Error code {e.code} -> message: {e.message}")
+    #
+    # async def send_to_loxone(event):
+    #     """Listen for change Events from Loxone Components"""
+    #     try:
+    #         if event.event_type == SENDDOMAIN and isinstance(event.data, dict):
+    #             value = event.data.get(ATTR_VALUE, DEFAULT)
+    #             device_uuid = event.data.get(ATTR_UUID, DEFAULT)
+    #             if device_uuid is None:
+    #                 device_uuid = DEFAULT
+    #             if value is None:
+    #                 value = DEFAULT
+    #             await miniserver.send_control_command(device_uuid, value)
+    #         elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data, dict):
+    #             value = event.data.get(ATTR_VALUE, DEFAULT)
+    #             device_uuid = event.data.get(ATTR_UUID, DEFAULT)
+    #             code = event.data.get(ATTR_CODE, DEFAULT)
+    #             if code is None:
+    #                 code = DEFAULT
+    #             if device_uuid is None:
+    #                 device_uuid = DEFAULT
+    #             if value is None:
+    #                 value = DEFAULT
+    #             miniserver.visual_password = code
+    #             await miniserver.send_secured_control_command(device_uuid, value)
+    #             miniserver.visual_password = ""
+    #     except ValueError:
+    #         traceback.print_exc()
+    #
+    # async def stop_miniserver(event):
+    #     safe_token(miniserver.token_dict)
+    #     message_listening_task.cancel()
+    #     await miniserver.close()
+    #
+    # async def loxone_discovered(event):
+    #     _LOGGER.debug("Loxone discovered")
+    #
+    # entry.async_on_unload(hass.bus.async_listen(SENDDOMAIN, send_to_loxone))
+    # entry.async_on_unload(hass.bus.async_listen(SECUREDSENDDOMAIN, send_to_loxone))
+    # entry.async_on_unload(
+    #     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_miniserver)
+    # )
+    # hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, loxone_discovered)
+    #
+    # hass.services.async_register(
+    #     DOMAIN, "event_websocket_command", handle_websocket_command
+    # )
+    #
+    # await miniserver.enable_state_updates()
+    #
+    # return True
     # hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
     #
     # hass.bus.async_listen(SENDDOMAIN, miniserver.listen_loxone_send)
