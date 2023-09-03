@@ -75,6 +75,7 @@ class Miniserver(
         await self._get_public_key_and_structure_file()
         await self._open_websocket()
         self._run_in_background(self.listen_for_messages())
+        # noinspection PyUnreachableCode
         self._run_in_background(self.ping_server())
 
         await self._generate_and_pass_key()
