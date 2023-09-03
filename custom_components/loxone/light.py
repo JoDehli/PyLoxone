@@ -326,12 +326,12 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         elif kwargs == {}:
             if self.state == STATE_OFF:
                 self.hass.bus.async_fire(
-                    SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
+                    SENDDOMAIN, dict(uuid=self.uuidAction, value="changeTo/99")
                 )
         self.async_schedule_update_ha_state()
 
     async def async_turn_off(self, **kwargs) -> None:
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="off"))
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="changeTo/0"))
         self.async_schedule_update_ha_state()
 
     async def event_handler(self, event):
