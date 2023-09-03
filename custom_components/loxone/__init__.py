@@ -277,6 +277,7 @@ async def async_setup_entry(hass, config_entry):
                     dimmers = []
                     climates = []
                     fans = []
+                    accontrols = []
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
@@ -299,6 +300,8 @@ async def async_setup_entry(hass, config_entry):
                                 climates.append(s_dict["entity_id"])
                             elif device_typ == "Ventilation":
                                 fans.append(s_dict["entity_id"])
+                            elif device_typ == "AcControl":
+                                accontrols.append(s_dict["entity_id"])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
@@ -308,6 +311,7 @@ async def async_setup_entry(hass, config_entry):
                     climates.sort()
                     dimmers.sort()
                     fans.sort()
+                    accontrols.sort()
 
                     await create_group_for_loxone_enties(
                         hass, sensors_analog, "Loxone Analog Sensors", "loxone_analog"
@@ -338,6 +342,12 @@ async def async_setup_entry(hass, config_entry):
                         fans,
                         "Loxone Ventilation Controllers",
                         "loxone_ventilations",
+                    )
+                    await create_group_for_loxone_enties(
+                        hass,
+                        accontrols,
+                        "Loxone AC Controllers",
+                        "loxone_accontrollers",
                     )
                     await hass.async_block_till_done()
                     await create_group_for_loxone_enties(
