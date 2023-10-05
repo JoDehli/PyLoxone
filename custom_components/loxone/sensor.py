@@ -73,6 +73,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="temperature",
         name="Temperature",
+        suggested_display_precision=1,
         loxone_format_string=TEMP_CELSIUS,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -81,6 +82,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="temperature_fahrenheit",
         name="Temperature",
+        suggested_display_precision=1,
         loxone_format_string=TEMP_FAHRENHEIT,
         native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -89,6 +91,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="windstrength",
         name="Wind Strength",
+        suggested_display_precision=1,
         loxone_format_string=SPEED_KILOMETERS_PER_HOUR,
         native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
         state_class=SensorStateClass.MEASUREMENT,
@@ -97,6 +100,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="kwh",
         name="Kilowatt per hour",
+        suggested_display_precision=1,
         loxone_format_string=ENERGY_KILO_WATT_HOUR,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -105,6 +109,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="wh",
         name="Watt per hour",
+        suggested_display_precision=1,
         loxone_format_string=ENERGY_WATT_HOUR,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -113,6 +118,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="power",
         name="Watt",
+        suggested_display_precision=1,
         loxone_format_string=POWER_WATT,
         native_unit_of_measurement=UnitOfPower.WATT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -372,7 +378,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
             name=f"{DOMAIN} {self.name}",
             manufacturer="Loxone",
             suggested_area=self.room,
-            model="Sensor analog"
+            model="Sensor analog",
         )
 
     def _get_entity_description(self) -> SensorEntityDescription | None:
@@ -411,4 +417,3 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
             "platform": "loxone",
             "category": self.cat,
         }
-
