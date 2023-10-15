@@ -5,6 +5,7 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 import logging
+import re
 from dataclasses import dataclass
 
 import homeassistant.helpers.config_validation as cv
@@ -69,6 +70,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="temperature",
         name="Temperature",
+        suggested_display_precision=1,
         loxone_format_string=TEMP_CELSIUS,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -77,6 +79,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="temperature_fahrenheit",
         name="Temperature",
+        suggested_display_precision=1,
         loxone_format_string=TEMP_FAHRENHEIT,
         native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -85,6 +88,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="windstrength",
         name="Wind Strength",
+        suggested_display_precision=1,
         loxone_format_string=SPEED_KILOMETERS_PER_HOUR,
         native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
         state_class=SensorStateClass.MEASUREMENT,
@@ -93,6 +97,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="kwh",
         name="Kilowatt per hour",
+        suggested_display_precision=1,
         loxone_format_string=ENERGY_KILO_WATT_HOUR,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -101,6 +106,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="wh",
         name="Watt per hour",
+        suggested_display_precision=1,
         loxone_format_string=ENERGY_WATT_HOUR,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -109,6 +115,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="power",
         name="Watt",
+        suggested_display_precision=1,
         loxone_format_string=POWER_WATT,
         native_unit_of_measurement=UnitOfPower.WATT,
         state_class=SensorStateClass.MEASUREMENT,
@@ -199,6 +206,7 @@ async def async_setup_entry(
 
 class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def __init__(self, **kwargs):
+        LoxoneEntity().__init__(**kwargs)
         self._name = kwargs["name"]
         if "uuidAction" in kwargs:
             self.uuidAction = kwargs["uuidAction"]
@@ -360,6 +368,26 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
 
         if entity_description := self._get_entity_description():
             self.entity_description = entity_description
+        else:
+
+            def parse_digits_after_decimal(format_string):
+                # Define a regular expression pattern to match digits after the decimal point
+                pattern = r"\.(\d+)"
+
+                # Use re.search to find the first match in the format string
+                match = re.search(pattern, format_string)
+
+                if match:
+                    # Extract the digits part and convert it to an integer
+                    digits = int(match.group(1))
+                    return digits
+                else:
+                    # Return a default value or raise an error if no match is found
+                    return None  # or raise an exception
+
+            precision = parse_digits_after_decimal(self.details["format"])
+            if precision:
+                self._attr_suggested_display_precision = precision
 
         _uuid = self.unique_id
         if self._parent_id:
@@ -370,7 +398,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
             name=f"{DOMAIN} {self.name}",
             manufacturer="Loxone",
             suggested_area=self.room,
-            model="Sensor analog"
+            model="Sensor analog",
         )
 
     def _get_entity_description(self) -> SensorEntityDescription | None:
@@ -409,4 +437,3 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
             "platform": "loxone",
             "category": self.cat,
         }
-
