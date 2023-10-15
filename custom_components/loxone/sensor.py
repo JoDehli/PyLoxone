@@ -9,20 +9,35 @@ from dataclasses import dataclass
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.sensor import (PLATFORM_SCHEMA,
-                                             SensorDeviceClass, SensorEntity,
-                                             SensorEntityDescription,
-                                             SensorStateClass)
+from homeassistant.components.sensor import (
+    PLATFORM_SCHEMA,
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
-                                 CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
-                                 ENERGY_KILO_WATT_HOUR, ENERGY_WATT_HOUR,
-                                 LIGHT_LUX, PERCENTAGE, POWER_WATT,
-                                 PRECIPITATION_MILLIMETERS,
-                                 SPEED_KILOMETERS_PER_HOUR, STATE_UNKNOWN,
-                                 TEMP_CELSIUS, TEMP_FAHRENHEIT, UnitOfEnergy,
-                                 UnitOfPower, UnitOfPrecipitationDepth,
-                                 UnitOfSpeed, UnitOfTemperature)
+from homeassistant.const import (
+    CONF_DEVICE_CLASS,
+    CONF_NAME,
+    CONF_UNIT_OF_MEASUREMENT,
+    CONF_VALUE_TEMPLATE,
+    ENERGY_KILO_WATT_HOUR,
+    ENERGY_WATT_HOUR,
+    LIGHT_LUX,
+    PERCENTAGE,
+    POWER_WATT,
+    PRECIPITATION_MILLIMETERS,
+    SPEED_KILOMETERS_PER_HOUR,
+    STATE_UNKNOWN,
+    TEMP_CELSIUS,
+    TEMP_FAHRENHEIT,
+    UnitOfEnergy,
+    UnitOfPower,
+    UnitOfPrecipitationDepth,
+    UnitOfSpeed,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -31,8 +46,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
 from .miniserver import get_miniserver_from_hass
 
 NEW_SENSOR = "sensors"
@@ -207,6 +221,7 @@ async def async_setup_entry(
 
 class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def __init__(self, **kwargs):
+        LoxoneEntity().__init__(**kwargs)
         self._name = kwargs["name"]
         if "uuidAction" in kwargs:
             self.uuidAction = kwargs["uuidAction"]
@@ -368,6 +383,28 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
 
         if entity_description := self._get_entity_description():
             self.entity_description = entity_description
+        else:
+            format = self._get_format(self.details["format"])
+            import re
+
+            def parse_digits_after_decimal(format_string):
+                # Define a regular expression pattern to match digits after the decimal point
+                pattern = r"\.(\d+)"
+
+                # Use re.search to find the first match in the format string
+                match = re.search(pattern, format_string)
+
+                if match:
+                    # Extract the digits part and convert it to an integer
+                    digits = int(match.group(1))
+                    return digits
+                else:
+                    # Return a default value or raise an error if no match is found
+                    return None  # or raise an exception
+
+            precision = parse_digits_after_decimal(self.details["format"])
+            if precision:
+                self._attr_suggested_display_precision = precision
 
         _uuid = self.unique_id
         if self._parent_id:
