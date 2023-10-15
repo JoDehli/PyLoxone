@@ -5,6 +5,7 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 import logging
+import re
 from dataclasses import dataclass
 
 import homeassistant.helpers.config_validation as cv
@@ -384,8 +385,6 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
         if entity_description := self._get_entity_description():
             self.entity_description = entity_description
         else:
-            format = self._get_format(self.details["format"])
-            import re
 
             def parse_digits_after_decimal(format_string):
                 # Define a regular expression pattern to match digits after the decimal point
