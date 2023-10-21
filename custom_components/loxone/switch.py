@@ -135,7 +135,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             name=f"{DOMAIN} {self.name}",
             manufacturer="Loxone",
             suggested_area=self.room,
-            model=self.type
+            model=self.type,
         )
 
     @property
