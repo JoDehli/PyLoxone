@@ -10,18 +10,33 @@ from dataclasses import dataclass
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.sensor import (PLATFORM_SCHEMA,
-                                             SensorDeviceClass, SensorEntity,
-                                             SensorEntityDescription,
-                                             SensorStateClass)
+from homeassistant.components.sensor import (
+    CONF_STATE_CLASS,
+    PLATFORM_SCHEMA,
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
-                                 CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
-                                 ENERGY_KILO_WATT_HOUR, ENERGY_WATT_HOUR,
-                                 LIGHT_LUX, POWER_WATT,
-                                 SPEED_KILOMETERS_PER_HOUR, STATE_UNKNOWN,
-                                 TEMP_CELSIUS, TEMP_FAHRENHEIT, UnitOfEnergy,
-                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature)
+from homeassistant.const import (
+    CONF_DEVICE_CLASS,
+    CONF_NAME,
+    CONF_UNIT_OF_MEASUREMENT,
+    CONF_VALUE_TEMPLATE,
+    ENERGY_KILO_WATT_HOUR,
+    ENERGY_WATT_HOUR,
+    LIGHT_LUX,
+    POWER_WATT,
+    SPEED_KILOMETERS_PER_HOUR,
+    STATE_UNKNOWN,
+    TEMP_CELSIUS,
+    TEMP_FAHRENHEIT,
+    UnitOfEnergy,
+    UnitOfPower,
+    UnitOfSpeed,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -29,15 +44,14 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity, get_miniserver_from_hass
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import add_room_and_cat_to_value_values, get_all
 
 NEW_SENSOR = "sensors"
 
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = "Loxone Sensor"
-CONF_STATE_CLASS = "state_class"
+
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -151,8 +165,6 @@ async def async_setup_platform(
         # Here setup all Sensors in Yaml-File
         new_sensor = LoxoneCustomSensor(**config)
         async_add_devices([new_sensor])
-        return True
-    return True
 
 
 async def async_setup_entry(
@@ -169,26 +181,13 @@ async def async_setup_entry(
         sensors.append(LoxoneVersionSensor(miniserver.version))
 
     for sensor in get_all(loxconfig, "InfoOnlyAnalog"):
-        sensor.update(
-            {
-                "typ": "analog",
-                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
-                "config_entry": config_entry,
-            }
-        )
-
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        sensor.update({"typ": "analog", "config_entry": config_entry})
         sensors.append(Loxonesensor(**sensor))
 
     for sensor in get_all(loxconfig, "TextInput"):
-        sensor.update(
-            {
-                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
-                "config_entry": config_entry,
-            }
-        )
-
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        sensor.update({"config_entry": config_entry})
         sensors.append(LoxoneTextSensor(**sensor))
 
     @callback

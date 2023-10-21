@@ -370,7 +370,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             name=f"{DOMAIN} {self.name}",
             manufacturer="Loxone",
             suggested_area=self.room,
-            model="Jalousie"
+            model="Jalousie",
         )
 
     @property

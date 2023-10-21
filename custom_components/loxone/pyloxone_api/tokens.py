@@ -15,10 +15,10 @@ from typing import Final, NoReturn
 
 from Crypto.Hash import HMAC, SHA1, SHA256
 
-from const import PERMISSION, CMD_GET_KEY2
-from loxone_exceptions import LoxoneException
-from loxone_types import MiniserverProtocol
-from message import LoxoneResponse
+from .const import PERMISSION, CMD_GET_KEY2
+from .loxone_exceptions import LoxoneException
+from .loxone_types import MiniserverProtocol
+from .message import LoxoneResponse
 
 _LOGGER = logging.getLogger(__name__)
 # Loxone epoch is 1.1.2009

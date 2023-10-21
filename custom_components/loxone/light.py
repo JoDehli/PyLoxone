@@ -234,7 +234,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
             name=f"{DOMAIN} {self.name}",
             manufacturer="Loxone",
             suggested_area=self.room,
-            model="LightControllerV2"
+            model="LightControllerV2",
         )
 
     @property
@@ -331,7 +331,9 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         self.async_schedule_update_ha_state()
 
     async def async_turn_off(self, **kwargs) -> None:
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="changeTo/0"))
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="changeTo/0")
+        )
         self.async_schedule_update_ha_state()
 
     async def event_handler(self, event):
@@ -410,7 +412,7 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity, ABC):
                 name=f"{DOMAIN} {self.name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
-                model="LightControllerV2"
+                model="LightControllerV2",
             )
         else:
             self._attr_device_info = DeviceInfo(
@@ -418,7 +420,7 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity, ABC):
                 name=f"{DOMAIN} {self.name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
-                model="Light"
+                model="Light",
             )
 
     @property
@@ -485,7 +487,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity, ABC):
                 name=f"{DOMAIN} {self.name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
-                model="LightControllerV2"
+                model="LightControllerV2",
             )
         else:
             self._attr_device_info = DeviceInfo(
@@ -493,7 +495,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity, ABC):
                 name=f"{DOMAIN} {self.name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
-                model="ColorPickerV2"
+                model="ColorPickerV2",
             )
 
     @property
@@ -675,7 +677,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity, ABC):
                 name=f"{DOMAIN} {self.name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
-                model="LightControllerV2"
+                model="LightControllerV2",
             )
         else:
             self._attr_device_info = DeviceInfo(
@@ -683,7 +685,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity, ABC):
                 name=f"{DOMAIN} {self.name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
-                model="Dimmer"
+                model="Dimmer",
             )
 
     @property

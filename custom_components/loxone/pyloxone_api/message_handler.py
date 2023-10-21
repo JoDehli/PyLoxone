@@ -4,9 +4,9 @@ import logging
 import traceback
 import uuid
 
-from const import CMD_ENABLE_UPDATES, PERMISSION, CMD_GET_JWT
-from loxone_types import MiniserverProtocol
-from message import (
+from .const import CMD_ENABLE_UPDATES, PERMISSION, CMD_GET_JWT
+from .loxone_types import MiniserverProtocol
+from .message import (
     MessageType,
     parse_header,
     parse_message,

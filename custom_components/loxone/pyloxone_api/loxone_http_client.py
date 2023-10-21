@@ -2,7 +2,7 @@ import logging
 
 import httpx
 
-from loxone_exceptions import (
+from .loxone_exceptions import (
     LoxoneMaxNumOfConnectionsError,
     LoxoneServiceUnAvailableError,
     LoxoneUnauthorisedError,

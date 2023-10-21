@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-import httpx
+# import httpx
 from websockets.legacy.client import WebSocketClientProtocol
 
-from loxone_http_client import LoxoneAsyncHttpClient
-from message import TextMessage, BaseMessage, MessageHeader
+from .loxone_http_client import LoxoneAsyncHttpClient
+from .message import TextMessage, BaseMessage, MessageHeader
 
 if TYPE_CHECKING:
     from tokens import LoxoneToken

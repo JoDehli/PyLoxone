@@ -5,7 +5,7 @@ import uuid
 from enum import IntEnum
 from typing import Any
 
-from loxone_exceptions import LoxoneException
+from .loxone_exceptions import LoxoneException
 
 
 class LoxoneResponse:

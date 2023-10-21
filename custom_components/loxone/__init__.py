@@ -246,7 +246,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-
     if DOMAIN not in hass.data:
         hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
             "miniserver": None,
@@ -269,7 +268,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         host=entry.options.get("host"),
         port=entry.options.get("port"),
         use_tls=False,
-        token_store=token,
+        #token_store=token,
     )
 
     # _LOGGER = logging.getLogger("pyloxone_api")

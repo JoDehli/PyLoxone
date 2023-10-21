@@ -7,8 +7,8 @@ import websockets
 from Crypto.Cipher import AES
 from Crypto.Util import Padding
 
-from loxone_types import MiniserverProtocol
-from message import TextMessage
+from .loxone_types import MiniserverProtocol
+from .message import TextMessage
 
 # class LoxoneWebSocket:
 #     def __init__(self, url):

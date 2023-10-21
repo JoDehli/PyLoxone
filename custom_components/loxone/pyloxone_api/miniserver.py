@@ -5,12 +5,12 @@ from typing import Any, Coroutine, NoReturn
 import httpx
 from websockets.legacy.client import WebSocketClientProtocol
 
-from connector import ConnectorMixin
-from loxone_http_client import LoxoneAsyncHttpClient
-from message import MessageHeader
-from message_handler import LoxoneMessageHandlerMixin
-from tokens import LoxoneToken, TokensMixin
-from websocket import WebsocketMixin
+from .connector import ConnectorMixin
+from .loxone_http_client import LoxoneAsyncHttpClient
+from .message import MessageHeader
+from .message_handler import LoxoneMessageHandlerMixin
+from .tokens import LoxoneToken, TokensMixin
+from .websocket import WebsocketMixin
 
 _LOGGER = logging.getLogger(__name__)
 
