@@ -7,21 +7,18 @@ https://github.com/JoDehli/PyLoxone
 
 import logging
 from abc import ABC
-from homeassistant.const import UnitOfTemperature
-from homeassistant.components.climate import (
-    PLATFORM_SCHEMA,
-    SUPPORT_PRESET_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
-    ClimateEntity,
-)
-from homeassistant.components.climate.const import (
-    HVAC_MODE_AUTO,
-    HVAC_MODE_COOL,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_HEAT_COOL,
-    HVAC_MODE_OFF,
-)
+
+from homeassistant.components.climate import (PLATFORM_SCHEMA,
+                                              SUPPORT_PRESET_MODE,
+                                              SUPPORT_TARGET_TEMPERATURE,
+                                              ClimateEntity)
+from homeassistant.components.climate.const import (HVAC_MODE_AUTO,
+                                                    HVAC_MODE_COOL,
+                                                    HVAC_MODE_HEAT,
+                                                    HVAC_MODE_HEAT_COOL,
+                                                    HVAC_MODE_OFF)
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -30,7 +27,8 @@ from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
 from .const import CONF_HVAC_AUTO_MODE, DOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -98,8 +96,10 @@ async def async_setup_entry(
             {
                 "hass": hass,
                 "typ": "accontrol",
-                "room": get_room_name_from_room_uuid(loxconfig, accontrol.get("room", "")),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, accontrol.get("cat", ""))
+                "room": get_room_name_from_room_uuid(
+                    loxconfig, accontrol.get("room", "")
+                ),
+                "cat": get_cat_name_from_cat_uuid(loxconfig, accontrol.get("cat", "")),
             }
         )
         devices.append(LoxoneAcControl(**accontrol))
@@ -126,7 +126,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             name=f"{DOMAIN} {self.name}",
             manufacturer="Loxone",
             suggested_area=self.room,
-            model="RoomControllerV2"
+            model="RoomControllerV2",
         )
 
     def get_mode_from_id(self, mode_id):
@@ -299,6 +299,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             )
             self.schedule_update_ha_state()
 
+
 # ------------------ AC CONTROL --------------------------------------------------------
 class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     """Representation of a ACControl Loxone device."""
@@ -316,7 +317,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
             name=f"{DOMAIN} {self.name}",
             manufacturer="Loxone",
             suggested_area=self.room,
-            model="accontrol"
+            model="accontrol",
         )
 
     @property
@@ -387,14 +388,13 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
             return HVAC_MODE_AUTO
         return HVAC_MODE_OFF
 
-    
     def set_hvac_mode(self, hvac_mode):
         """Set new target hvac mode."""
         self.hass.bus.async_fire(
             SENDDOMAIN,
             dict(
                 uuid=self.uuidAction,
-                value= "off" if hvac_mode == HVAC_MODE_OFF else "on",
+                value="off" if hvac_mode == HVAC_MODE_OFF else "on",
             ),
         )
 

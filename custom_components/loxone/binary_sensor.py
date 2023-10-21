@@ -6,20 +6,14 @@ from typing import Literal, final
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.binary_sensor import (
-    PLATFORM_SCHEMA,
-    BinarySensorDeviceClass,
-    BinarySensorEntity,
-)
+from homeassistant.components.binary_sensor import (PLATFORM_SCHEMA,
+                                                    BinarySensorDeviceClass,
+                                                    BinarySensorEntity)
+from homeassistant.components.sensor import CONF_STATE_CLASS
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_DEVICE_CLASS,
-    CONF_NAME,
-    CONF_VALUE_TEMPLATE,
-    STATE_OFF,
-    STATE_ON,
-    STATE_UNKNOWN,
-)
+from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
+                                 CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
+                                 STATE_OFF, STATE_ON, STATE_UNKNOWN)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -27,7 +21,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
+from .helpers import add_room_and_cat_to_value_values, get_all
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,7 +31,7 @@ DEFAULT_NAME = "Loxone Binary Sensor"
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_ACTIONID): cv.string,
-        vol.Optional(CONF_NAME): cv.string,
+        vol.Required(CONF_NAME): cv.string,
         vol.Optional(CONF_DEVICE_CLASS): cv.string,
     }
 )
@@ -74,33 +68,18 @@ async def async_setup_entry(
     digital_sensors = []
 
     for sensor in get_all(loxconfig, "InfoOnlyDigital"):
-        sensor.update(
-            {
-                "typ": "digital",
-                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
-            }
-        )
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        sensor.update({"typ": "digital"})
         digital_sensors.append(LoxoneDigitalSensor(**sensor))
 
     for sensor in get_all(loxconfig, "PresenceDetector"):
-        sensor.update(
-            {
-                "typ": "presence",
-                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
-            }
-        )
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        sensor.update({"typ": "presence"})
         digital_sensors.append(LoxoneDigitalSensor(**sensor))
 
     for sensor in get_all(loxconfig, "SmokeAlarm"):
-        sensor.update(
-            {
-                "typ": "smoke",
-                "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
-            }
-        )
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        sensor.update({"typ": "smoke"})
         digital_sensors.append(LoxoneDigitalSensor(**sensor))
 
     @callback
@@ -147,6 +126,7 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
         self._on_state = STATE_ON
         self._off_state = STATE_OFF
         self._attr_available = True
+        self._device_class = None
 
     @property
     def extra_state_attributes(self):
@@ -275,21 +255,13 @@ class LoxoneCustomBinarySensor(LoxoneEntity, BinarySensorEntity):
             self.uuidAction = ""
 
         if "device_class" in kwargs:
-            self._device_class = kwargs["device_class"]
-        else:
-            self._device_class = None
-
-    @property
-    def device_class(self):
-        """Return the class of this device, from component DEVICE_CLASSES."""
-        return self._device_class
+            self._attr_device_class = kwargs["device_class"]
 
     @property
     def is_on(self) -> bool | None:
         """Return true if sensor is on."""
         return self._state == self._on_state
 
-    @final
     @property
     def state(self) -> Literal["on", "off"] | None:
         """Return the state of the binary sensor."""

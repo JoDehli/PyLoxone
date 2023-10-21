@@ -3,23 +3,21 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.helpers.entity import DeviceInfo
-from voluptuous import Optional, Any
-from homeassistant.components.fan import (
-    SUPPORT_PRESET_MODE,
-    SUPPORT_SET_SPEED,
-    FanEntity,
-)
+from homeassistant.components.fan import (SUPPORT_PRESET_MODE,
+                                          SUPPORT_SET_SPEED, FanEntity)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from voluptuous import Any, Optional
 
 from . import LoxoneEntity
 from .binary_sensor import LoxoneDigitalSensor
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_hass
 from .sensor import Loxonesensor
 
@@ -230,7 +228,6 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
     def preset_mode(self) -> str | None:
         """Return a list of available preset modes."""
         return VENTELATION_INT_TO_STR.get(self.get_state_value("mode"))
-
 
     @property
     def percentage(self) -> Optional[int]:

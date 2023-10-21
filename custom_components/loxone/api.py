@@ -23,32 +23,15 @@ from struct import unpack
 import httpx
 from homeassistant.config import get_default_config_dir
 
-from .const import (
-    AES_KEY_SIZE,
-    CMD_AUTH_WITH_TOKEN,
-    CMD_ENABLE_UPDATES,
-    CMD_ENCRYPT_CMD,
-    CMD_GET_KEY,
-    CMD_GET_KEY_AND_SALT,
-    CMD_GET_PUBLIC_KEY,
-    CMD_GET_VISUAL_PASSWD,
-    CMD_KEY_EXCHANGE,
-    CMD_REFRESH_TOKEN,
-    CMD_REFRESH_TOKEN_JSON_WEB,
-    CMD_REQUEST_TOKEN,
-    CMD_REQUEST_TOKEN_JSON_WEB,
-    DEFAULT_TOKEN_PERSIST_NAME,
-    ERROR_VALUE,
-    IV_BYTES,
-    KEEP_ALIVE_PERIOD,
-    LOXAPPPATH,
-    SALT_BYTES,
-    SALT_MAX_AGE_SECONDS,
-    SALT_MAX_USE_COUNT,
-    TIMEOUT,
-    TOKEN_PERMISSION,
-    TOKEN_REFRESH_RETRY_COUNT,
-)
+from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
+                    CMD_ENCRYPT_CMD, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
+                    CMD_GET_PUBLIC_KEY, CMD_GET_VISUAL_PASSWD,
+                    CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
+                    CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
+                    CMD_REQUEST_TOKEN_JSON_WEB, DEFAULT_TOKEN_PERSIST_NAME,
+                    ERROR_VALUE, IV_BYTES, KEEP_ALIVE_PERIOD, LOXAPPPATH,
+                    SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
+                    TIMEOUT, TOKEN_PERMISSION, TOKEN_REFRESH_RETRY_COUNT)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -512,7 +495,9 @@ class LoxWs:
             parsed_data = await self._parse_loxone_message(message)
             if parsed_data != {}:
                 _LOGGER.debug(
-                    "message [type:{}]):{}".format(self._current_message_typ, parsed_data)
+                    "message [type:{}]):{}".format(
+                        self._current_message_typ, parsed_data
+                    )
                 )
 
             try:

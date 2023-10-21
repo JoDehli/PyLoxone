@@ -37,17 +37,17 @@ def lox2hass_mapped(x, min_v, max_v):
     return lox_to_hass(x)
 
 
-def to_hass_color_temp(temp):
+def to_hass_color_temp(temp: float):
     """Linear interpolation between Loxone values from 2700 to 6500"""
     return np.interp(temp, [2700, 6500], [500, 153])
 
 
-def to_loxone_color_temp(temp):
+def to_loxone_color_temp(temp: float):
     """Linear interpolation between HASS values from 153 to 500"""
     return np.interp(temp, [153, 500], [6500, 2700])
 
 
-def get_room_name_from_room_uuid(lox_config, room_uuid):
+def get_room_name_from_room_uuid(lox_config: dict, room_uuid: str):
     if "rooms" in lox_config:
         if room_uuid in lox_config["rooms"]:
             return lox_config["rooms"][room_uuid]["name"]
@@ -55,11 +55,21 @@ def get_room_name_from_room_uuid(lox_config, room_uuid):
     return ""
 
 
-def get_cat_name_from_cat_uuid(lox_config, cat_uuid):
+def get_cat_name_from_cat_uuid(lox_config: dict, cat_uuid: str):
     if "cats" in lox_config:
         if cat_uuid in lox_config["cats"]:
             return lox_config["cats"][cat_uuid]["name"]
     return ""
+
+
+def add_room_and_cat_to_value_values(loxconfig: dict, sensor: dict):
+    sensor.update(
+        {
+            "room": get_room_name_from_room_uuid(loxconfig, sensor.get("room", "")),
+            "cat": get_cat_name_from_cat_uuid(loxconfig, sensor.get("cat", "")),
+        }
+    )
+    return sensor
 
 
 def get_miniserver_type(t):

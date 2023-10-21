@@ -1,21 +1,14 @@
 import logging
 import traceback
 
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
+from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
+                                 CONF_USERNAME)
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
 
 from .api import LoxApp, LoxWs
-from .const import (
-    ATTR_CODE,
-    ATTR_UUID,
-    ATTR_VALUE,
-    DEFAULT,
-    DOMAIN,
-    EVENT,
-    SECUREDSENDDOMAIN,
-    SENDDOMAIN,
-)
+from .const import (ATTR_CODE, ATTR_UUID, ATTR_VALUE, DEFAULT, DOMAIN, EVENT,
+                    SECUREDSENDDOMAIN, SENDDOMAIN)
 from .helpers import get_miniserver_type
 
 _LOGGER = logging.getLogger(__name__)
