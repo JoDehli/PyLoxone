@@ -1,6 +1,6 @@
 ---
 name: PyLoxone Bug report
-about: Create a report to help us improve
+about: Please use this template. Otherwise I will close the issue without answering!
 title: ''
 labels: ''
 assignees: ''
