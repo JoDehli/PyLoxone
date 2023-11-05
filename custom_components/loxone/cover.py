@@ -10,14 +10,9 @@ import random
 from typing import Any
 
 from homeassistant.components.cover import (ATTR_POSITION, ATTR_TILT_POSITION,
-                                            DEVICE_CLASS_AWNING,
-                                            DEVICE_CLASS_BLIND,
-                                            DEVICE_CLASS_CURTAIN,
-                                            DEVICE_CLASS_DOOR,
-                                            DEVICE_CLASS_GARAGE,
-                                            DEVICE_CLASS_SHUTTER,
                                             DEVICE_CLASS_WINDOW, SUPPORT_CLOSE,
-                                            SUPPORT_OPEN, CoverEntity)
+                                            SUPPORT_OPEN, CoverDeviceClass,
+                                            CoverEntity)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
@@ -129,9 +124,9 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
         if self.animation == 0:
-            return DEVICE_CLASS_GARAGE
+            return CoverDeviceClass.GARAGE
         elif self.animation in [1, 2, 3, 4, 5]:
-            return DEVICE_CLASS_DOOR
+            return CoverDeviceClass.DOOR
         return self.type
 
     @property
@@ -345,7 +340,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         self._tilt_position_loxone = 1
         self._set_position = None
         self._set_tilt_position = None
-        self._tilt_position = 0
+        self._tilt_position = None
         self._requested_closing = True
         self._unsub_listener_cover = None
         self._unsub_listener_cover_tilt = None
@@ -470,13 +465,13 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
         if self.animation in [0, 1]:
-            return DEVICE_CLASS_BLIND
+            return CoverDeviceClass.BLIND
         elif self.animation in [2, 4, 5]:
-            return DEVICE_CLASS_CURTAIN
+            return CoverDeviceClass.CURTAIN
         elif self.animation == 3:
-            return DEVICE_CLASS_SHUTTER
+            return CoverDeviceClass.SHUTTER
         elif self.animation == 6:
-            return DEVICE_CLASS_AWNING
+            return CoverDeviceClass.AWNING
 
     @property
     def animation(self):
