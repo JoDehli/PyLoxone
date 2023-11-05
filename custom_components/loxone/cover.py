@@ -385,7 +385,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         if self.current_cover_position is not None:
             supported_features |= SUPPORT_SET_POSITION
 
-        if self.current_cover_tilt_position is not None:
+        if self.current_cover_tilt_position is not None and self._animation in [0]:
             supported_features |= (
                 SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT | SUPPORT_SET_TILT_POSITION
             )
