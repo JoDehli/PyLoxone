@@ -18,6 +18,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.LIGHT,
     Platform.CLIMATE,
     Platform.ALARM_CONTROL_PANEL,
+    Platform.MEDIA_PLAYER
 ]
 
 LOXONE_DEFAULT_PORT = 8080
@@ -94,6 +95,8 @@ CONF_HVAC_AUTO_MODE = "hvac_auto_mode"
 
 STATE_ON = "on"
 STATE_OFF = "off"
+
+DEFAULT_AUDIO_ZONE_V2_PLAY_STATE = -1
 
 cfmt = """\
 (                                  # start of capture group 1
