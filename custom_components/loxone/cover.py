@@ -10,12 +10,12 @@ import random
 from typing import Any
 
 from homeassistant.components.cover import (ATTR_POSITION, ATTR_TILT_POSITION,
-                                            DEVICE_CLASS_WINDOW, SUPPORT_CLOSE,
-                                            SUPPORT_OPEN, CoverDeviceClass,
-                                            CoverEntity)
+                                            SUPPORT_CLOSE, SUPPORT_OPEN, 
+                                            CoverDeviceClass, CoverEntity)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv, entity_platform, service
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -24,7 +24,9 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from . import LoxoneEntity
 from .const import (DOMAIN, SENDDOMAIN, SUPPORT_CLOSE_TILT, SUPPORT_OPEN_TILT,
                     SUPPORT_SET_POSITION, SUPPORT_SET_TILT_POSITION,
-                    SUPPORT_STOP)
+                    SUPPORT_STOP, SUPPORT_QUICK_SHADE, SUPPORT_SUN_AUTOMATION,
+                    SERVICE_ENABLE_SUN_AUTOMATION, SERVICE_DISABLE_SUN_AUTOMATION,
+                    SERVICE_QUICK_SHADE)
 from .helpers import (get_all, get_cat_name_from_cat_uuid,
                       get_room_name_from_room_uuid, map_range)
 from .miniserver import get_miniserver_from_hass
@@ -84,6 +86,24 @@ async def async_setup_entry(
     )
     async_add_entities(covers)
 
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        SERVICE_ENABLE_SUN_AUTOMATION,
+        {},
+        "enable_sun_automation"
+    )
+
+    platform.async_register_entity_service(
+        SERVICE_DISABLE_SUN_AUTOMATION,
+        {},
+        "disable_sun_automation",
+    )
+
+    platform.async_register_entity_service(
+        SERVICE_QUICK_SHADE,
+        {},
+        "quick_shade",
+    )
 
 class LoxoneGate(LoxoneEntity, CoverEntity):
     """Loxone Gate"""
@@ -271,7 +291,7 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return DEVICE_CLASS_WINDOW
+        return CoverDeviceClass.WINDOW
 
     @property
     def is_closing(self):
@@ -387,8 +407,14 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
         if self.current_cover_tilt_position is not None and self._animation in [0]:
             supported_features |= (
-                SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT | SUPPORT_SET_TILT_POSITION
+                SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT | SUPPORT_SET_TILT_POSITION | SUPPORT_QUICK_SHADE
             )
+
+        if self._is_automatic:
+            supported_features |= (
+                SUPPORT_SUN_AUTOMATION
+            )
+
         return supported_features
 
     async def event_handler(self, e):
@@ -489,6 +515,11 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             return STATE_OFF
 
     @property
+    def is_sun_automation_enabled(self) -> bool | None:
+        """Return if sun automation is enabled"""
+        return self.auto
+
+    @property
     def shade_postion_as_text(self):
         """Returns shade postionn as text"""
         if self.current_cover_tilt_position == 100 and self.current_cover_position < 10:
@@ -515,7 +546,11 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
         if self._is_automatic:
             device_att.update(
-                {"automatic_text": self._auto_text, "auto_state": self.auto}
+                {
+                    "automatic_text": self._auto_text, 
+                    "auto_state": self.auto,
+                    "is_sun_automation_enabled": self.is_sun_automation_enabled,
+                }
             )
 
         return device_att
@@ -582,4 +617,22 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         position = mapped_pos + random.uniform(0.000000001, 0.00900000)
         self.hass.bus.async_fire(
             SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}")
+        )
+
+    def enable_sun_automation(self, **kwargs):
+        """Set sun automation."""
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="auto")
+        )
+
+    def disable_sun_automation(self, **kwargs):
+        """Set sun automation."""
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="NoAuto")
+        )
+
+    def quick_shade(self, **kwargs: Any) -> None:
+        """Set sun automation."""
+        self.hass.bus.async_fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="shade")
         )
