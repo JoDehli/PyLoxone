@@ -145,7 +145,9 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
         """Return the class of this device, from component DEVICE_CLASSES."""
         if self.animation == 0:
             return CoverDeviceClass.GARAGE
-        elif self.animation in [1, 2, 3, 4, 5]:
+        elif self.animation in [1, 2, 3]:
+            return CoverDeviceClass.GATE
+        elif self.animation in [4, 5]:
             return CoverDeviceClass.DOOR
         return self.type
 
