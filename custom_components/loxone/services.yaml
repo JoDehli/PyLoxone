@@ -27,3 +27,21 @@ sync_areas:
       default: false
       selector:
         boolean:
+
+enable_sun_automation:
+  description: Enable Sun automation for Loxone Jalousie
+  target:
+    entity:
+      domain: cover
+
+disable_sun_automation:
+  description: Disable Sun automation for Loxone Jalousie
+  target:
+    entity:
+      domain: cover
+
+quick_shade:
+  description: Move Loxone Jalousie to shade position. Position is set by Loxone depends on multiple values.
+  target:
+    entity:
+      domain: cover
