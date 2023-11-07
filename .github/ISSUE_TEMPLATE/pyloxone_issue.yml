@@ -1,7 +1,7 @@
-name: Issue Report
+name: PyLoxone Bug report
 description: All issues regarding pyloxone
 title: "[Bug]: "
-labels: [ "issue" ]
+labels: [ "bug" ]
 body:
   - type: textarea
     id: what-happened
@@ -57,12 +57,5 @@ body:
       label: Log
       description: Paste the error log with the following settings
       placeholder: Pyloxone update
-      value: "logger:
-                default: warning
-                logs:
-                  homeassistant: warning
-                  homeassistant.helpers: warning
-                  custom_components.loxone: debug
-                  custom_components.loxone.api: debug"
     validations:
       required: false
