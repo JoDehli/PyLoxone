@@ -5,9 +5,6 @@ labels: ["issue"]
 #assignees:
 #  - octocat
 body:
-  - type: markdown
-    attributes:
-      value: "Please use this template. Otherwise I will close the issue without answering!"
   - type: textarea
     id: what-happened
     attributes:
@@ -16,7 +13,7 @@ body:
       placeholder: A clear and concise description of what the bug is.
       value: ""
     validations:
-      required: "true"
+      required: true
   - type: textarea
     id: loxone-version
     attributes:
@@ -25,7 +22,7 @@ body:
       placeholder: Loxone Firmware
       value: ""
     validations:
-      required: "true"
+      required: true
   - type: textarea
     id: ha-install-method
     attributes:
@@ -34,7 +31,7 @@ body:
       placeholder: Install method
       value: ""
     validations:
-      required: "true"
+      required: true
   - type: textarea
     id: ha-version
     attributes:
@@ -43,7 +40,7 @@ body:
       placeholder: HA Version
       value: ""
     validations:
-      required: "true"
+      required: true
   - type: textarea
     id: pyloxone-version
     attributes:
@@ -52,7 +49,7 @@ body:
       placeholder: Pyloxone Version
       value: ""
     validations:
-      required: "true"
+      required: true
   - type: textarea
     id: pyloxone-update
     attributes:
@@ -61,7 +58,7 @@ body:
       placeholder: Pyloxone update
       value: ""
     validations:
-      required: "true"
+      required: true
   - type: textarea
     id: pyloxone-log
     attributes:
@@ -76,7 +73,7 @@ body:
                   custom_components.loxone: debug
                   custom_components.loxone.api: debug"
     validations:
-      required: "false"
+      required: false
 
 
 
