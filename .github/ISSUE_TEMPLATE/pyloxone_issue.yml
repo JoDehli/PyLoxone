@@ -1,9 +1,8 @@
 name: Issue Report
 description: All issues regarding pyloxone
-
-#title: "[Bug]: "
-#labels: ["bug", "triage"]
-#projects: ["octo-org/1", "octo-org/44"]
+title: "[Bug]: "
+labels: ["issue"]
+projects: ["JoDehli/PyLoxone"]
 #assignees:
 #  - octocat
 body:
