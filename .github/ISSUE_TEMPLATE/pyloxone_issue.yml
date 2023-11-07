@@ -1,0 +1,62 @@
+name: PyLoxone Bug report
+description: All issues regarding pyloxone
+title: "[Bug]: "
+labels: [ "bug" ]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: loxone-version
+    attributes:
+      label: Firmware of your Miniserver
+      description: Which firmware version does your Miniserver use?
+      placeholder: Loxone Firmware
+    validations:
+      required: true
+  - type: textarea
+    id: ha-install-method
+    attributes:
+      label: HomeAssistant install method
+      description: How did you install HomeAssistant? Over Hassio or manual install?
+      placeholder: Install method
+    validations:
+      required: true
+  - type: textarea
+    id: ha-version
+    attributes:
+      label: Version of HomeAssistant
+      description: Which Version do you use of HomeAssistant?
+      placeholder: HA Version
+    validations:
+      required: true
+  - type: textarea
+    id: pyloxone-version
+    attributes:
+      label: Version of Pyloxone
+      description: Which Version of Pyloxone do you use?
+      placeholder: Pyloxone Version
+    validations:
+      required: true
+  - type: textarea
+    id: pyloxone-update
+    attributes:
+      label: Update pyloxone
+      description: Did you try to update pyloxone to the latest version?
+      placeholder: Pyloxone update
+    validations:
+      required: true
+  - type: textarea
+    id: pyloxone-log
+    attributes:
+      label: Log
+      description: Paste the error log.
+      placeholder: Log
+      value: "Settings for the log can be found on the main page under the section Log Configuration "
+    validations:
+      required: false
