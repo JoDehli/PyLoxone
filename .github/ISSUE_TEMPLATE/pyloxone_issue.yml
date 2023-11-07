@@ -56,6 +56,6 @@ body:
     attributes:
       label: Log
       description: Paste the error log with the following settings
-      placeholder: Pyloxone update
+      placeholder: Log
     validations:
       required: false
