@@ -42,6 +42,19 @@ Here is an example config:
 ## Configuration over yaml (deprecated)
 Not supported anymore.
 
+## Log Configuration
+Use the following settings if you paste a log into a issue:
+
+```yaml
+logger:
+  default: warning
+  logs:
+    homeassistant: warning
+    homeassistant.helpers: warning
+    custom_components.loxone: debug
+    custom_components.loxone.api: debug
+```
+
 ## Websocket direct command
 Send command direct to the loxone for example a pulse event to a switch:
 

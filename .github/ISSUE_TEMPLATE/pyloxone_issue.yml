@@ -55,7 +55,8 @@ body:
     id: pyloxone-log
     attributes:
       label: Log
-      description: Paste the error log with the following settings
+      description: Paste the error log.
       placeholder: Log
+      value: "Settings for the log can be found on the main page under the section Log Configuration "
     validations:
       required: false
