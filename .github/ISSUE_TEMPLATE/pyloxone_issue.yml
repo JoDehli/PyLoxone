@@ -17,7 +17,6 @@ body:
       label: Firmware of your Miniserver
       description: Which firmware version does your Miniserver use?
       placeholder: Loxone Firmware
-      value: ""
     validations:
       required: true
   - type: textarea
@@ -26,7 +25,6 @@ body:
       label: HomeAssistant install method
       description: How did you install HomeAssistant? Over Hassio or manual install?
       placeholder: Install method
-      value: ""
     validations:
       required: true
   - type: textarea
@@ -35,7 +33,6 @@ body:
       label: Version of HomeAssistant
       description: Which Version do you use of HomeAssistant?
       placeholder: HA Version
-      value: ""
     validations:
       required: true
   - type: textarea
@@ -44,7 +41,6 @@ body:
       label: Version of Pyloxone
       description: Which Version of Pyloxone do you use?
       placeholder: Pyloxone Version
-      value: ""
     validations:
       required: true
   - type: textarea
@@ -53,7 +49,6 @@ body:
       label: Update pyloxone
       description: Did you try to update pyloxone to the latest version?
       placeholder: Pyloxone update
-      value: ""
     validations:
       required: true
   - type: textarea
