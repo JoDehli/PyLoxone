@@ -42,6 +42,19 @@ Here is an example config:
 ## Configuration over yaml (deprecated)
 Not supported anymore.
 
+## Log Configuration
+Use the following settings if you paste a log into a issue:
+
+```yaml
+logger:
+  default: warning
+  logs:
+    homeassistant: warning
+    homeassistant.helpers: warning
+    custom_components.loxone: debug
+    custom_components.loxone.api: debug
+```
+
 ## Websocket direct command
 Send command direct to the loxone for example a pulse event to a switch:
 
@@ -61,6 +74,7 @@ Send command direct to the loxone for example a pulse event to a switch:
 - Alarm
 - Fan (thanks for the implementation [cabeljunky](https://github.com/cabeljunky) )
 - RoomControllerV2 (thanks for the implementation [ztamas83](https://github.com/ztamas83) )
+- AudioZoneV2 (thanks for the implementation [lukaskroczek](https://github.com/lukaskroczek) )
 
 ### If your Device is not supported
 You can integrate nearly every Loxone Entity in your Home-Assistent System by adding a custom sensor to your yaml file. 
