@@ -492,12 +492,14 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        if self.animation in [0, 1]:
+        if self.animation == 0:
             return CoverDeviceClass.BLIND
+        if self.animation == 1:
+            return CoverDeviceClass.SHUTTER
         elif self.animation in [2, 4, 5]:
             return CoverDeviceClass.CURTAIN
         elif self.animation == 3:
-            return CoverDeviceClass.SHUTTER
+            return CoverDeviceClass.SHUTTER #not supported in newer versions (Schlotterer Retrolux)
         elif self.animation == 6:
             return CoverDeviceClass.AWNING
 
