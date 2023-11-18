@@ -11,6 +11,9 @@ from typing import Any
 
 from homeassistant.components.cover import (ATTR_POSITION, ATTR_TILT_POSITION,
                                             SUPPORT_CLOSE, SUPPORT_OPEN,
+                                            SUPPORT_SET_POSITION, SUPPORT_STOP,
+                                            SUPPORT_OPEN_TILT, SUPPORT_CLOSE_TILT,
+                                            SUPPORT_SET_TILT_POSITION,
                                             CoverDeviceClass, CoverEntity)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
@@ -22,9 +25,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity, get_miniserver_from_hass
-from .const import (DOMAIN, SENDDOMAIN, SUPPORT_CLOSE_TILT, SUPPORT_OPEN_TILT,
-                    SUPPORT_SET_POSITION, SUPPORT_SET_TILT_POSITION,
-                    SUPPORT_STOP, SUPPORT_QUICK_SHADE, SUPPORT_SUN_AUTOMATION,
+from .const import (DOMAIN, SENDDOMAIN, SUPPORT_QUICK_SHADE, SUPPORT_SUN_AUTOMATION,
                     SERVICE_ENABLE_SUN_AUTOMATION, SERVICE_DISABLE_SUN_AUTOMATION,
                     SERVICE_QUICK_SHADE)
 from .helpers import (get_all, get_cat_name_from_cat_uuid,
@@ -33,7 +34,6 @@ from .helpers import (get_all, get_cat_name_from_cat_uuid,
 _LOGGER = logging.getLogger(__name__)
 
 NEW_COVERS = "covers"
-
 
 async def async_setup_platform(
     hass: HomeAssistant,
@@ -407,7 +407,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         if self.current_cover_position is not None:
             supported_features |= SUPPORT_SET_POSITION
 
-        if self.current_cover_tilt_position is not None and self._animation in [0]:
+        if self.current_cover_tilt_position is not None and self.device_class == CoverDeviceClass.BLIND:
             supported_features |= (
                 SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT | SUPPORT_SET_TILT_POSITION | SUPPORT_QUICK_SHADE
             )
@@ -472,7 +472,9 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
     @property
     def current_cover_tilt_position(self):
         """Return the current tilt position of the cover."""
-        return self._tilt_position
+        if self.device_class == CoverDeviceClass.BLIND:
+            return self._tilt_position
+        return None
 
     @property
     def is_closed(self):
@@ -490,7 +492,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         return self._is_opening
 
     @property
-    def device_class(self):
+    def device_class(self) -> CoverDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         if self.animation == 0:
             return CoverDeviceClass.BLIND
@@ -502,6 +504,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             return CoverDeviceClass.SHUTTER #not supported in newer versions (Schlotterer Retrolux)
         elif self.animation == 6:
             return CoverDeviceClass.AWNING
+        return None
 
     @property
     def animation(self):
