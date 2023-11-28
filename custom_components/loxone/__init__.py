@@ -215,9 +215,14 @@ async def create_group_for_loxone_enties(hass, entites, name, object_id):
         await group.Group.async_create_group(
             hass,
             name,
-            object_id=object_id,
+            created_by_service=False,
             entity_ids=entites,
+            icon=None,
+            mode=None,
+            object_id=object_id,
+            order=None,
         )
+
     except HomeAssistantError as err:
         _LOGGER.error("Can't create group '%s' with error: %s", name, err)
     except Exception as err:
