@@ -34,10 +34,6 @@ If you have the gen2 miniserver you must connect via local access. All cloud con
 6. Add the Intgration and fill out all required fields
 7. Restart Home-Assitant
 
-
-## Configuration over yaml (deprecated)
-Not supported anymore.
-
 ## Log Configuration
 Use the following settings if you paste a log into a issue:
 
