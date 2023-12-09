@@ -15,11 +15,7 @@ He really helped me a lot to with the new token based authentification. Thanks P
 
 
 ## Config for the gen2 miniserver
-If you have the gen2 miniserver you must use your loxonecloud address. You can find out your address in
-the LoxoneConifg software. You need your serial number. You also need to forward your ports correctly. 
-Here is an example config:
-
-![alt text](cloud_config.png)
+If you have the gen2 miniserver you must connect via local access. All cloud connections are not working at the moment.
 
 ## Manual installation
 1. Download the zip file and extract all files.
