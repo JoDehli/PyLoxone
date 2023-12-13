@@ -38,10 +38,11 @@ from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
                     CONF_SCENE_GEN_DELAY, DEFAULT, DEFAULT_DELAY_SCENE,
                     DEFAULT_PORT, DEFAULT_TOKEN_PERSIST_NAME, DOMAIN,
                     DOMAIN_DEVICES, ERROR_VALUE, EVENT, IV_BYTES,
-                    KEEP_ALIVE_PERIOD, LOXAPPPATH, LOXONE_PLATFORMS,
-                    SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
-                    SECUREDSENDDOMAIN, SENDDOMAIN, TIMEOUT, TOKEN_PERMISSION,
-                    TOKEN_REFRESH_DEFAULT_SECONDS, TOKEN_REFRESH_RETRY_COUNT,
+                    KEEP_ALIVE_PERIOD, LOXAPPPATH, LOXONE_PLATFORMS, 
+                    ALL_LOXONE_PLATFORMS, SALT_BYTES, SALT_MAX_AGE_SECONDS, 
+                    SALT_MAX_USE_COUNT, SECUREDSENDDOMAIN, SENDDOMAIN, TIMEOUT,
+                    TOKEN_PERMISSION, TOKEN_REFRESH_DEFAULT_SECONDS,
+                    TOKEN_REFRESH_RETRY_COUNT, 
                     TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, cfmt)
 from .helpers import get_miniserver_type
 from .miniserver import (MiniServer, get_miniserver_from_config,
@@ -73,13 +74,23 @@ CONFIG_SCHEMA = vol.Schema(
 _UNDEF: dict = {}
 
 
-# TODO: Implement a complete restart of the loxone component without restart HomeAssistant
+
 # TODO: Unload device
 # TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
 
 
 async def async_unload_entry(hass, config_entry):
-    """Restart of Home Assistant needed."""
+    unload_ok = await hass.config_entries.async_unload_platforms(
+        config_entry, ALL_LOXONE_PLATFORMS
+    )
+    
+    if unload_ok:
+        miniserver = get_miniserver_from_hass(hass)
+        # canceling is necessary to avoid multiple subscriptions to HASS events after a reload
+        await miniserver.cancel_listeners()
+        await miniserver.stop_loxone(None)
+        return True
+    
     return False
 
 
@@ -353,8 +364,7 @@ async def async_setup_entry(hass, config_entry):
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, miniserver.stop_loxone)
     hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
 
-    hass.bus.async_listen(SENDDOMAIN, miniserver.listen_loxone_send)
-    hass.bus.async_listen(SECUREDSENDDOMAIN, miniserver.listen_loxone_send)
+    await miniserver.start_hass_listeners()
 
     hass.services.async_register(
         DOMAIN, "event_websocket_command", handle_websocket_command

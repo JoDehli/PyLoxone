@@ -166,11 +166,12 @@ class MiniServer:
         await self.api.start()
 
     async def stop_loxone(self, event):
-        _ = await self.api.stop()
-        _LOGGER.debug(_)
+        ret_code = await self.api.stop()
+        _LOGGER.debug("API stop return code {}".format(ret_code))
 
     async def listen_loxone_send(self, event):
         """Listen for change Events from Loxone Components"""
+        _LOGGER.debug("Event received: {}".format(event))
         try:
             if event.event_type == SENDDOMAIN and isinstance(event.data, dict):
                 value = event.data.get(ATTR_VALUE, DEFAULT)
@@ -195,9 +196,21 @@ class MiniServer:
 
         except ValueError:
             traceback.print_exc()
+    
+    async def start_hass_listeners(self):
+        # async_listen returns a callable function for canceling the listener
+        self.listeners.append(self.hass.bus.async_listen(SENDDOMAIN, self.listen_loxone_send))
+        self.listeners.append(self.hass.bus.async_listen(SECUREDSENDDOMAIN, self.listen_loxone_send))
+    
+    async def cancel_hass_listeners(self):
+        _LOGGER.debug("Stopping event bus listeners")
+        for callable in self.listeners:
+            if callable:
+                callable()
 
     async def handle_websocket_command(self, call):
         """Handle websocket command services."""
+        _LOGGER.debug("Handle websocket command: {}".format(call))
         value = call.data.get(ATTR_VALUE, DEFAULT)
         device_uuid = call.data.get(ATTR_UUID, DEFAULT)
         await self.api.send_websocket_command(device_uuid, value)

@@ -19,6 +19,7 @@ import uuid
 from base64 import b64encode
 from datetime import datetime, timezone
 from struct import unpack
+import websockets as wslib
 
 import httpx
 from homeassistant.config import get_default_config_dir
@@ -298,7 +299,7 @@ class LoxWs:
         #
         self._pending = []
         for i in range(self.connect_retries):
-            _LOGGER.debug("reconnect: {} from {}".format(i + 1, self.connect_retries))
+            _LOGGER.debug("reconnect: {} of {}".format(i + 1, self.connect_retries))
             await self.stop()
             self.state = "CONNECTING"
             _LOGGER.debug("wait for {} seconds...".format(self.connect_delay))
@@ -312,6 +313,8 @@ class LoxWs:
     async def stop(self):
         try:
             self.state = "STOPPING"
+            _LOGGER.info("API Stopping")
+            _LOGGER.debug("API State: {}, WS closed: {}".format(self.state, self._ws.closed))
             if not self._ws.closed:
                 await self._ws.close()
             return 1
@@ -366,11 +369,14 @@ class LoxWs:
         """Send a websocket command to the Miniserver."""
         command = "jdev/sps/io/{}/{}".format(device_uuid, value)
         _LOGGER.debug("send command: {}".format(command))
-        await self._ws.send(command)
+        try:
+            await self._ws.send(command)
+        except wslib.ConnectionClosedOK:
+            _LOGGER.debug("WS connection closed OK")
+        except wslib.ConnectionClosedError as e:
+            _LOGGER.warning("WS connection closed in ERROR, code {}".format(e.rcvd))
 
     async def async_init(self):
-        import websockets as wslib
-
         _LOGGER.debug("try to read token")
         # Read token from file
         try:
@@ -479,8 +485,11 @@ class LoxWs:
             if self._ws.closed and self._ws.close_code in [4004, 4005]:
                 self.delete_token()
 
-            elif self._ws.closed and self._ws.close_code:
+            elif self._ws.closed and self._ws.close_code and not self.state == "STOPPING":
+                _LOGGER.warning("Exception in ws_listen, reconnect...")
                 await self.reconnect()
+            else:
+                _LOGGER.warning("Exception in ws_listen, no reconnect. state = {}".format(self.state))
 
     async def _async_process_message(self, message):
         """Process the messages."""
