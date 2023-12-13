@@ -35,7 +35,7 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     TIMEOUT, TOKEN_PERMISSION, TOKEN_REFRESH_RETRY_COUNT)
 
 _LOGGER = logging.getLogger(__name__)
-
+_WSLOGGER = logging.getLogger(f'{__name__}.websocket')
 
 class LoxoneException(Exception):
     """Base class for all Loxone Exceptions"""
@@ -407,7 +407,9 @@ class LoxWs:
             else:
                 new_url = self._loxone_url.replace("http", "ws")
             self._ws = await wslib.connect(
-                "{}/ws/rfc6455".format(new_url), timeout=TIMEOUT
+                "{}/ws/rfc6455".format(new_url), 
+                timeout=TIMEOUT,
+                logger=_WSLOGGER
             )
 
             await self._ws.send("{}{}".format(CMD_KEY_EXCHANGE, self._session_key))
