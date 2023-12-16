@@ -21,20 +21,6 @@ NEW_SENSOR = "sensors"
 NEW_COVERS = "covers"
 
 
-@callback
-def get_miniserver_from_hass(hass):
-    """Return Miniserver with a matching bridge id."""
-    return hass.data[DOMAIN][list(hass.data[DOMAIN].keys())[0]]
-
-
-@callback
-def get_miniserver_from_config(hass, config):
-    """Return first Miniserver. Only one Miniserver is allowed"""
-    if len(config) == 0:
-        return None
-    return config[next(iter(config))]
-
-
 class MiniServer:
     def __init__(self, hass, config_entry) -> None:
         self.hass = hass
@@ -198,7 +184,6 @@ class MiniServer:
             traceback.print_exc()
     
     async def start_hass_listeners(self):
-        # async_listen returns a callable function for canceling the listener
         self.listeners.append(self.hass.bus.async_listen(SENDDOMAIN, self.listen_loxone_send))
         self.listeners.append(self.hass.bus.async_listen(SECUREDSENDDOMAIN, self.listen_loxone_send))
     
@@ -250,3 +235,17 @@ class MiniServer:
     def miniserverid(self) -> str:
         """Return the unique identifier of the Miniserver."""
         return self.config_entry.unique_id
+
+
+@callback
+def get_miniserver_from_hass(hass) -> MiniServer:
+    """Return Miniserver with a matching bridge id."""
+    return hass.data[DOMAIN][list(hass.data[DOMAIN].keys())[0]]
+
+
+@callback
+def get_miniserver_from_config(hass, config) -> MiniServer:
+    """Return first Miniserver. Only one Miniserver is allowed"""
+    if len(config) == 0:
+        return None
+    return config[next(iter(config))]

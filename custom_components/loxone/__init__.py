@@ -74,12 +74,13 @@ CONFIG_SCHEMA = vol.Schema(
 _UNDEF: dict = {}
 
 
-
+# TODO: Implement a complete restart of the loxone component without restart HomeAssistant
 # TODO: Unload device
 # TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
 
 
 async def async_unload_entry(hass, config_entry):
+    
     unload_ok = await hass.config_entries.async_unload_platforms(
         config_entry, ALL_LOXONE_PLATFORMS
     )
@@ -87,10 +88,9 @@ async def async_unload_entry(hass, config_entry):
     if unload_ok:
         miniserver = get_miniserver_from_hass(hass)
         # canceling is necessary to avoid multiple subscriptions to HASS events after a reload
-        await miniserver.cancel_listeners()
+        await miniserver.cancel_hass_listeners()
         await miniserver.stop_loxone(None)
         return True
-    
     return False
 
 
