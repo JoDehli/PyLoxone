@@ -8,15 +8,8 @@ https://github.com/JoDehli/PyLoxone
 import logging
 from abc import ABC
 
-from homeassistant.components.climate import (PLATFORM_SCHEMA,
-                                              SUPPORT_PRESET_MODE,
-                                              SUPPORT_TARGET_TEMPERATURE,
-                                              ClimateEntity)
-from homeassistant.components.climate.const import (HVAC_MODE_AUTO,
-                                                    HVAC_MODE_COOL,
-                                                    HVAC_MODE_HEAT,
-                                                    HVAC_MODE_HEAT_COOL,
-                                                    HVAC_MODE_OFF)
+from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
+from homeassistant.components.climate.const import ClimateEntityFeature, HVACMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
@@ -27,23 +20,24 @@ from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
 from .const import CONF_HVAC_AUTO_MODE, DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
 
+
 OPMODES = {
-    None: HVAC_MODE_OFF,
-    0: HVAC_MODE_AUTO,
-    1: HVAC_MODE_AUTO,
-    2: HVAC_MODE_AUTO,
-    3: HVAC_MODE_HEAT_COOL,
-    4: HVAC_MODE_HEAT,
-    5: HVAC_MODE_COOL,
+    None: HVACMode.OFF,
+    0: HVACMode.AUTO,
+    1: HVACMode.AUTO,
+    2: HVACMode.AUTO,
+    3: HVACMode.HEAT_COOL,
+    4: HVACMode.HEAT,
+    5: HVACMode.HEAT_COOL,
 }
 
-OPMODETOLOXONE = {HVAC_MODE_HEAT_COOL: 3, HVAC_MODE_HEAT: 4, HVAC_MODE_COOL: 5}
+OPMODETOLOXONE = {HVACMode.HEAT_COOL: 3, HVACMode.HEAT: 4, HVACMode.COOL: 5}
+
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -137,7 +131,9 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return SUPPORT_PRESET_MODE | SUPPORT_TARGET_TEMPERATURE
+        return (
+            ClimateEntityFeature.PRESET_MODE | ClimateEntityFeature.TARGET_TEMPERATURE
+        )
 
     @property
     def device_class(self):
@@ -231,7 +227,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 
         Need to be a subset of HVAC_MODES.
         """
-        return [HVAC_MODE_AUTO, HVAC_MODE_HEAT, HVAC_MODE_HEAT_COOL, HVAC_MODE_COOL]
+        return [HVACMode.AUTO, HVACMode.HEAT, HVACMode.HEAT_COOL, HVACMode.COOL]
 
     @property
     def temperature_unit(self):
@@ -274,7 +270,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         """Set new target hvac mode."""
 
         target_mode = (
-            self._autoMode if hvac_mode == HVAC_MODE_AUTO else OPMODETOLOXONE[hvac_mode]
+            self._autoMode if hvac_mode == HVACMode.AUTO else OPMODETOLOXONE[hvac_mode]
         )
 
         self.hass.bus.async_fire(
@@ -323,7 +319,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return SUPPORT_TARGET_TEMPERATURE
+        return ClimateEntityFeature.TARGET_TEMPERATURE
 
     @property
     def device_class(self):
@@ -385,8 +381,8 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         Need to be one of HVAC_MODE_*.
         """
         if self.get_state_value("status"):
-            return HVAC_MODE_AUTO
-        return HVAC_MODE_OFF
+            return HVACMode.AUTO
+        return HVACMode.OFF
 
     def set_hvac_mode(self, hvac_mode):
         """Set new target hvac mode."""
@@ -394,7 +390,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
             SENDDOMAIN,
             dict(
                 uuid=self.uuidAction,
-                value="off" if hvac_mode == HVAC_MODE_OFF else "on",
+                value="off" if hvac_mode == HVACMode.OFF else "on",
             ),
         )
 
@@ -404,7 +400,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
 
         Need to be a subset of HVAC_MODES.
         """
-        return [HVAC_MODE_OFF, HVAC_MODE_AUTO]
+        return [HVACMode.OFF, HVACMode.AUTO]
 
     @property
     def temperature_unit(self):

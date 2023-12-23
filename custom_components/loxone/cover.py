@@ -9,12 +9,13 @@ import logging
 import random
 from typing import Any
 
-from homeassistant.components.cover import (ATTR_POSITION, ATTR_TILT_POSITION,
-                                            SUPPORT_CLOSE, SUPPORT_OPEN, 
-                                            SUPPORT_SET_POSITION, SUPPORT_STOP,
-                                            SUPPORT_OPEN_TILT, SUPPORT_CLOSE_TILT,
-                                            SUPPORT_SET_TILT_POSITION,
-                                            CoverDeviceClass, CoverEntity)
+from homeassistant.components.cover import (
+    ATTR_POSITION,
+    ATTR_TILT_POSITION,
+    CoverDeviceClass,
+    CoverEntity,
+    CoverEntityFeature,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
@@ -25,16 +26,27 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
-from .const import (DOMAIN, SENDDOMAIN, SUPPORT_QUICK_SHADE, SUPPORT_SUN_AUTOMATION,
-                    SERVICE_ENABLE_SUN_AUTOMATION, SERVICE_DISABLE_SUN_AUTOMATION,
-                    SERVICE_QUICK_SHADE)
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid, map_range)
+from .const import (
+    DOMAIN,
+    SENDDOMAIN,
+    SUPPORT_QUICK_SHADE,
+    SUPPORT_SUN_AUTOMATION,
+    SERVICE_ENABLE_SUN_AUTOMATION,
+    SERVICE_DISABLE_SUN_AUTOMATION,
+    SERVICE_QUICK_SHADE,
+)
+from .helpers import (
+    get_all,
+    get_cat_name_from_cat_uuid,
+    get_room_name_from_room_uuid,
+    map_range,
+)
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
 
 NEW_COVERS = "covers"
+
 
 async def async_setup_platform(
     hass: HomeAssistant,
@@ -88,9 +100,7 @@ async def async_setup_entry(
 
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
-        SERVICE_ENABLE_SUN_AUTOMATION,
-        {},
-        "enable_sun_automation"
+        SERVICE_ENABLE_SUN_AUTOMATION, {}, "enable_sun_automation"
     )
 
     platform.async_register_entity_service(
@@ -104,6 +114,7 @@ async def async_setup_entry(
         {},
         "quick_shade",
     )
+
 
 class LoxoneGate(LoxoneEntity, CoverEntity):
     """Loxone Gate"""
@@ -133,7 +144,7 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP
+        return CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
 
     @property
     def should_poll(self):
@@ -402,20 +413,24 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        supported_features = SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP
+        supported_features = CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
 
         if self.current_cover_position is not None:
-            supported_features |= SUPPORT_SET_POSITION
+            supported_features |= CoverEntityFeature.SET_POSITION
 
-        if self.current_cover_tilt_position is not None and self.device_class == CoverDeviceClass.BLIND:
+        if (
+            self.current_cover_tilt_position is not None
+            and self.device_class == CoverDeviceClass.BLIND
+        ):
             supported_features |= (
-                SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT | SUPPORT_SET_TILT_POSITION | SUPPORT_QUICK_SHADE
+                CoverEntityFeature.OPEN_TILT
+                | CoverEntityFeature.CLOSE_TILT
+                | CoverEntityFeature.SET_TILT_POSITION
+                | SUPPORT_QUICK_SHADE
             )
 
         if self._is_automatic:
-            supported_features |= (
-                SUPPORT_SUN_AUTOMATION
-            )
+            supported_features |= SUPPORT_SUN_AUTOMATION
 
         return supported_features
 
@@ -501,7 +516,9 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         elif self.animation in [2, 4, 5]:
             return CoverDeviceClass.CURTAIN
         elif self.animation == 3:
-            return CoverDeviceClass.SHUTTER #not supported in newer versions (Schlotterer Retrolux)
+            return (
+                CoverDeviceClass.SHUTTER
+            )  # not supported in newer versions (Schlotterer Retrolux)
         elif self.animation == 6:
             return CoverDeviceClass.AWNING
         return None
@@ -554,7 +571,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         if self._is_automatic:
             device_att.update(
                 {
-                    "automatic_text": self._auto_text, 
+                    "automatic_text": self._auto_text,
                     "auto_state": self.auto,
                     "is_sun_automation_enabled": self.is_sun_automation_enabled,
                 }
@@ -628,18 +645,12 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
     def enable_sun_automation(self, **kwargs):
         """Set sun automation."""
-        self.hass.bus.async_fire(
-            SENDDOMAIN, dict(uuid=self.uuidAction, value="auto")
-        )
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="auto"))
 
     def disable_sun_automation(self, **kwargs):
         """Set sun automation."""
-        self.hass.bus.async_fire(
-            SENDDOMAIN, dict(uuid=self.uuidAction, value="NoAuto")
-        )
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="NoAuto"))
 
     def quick_shade(self, **kwargs: Any) -> None:
         """Set sun automation."""
-        self.hass.bus.async_fire(
-            SENDDOMAIN, dict(uuid=self.uuidAction, value="shade")
-        )
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="shade"))

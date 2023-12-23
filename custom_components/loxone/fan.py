@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.fan import (SUPPORT_PRESET_MODE,
-                                          SUPPORT_SET_SPEED, FanEntity)
+from homeassistant.components.fan import (
+    FanEntity,
+    FanEntityFeature,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -16,8 +18,7 @@ from voluptuous import Any, Optional
 from . import LoxoneEntity
 from .binary_sensor import LoxoneDigitalSensor
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
 from .miniserver import get_miniserver_from_hass
 from .sensor import Loxonesensor
 
@@ -183,7 +184,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return SUPPORT_PRESET_MODE | SUPPORT_SET_SPEED
+        return FanEntityFeature.PRESET_MODE | FanEntityFeature.SET_SPEED
 
     async def event_handler(self, event):
         # _LOGGER.debug(f"Fan Event data: {event.data}")
