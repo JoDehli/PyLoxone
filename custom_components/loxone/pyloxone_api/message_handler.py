@@ -37,7 +37,7 @@ class LoxoneMessageHandlerMixin(MiniserverProtocol):
                     # mess_obj.control = self._decrypt(mess_obj.control)
 
                 # if self.message_header == 1 and mess_obj == 1:
-                print("self.message_header", self.message_header.message_type)
+                print("Message Header", self.message_header.message_type.name)
                 print("MESSAGE OBj", mess_obj)
 
                 if isinstance(mess_obj, TextMessage) and "getkey2" in mess_obj.message:

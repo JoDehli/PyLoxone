@@ -17,10 +17,15 @@ import homeassistant.components.group as group
 import voluptuous as vol
 from homeassistant.config import get_default_config_dir
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
-                                 CONF_USERNAME, EVENT_COMPONENT_LOADED,
-                                 EVENT_HOMEASSISTANT_START,
-                                 EVENT_HOMEASSISTANT_STOP)
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_USERNAME,
+    EVENT_COMPONENT_LOADED,
+    EVENT_HOMEASSISTANT_START,
+    EVENT_HOMEASSISTANT_STOP,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
@@ -273,7 +278,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         host=entry.options.get("host"),
         port=entry.options.get("port"),
         use_tls=False,
-        #token_store=token,
+        # token_store=token,
     )
 
     # _LOGGER = logging.getLogger("pyloxone_api")
@@ -281,23 +286,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # _LOGGER.addHandler(logging.StreamHandler())
 
     await miniserver.connect()
-    # hass.data[DOMAIN][entry.entry_id].update({"miniserver": miniserver})
+    hass.data[DOMAIN][entry.entry_id].update({"miniserver": miniserver})
+
+    setup_tasks = []
+
+    for platform in LOXONE_PLATFORMS:
+        # for platform in [Platform.SENSOR]:
+        _LOGGER.debug("starting loxone {}...".format(platform))
+        setup_tasks.append(
+            hass.async_create_task(
+                hass.config_entries.async_forward_entry_setup(entry, platform)
+            )
+        )
+        setup_tasks.append(
+            hass.async_create_task(
+                async_load_platform(hass, platform, DOMAIN, {}, entry)
+            )
+        )
+
+    if setup_tasks:
+        await asyncio.wait(setup_tasks)
+
+    return True
     #
-    # setup_tasks = []
-    #
-    # for platform in LOXONE_PLATFORMS:
-    #     # for platform in [Platform.SENSOR]:
-    #     _LOGGER.debug("starting loxone {}...".format(platform))
-    #     setup_tasks.append(
-    #         hass.async_create_task(
-    #             hass.config_entries.async_forward_entry_setup(entry, platform)
-    #         )
-    #     )
-    #     setup_tasks.append(
-    #         hass.async_create_task(
-    #             async_load_platform(hass, platform, DOMAIN, {}, entry)
-    #         )
-    #     )
     #
     # if setup_tasks:
     #     await asyncio.wait(setup_tasks)

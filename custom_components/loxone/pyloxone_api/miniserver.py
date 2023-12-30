@@ -70,6 +70,9 @@ class Miniserver(
 
         self.message_header: MessageHeader | None = None
 
+    @property
+    def structure(self) -> dict[str, Any]:
+        return self._structure
     async def connect(self) -> None:
         await self._ensure_reachable()
         await self._get_public_key_and_structure_file()
