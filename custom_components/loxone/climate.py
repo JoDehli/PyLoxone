@@ -9,7 +9,7 @@ import logging
 from abc import ABC
 
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
-from homeassistant.components.climate.const import ClimateEntityFeature, HVACMode
+from homeassistant.components.climate.const import ClimateEntityFeature, HVACMode, HVACAction
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
@@ -214,7 +214,14 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             )
 
     @property
-    def hvac_mode(self):
+    def hvac_action(self) -> HVACAction | None:
+        """Return the current HVAC action (heating, cooling)."""
+        if self.get_state_value("prepareState") == 1:
+            return HVACAction.PREHEATING
+        return None #return none due to unknown other state (HVACAction.IDLE, HVACAction.COOLING, HVACAction.HEATING)
+
+    @property
+    def hvac_mode(self) -> HVACMode | None:
         """Return hvac operation ie. heat, cool mode.
 
         Need to be one of HVAC_MODE_*.
@@ -222,7 +229,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return OPMODES[self.get_state_value("operatingMode")]
 
     @property
-    def hvac_modes(self):
+    def hvac_modes(self) -> list[HVACMode]:
         """Return the list of available hvac operation modes.
 
         Need to be a subset of HVAC_MODES.
@@ -230,7 +237,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return [HVACMode.AUTO, HVACMode.HEAT, HVACMode.HEAT_COOL, HVACMode.COOL]
 
     @property
-    def temperature_unit(self):
+    def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
         if "format" in self.details:
             if self.details["format"].find("°"):
@@ -239,13 +246,13 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return UnitOfTemperature.CELSIUS
 
     @property
-    def target_temperature(self):
+    def target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
 
         return self.get_state_value("tempTarget")
 
     @property
-    def target_temperature_step(self):
+    def target_temperature_step(self) -> float | None:
         """Return the supported step of target temperature."""
         return 0.5
 
@@ -375,7 +382,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         )
 
     @property
-    def hvac_mode(self):
+    def hvac_mode(self) -> HVACMode | None:
         """Return hvac operation ie. heat, cool mode.
 
         Need to be one of HVAC_MODE_*.
@@ -395,7 +402,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         )
 
     @property
-    def hvac_modes(self):
+    def hvac_modes(self) -> list[HVACMode]:
         """Return the list of available hvac operation modes.
 
         Need to be a subset of HVAC_MODES.
@@ -403,7 +410,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         return [HVACMode.OFF, HVACMode.AUTO]
 
     @property
-    def temperature_unit(self):
+    def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
         if "format" in self.details:
             if self.details["format"].find("°"):
@@ -412,12 +419,12 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         return UnitOfTemperature.CELSIUS
 
     @property
-    def target_temperature(self):
+    def target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
 
         return self.get_state_value("targetTemperature")
 
     @property
-    def target_temperature_step(self):
+    def target_temperature_step(self) -> float | None:
         """Return the supported step of target temperature."""
         return 1
