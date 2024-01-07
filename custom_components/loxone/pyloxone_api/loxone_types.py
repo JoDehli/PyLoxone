@@ -8,11 +8,10 @@ from typing import TYPE_CHECKING, Protocol
 from websockets.legacy.client import WebSocketClientProtocol
 
 from .loxone_http_client import LoxoneAsyncHttpClient
-from .message import TextMessage, BaseMessage, MessageHeader
+from .message import MessageHeader, TextMessage
 
 if TYPE_CHECKING:
     from tokens import LoxoneToken
-    from websocket import LoxoneWebSocket
 
 
 class MiniserverProtocol(Protocol):
@@ -84,9 +83,8 @@ class MiniserverProtocol(Protocol):
     def _hash_credentials(self) -> str:
         ...
 
+    def _load_from_path(self, token_path: str) -> LoxoneToken:
+        ...
 
-
-
-    -> None:
-    def _safe_to_path(self) -> str:
+    def _safe_to_path(self, token_path: str) -> None:
         ...

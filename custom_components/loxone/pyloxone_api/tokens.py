@@ -11,7 +11,7 @@ import logging
 import os
 import types
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, asdict
 from typing import Final, NoReturn
 
 from Crypto.Hash import HMAC, SHA1, SHA256
@@ -24,6 +24,14 @@ from .message import LoxoneResponse
 _LOGGER = logging.getLogger(__name__)
 # Loxone epoch is 1.1.2009
 LOXONE_EPOCH: Final = datetime.datetime(2009, 1, 1, 0, 0)
+
+
+def create_loxone_token_from_dict(data_dict):
+    return LoxoneToken(**data_dict)
+
+
+def safe_loxone_token_to_dict(loxone_token_instance: LoxoneToken) -> dict:
+    return asdict(loxone_token_instance)
 
 
 @dataclass
@@ -47,17 +55,6 @@ class LoxoneToken:
         if self.valid_until == 0:
             raise ValueError("Cannot have valid_until == 0")
         return int(self.valid_until - current_seconds_since_epoch)
-
-    def from_dict(self, token: dict):
-        print("D")
-
-    def to_dict(self) -> dict:
-        _ = {
-            "token": self.token,
-            "valid_until": self.valid_until,
-            "hash_alg": self.hash_alg,
-        }
-        return _
 
 
 class TokensMixin(MiniserverProtocol):
@@ -195,9 +192,7 @@ class TokensMixin(MiniserverProtocol):
                 try:
                     dict_token = json.load(f)
                     _LOGGER.debug("Loading token successfully...")
-                    loxone_token = LoxoneToken.from_dict(dict_token)
-
-                    return loxone_token
+                    return create_loxone_token_from_dict(dict_token)
                 except ValueError:
                     return LoxoneToken()
         return LoxoneToken()
@@ -206,11 +201,9 @@ class TokensMixin(MiniserverProtocol):
         persist_token = os.path.join(token_path, DEFAULT_TOKEN_PERSIST_NAME)
         try:
             with open(persist_token, "w") as write_file:
-                json.dump(self._token.to_dict(), write_file)
+                json.dump(safe_loxone_token_to_dict(self._token), write_file)
             _LOGGER.debug("Token saved successfully...")
 
         except IOError:
             _LOGGER.debug("Error while saving token...")
             _LOGGER.debug(f"Tokenpath: {persist_token}")
-
-
