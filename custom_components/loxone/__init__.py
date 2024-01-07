@@ -43,7 +43,6 @@ from .pyloxone_api.exceptions import LoxoneCommandError
 # from .minismerver import MiniServer, get_miniserver_from_config_entry
 
 REQUIREMENTS = ["pycryptodome", "numpy"]
-DEFAULT_TOKEN_PERSIST_NAME = "lox_token.cfg"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -135,6 +134,13 @@ def safe_token(dict_token: dict) -> None:
     except IOError:
         _LOGGER.debug("Error while saving token...")
         _LOGGER.debug(f"Tokenpath: {persist_token}")
+
+
+def get_token_path() -> str | None:
+    persist_token_path = get_default_config_dir()
+    if os.path.exists(persist_token_path):
+        return persist_token_path
+    return None
 
 
 def load_token() -> None | dict:
@@ -264,13 +270,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if not entry.options:
         await async_set_options(hass, entry)
-
-    token = load_token()
+    token_path = get_token_path()
+    # token = load_token()
 
     # check if old token format. if old do not use
-    if token and "_token" in token:
-        _LOGGER.debug("Old token format found. Token will not be used.")
-        token = None
+    # if token and "_token" in token:
+    #     _LOGGER.debug("Old token format found. Token will not be used.")
+    #     token = None
+
 
     miniserver = Miniserver(
         user=entry.options.get("username"),
@@ -278,7 +285,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         host=entry.options.get("host"),
         port=entry.options.get("port"),
         use_tls=False,
-        # token_store=token,
+        token_path=token_path,
     )
 
     # _LOGGER = logging.getLogger("pyloxone_api")

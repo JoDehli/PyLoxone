@@ -37,8 +37,8 @@ class LoxoneMessageHandlerMixin(MiniserverProtocol):
                     # mess_obj.control = self._decrypt(mess_obj.control)
 
                 # if self.message_header == 1 and mess_obj == 1:
-                print("Message Header", self.message_header.message_type.name)
-                print("MESSAGE OBj", mess_obj)
+                _LOGGER.debug(f"Message Header {self.message_header.message_type.name}")
+                # print("MESSAGE OBj", mess_obj)
 
                 if isinstance(mess_obj, TextMessage) and "getkey2" in mess_obj.message:
                     self._key = mess_obj.value_as_dict["key"]
@@ -59,6 +59,8 @@ class LoxoneMessageHandlerMixin(MiniserverProtocol):
                         self._token.unsecure_password = mess_obj.value_as_dict[
                             "unsecurePass"
                         ]
+
+                    self._safe_to_path(self._token_path)
 
                     await self._send_text_command(
                         f"{CMD_ENABLE_UPDATES}", encrypted=True

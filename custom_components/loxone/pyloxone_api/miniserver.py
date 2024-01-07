@@ -29,7 +29,7 @@ class Miniserver(
         password: str = "",
         visual_password: str = "",
         use_tls: bool = False,
-        use_websockets=True,
+        token_path=None,
     ):
         self._host = host
         self._port = port
@@ -46,8 +46,7 @@ class Miniserver(
 
         self._msInfo: tuple  # type: ignore
 
-        self.has_token = False
-        self._token = LoxoneToken()
+
 
         self._msInfo: tuple  # type: ignore
         self._public_key = ""
@@ -60,6 +59,7 @@ class Miniserver(
         self._salt: str = ""
         self._salt_has_expired: bool = False
         self._user_salt: str = ""
+        self._token_path = token_path
 
         self._key: str = ""
         self._user_salt: str = ""
@@ -70,9 +70,16 @@ class Miniserver(
 
         self.message_header: MessageHeader | None = None
 
+        self.has_token = False
+        if self._token_path:
+            self._token = self._load_from_path(self._token_path)
+        else:
+            self._token = LoxoneToken()
+
     @property
     def structure(self) -> dict[str, Any]:
         return self._structure
+
     async def connect(self) -> None:
         await self._ensure_reachable()
         await self._get_public_key_and_structure_file()
@@ -83,10 +90,12 @@ class Miniserver(
 
         await self._generate_and_pass_key()
         self._generate_salt()
-        self._token = LoxoneToken()
 
         ## Hier weiter mit token
-        await self._acquire_token()
+        if self._token.token == "":
+            await self._acquire_token()
+        else:
+            await self._use_token()
 
         # while self.websocket_is_open:
         #     await asyncio.sleep(1)

@@ -37,8 +37,12 @@ class MiniserverProtocol(Protocol):
     message_header: MessageHeader | None
 
     _key: str = ""
-    _user_salt: str = ""
     _hash_alg: str = ""
+
+    _salt: str = ""
+    _salt_has_expired: bool = False
+    _user_salt: str = ""
+    _token_path: str = ""
 
     def websocket_is_open(self) -> bool:
         ...
@@ -78,4 +82,11 @@ class MiniserverProtocol(Protocol):
         ...
 
     def _hash_credentials(self) -> str:
+        ...
+
+
+
+
+    -> None:
+    def _safe_to_path(self) -> str:
         ...

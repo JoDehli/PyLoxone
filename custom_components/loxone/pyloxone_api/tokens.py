@@ -8,6 +8,7 @@ import datetime
 import hashlib
 import json
 import logging
+import os
 import types
 import uuid
 from dataclasses import asdict, dataclass
@@ -15,7 +16,7 @@ from typing import Final, NoReturn
 
 from Crypto.Hash import HMAC, SHA1, SHA256
 
-from .const import PERMISSION, CMD_GET_KEY2
+from .const import PERMISSION, CMD_GET_KEY2, DEFAULT_TOKEN_PERSIST_NAME, CMD_GET_KEY
 from .loxone_exceptions import LoxoneException
 from .loxone_types import MiniserverProtocol
 from .message import LoxoneResponse
@@ -47,6 +48,17 @@ class LoxoneToken:
             raise ValueError("Cannot have valid_until == 0")
         return int(self.valid_until - current_seconds_since_epoch)
 
+    def from_dict(self, token: dict):
+        print("D")
+
+    def to_dict(self) -> dict:
+        _ = {
+            "token": self.token,
+            "valid_until": self.valid_until,
+            "hash_alg": self.hash_alg,
+        }
+        return _
+
 
 class TokensMixin(MiniserverProtocol):
     """Methods relating to tokens.
@@ -56,16 +68,17 @@ class TokensMixin(MiniserverProtocol):
 
     async def _use_token(self) -> None:
         _LOGGER.debug("Try to use stored token.")
-        cmd = "jdev/sys/getkey"
-        message = await self._send_text_command(cmd, encrypted=True)
-        token_hash = self._hash_token(message.value)
-        cmd = f"authwithtoken/{token_hash}/{self._user}"
-        message = await self._send_text_command(cmd, encrypted=True)
+        cmd = f"{CMD_GET_KEY}"
+        await self._send_text_command(cmd, encrypted=True)
 
-        if "unsecurePass" in message.value_as_dict:
-            self._token.unsecure_password = message.value_as_dict["unsecurePass"]
-
-        _LOGGER.debug("Loaded token is valid and will be used.")
+        # token_hash = self._hash_token(message.value)
+        # cmd = f"authwithtoken/{token_hash}/{self._user}"
+        # message = await self._send_text_command(cmd, encrypted=True)
+        #
+        # if "unsecurePass" in message.value_as_dict:
+        #     self._token.unsecure_password = message.value_as_dict["unsecurePass"]
+        #
+        # _LOGGER.debug("Loaded token is valid and will be used.")
 
     async def _acquire_token(self) -> None:
         """Acquire a new authentication token from the token store (if any), or
@@ -174,3 +187,30 @@ class TokensMixin(MiniserverProtocol):
             _LOGGER.error(f"Unrecognised hash algorithm: {self._hash_alg}")
             raise LoxoneException(f"Unrecognised hash algorithm: {self._hash_alg}")
         return digester.hexdigest()
+
+    def _load_from_path(self, token_path: str) -> LoxoneToken:
+        persist_token = os.path.join(token_path, DEFAULT_TOKEN_PERSIST_NAME)
+        if os.path.exists(persist_token):
+            with open(persist_token, "r") as f:
+                try:
+                    dict_token = json.load(f)
+                    _LOGGER.debug("Loading token successfully...")
+                    loxone_token = LoxoneToken.from_dict(dict_token)
+
+                    return loxone_token
+                except ValueError:
+                    return LoxoneToken()
+        return LoxoneToken()
+
+    def _safe_to_path(self, token_path: str) -> None:
+        persist_token = os.path.join(token_path, DEFAULT_TOKEN_PERSIST_NAME)
+        try:
+            with open(persist_token, "w") as write_file:
+                json.dump(self._token.to_dict(), write_file)
+            _LOGGER.debug("Token saved successfully...")
+
+        except IOError:
+            _LOGGER.debug("Error while saving token...")
+            _LOGGER.debug(f"Tokenpath: {persist_token}")
+
+
