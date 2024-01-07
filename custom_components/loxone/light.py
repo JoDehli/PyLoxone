@@ -3,13 +3,20 @@ from abc import ABC
 from typing import Any
 
 import homeassistant.util.color as color_util
-from homeassistant.components.light import (ATTR_BRIGHTNESS, ATTR_COLOR_TEMP,
-                                            ATTR_EFFECT, ATTR_HS_COLOR,
-                                            COLOR_MODE_COLOR_TEMP,
-                                            COLOR_MODE_HS, SUPPORT_BRIGHTNESS,
-                                            SUPPORT_COLOR, SUPPORT_COLOR_TEMP,
-                                            SUPPORT_EFFECT, LightEntity,
-                                            ToggleEntity)
+from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
+    ATTR_COLOR_TEMP,
+    ATTR_EFFECT,
+    ATTR_HS_COLOR,
+    COLOR_MODE_COLOR_TEMP,
+    COLOR_MODE_HS,
+    SUPPORT_BRIGHTNESS,
+    SUPPORT_COLOR,
+    SUPPORT_COLOR_TEMP,
+    LightEntity,
+    ToggleEntity,
+    LightEntityFeature, ColorMode,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
@@ -19,10 +26,16 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN, STATE_OFF, STATE_ON
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid, hass_to_lox,
-                      lox2hass_mapped, lox_to_hass, to_hass_color_temp,
-                      to_loxone_color_temp)
+from .helpers import (
+    get_all,
+    get_cat_name_from_cat_uuid,
+    get_room_name_from_room_uuid,
+    hass_to_lox,
+    lox2hass_mapped,
+    lox_to_hass,
+    to_hass_color_temp,
+    to_loxone_color_temp,
+)
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -211,7 +224,7 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
         self.kwargs = kwargs
         self._uuid_dict = {}
 
-        self._features = SUPPORT_EFFECT
+        self._features = LightEntityFeature.EFFECT
         from collections import OrderedDict
 
         self._sub_controls = OrderedDict({})
@@ -776,8 +789,8 @@ class LoxoneDimmer(LoxoneEntity, LightEntity, ABC):
         }
 
     @property
-    def supported_features(self):
-        return SUPPORT_BRIGHTNESS
+    def supported_color_modes(self) -> ColorMode:
+        return ColorMode.BRIGHTNESS
 
     @property
     def icon(self):
