@@ -10,20 +10,27 @@ from dataclasses import dataclass
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.sensor import (CONF_STATE_CLASS, PLATFORM_SCHEMA,
-                                             SensorDeviceClass, SensorEntity,
-                                             SensorEntityDescription,
-                                             SensorStateClass)
+from homeassistant.components.sensor import (
+    CONF_STATE_CLASS,
+    PLATFORM_SCHEMA,
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
-                                 CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
-                                 ENERGY_KILO_WATT_HOUR, ENERGY_WATT_HOUR,
-                                 LIGHT_LUX, PERCENTAGE, POWER_WATT,
-                                 PRECIPITATION_MILLIMETERS,
-                                 SPEED_KILOMETERS_PER_HOUR, STATE_UNKNOWN,
-                                 TEMP_CELSIUS, TEMP_FAHRENHEIT, UnitOfEnergy,
-                                 UnitOfPower, UnitOfPrecipitationDepth,
-                                 UnitOfSpeed, UnitOfTemperature)
+from homeassistant.const import (
+    CONF_DEVICE_CLASS,
+    CONF_NAME,
+    CONF_UNIT_OF_MEASUREMENT,
+    CONF_VALUE_TEMPLATE,
+    LIGHT_LUX,
+    STATE_UNKNOWN,
+    UnitOfEnergy,
+    UnitOfPower,
+    UnitOfSpeed,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -74,7 +81,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         key="temperature",
         name="Temperature",
         suggested_display_precision=1,
-        loxone_format_string=TEMP_CELSIUS,
+        loxone_format_string=UnitOfTemperature.CELSIUS,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.TEMPERATURE,
@@ -83,7 +90,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         key="temperature_fahrenheit",
         name="Temperature",
         suggested_display_precision=1,
-        loxone_format_string=TEMP_FAHRENHEIT,
+        loxone_format_string=UnitOfTemperature.FAHRENHEIT,
         native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.TEMPERATURE,
@@ -92,7 +99,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         key="windstrength",
         name="Wind Strength",
         suggested_display_precision=1,
-        loxone_format_string=SPEED_KILOMETERS_PER_HOUR,
+        loxone_format_string=UnitOfSpeed.KILOMETERS_PER_HOUR,
         native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.WIND_SPEED,
@@ -101,7 +108,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         key="kwh",
         name="Kilowatt per hour",
         suggested_display_precision=1,
-        loxone_format_string=ENERGY_KILO_WATT_HOUR,
+        loxone_format_string=UnitOfEnergy.KILO_WATT_HOUR,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_class=SensorDeviceClass.ENERGY,
@@ -110,7 +117,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         key="wh",
         name="Watt per hour",
         suggested_display_precision=1,
-        loxone_format_string=ENERGY_WATT_HOUR,
+        loxone_format_string=UnitOfEnergy.WATT_HOUR,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_class=SensorDeviceClass.ENERGY,
@@ -119,7 +126,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         key="power",
         name="Watt",
         suggested_display_precision=1,
-        loxone_format_string=POWER_WATT,
+        loxone_format_string=UnitOfPower.WATT,
         native_unit_of_measurement=UnitOfPower.WATT,
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.POWER,
