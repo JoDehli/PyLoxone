@@ -8,18 +8,14 @@ from homeassistant.components.light import (
     ATTR_COLOR_TEMP,
     ATTR_EFFECT,
     ATTR_HS_COLOR,
-    COLOR_MODE_COLOR_TEMP,
-    COLOR_MODE_HS,
-    SUPPORT_BRIGHTNESS,
-    SUPPORT_COLOR,
-    SUPPORT_COLOR_TEMP,
     LightEntity,
     ToggleEntity,
-    LightEntityFeature, ColorMode,
+    LightEntityFeature,
+    ColorMode,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -405,6 +401,8 @@ class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
 
 class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity, ABC):
     """Representation of a light."""
+    _attr_color_mode = ColorMode.ONOFF
+    _attr_supported_color_modes = {ColorMode.ONOFF}
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
@@ -462,10 +460,10 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity, ABC):
             "platform": "loxone",
         }
 
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return 0
+    # @property
+    # def supported_features(self):
+    #     """Flag supported features."""
+    #     return 0
 
     async def event_handler(self, event):
         request_update = False
@@ -479,6 +477,14 @@ class LoxoneLight(LoxoneEntity, LightEntity, ToggleEntity, ABC):
 
 
 class LoxoneColorPickerV2(LoxoneEntity, LightEntity, ABC):
+
+    # @property
+    # def supported_features(self):
+    #     return SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
+
+    _attr_color_mode = ColorMode.BRIGHTNESS
+    _attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.HS}
+
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
         self._async_add_devices = kwargs["async_add_devices"]
@@ -551,7 +557,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity, ABC):
                 ),
             )
         elif brightness:
-            if self._attr_color_mode == COLOR_MODE_HS:
+            if self._attr_color_mode == ColorMode.HS:
                 r, g, b = color_util.color_hs_to_RGB(self.hs_color[0], self.hs_color[1])
                 h, s, v = color_util.color_RGB_to_hsv(r, g, b)
                 self.hass.bus.async_fire(
@@ -607,7 +613,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity, ABC):
                 self._color_temp = 0
                 self._rgb_color = color_util.color_hs_to_RGB(color[0], color[1])
                 self._position = color[2]
-                self._attr_color_mode = COLOR_MODE_HS
+                self._attr_color_mode = ColorMode.HS
                 request_update = True
 
             elif color.startswith("temp"):
@@ -616,7 +622,7 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity, ABC):
                 self._rgb_color = color_util.color_hs_to_RGB(0, 0)
                 self._color_temp = to_hass_color_temp(color[1])
                 self._position = color[0]
-                self._attr_color_mode = COLOR_MODE_COLOR_TEMP
+                self._attr_color_mode = ColorMode.COLOR_TEMP
                 request_update = True
 
         if request_update:
@@ -649,18 +655,21 @@ class LoxoneColorPickerV2(LoxoneEntity, LightEntity, ABC):
     def white_value(self):
         return None
 
-    @property
-    def supported_features(self):
-        return SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
+    # @property
+    # def supported_features(self):
+    #     return SUPPORT_BRIGHTNESS | SUPPORT_COLOR | SUPPORT_COLOR_TEMP
 
     @property
     def icon(self):
         """Return the sensor icon."""
         return "mdi:eyedropper-variant"
 
-
+# https://github.com/home-assistant/core/blob/0d946c62dc50f9054fd8f15e04c7fe6cd1543e3a/homeassistant/components/elkm1/light.py#L37
 class LoxoneDimmer(LoxoneEntity, LightEntity, ABC):
     """Representation of a Dimmer."""
+
+    _attr_color_mode = ColorMode.BRIGHTNESS
+    _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
@@ -787,10 +796,6 @@ class LoxoneDimmer(LoxoneEntity, LightEntity, ABC):
             "max": self._max,
             "min": self._min,
         }
-
-    @property
-    def supported_color_modes(self) -> ColorMode:
-        return ColorMode.BRIGHTNESS
 
     @property
     def icon(self):
