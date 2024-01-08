@@ -118,7 +118,7 @@ async def async_setup_entry(
         #         "cat": fan.get("cat", ""),
         #         "name": fan["name"] + " - Temperature",
         #         "details": {
-        #             "format": "%.1f°"
+        #             "format": "%.1f°C"
         #         },
         #         "async_add_devices": async_add_entities
         #     }
@@ -131,7 +131,7 @@ async def async_setup_entry(
                 "room": fan.get("room", ""),
                 "cat": fan.get("cat", ""),
                 "name": fan["name"] + " - Temperature",
-                "details": {"format": "%.1f°"},
+                "details": {"format": "%.1f°C"},
                 "device_class": "temperature",
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
