@@ -66,6 +66,10 @@ class LoxoneMessageHandlerMixin(MiniserverProtocol):
                         f"{CMD_ENABLE_UPDATES}", encrypted=True
                     )
 
+                elif isinstance(mess_obj, TextMessage) and "keyexchange" in mess_obj.message:
+                    TODO: HIER WEITER MIT keyexchange!!!!
+                    print(mess_obj.as_dict())
+
                 elif isinstance(mess_obj, ValueStatesTable):
                     print(mess_obj.as_dict())
                     # if self.message_call_back:

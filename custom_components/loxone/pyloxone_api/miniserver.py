@@ -46,8 +46,6 @@ class Miniserver(
 
         self._msInfo: tuple  # type: ignore
 
-
-
         self._msInfo: tuple  # type: ignore
         self._public_key = ""
         self._aes_key: bytes
