@@ -47,6 +47,16 @@ logger:
     custom_components.loxone.api: debug
 ```
 
+## Recorder Configuration
+A Loxone system generates a few thousand events per day. These events are recorded in your homeassistant and the database file can grow a lot per day. It is recommended to exclude loxone events from the recorder using the following settings:
+
+```yaml
+recorder:
+  exclude:
+    event_types:
+      - loxone_event
+```
+
 ## Websocket direct command
 Send command direct to the loxone for example a pulse event to a switch:
 
