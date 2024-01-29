@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.fan import (SUPPORT_PRESET_MODE,
-                                          SUPPORT_SET_SPEED, FanEntity)
+from homeassistant.components.fan import (
+    FanEntity,
+    FanEntityFeature,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, callback
@@ -116,7 +118,7 @@ async def async_setup_entry(
         #         "cat": fan.get("cat", ""),
         #         "name": fan["name"] + " - Temperature",
         #         "details": {
-        #             "format": "%.1f°"
+        #             "format": "%.1f°C"
         #         },
         #         "async_add_devices": async_add_entities
         #     }
@@ -129,7 +131,7 @@ async def async_setup_entry(
                 "room": fan.get("room", ""),
                 "cat": fan.get("cat", ""),
                 "name": fan["name"] + " - Temperature",
-                "details": {"format": "%.1f°"},
+                "details": {"format": "%.1f°C"},
                 "device_class": "temperature",
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
@@ -182,7 +184,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return SUPPORT_PRESET_MODE | SUPPORT_SET_SPEED
+        return FanEntityFeature.PRESET_MODE | FanEntityFeature.SET_SPEED
 
     async def event_handler(self, event):
         # _LOGGER.debug(f"Fan Event data: {event.data}")
