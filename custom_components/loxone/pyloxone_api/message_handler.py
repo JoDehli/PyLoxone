@@ -67,7 +67,7 @@ class LoxoneMessageHandlerMixin(MiniserverProtocol):
                     )
 
                 elif isinstance(mess_obj, TextMessage) and "keyexchange" in mess_obj.message:
-                    TODO: HIER WEITER MIT keyexchange!!!!
+                    # TODO: HIER WEITER MIT keyexchange!!!!
                     print(mess_obj.as_dict())
 
                 elif isinstance(mess_obj, ValueStatesTable):

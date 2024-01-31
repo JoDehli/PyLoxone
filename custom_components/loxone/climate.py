@@ -8,15 +8,8 @@ https://github.com/JoDehli/PyLoxone
 import logging
 from abc import ABC
 
-from homeassistant.components.climate import (PLATFORM_SCHEMA,
-                                              SUPPORT_PRESET_MODE,
-                                              SUPPORT_TARGET_TEMPERATURE,
-                                              ClimateEntity)
-from homeassistant.components.climate.const import (HVAC_MODE_AUTO,
-                                                    HVAC_MODE_COOL,
-                                                    HVAC_MODE_HEAT,
-                                                    HVAC_MODE_HEAT_COOL,
-                                                    HVAC_MODE_OFF)
+from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
+from homeassistant.components.climate.const import ClimateEntityFeature, HVACMode, HVACAction
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
@@ -32,17 +25,19 @@ from .helpers import (get_all, get_cat_name_from_cat_uuid,
 
 _LOGGER = logging.getLogger(__name__)
 
+
 OPMODES = {
-    None: HVAC_MODE_OFF,
-    0: HVAC_MODE_AUTO,
-    1: HVAC_MODE_AUTO,
-    2: HVAC_MODE_AUTO,
-    3: HVAC_MODE_HEAT_COOL,
-    4: HVAC_MODE_HEAT,
-    5: HVAC_MODE_COOL,
+    None: HVACMode.OFF,
+    0: HVACMode.AUTO,
+    1: HVACMode.AUTO,
+    2: HVACMode.AUTO,
+    3: HVACMode.HEAT_COOL,
+    4: HVACMode.HEAT,
+    5: HVACMode.HEAT_COOL,
 }
 
-OPMODETOLOXONE = {HVAC_MODE_HEAT_COOL: 3, HVAC_MODE_HEAT: 4, HVAC_MODE_COOL: 5}
+OPMODETOLOXONE = {HVACMode.HEAT_COOL: 3, HVACMode.HEAT: 4, HVACMode.COOL: 5}
+
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -140,7 +135,9 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return SUPPORT_PRESET_MODE | SUPPORT_TARGET_TEMPERATURE
+        return (
+            ClimateEntityFeature.PRESET_MODE | ClimateEntityFeature.TARGET_TEMPERATURE
+        )
 
     @property
     def device_class(self):
@@ -221,7 +218,14 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             )
 
     @property
-    def hvac_mode(self):
+    def hvac_action(self) -> HVACAction | None:
+        """Return the current HVAC action (heating, cooling)."""
+        if self.get_state_value("prepareState") == 1:
+            return HVACAction.PREHEATING
+        return None #return none due to unknown other state (HVACAction.IDLE, HVACAction.COOLING, HVACAction.HEATING)
+
+    @property
+    def hvac_mode(self) -> HVACMode | None:
         """Return hvac operation ie. heat, cool mode.
 
         Need to be one of HVAC_MODE_*.
@@ -229,15 +233,15 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return OPMODES[self.get_state_value("operatingMode")]
 
     @property
-    def hvac_modes(self):
+    def hvac_modes(self) -> list[HVACMode]:
         """Return the list of available hvac operation modes.
 
         Need to be a subset of HVAC_MODES.
         """
-        return [HVAC_MODE_AUTO, HVAC_MODE_HEAT, HVAC_MODE_HEAT_COOL, HVAC_MODE_COOL]
+        return [HVACMode.AUTO, HVACMode.HEAT, HVACMode.HEAT_COOL, HVACMode.COOL]
 
     @property
-    def temperature_unit(self):
+    def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
         if "format" in self.details:
             if self.details["format"].find("°"):
@@ -246,13 +250,13 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return UnitOfTemperature.CELSIUS
 
     @property
-    def target_temperature(self):
+    def target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
 
         return self.get_state_value("tempTarget")
 
     @property
-    def target_temperature_step(self):
+    def target_temperature_step(self) -> float | None:
         """Return the supported step of target temperature."""
         return 0.5
 
@@ -277,7 +281,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         """Set new target hvac mode."""
 
         target_mode = (
-            self._autoMode if hvac_mode == HVAC_MODE_AUTO else OPMODETOLOXONE[hvac_mode]
+            self._autoMode if hvac_mode == HVACMode.AUTO else OPMODETOLOXONE[hvac_mode]
         )
 
         self.hass.bus.async_fire(
@@ -326,7 +330,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return SUPPORT_TARGET_TEMPERATURE
+        return ClimateEntityFeature.TARGET_TEMPERATURE
 
     @property
     def device_class(self):
@@ -382,14 +386,14 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         )
 
     @property
-    def hvac_mode(self):
+    def hvac_mode(self) -> HVACMode | None:
         """Return hvac operation ie. heat, cool mode.
 
         Need to be one of HVAC_MODE_*.
         """
         if self.get_state_value("status"):
-            return HVAC_MODE_AUTO
-        return HVAC_MODE_OFF
+            return HVACMode.AUTO
+        return HVACMode.OFF
 
     def set_hvac_mode(self, hvac_mode):
         """Set new target hvac mode."""
@@ -397,20 +401,20 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
             SENDDOMAIN,
             dict(
                 uuid=self.uuidAction,
-                value="off" if hvac_mode == HVAC_MODE_OFF else "on",
+                value="off" if hvac_mode == HVACMode.OFF else "on",
             ),
         )
 
     @property
-    def hvac_modes(self):
+    def hvac_modes(self) -> list[HVACMode]:
         """Return the list of available hvac operation modes.
 
         Need to be a subset of HVAC_MODES.
         """
-        return [HVAC_MODE_OFF, HVAC_MODE_AUTO]
+        return [HVACMode.OFF, HVACMode.AUTO]
 
     @property
-    def temperature_unit(self):
+    def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
         if "format" in self.details:
             if self.details["format"].find("°"):
@@ -419,12 +423,12 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         return UnitOfTemperature.CELSIUS
 
     @property
-    def target_temperature(self):
+    def target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
 
         return self.get_state_value("targetTemperature")
 
     @property
-    def target_temperature_step(self):
+    def target_temperature_step(self) -> float | None:
         """Return the supported step of target temperature."""
         return 1

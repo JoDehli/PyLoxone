@@ -9,12 +9,13 @@ import logging
 import random
 from typing import Any
 
-from homeassistant.components.cover import (ATTR_POSITION, ATTR_TILT_POSITION,
-                                            SUPPORT_CLOSE, SUPPORT_OPEN,
-                                            SUPPORT_SET_POSITION, SUPPORT_STOP,
-                                            SUPPORT_OPEN_TILT, SUPPORT_CLOSE_TILT,
-                                            SUPPORT_SET_TILT_POSITION,
-                                            CoverDeviceClass, CoverEntity)
+from homeassistant.components.cover import (
+    ATTR_POSITION,
+    ATTR_TILT_POSITION,
+    CoverDeviceClass,
+    CoverEntity,
+    CoverEntityFeature,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
@@ -133,7 +134,7 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP
+        return CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
 
     @property
     def should_poll(self):
@@ -402,20 +403,24 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        supported_features = SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP
+        supported_features = CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
 
         if self.current_cover_position is not None:
-            supported_features |= SUPPORT_SET_POSITION
+            supported_features |= CoverEntityFeature.SET_POSITION
 
-        if self.current_cover_tilt_position is not None and self.device_class == CoverDeviceClass.BLIND:
+        if (
+            self.current_cover_tilt_position is not None
+            and self.device_class == CoverDeviceClass.BLIND
+        ):
             supported_features |= (
-                SUPPORT_OPEN_TILT | SUPPORT_CLOSE_TILT | SUPPORT_SET_TILT_POSITION | SUPPORT_QUICK_SHADE
+                CoverEntityFeature.OPEN_TILT
+                | CoverEntityFeature.CLOSE_TILT
+                | CoverEntityFeature.SET_TILT_POSITION
+                | SUPPORT_QUICK_SHADE
             )
 
         if self._is_automatic:
-            supported_features |= (
-                SUPPORT_SUN_AUTOMATION
-            )
+            supported_features |= SUPPORT_SUN_AUTOMATION
 
         return supported_features
 

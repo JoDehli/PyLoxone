@@ -5,9 +5,11 @@ import re
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components.alarm_control_panel import (
-    FORMAT_NUMBER, FORMAT_TEXT, PLATFORM_SCHEMA, AlarmControlPanelEntity)
+PLATFORM_SCHEMA, AlarmControlPanelEntity)
 from homeassistant.components.alarm_control_panel.const import (
-    SUPPORT_ALARM_ARM_AWAY, SUPPORT_ALARM_ARM_HOME, SUPPORT_ALARM_ARM_NIGHT)
+    AlarmControlPanelEntityFeature,
+    CodeFormat,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_CODE, CONF_NAME, CONF_PASSWORD,
                                  CONF_USERNAME, STATE_ALARM_ARMED_AWAY,
@@ -107,7 +109,10 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
 
     @property
     def supported_features(self):
-        return SUPPORT_ALARM_ARM_HOME | SUPPORT_ALARM_ARM_AWAY | SUPPORT_ALARM_ARM_NIGHT
+        return (
+            AlarmControlPanelEntityFeature.ARM_HOME
+            | AlarmControlPanelEntityFeature.ARM_AWAY
+        )
 
     @property
     def code_arm_required(self):
@@ -284,5 +289,8 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         if self._code is None:
             return None
         if isinstance(self._code, str) and re.search("^\\d+$", self._code):
-            return FORMAT_NUMBER
-        return FORMAT_TEXT
+            return CodeFormat.NUMBER
+        return CodeFormat.TEXT
+
+
+
