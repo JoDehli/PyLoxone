@@ -9,7 +9,11 @@ import logging
 from abc import ABC
 
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
-from homeassistant.components.climate.const import ClimateEntityFeature, HVACMode, HVACAction
+from homeassistant.components.climate.const import (
+    ClimateEntityFeature,
+    HVACMode,
+    HVACAction,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
@@ -108,6 +112,13 @@ async def async_setup_entry(
 class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller"""
 
+    _attr_supported_features = (
+        ClimateEntityFeature.PRESET_MODE
+        | ClimateEntityFeature.TARGET_TEMPERATURE
+        | ClimateEntityFeature.TURN_OFF
+        | ClimateEntityFeature.TURN_ON
+    )
+
     def __init__(self, **kwargs):
         _LOGGER.debug(f"Input: {kwargs}")
         LoxoneEntity.__init__(self, **kwargs)
@@ -131,13 +142,6 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         for mode in self._modeList:
             if mode["id"] == mode_id:
                 return mode["name"]
-
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return (
-            ClimateEntityFeature.PRESET_MODE | ClimateEntityFeature.TARGET_TEMPERATURE
-        )
 
     @property
     def device_class(self):
@@ -222,7 +226,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         """Return the current HVAC action (heating, cooling)."""
         if self.get_state_value("prepareState") == 1:
             return HVACAction.PREHEATING
-        return None #return none due to unknown other state (HVACAction.IDLE, HVACAction.COOLING, HVACAction.HEATING)
+        return None  # return none due to unknown other state (HVACAction.IDLE, HVACAction.COOLING, HVACAction.HEATING)
 
     @property
     def hvac_mode(self) -> HVACMode | None:
@@ -310,6 +314,9 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 # ------------------ AC CONTROL --------------------------------------------------------
 class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     """Representation of a ACControl Loxone device."""
+    _attr_supported_features = (
+        ClimateEntityFeature.TARGET_TEMPERATURE
+    )
 
     def __init__(self, **kwargs):
         _LOGGER.debug(f"Input AcControl: {kwargs}")
@@ -326,11 +333,6 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
             suggested_area=self.room,
             model="accontrol",
         )
-
-    @property
-    def supported_features(self):
-        """Flag supported features."""
-        return ClimateEntityFeature.TARGET_TEMPERATURE
 
     @property
     def device_class(self):
