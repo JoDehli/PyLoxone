@@ -185,6 +185,11 @@ async def async_setup_entry(
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         sensors.append(LoxoneTextSensor(**sensor))
 
+    for sensor in get_all(loxconfig, "Slider"):
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        sensor.update({"typ": "analog"})
+        sensors.append(Loxonesensor(**sensor))  
+
     @callback
     def async_add_sensors(_):
         async_add_entities(_, True)
