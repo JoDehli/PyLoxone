@@ -72,6 +72,7 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
         self._assumed = False
         self._native_max_value = kwargs["details"]["max"]
         self._native_min_value = kwargs["details"]["min"]
+        self._native_step = kwargs["details"]["step"]
 
     @property
     def should_poll(self):
@@ -93,6 +94,10 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
         """Return the native_min_value to use for device if any."""
         return self._native_min_value
 
+    @property
+    def native_step(self):
+        """Return the native_min_value to use for device if any."""
+        return self._native_step
 
     @property
     def assumed_state(self):
