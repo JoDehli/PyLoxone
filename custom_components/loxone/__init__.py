@@ -258,6 +258,7 @@ async def async_setup_entry(hass, config_entry):
                     climates = []
                     fans = []
                     accontrols = []
+                    numbers = []
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
@@ -282,6 +283,8 @@ async def async_setup_entry(hass, config_entry):
                                 fans.append(s_dict["entity_id"])
                             elif device_typ == "AcControl":
                                 accontrols.append(s_dict["entity_id"])
+                            elif device_typ == "Slider":
+                                numbers.append(s_dict["entity_id"])                            
 
                     sensors_analog.sort()
                     sensors_digital.sort()
@@ -292,6 +295,7 @@ async def async_setup_entry(hass, config_entry):
                     dimmers.sort()
                     fans.sort()
                     accontrols.sort()
+                    numbers.sort()
 
                     await create_group_for_loxone_enties(
                         hass, sensors_analog, "Loxone Analog Sensors", "loxone_analog"
@@ -329,6 +333,9 @@ async def async_setup_entry(hass, config_entry):
                         "Loxone AC Controllers",
                         "loxone_accontrollers",
                     )
+                    await create_group_for_loxone_enties(
+                        hass, numbers, "Loxone Numbers", "loxone_numbers"
+                    )                                      
                     await hass.async_block_till_done()
                     await create_group_for_loxone_enties(
                         hass,
@@ -339,6 +346,7 @@ async def async_setup_entry(hass, config_entry):
                             "group.loxone_covers",
                             "group.loxone_lights",
                             "group.loxone_ventilations",
+                            "group.loxone_numbers",
                         ],
                         "Loxone Group",
                         "loxone_group",
