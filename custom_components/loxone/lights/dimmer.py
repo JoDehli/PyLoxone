@@ -1,21 +1,13 @@
-from typing import Any
+from functools import cached_property
 
-from homeassistant.components.light import ColorMode, LightEntity, ATTR_BRIGHTNESS
+from homeassistant.components.light import (ATTR_BRIGHTNESS, ColorMode,
+                                            LightEntity)
 from homeassistant.const import STATE_UNKNOWN
-from homeassistant.helpers.entity import DeviceInfo, ToggleEntity
+from homeassistant.helpers.entity import DeviceInfo
 from PyLoxone.custom_components.loxone import LoxoneEntity
 
 from ..const import DOMAIN, SENDDOMAIN
-from ..helpers import (
-    get_all,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-    hass_to_lox,
-    lox2hass_mapped,
-    lox_to_hass,
-    to_hass_color_temp,
-    to_loxone_color_temp,
-)
+from ..helpers import hass_to_lox, lox2hass_mapped, lox_to_hass
 
 
 class LoxoneDimmer(LoxoneEntity, LightEntity):
@@ -28,6 +20,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         LoxoneEntity.__init__(self, **kwargs)
         """Initialize the sensor."""
         self._attr_is_on = STATE_UNKNOWN
+        self._attr_unique_id = self.uuidAction
         self._position = 0.0
         self._step = 1
         self._min_uuid = kwargs.get("states", {}).get("min", None)
@@ -40,46 +33,43 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         self._light_controller_id = kwargs.get("lightcontroller_id", None)
         self._light_controller_name = kwargs.get("lightcontroller_name", None)
 
-    #     self._min = STATE_UNKNOWN
-    #     self._max = STATE_UNKNOWN
-    #     self._step = 1
-    #     self._async_add_devices = kwargs["async_add_devices"]
-    #     self.light_controller_id = kwargs.get("lightcontroller_id", None)
-    #
-    #     if self.light_controller_id:
-    #         self._attr_device_info = DeviceInfo(
-    #             identifiers={(DOMAIN, self.light_controller_id)},
-    #             name=f"{DOMAIN} {self.name}",
-    #             manufacturer="Loxone",
-    #             suggested_area=self.room,
-    #             model="LightControllerV2",
-    #         )
-    #     else:
-    #         self._attr_device_info = DeviceInfo(
-    #             identifiers={(DOMAIN, self.unique_id)},
-    #             name=f"{DOMAIN} {self.name}",
-    #             manufacturer="Loxone",
-    #             suggested_area=self.room,
-    #             model="Dimmer",
-    #         )
-    #
-    # @property
-    # def device_class(self):
-    #     """Return the class of this device, from component DEVICE_CLASSES."""
-    #     return self.type
-    #
-    # @property
-    # def hidden(self) -> bool:
-    #     """Return True if the entity should be hidden from UIs."""
-    #     return False
-    #
+        if self._light_controller_name:
+            self._attr_name = f"{self._light_controller_name}-{self._attr_name}"
 
-    #
-    # @property
-    # def icon(self):
-    #     """Return the icon to use in the frontend, if any."""
-    #     return None
-    #
+        if self._light_controller_id:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, self._light_controller_id)},
+                name=f"{DOMAIN} {self.name}",
+                manufacturer="Loxone",
+                suggested_area=self.room,
+                model="LightControllerV2",
+            )
+        else:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, self.unique_id)},
+                name=f"{DOMAIN} {self.name}",
+                manufacturer="Loxone",
+                suggested_area=self.room,
+                model="Dimmer",
+            )
+
+        state_attributes = {
+            "uuid": self.uuidAction,
+            "room": self.room,
+            "category": self.cat,
+            "device_typ": self.type,
+            "platform": "loxone",
+        }
+        if self._light_controller_name:
+            state_attributes.update({"light_controller": self._light_controller_name})
+
+        self._attr_extra_state_attributes = state_attributes
+
+    @cached_property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return self._attr_unique_id
+
     async def async_turn_on(self, **kwargs) -> None:
         if ATTR_BRIGHTNESS in kwargs:
             self.hass.bus.async_fire(
@@ -125,38 +115,14 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
                 self._attr_brightness = lox_to_hass(e.data[self._position_uuid])
             request_update = True
 
-        self._attr_is_on = True if self._attr_brightness and self._attr_brightness > 0 else False
+        self._attr_is_on = (
+            True if self._attr_brightness and self._attr_brightness > 0 else False
+        )
 
         if request_update:
             self.async_schedule_update_ha_state()
 
-    #
-    # @property
-    # def state(self):
-    #     """Return the state of the entity."""
-    #     return STATE_ON if self.is_on else STATE_OFF
-    #
-    # @property
-    # def is_on(self) -> bool:
-    #     return self._position > 0
-    #
-    # @property
-    # def extra_state_attributes(self):
-    #     """Return device specific state attributes.
-    #
-    #     Implemented by platform classes.
-    #     """
-    #     return {
-    #         "uuid": self.uuidAction,
-    #         "room": self.room,
-    #         "category": self.cat,
-    #         "device_typ": self.type,
-    #         "platform": "loxone",
-    #         "max": self._max,
-    #         "min": self._min,
-    #     }
-    #
-    @property
+    @cached_property
     def icon(self):
         """Return the sensor icon."""
         return "mdi:brightness-6"
