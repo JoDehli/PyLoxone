@@ -430,19 +430,21 @@ class LoxoneEntity(Entity):
     """
 
     def __init__(self, **kwargs):
-        self._attr_name = ""
         for key in kwargs:
             if not hasattr(self, key):
-                setattr(self, key, kwargs[key])
+                if key == "name":
+                    self._attr_name = kwargs[key]
+                else:
+                    setattr(self, key, kwargs[key])
             else:
                 try:
                     setattr(self, key, kwargs[key])
                 except AttributeError:
-                    _LOGGER.error(f"Could set {key} for {self._attr_name}")
+                    _LOGGER.error(f"Could set {key} for {self.name}")
                 except (Exception,):
                     traceback.print_exc()
                     sys.exit(-1)
-
+        self._attr_name = self.name
         self.listener = None
 
     async def async_added_to_hass(self):

@@ -33,13 +33,14 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         self._light_controller_id = kwargs.get("lightcontroller_id", None)
         self._light_controller_name = kwargs.get("lightcontroller_name", None)
 
+        self._name = self._attr_name
         if self._light_controller_name:
             self._attr_name = f"{self._light_controller_name}-{self._attr_name}"
 
         if self._light_controller_id:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, self._light_controller_id)},
-                name=f"{DOMAIN} {self.name}",
+                name=f"{DOMAIN} {self._name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
                 model="LightControllerV2",
@@ -47,7 +48,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         else:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, self.unique_id)},
-                name=f"{DOMAIN} {self.name}",
+                name=f"{DOMAIN} {self._name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
                 model="Dimmer",
