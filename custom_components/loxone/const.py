@@ -76,6 +76,7 @@ ATTR_UUID = "uuid"
 ATTR_VALUE = "value"
 ATTR_CODE = "code"
 ATTR_COMMAND = "command"
+ATTR_DEVICE = "device"
 ATTR_AREA_CREATE = "create_areas"
 DOMAIN_DEVICES = "devices"
 
