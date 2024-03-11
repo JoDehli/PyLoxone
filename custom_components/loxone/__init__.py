@@ -27,7 +27,7 @@ from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
 from .api import LoxApp, LoxWs
-from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
+from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     ATTR_UUID, ATTR_VALUE, CMD_AUTH_WITH_TOKEN,
                     CMD_ENABLE_UPDATES, CMD_ENCRYPT_CMD, CMD_GET_KEY,
                     CMD_GET_KEY_AND_SALT, CMD_GET_PUBLIC_KEY,
@@ -214,8 +214,15 @@ async def async_setup_entry(hass, config_entry):
     async def handle_websocket_command(call):
         """Handle websocket command services."""
         value = call.data.get(ATTR_VALUE, DEFAULT)
-        device_uuid = call.data.get(ATTR_UUID, DEFAULT)
-        await miniserver.api.send_websocket_command(device_uuid, value)
+        if call.data.get(ATTR_DEVICE) is None:
+            entity_uuid = call.data.get(ATTR_UUID, DEFAULT)
+        else:
+            entity_registry = er.async_get(hass)
+            entity_id = call.data.get(ATTR_DEVICE)
+            entity = entity_registry.async_get(entity_id)
+            entity_uuid = entity.unique_id
+            _LOGGER.warning("dev: %s", entity.unique_id)
+        await miniserver.api.send_websocket_command(entity_uuid, value)
 
     async def sync_areas_with_loxone(data={}):
         create_areas = data.get(ATTR_AREA_CREATE, DEFAULT)
@@ -296,7 +303,7 @@ async def async_setup_entry(hass, config_entry):
                     fans.sort()
                     accontrols.sort()
                     numbers.sort()
-
+            
                     await create_group_for_loxone_enties(
                         hass, sensors_analog, "Loxone Analog Sensors", "loxone_analog"
                     )
