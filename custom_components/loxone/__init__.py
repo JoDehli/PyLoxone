@@ -160,7 +160,10 @@ async def create_group_for_loxone_enties(hass, entites, name, object_id):
         )
         _LOGGER.error("Can't create group '%s' with error: %s", name, err)
     except Exception as err:
-        _LOGGER.error("Can't create group '%s' with error: %s", name, err)
+        _LOGGER.info(
+            "Can't create group '%s'. Try to make at least one group manually. (https://www.home-assistant.io/integrations/group/)",
+            name,
+        )
 
 
 async def async_setup_entry(hass, config_entry):
