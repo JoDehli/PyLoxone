@@ -16,7 +16,8 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,get_room_name_from_room_uuid)
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,9 +43,7 @@ async def async_setup_entry(
     loxconfig = miniserver.lox_config.json
     entites = []
 
-    for number_entity in get_all(
-        loxconfig, ["Slider"]
-    ):    
+    for number_entity in get_all(loxconfig, ["Slider"]):
         number_entity.update(
             {
                 "room": get_room_name_from_room_uuid(
@@ -60,6 +59,7 @@ async def async_setup_entry(
         entites.append(new_number)
 
     async_add_entities(entites)
+
 
 class LoxoneNumber(LoxoneEntity, NumberEntity):
     """Representation of a loxone number"""
@@ -107,7 +107,7 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        return self._state        
+        return self._state
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:

@@ -17,7 +17,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
                                  EVENT_HOMEASSISTANT_START,
                                  EVENT_HOMEASSISTANT_STOP)
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
@@ -27,8 +27,8 @@ from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 
 from .api import LoxApp, LoxWs
-from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
-                    ATTR_UUID, ATTR_VALUE, CMD_AUTH_WITH_TOKEN,
+from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
+                    ATTR_DEVICE, ATTR_UUID, ATTR_VALUE, CMD_AUTH_WITH_TOKEN,
                     CMD_ENABLE_UPDATES, CMD_ENCRYPT_CMD, CMD_GET_KEY,
                     CMD_GET_KEY_AND_SALT, CMD_GET_PUBLIC_KEY,
                     CMD_GET_VISUAL_PASSWD, CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
@@ -290,7 +290,7 @@ async def async_setup_entry(hass, config_entry):
                             elif device_typ == "AcControl":
                                 accontrols.append(s_dict["entity_id"])
                             elif device_typ == "Slider":
-                                numbers.append(s_dict["entity_id"])                            
+                                numbers.append(s_dict["entity_id"])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
@@ -341,7 +341,7 @@ async def async_setup_entry(hass, config_entry):
                     )
                     await create_group_for_loxone_enties(
                         hass, numbers, "Loxone Numbers", "loxone_numbers"
-                    )                                      
+                    )
                     await hass.async_block_till_done()
                     await create_group_for_loxone_enties(
                         hass,
