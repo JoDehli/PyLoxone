@@ -221,7 +221,6 @@ async def async_setup_entry(hass, config_entry):
             entity_id = call.data.get(ATTR_DEVICE)
             entity = entity_registry.async_get(entity_id)
             entity_uuid = entity.unique_id
-            _LOGGER.warning("dev: %s", entity.unique_id)
         await miniserver.api.send_websocket_command(entity_uuid, value)
 
     async def sync_areas_with_loxone(data={}):
