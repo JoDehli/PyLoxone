@@ -6,7 +6,8 @@
   "requirements": [
     "websockets",
     "pycryptodome",
-    "numpy"
+    "numpy",
+    "httpx"
   ],
   "dependencies": [],
   "codeowners": ["JoDehli"],

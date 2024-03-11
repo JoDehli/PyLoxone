@@ -98,6 +98,7 @@ class LoxApp(object):
             auth=auth,
             base_url=_base_url,
             verify=False,
+            follow_redirects=True,
             timeout=TIMEOUT,
             event_hooks={"response": [raise_if_not_200]},
         )
@@ -127,6 +128,7 @@ class LoxApp(object):
                 auth=auth,
                 base_url=_base_url,
                 verify=True,
+                follow_redirects=True,
                 timeout=TIMEOUT,
                 event_hooks={"response": [raise_if_not_200]},
             )
@@ -941,7 +943,8 @@ class LoxWs:
             client = httpx.AsyncClient(
                 auth=(self._username, self._pasword),
                 base_url=self._loxone_url,
-                verify=True,
+                follow_redirects=True,
+                verify=False,
                 timeout=TIMEOUT,
                 event_hooks={"response": [raise_if_not_200]},
             )
