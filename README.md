@@ -66,6 +66,8 @@ Send command direct to the loxone for example a pulse event to a switch:
 "value":"pulse"
 }
 ```
+You can choose to send the commands using the UUID or the entity-name. See Developer Tools -> Services for more details.
+Websocket direct commands enable you to, for example, send data captured by devices integrated in Home Assistant immediately to the miniserver using a VI on the miniserver.
 
 ## Supported Loxone Entites
 - InfoOnlyAnalog and InfoOnlyDigital
@@ -77,6 +79,7 @@ Send command direct to the loxone for example a pulse event to a switch:
 - Fan (thanks for the implementation [cabeljunky](https://github.com/cabeljunky) )
 - RoomControllerV2 (thanks for the implementation [ztamas83](https://github.com/ztamas83) )
 - AudioZoneV2 (thanks for the implementation [lukaskroczek](https://github.com/lukaskroczek) )
+- Slider (thanks for the implementation [gigatexel](https://github.com/gigatexel) )
 
 ### If your Device is not supported
 You can integrate nearly every Loxone Entity in your Home-Assistent System by adding a custom sensor to your yaml file. 
