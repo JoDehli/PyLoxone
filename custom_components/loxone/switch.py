@@ -41,7 +41,7 @@ async def async_setup_entry(
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
-    entites = []
+    entities = []
 
     for switch_entity in get_all(
         loxconfig, ["Pushbutton", "Switch", "TimedSwitch", "Intercom"]
@@ -59,7 +59,7 @@ async def async_setup_entry(
                 }
             )
             new_push_button = LoxoneSwitch(**switch_entity)
-            entites.append(new_push_button)
+            entities.append(new_push_button)
 
         elif switch_entity["type"] == "TimedSwitch":
             switch_entity.update(
@@ -74,7 +74,7 @@ async def async_setup_entry(
                 }
             )
             new_push_button = LoxoneTimedSwitch(**switch_entity)
-            entites.append(new_push_button)
+            entities.append(new_push_button)
 
         elif switch_entity["type"] == "Intercom":
             if "subControls" in switch_entity:
@@ -105,9 +105,9 @@ async def async_setup_entry(
                     _.update({"config_entry": config_entry})
 
                     new_push_button = LoxoneIntercomSubControl(**_)
-                    entites.append(new_push_button)
+                    entities.append(new_push_button)
 
-    async_add_entities(entites)
+    async_add_entities(entities)
 
 
 class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
