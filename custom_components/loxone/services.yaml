@@ -1,14 +1,21 @@
 # Describes the format for available Loxone services
 
 event_websocket_command:
-  description: Send websocket commands to the loxone server. More infos and commands https://www.loxone.com/dede/kb/api/
+  description: Send websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/
   fields:
     uuid:
       name: UUID
-      description: Uuid for device which you want to send a command
+      description: Uuid for entity which you want to send a command
       example: 0f1e0b31-0178-7f77-ffff402fb0c34b9e
       selector:
         text:
+    device:
+      name: Entity
+      description: Device which you want to send a command
+      example: Switch 1
+      selector:
+        entity:
+          integration: loxone
     value:
       name: Command
       description: Command which you want to send
@@ -17,12 +24,13 @@ event_websocket_command:
         text:
 
 sync_areas:
-  description: Applies areas to the loxone entites based on the room from loxone. If area not exists entites will not be
+  description:
+    Applies areas to the loxone entites based on the room from loxone. If area not exists entites will not be
     changed
   fields:
     create_areas:
       name: Area create
-      description:  Force to create areas when they not exist in HA
+      description: Force to create areas when they not exist in HA
       example: true
       default: false
       selector:
