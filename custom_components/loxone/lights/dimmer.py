@@ -18,7 +18,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
-        """Initialize the sensor."""
+        """Initialize the dimmer ."""
         self._attr_is_on = STATE_UNKNOWN
         self._attr_unique_id = self.uuidAction
         self._position = 0.0
