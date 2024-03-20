@@ -268,6 +268,7 @@ async def async_setup_entry(hass, config_entry):
                     fans = []
                     accontrols = []
                     numbers = []
+                    texts = []
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
@@ -294,6 +295,8 @@ async def async_setup_entry(hass, config_entry):
                                 accontrols.append(s_dict["entity_id"])
                             elif device_typ == "Slider":
                                 numbers.append(s_dict["entity_id"])
+                            elif device_typ == "TextInput":
+                                texts.append(s_dict["entity_id"])
 
                     sensors_analog.sort()
                     sensors_digital.sort()
@@ -305,6 +308,7 @@ async def async_setup_entry(hass, config_entry):
                     fans.sort()
                     accontrols.sort()
                     numbers.sort()
+                    texts.sort()
 
                     await create_group_for_loxone_enties(
                         hass, sensors_analog, "Loxone Analog Sensors", "loxone_analog"
@@ -345,6 +349,9 @@ async def async_setup_entry(hass, config_entry):
                     await create_group_for_loxone_enties(
                         hass, numbers, "Loxone Numbers", "loxone_numbers"
                     )
+                    await create_group_for_loxone_enties(
+                        hass, texts, "Loxone Texts", "loxone_texts"
+                    )                    
                     await hass.async_block_till_done()
                     await create_group_for_loxone_enties(
                         hass,
@@ -356,6 +363,7 @@ async def async_setup_entry(hass, config_entry):
                             "group.loxone_lights",
                             "group.loxone_ventilations",
                             "group.loxone_numbers",
+                            "group.loxone_texts",
                         ],
                         "Loxone Group",
                         "loxone_group",
