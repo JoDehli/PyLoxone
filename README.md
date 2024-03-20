@@ -80,6 +80,7 @@ Websocket direct commands enable you to, for example, send data captured by devi
 - RoomControllerV2 (thanks for the implementation [ztamas83](https://github.com/ztamas83) )
 - AudioZoneV2 (thanks for the implementation [lukaskroczek](https://github.com/lukaskroczek) )
 - Slider (thanks for the implementation [gigatexel](https://github.com/gigatexel) )
+- TextInput (thanks for the implementation [gigatexel](https://github.com/gigatexel) )
 
 ### If your Device is not supported
 You can integrate nearly every Loxone Entity in your Home-Assistent System by adding a custom sensor to your yaml file. 
@@ -152,6 +153,15 @@ up:
 ```
 
 The commands for each entity can be found in the structure file. You can download it from the [Loxone Hompage](https://www.loxone.com/dede/kb/api/).
+
+### Example 3 with a TextInput
+
+The TextInput Virtual Input in the Miniserver enables some neat advanced applications.
+The Audioserver for example, has limited API-support. For example, if you want to switch presets from Home Assistant, this is not possible using the traditional Audio Player API interface.
+
+A neat way around this, is by adressing the Audio Player block's API Connector using a VTI (Virtual Text Input). This enables all of the block's functionality in Home Assistant.
+
+First, create a 
 
  ### How do you get the uuid?
 You can get the uuid from your loxone setup by visit the folowing site with your prefered browser:
