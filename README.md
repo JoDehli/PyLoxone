@@ -163,6 +163,8 @@ A neat way around this, is by adressing the Audio Player block's API Connector u
 
 First, create a VTI and connect it to the block's API Connector.
 
+<img width="293" alt="image" src="https://github.com/gigatexel/PyLoxone/assets/65073191/7feb15c9-6ea4-49ba-b7a4-48eba3ad42ff">
+
 Second, send anything you want to this VTI from Home Assistant. In this use case, we want the Audio Player to switch to preset 4:
 
 ```
