@@ -157,11 +157,20 @@ The commands for each entity can be found in the structure file. You can downloa
 ### Example 3 with a TextInput
 
 The TextInput Virtual Input in the Miniserver enables some neat advanced applications.
-The Audioserver for example, has limited API-support. For example, if you want to switch presets from Home Assistant, this is not possible using the traditional Audio Player API interface.
+The Audioserver for example, has limited API-support. If you want to switch presets from Home Assistant, this is not possible using the traditional Audio Player API interface.
 
 A neat way around this, is by adressing the Audio Player block's API Connector using a VTI (Virtual Text Input). This enables all of the block's functionality in Home Assistant.
 
-First, create a 
+First, create a VTI and connect it to the block's API Connector.
+
+Second, send anything you want to this VTI from Home Assistant. In this use case, we want the Audio Player to switch to preset 4:
+
+```
+service: loxone.event_websocket_command
+data:
+  value: SET(Ap;Fav;4)
+  device: text.ingang_vti1
+```
 
  ### How do you get the uuid?
 You can get the uuid from your loxone setup by visit the folowing site with your prefered browser:
