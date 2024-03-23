@@ -34,6 +34,22 @@ If you have the gen2 miniserver you must connect via local access. All cloud con
 6. Add the Intgration and fill out all required fields
 7. Restart Home-Assitant
 
+## Supported Loxone Entities
+Currently, this integration supports the following Loxone entities by mapping them to Home Assistant entities.
+If you encounter a Loxone entity that is currently not supported, you can post a feature request so it can be looked into.
+
+- InfoOnlyAnalog and InfoOnlyDigital
+- Switch, TimedSwitch and Pushbutton
+- Jalousie, Window and Gate
+- Intercom
+- LightControllerV2
+- Alarm
+- Fan
+- RoomControllerV2
+- AudioZoneV2
+- Slider
+- TextInput
+
 ## Log Configuration
 Use the following settings if you paste a log into a issue:
 
@@ -57,8 +73,8 @@ recorder:
       - loxone_event
 ```
 
-## Websocket direct command
-Send command direct to the loxone for example a pulse event to a switch:
+## Websocket direct command service
+If you want to send data directly to Loxone inputs or blocks that are not (yet) supported, you can use this service to send a command:
 
 ```yaml
 {
@@ -69,20 +85,44 @@ Send command direct to the loxone for example a pulse event to a switch:
 You can choose to send the commands using the UUID or the entity-name. See Developer Tools -> Services for more details.
 Websocket direct commands enable you to, for example, send data captured by devices integrated in Home Assistant immediately to the miniserver using a VI on the miniserver.
 
-## Supported Loxone Entites
-- InfoOnlyAnalog and InfoOnlyDigital
-- Switch, TimedSwitch and Pushbutton
-- Jalousie, Window and Gate
-- Intercom
-- LightControllerV2
-- Alarm
-- Fan (thanks for the implementation [cabeljunky](https://github.com/cabeljunky) )
-- RoomControllerV2 (thanks for the implementation [ztamas83](https://github.com/ztamas83) )
-- AudioZoneV2 (thanks for the implementation [lukaskroczek](https://github.com/lukaskroczek) )
-- Slider (thanks for the implementation [gigatexel](https://github.com/gigatexel) )
+## Some examples
 
-### If your Device is not supported
-You can integrate nearly every Loxone Entity in your Home-Assistent System by adding a custom sensor to your yaml file. 
+### Using a TextInput to controle a block's API Connector
+
+The TextInput Virtual Input in the Miniserver enables some neat advanced applications.  
+The Audioserver for example, has limited API-support. If you want to switch presets from Home Assistant, this is not possible using the traditional Audio Player API interface.
+
+A neat way around this, is by adressing the Audio Player block's API Connector using a VTI (Virtual Text Input). This enables all of the block's functionality in Home Assistant.
+
+First, create a VTI and connect it to the block's API Connector.
+
+<img src="./images/vti.png" width=25%>
+
+Second, send anything you want to this VTI from Home Assistant. In this use case, we want the Audio Player to switch to preset 4:
+
+```
+service: loxone.event_websocket_command
+data:
+  value: SET(Ap;Fav;4)
+  device: text.ingang_vti1
+```
+You can even directly address the Audio Player's TTS engine.
+```
+service: loxone.event_websocket_command
+data:
+  device: text.ingang_vti1
+  value: SET(AP;TTS;Woop-woop, that's the sound of da police)
+
+```
+### Using a Slider to send data from Home Assistant to the Loxone Miniserver
+
+The Miniserver connects to/interfaces with a wide range of third party devices and services. However, support is quite limited in comparison to Home Assistant.  
+If you take the DSMR P1 digital meter interface for example. This (serial) interface is supported on a wide range of platforms, but not on the Miniserver.  
+A workaround could be creating a VI on the Miniserver and configuring it as a Slider. This VI will then appear in this integration as a Number entity to which you can send any numerical value.  
+Any change in the sensor value in Home Assistant should trigger an automation that sets the new value to the entity in the Loxone integration.
+
+## Advanced usage: what to do if your device is not supported
+You can integrate nearly every Loxone Entity in your Home Assistant system by adding a custom sensor to your yaml file. 
 
 ### Example 1 with a RoomComfortTemperature
 Here is a example of a sensor which is displaying the comfort temperature of a room controller v2:
@@ -153,8 +193,9 @@ up:
 
 The commands for each entity can be found in the structure file. You can download it from the [Loxone Hompage](https://www.loxone.com/dede/kb/api/).
 
- ### How do you get the uuid?
-You can get the uuid from your loxone setup by visit the folowing site with your prefered browser:
+## How do you get the uuid?
+
+If you need the UUID of an entity to use it in a service call or to manually add it to Home Assistant, you can get it from your Loxone setup by visit the folowing site with your prefered browser:
 
 ```
 http://{ip-address-of-your-loxone}:{port}/data/LoxAPP3.json
@@ -163,7 +204,8 @@ http://{ip-address-of-your-loxone}:{port}/data/LoxAPP3.json
 
 {port} --> replace with your port (default: 80)
 ```
-After entering your username and password you will see your LoxApp3.json. You can paste it in your prefered text editor and save it as a json file. In this file you can find all your uuid ids for all your devices.  
+After entering your username and password you will see your LoxApp3.json. You can paste it in your prefered JSON editor/viewer (eg. https://jsonformatter.org/). 
+In this file you can find all your uuid ids for all your devices.  
 
 
 Here is a example of a Room Controller V2: 
