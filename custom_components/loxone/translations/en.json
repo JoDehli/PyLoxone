@@ -54,7 +54,7 @@
                     "description": "Command which you want to send"
                 }
             }
-        }
+        },
         "sync_areas": {
             "name": "Sync areas",
             "description": "Applies areas to the loxone entites based on the room from loxone. If area not exists entites will not be changed",
@@ -64,17 +64,18 @@
                     "description": "Force to create areas when they not exist in HA"
                 }
             }
-        }
+        },
         "enable_sun_automation": {
             "name": "Enable sun automation",
-            "description": "Enable Sun automation for Loxone Jalousie",
-        }        
+            "description": "Enable Sun automation for Loxone Jalousie"
+        },
         "disable_sun_automation": {
             "name": "Disable sun automation",
-            "description": "Disable Sun automation for Loxone Jalousie",
-        }        
+            "description": "Disable Sun automation for Loxone Jalousie"
+        },
         "quick_shade": {
-            "name": "Quick shade"
-            "description": "Move Loxone Jalousie to shade position. Position is set by Loxone depends on multiple values.",
+            "name": "Quick shade",
+            "description": "Move Loxone Jalousie to shade position. Position is set by Loxone depends on multiple values."
+        }
     }
 }
