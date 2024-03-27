@@ -55,7 +55,7 @@ async def async_setup_entry(
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
-    entites = []
+    entities = []
 
     for fan in get_all(loxconfig, "Ventilation"):
         fan.update(
@@ -80,7 +80,7 @@ async def async_setup_entry(
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
             }
-            entites.append(LoxoneDigitalSensor(**presence))
+            entities.append(LoxoneDigitalSensor(**presence))
         if fan["details"]["hasIndoorHumidity"] and "humidityIndoor" in fan["states"]:
             humidity = {
                 "parent_id": fan["uuidAction"],
@@ -94,7 +94,7 @@ async def async_setup_entry(
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
             }
-            entites.append(Loxonesensor(**humidity))
+            entities.append(Loxonesensor(**humidity))
         if fan["details"]["hasAirQuality"] and "airQualityIndoor" in fan["states"]:
             air_quality = {
                 "parent_id": fan["uuidAction"],
@@ -108,7 +108,7 @@ async def async_setup_entry(
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
             }
-            entites.append(Loxonesensor(**air_quality))
+            entities.append(Loxonesensor(**air_quality))
         # if "temperatureIndoor" in fan["states"]:
         #     temperature = {
         #         "parent_id": fan["uuidAction"],
@@ -122,7 +122,7 @@ async def async_setup_entry(
         #         },
         #         "async_add_devices": async_add_entities
         #     }
-        #     entites.append(Loxonesensor(**temperature))
+        #     entities.append(Loxonesensor(**temperature))
         if "temperatureOutdoor" in fan["states"]:
             temperature = {
                 "parent_id": fan["uuidAction"],
@@ -136,11 +136,11 @@ async def async_setup_entry(
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
             }
-            entites.append(Loxonesensor(**temperature))
+            entities.append(Loxonesensor(**temperature))
 
-        entites.append(LoxoneVentilation(**fan))
+        entities.append(LoxoneVentilation(**fan))
 
-    async_add_entities(entites)
+    async_add_entities(entities)
 
 
 class LoxoneVentilation(LoxoneEntity, FanEntity):
