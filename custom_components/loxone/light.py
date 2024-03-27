@@ -60,7 +60,7 @@ async def async_setup_entry(
         "generate_lightcontroller_subcontrols", False
     )
     loxconfig = miniserver.lox_config.json
-    entites = []
+    entities = []
     all_light_controller_dimmers = []
     all_color_picker = []
     all_switches = []
@@ -138,7 +138,7 @@ async def async_setup_entry(
                             light_controller["subControls"][sub_controll]
                         )
 
-        entites.append(new_light_controller)
+        entities.append(new_light_controller)
 
     _ = all_dimmers + all_light_controller_dimmers
 
@@ -169,7 +169,7 @@ async def async_setup_entry(
             )
 
         new_dimmer = LoxoneDimmer(**dimmer)
-        entites.append(new_dimmer)
+        entities.append(new_dimmer)
 
     for switch in all_switches:
         switch.update(
@@ -185,7 +185,7 @@ async def async_setup_entry(
             }
         )
         new_switch = LoxoneLight(**switch)
-        entites.append(new_switch)
+        entities.append(new_switch)
 
     for color_picker in all_color_picker:
         color_picker.update(
@@ -201,9 +201,9 @@ async def async_setup_entry(
             }
         )
         new_color_picker = LoxoneColorPickerV2(**color_picker)
-        entites.append(new_color_picker)
+        entities.append(new_color_picker)
 
-    async_add_entities(entites)
+    async_add_entities(entities)
 
 
 class LoxonelightcontrollerV2(LoxoneEntity, LightEntity):
