@@ -37,24 +37,25 @@
                 "title": "PyLoxone settings"
             }
         }
-    }
+    },
     "services": {
         "event_websocket_command": {
-        "name": "Send Websocket command",
-        "description": "Send websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/",
-        "fields": {
-            "UUID": {
-            "name": "UUID",
-            "description": "Uuid for entity which you want to send a command."
+            "name": "Send Websocket command",
+            "description": "Send websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/",
+            "fields": {
+                "UUID": {
+                    "name": "UUID",
+                    "description": "Uuid for entity which you want to send a command."
+                }
+                "device": {
+                  "name": "Entity",
+                  "description": "Device which you want to send a command"
+                }     
+                "value": {
+                  "name": "Command",
+                  "description": "Command which you want to send"
+                }          
             }
-            "device": {
-              "name": "Entity",
-              "description": "Device which you want to send a command"
-            }     
-            "value": {
-              "name": "Command",
-              "description": "Command which you want to send"
-            }          
-        }
-    }            
+        }            
+    }
 }
