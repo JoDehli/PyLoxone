@@ -70,8 +70,6 @@ class LoxoneText(LoxoneEntity, TextEntity):
         self._state = STATE_UNKNOWN
         self._icon = None
         self._assumed = False
-#        self._native_max_value = kwargs["details"]["max"]
-#        self._native_min_value = kwargs["details"]["min"]
         self._native_value = ""
 
     @property
