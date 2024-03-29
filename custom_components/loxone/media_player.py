@@ -55,7 +55,7 @@ async def async_setup_entry(
     """Load Loxone Audio zones based on a config entry."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
-    entites = []
+    entities = []
 
     for audioZone in get_all(loxconfig, "AudioZoneV2"):
         audioZone.update(
@@ -68,9 +68,9 @@ async def async_setup_entry(
                 "cat": get_cat_name_from_cat_uuid(loxconfig, audioZone.get("cat", "")),
             }
         )
-        entites.append(LoxoneAudioZoneV2(**audioZone))
+        entities.append(LoxoneAudioZoneV2(**audioZone))
 
-    async_add_entities(entites)
+    async_add_entities(entities)
 
 
 def play_state_to_media_player_state(play_state: int) -> MediaPlayerState:

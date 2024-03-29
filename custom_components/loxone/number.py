@@ -41,7 +41,7 @@ async def async_setup_entry(
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
-    entites = []
+    entities = []
 
     for number_entity in get_all(loxconfig, ["Slider"]):
         number_entity.update(
@@ -56,9 +56,9 @@ async def async_setup_entry(
             }
         )
         new_number = LoxoneNumber(**number_entity)
-        entites.append(new_number)
+        entities.append(new_number)
 
-    async_add_entities(entites)
+    async_add_entities(entities)
 
 
 class LoxoneNumber(LoxoneEntity, NumberEntity):
