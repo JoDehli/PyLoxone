@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import Any
 
 from homeassistant.components.light import ColorMode, LightEntity
@@ -36,7 +37,7 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
             )
         else:
             self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self.unique_id)},
+                identifiers={(DOMAIN, self._attr_unique_id)},
                 name=f"{DOMAIN} {self._name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
@@ -54,6 +55,11 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
             state_attributes.update({"light_controller": self._light_controller_name})
 
         self._attr_extra_state_attributes = state_attributes
+
+    @cached_property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return self._attr_unique_id
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))

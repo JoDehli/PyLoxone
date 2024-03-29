@@ -404,7 +404,7 @@ async def async_setup_entry(hass, config_entry):
                         hass, texts, "Loxone Texts", "loxone_texts"
                     )
                     await hass.async_block_till_done()
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass,
                         [
                             "group.loxone_analog",
