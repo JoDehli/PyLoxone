@@ -186,13 +186,13 @@ async def async_config_entry_updated(hass, entry) -> None:
     pass
 
 
-async def create_group_for_loxone_enties(hass, entites, name, object_id):
+async def create_group_for_loxone_entities(hass, entities, name, object_id):
     try:
         await group.Group.async_create_group(
             hass,
             name,
             created_by_service=False,
-            entity_ids=entites,
+            entity_ids=entities,
             icon=None,
             mode=None,
             object_id=object_id,
@@ -203,7 +203,7 @@ async def create_group_for_loxone_enties(hass, entites, name, object_id):
         await group.Group.async_create_group(
             hass,
             name,
-            entity_ids=entites,
+            entity_ids=entities,
             icon=None,
             mode=None,
             object_id=object_id,
@@ -361,46 +361,46 @@ async def async_setup_entry(hass, config_entry):
                     numbers.sort()
                     texts.sort()
 
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass, sensors_analog, "Loxone Analog Sensors", "loxone_analog"
                     )
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass,
                         sensors_digital,
                         "Loxone Digital Sensors",
                         "loxone_digital",
                     )
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass, switches, "Loxone Switches", "loxone_switches"
                     )
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass, covers, "Loxone Covers", "loxone_covers"
                     )
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass, lights, "Loxone LightControllers", "loxone_lights"
                     )
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass, lights, "Loxone Dimmer", "loxone_dimmers"
                     )
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass, climates, "Loxone Room Controllers", "loxone_climates"
                     )
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass,
                         fans,
                         "Loxone Ventilation Controllers",
                         "loxone_ventilations",
                     )
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass,
                         accontrols,
                         "Loxone AC Controllers",
                         "loxone_accontrollers",
                     )
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass, numbers, "Loxone Numbers", "loxone_numbers"
                     )
-                    await create_group_for_loxone_enties(
+                    await create_group_for_loxone_entities(
                         hass, texts, "Loxone Texts", "loxone_texts"
                     )
                     await hass.async_block_till_done()

@@ -1,7 +1,11 @@
 {
   "domain": "loxone",
   "name": "PyLoxone",
+  "codeowners": ["@JoDehli"],
+  "config_flow": true,
+  "dependencies": [],
   "documentation": "https://github.com/JoDehli/PyLoxone",
+  "iot_class": "local_polling",
   "issue_tracker": "https://github.com/JoDehli/PyLoxone/issues",
   "requirements": [
     "websockets",
@@ -9,11 +13,5 @@
     "numpy",
     "httpx"
   ],
-  "dependencies": [],
-  "codeowners": ["JoDehli"],
-  "iot_class": "local_polling",
-  "homeassistant": "2024.02.0",
-  "render_readme": true,
-  "config_flow": true,
   "version": "0.6.3"
 }

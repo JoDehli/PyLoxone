@@ -8,7 +8,6 @@
                 "title": "Loxone",
                 "description": "Loxone Configuration",
                 "data": {
-                    "host": "Host",
                     "username": "User",
                     "port": "Port",
                     "host": "Miniserver Ip",
@@ -24,7 +23,6 @@
         "step": {
             "init": {
                 "data": {
-                    "host": "Host",
                     "username": "User",
                     "port": "Port",
                     "host": "Miniserver Ip",
@@ -37,6 +35,47 @@
                 "title": "PyLoxone settings"
             }
         }
+    },
+    "services": {
+        "event_websocket_command": {
+            "name": "Send Websocket command",
+            "description": "Send websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/",
+            "fields": {
+                "uuid": {
+                    "name": "UUID",
+                    "description": "Uuid for entity which you want to send a command."
+                },
+                "device": {
+                    "name": "Entity",
+                    "description": "Device which you want to send a command"
+                },
+                "value": {
+                    "name": "Command",
+                    "description": "Command which you want to send"
+                }
+            }
+        },
+        "sync_areas": {
+            "name": "Sync areas",
+            "description": "Applies areas to the loxone entites based on the room from loxone. If area not exists entites will not be changed",
+            "fields": {
+                "create_areas": {
+                    "name": "Create areas",
+                    "description": "Force to create areas when they not exist in HA"
+                }
     }
-
+        },
+        "enable_sun_automation": {
+            "name": "Enable sun automation",
+            "description": "Enable Sun automation for Loxone Jalousie"
+        },
+        "disable_sun_automation": {
+            "name": "Disable sun automation",
+            "description": "Disable Sun automation for Loxone Jalousie"
+        },
+        "quick_shade": {
+            "name": "Quick shade",
+            "description": "Move Loxone Jalousie to shade position. Position is set by Loxone depends on multiple values."
+        }
+    }
 }
