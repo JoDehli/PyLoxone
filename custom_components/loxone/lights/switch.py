@@ -30,7 +30,7 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
         if self._light_controller_id:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, self._light_controller_id)},
-                name=f"{DOMAIN} {self._name}",
+                name=f"{self._name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
                 model="LightControllerV2",
@@ -38,7 +38,7 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
         else:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, self._attr_unique_id)},
-                name=f"{DOMAIN} {self._name}",
+                name=f"{self._name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
                 model="Light",

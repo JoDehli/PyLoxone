@@ -2,13 +2,10 @@ import logging
 from functools import cached_property
 
 import homeassistant.util.color as color_util
-from homeassistant.components.light import (
-    ATTR_BRIGHTNESS,
-    ATTR_COLOR_TEMP_KELVIN,
-    ATTR_HS_COLOR,
-    ColorMode,
-    LightEntity,
-)
+from homeassistant.components.light import (ATTR_BRIGHTNESS,
+                                            ATTR_COLOR_TEMP_KELVIN,
+                                            ATTR_HS_COLOR, ColorMode,
+                                            LightEntity)
 from homeassistant.helpers.device_registry import DeviceInfo
 from PyLoxone.custom_components.loxone import LoxoneEntity
 
@@ -18,9 +15,7 @@ from ..helpers import hass_to_lox, lox_to_hass
 _LOGGER = logging.getLogger(__name__)
 
 
-class LumiTech(LoxoneEntity, LightEntity):
-    """Representation of a Loxone LumiTech Dimmer."""
-
+class RGBColorPicker(LoxoneEntity, LightEntity):
     __color_mode_reported = True
     _attr_max_color_temp_kelvin = 2000
     _attr_min_color_temp_kelvin = 6500
@@ -49,7 +44,7 @@ class LumiTech(LoxoneEntity, LightEntity):
         if self._light_controller_id:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, self._light_controller_id)},
-                name=f"{DOMAIN} {self._name}",
+                name=f"{self._name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
                 model="LightControllerV2",
@@ -57,10 +52,10 @@ class LumiTech(LoxoneEntity, LightEntity):
         else:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, self._attr_unique_id)},
-                name=f"{DOMAIN} {self._name}",
+                name=f"{self._name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
-                model="LumiTech",
+                model="ColorPickerV2",
             )
 
     @cached_property
@@ -93,7 +88,7 @@ class LumiTech(LoxoneEntity, LightEntity):
                     ),
                 ),
             )
-        if ATTR_COLOR_TEMP_KELVIN in kwargs:
+        elif ATTR_COLOR_TEMP_KELVIN in kwargs:
             self._attr_color_temp_kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
             self.hass.bus.async_fire(
                 SENDDOMAIN,
@@ -105,7 +100,7 @@ class LumiTech(LoxoneEntity, LightEntity):
                 ),
             )
 
-        if ATTR_BRIGHTNESS in kwargs:
+        elif ATTR_BRIGHTNESS in kwargs:
             self._attr_brightness = kwargs[ATTR_BRIGHTNESS]
             if self._attr_color_mode == ColorMode.HS:
                 self.hass.bus.async_fire(
@@ -129,6 +124,8 @@ class LumiTech(LoxoneEntity, LightEntity):
                         ),
                     ),
                 )
+        else:
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
 
     async def event_handler(self, e):
         request_update = False
@@ -160,3 +157,27 @@ class LumiTech(LoxoneEntity, LightEntity):
     def icon(self):
         """Return the sensor icon."""
         return "mdi:eyedropper-variant"
+
+
+class LumiTech(RGBColorPicker):
+    """Representation of a Loxone LumiTech Dimmer."""
+
+    def __init__(self, **kwargs):
+        RGBColorPicker.__init__(self, **kwargs)
+        """Initialize the LumiTech."""
+        if self._light_controller_id:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, self._light_controller_id)},
+                name=f"{self._name}",
+                manufacturer="Loxone",
+                suggested_area=self.room,
+                model="LightControllerV2",
+            )
+        else:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, self._attr_unique_id)},
+                name=f"{self._name}",
+                manufacturer="Loxone",
+                suggested_area=self.room,
+                model="LumiTech",
+            )

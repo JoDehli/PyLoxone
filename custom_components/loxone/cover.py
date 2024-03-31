@@ -9,38 +9,25 @@ import logging
 import random
 from typing import Any
 
-from homeassistant.components.cover import (
-    ATTR_POSITION,
-    ATTR_TILT_POSITION,
-    CoverDeviceClass,
-    CoverEntity,
-    CoverEntityFeature,
-)
+from homeassistant.components.cover import (ATTR_POSITION, ATTR_TILT_POSITION,
+                                            CoverDeviceClass, CoverEntity,
+                                            CoverEntityFeature)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import config_validation as cv, entity_platform, service
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_platform, service
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
-from .const import (
-    DOMAIN,
-    SENDDOMAIN,
-    SUPPORT_QUICK_SHADE,
-    SUPPORT_SUN_AUTOMATION,
-    SERVICE_ENABLE_SUN_AUTOMATION,
-    SERVICE_DISABLE_SUN_AUTOMATION,
-    SERVICE_QUICK_SHADE,
-)
-from .helpers import (
-    get_all,
-    get_cat_name_from_cat_uuid,
-    get_room_name_from_room_uuid,
-    map_range,
-)
+from .const import (DOMAIN, SENDDOMAIN, SERVICE_DISABLE_SUN_AUTOMATION,
+                    SERVICE_ENABLE_SUN_AUTOMATION, SERVICE_QUICK_SHADE,
+                    SUPPORT_QUICK_SHADE, SUPPORT_SUN_AUTOMATION)
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid, map_range)
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -144,7 +131,9 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        return CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
+        return (
+            CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
+        )
 
     @property
     def should_poll(self):
@@ -413,7 +402,9 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        supported_features = CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
+        supported_features = (
+            CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
+        )
 
         if self.current_cover_position is not None:
             supported_features |= CoverEntityFeature.SET_POSITION

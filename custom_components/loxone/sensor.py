@@ -10,27 +10,15 @@ from dataclasses import dataclass
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.sensor import (
-    CONF_STATE_CLASS,
-    PLATFORM_SCHEMA,
-    SensorDeviceClass,
-    SensorEntity,
-    SensorEntityDescription,
-    SensorStateClass,
-)
+from homeassistant.components.sensor import (CONF_STATE_CLASS, PLATFORM_SCHEMA,
+                                             SensorDeviceClass, SensorEntity,
+                                             SensorEntityDescription,
+                                             SensorStateClass)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_DEVICE_CLASS,
-    CONF_NAME,
-    CONF_UNIT_OF_MEASUREMENT,
-    CONF_VALUE_TEMPLATE,
-    LIGHT_LUX,
-    STATE_UNKNOWN,
-    UnitOfEnergy,
-    UnitOfPower,
-    UnitOfSpeed,
-    UnitOfTemperature,
-)
+from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
+                                 CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
+                                 LIGHT_LUX, STATE_UNKNOWN, UnitOfEnergy,
+                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo

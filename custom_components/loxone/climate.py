@@ -9,11 +9,8 @@ import logging
 from abc import ABC
 
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
-from homeassistant.components.climate.const import (
-    ClimateEntityFeature,
-    HVACMode,
-    HVACAction,
-)
+from homeassistant.components.climate.const import (ClimateEntityFeature,
+                                                    HVACAction, HVACMode)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
@@ -24,7 +21,8 @@ from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
 from .const import CONF_HVAC_AUTO_MODE, DOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -310,9 +308,8 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 # ------------------ AC CONTROL --------------------------------------------------------
 class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     """Representation of a ACControl Loxone device."""
-    _attr_supported_features = (
-        ClimateEntityFeature.TARGET_TEMPERATURE
-    )
+
+    _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
 
     def __init__(self, **kwargs):
         _LOGGER.debug(f"Input AcControl: {kwargs}")

@@ -3,10 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.fan import (
-    FanEntity,
-    FanEntityFeature,
-)
+from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
@@ -18,7 +15,8 @@ from voluptuous import Any, Optional
 from . import LoxoneEntity
 from .binary_sensor import LoxoneDigitalSensor
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_hass
 from .sensor import Loxonesensor
 

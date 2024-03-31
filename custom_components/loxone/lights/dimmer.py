@@ -40,7 +40,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         if self._light_controller_id:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, self._light_controller_id)},
-                name=f"{DOMAIN} {self._name}",
+                name=f"{self._name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
                 model="LightControllerV2",
@@ -48,7 +48,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         else:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, self.unique_id)},
-                name=f"{DOMAIN} {self._name}",
+                name=f"{self._name}",
                 manufacturer="Loxone",
                 suggested_area=self.room,
                 model="Dimmer",
@@ -72,6 +72,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         return self._attr_unique_id
 
     async def async_turn_on(self, **kwargs) -> None:
+        print("async_turn_on dimmer", kwargs)
         if ATTR_BRIGHTNESS in kwargs:
             self.hass.bus.async_fire(
                 SENDDOMAIN,
@@ -127,3 +128,29 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
     def icon(self):
         """Return the sensor icon."""
         return "mdi:brightness-6"
+
+
+class EIBDimmer(LoxoneDimmer):
+    def __init__(self, **kwargs):
+        LoxoneDimmer.__init__(self, **kwargs)
+        if self._light_controller_id:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, self._light_controller_id)},
+                name=f"{self._name}",
+                manufacturer="Loxone",
+                suggested_area=self.room,
+                model="LightControllerV2",
+            )
+        else:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, self.unique_id)},
+                name=f"{self._name}",
+                manufacturer="Loxone",
+                suggested_area=self.room,
+                model="EIBDimmer",
+            )
+
+    @cached_property
+    def icon(self):
+        """Return the sensor icon."""
+        return "mdi:brightness-4"

@@ -10,7 +10,7 @@ from typing import Final
 from homeassistant.const import Platform
 
 LOXONE_PLATFORMS: Final[list[Platform]] = [
-    # Platform.SENSOR,
+    #Platform.SENSOR,
     # Platform.BINARY_SENSOR,
     # Platform.SWITCH,
     # Platform.COVER,

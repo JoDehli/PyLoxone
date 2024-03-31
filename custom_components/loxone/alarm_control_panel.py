@@ -5,25 +5,14 @@ import re
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from homeassistant.components.alarm_control_panel import (
-    PLATFORM_SCHEMA,
-    AlarmControlPanelEntity,
-)
+    PLATFORM_SCHEMA, AlarmControlPanelEntity)
 from homeassistant.components.alarm_control_panel.const import (
-    AlarmControlPanelEntityFeature,
-    CodeFormat,
-)
+    AlarmControlPanelEntityFeature, CodeFormat)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_CODE,
-    CONF_NAME,
-    CONF_PASSWORD,
-    CONF_USERNAME,
-    STATE_ALARM_ARMED_AWAY,
-    STATE_ALARM_ARMED_HOME,
-    STATE_ALARM_ARMING,
-    STATE_ALARM_DISARMED,
-    STATE_ALARM_TRIGGERED,
-)
+from homeassistant.const import (CONF_CODE, CONF_NAME, CONF_PASSWORD,
+                                 CONF_USERNAME, STATE_ALARM_ARMED_AWAY,
+                                 STATE_ALARM_ARMED_HOME, STATE_ALARM_ARMING,
+                                 STATE_ALARM_DISARMED, STATE_ALARM_TRIGGERED)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -31,7 +20,8 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DOMAIN, EVENT, SECUREDSENDDOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
+from .helpers import (get_all, get_cat_name_from_cat_uuid,
+                      get_room_name_from_room_uuid)
 from .miniserver import get_miniserver_from_hass
 
 DEFAULT_NAME = "Loxone Alarm"
@@ -299,6 +289,3 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         if isinstance(self._code, str) and re.search("^\\d+$", self._code):
             return CodeFormat.NUMBER
         return CodeFormat.TEXT
-
-
-
