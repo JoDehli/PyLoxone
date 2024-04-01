@@ -10,16 +10,16 @@ from typing import Final
 from homeassistant.const import Platform
 
 LOXONE_PLATFORMS: Final[list[Platform]] = [
-    #Platform.SENSOR,
-    # Platform.BINARY_SENSOR,
-    # Platform.SWITCH,
-    # Platform.COVER,
-    # Platform.FAN,
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.SWITCH,
+    Platform.COVER,
+    Platform.FAN,
     Platform.LIGHT,
-    # Platform.CLIMATE,
-    # Platform.ALARM_CONTROL_PANEL,
-    # Platform.MEDIA_PLAYER
-    # Platform.NUMBER,
+    Platform.CLIMATE,
+    Platform.ALARM_CONTROL_PANEL,
+    Platform.MEDIA_PLAYER,
+    Platform.NUMBER,
 ]
 
 LOXONE_DEFAULT_PORT = 8080

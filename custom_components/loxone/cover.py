@@ -392,14 +392,6 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         )
 
     @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, n):
-        self._name = n
-
-    @property
     def supported_features(self):
         """Flag supported features."""
         supported_features = (

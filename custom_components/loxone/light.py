@@ -10,6 +10,7 @@ from .helpers import (get_all, get_cat_name_from_cat_uuid,
                       get_room_name_from_room_uuid)
 from .lights.colorpickers import LumiTech, RGBColorPicker
 from .lights.dimmer import EIBDimmer, LoxoneDimmer
+from .lights.lightcontroller import LoxoneLightControllerV2
 from .lights.switch import LoxoneLightSwitch
 from .miniserver import get_miniserver_from_hass
 
@@ -66,6 +67,20 @@ async def async_setup_entry(
     color_pickers = []
 
     for light_controller in get_all(loxconfig, "LightControllerV2"):
+        light_controller.update(
+            {
+                "room": get_room_name_from_room_uuid(
+                    loxconfig, light_controller.get("room", "")
+                ),
+                "cat": get_cat_name_from_cat_uuid(
+                    loxconfig, light_controller.get("cat", "")
+                ),
+                "async_add_devices": async_add_entities,
+            }
+        )
+        new_light_controller = LoxoneLightControllerV2(**light_controller)
+        entites.append(new_light_controller)
+
         if generate_subcontrols and "subControls" in light_controller:
             for sub_control_uuid in light_controller["subControls"]:
                 if (
