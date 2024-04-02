@@ -65,7 +65,7 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
     """Representation of a loxone number"""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        LoxoneEntity.__init__(self, "Number", **kwargs)
         """Initialize the Loxone number."""
         self._state = STATE_UNKNOWN
         self._icon = None
@@ -137,17 +137,7 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
             "device_typ": self.type,
             "platform": "loxone",
         }
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
-        }
-
+        
     async def async_set_native_value(self, value: float):
         """Set new value."""
         self.hass.bus.async_fire(
