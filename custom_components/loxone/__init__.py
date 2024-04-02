@@ -9,7 +9,6 @@ import logging
 import re
 import sys
 import traceback
-from functools import cached_property
 
 import homeassistant.components.group as group
 import voluptuous as vol
@@ -18,7 +17,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
                                  EVENT_HOMEASSISTANT_START,
                                  EVENT_HOMEASSISTANT_STOP)
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
@@ -26,6 +25,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity import DeviceInfo
 
 from .api import LoxApp, LoxWs
 from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
@@ -412,23 +412,30 @@ class LoxoneEntity(Entity):
     @DynamicAttrs
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, model, **kwargs):
+        self._name = ""
+
         for key in kwargs:
             if not hasattr(self, key):
-                if key == "name":
-                    self._attr_name = kwargs[key]
-                else:
-                    setattr(self, key, kwargs[key])
+                setattr(self, key, kwargs[key])
             else:
                 try:
                     setattr(self, key, kwargs[key])
                 except AttributeError:
-                    _LOGGER.error(f"Could set {key} for {self.name}")
+                    _LOGGER.error(f"Could set {key} for {self._name}")
                 except (Exception,):
                     traceback.print_exc()
                     sys.exit(-1)
-        self._attr_name = self.name
+
         self.listener = None
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=f"{DOMAIN} {self.name}",
+            manufacturer="Loxone",
+            suggested_area=self.room,
+            model=model,
+        )
 
     async def async_added_to_hass(self):
         """Subscribe to device events."""
@@ -441,13 +448,13 @@ class LoxoneEntity(Entity):
     async def event_handler(self, e):
         pass
 
-    @cached_property
+    @property
     def name(self):
-        return self._attr_name
+        return self._name
 
-    # @name.setter
-    # def name(self, n):
-    #     self._attr_name = n
+    @name.setter
+    def name(self, n):
+        self._name = n
 
     @staticmethod
     def _clean_unit(lox_format):
@@ -467,7 +474,7 @@ class LoxoneEntity(Entity):
             return search.group(0).strip()
         return None
 
-    @cached_property
+    @property
     def unique_id(self) -> str:
         """Return a unique ID."""
         return self.uuidAction
