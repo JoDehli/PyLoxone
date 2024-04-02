@@ -65,7 +65,7 @@ class LoxoneText(LoxoneEntity, TextEntity):
     """Representation of a loxone text"""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        LoxoneEntity.__init__(self, "Text", **kwargs)
         """Initialize the Loxone text."""
         self._state = STATE_UNKNOWN
         self._icon = None
@@ -119,16 +119,6 @@ class LoxoneText(LoxoneEntity, TextEntity):
             "category": self.cat,
             "device_typ": self.type,
             "platform": "loxone",
-        }
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
         }
 
     async def async_set_value(self, value: str):
