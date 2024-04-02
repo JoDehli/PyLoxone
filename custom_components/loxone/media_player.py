@@ -92,20 +92,12 @@ class LoxoneAudioZoneV2(LoxoneEntity, MediaPlayerEntity):
 
     def __init__(self, **kwargs):
         _LOGGER.debug(f"Input AudioZoneV2: {kwargs}")
-        LoxoneEntity.__init__(self, **kwargs)
+        LoxoneEntity.__init__(self, "AudioZoneV2", **kwargs)
         self.hass = kwargs["hass"]
 
         self._attr_device_class = MediaPlayerDeviceClass.SPEAKER
         self._state = play_state_to_media_player_state(DEFAULT_AUDIO_ZONE_V2_PLAY_STATE)
         self._volume = 0
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model=self.typ,
-        )
 
     async def event_handler(self, event):
         should_update = False
