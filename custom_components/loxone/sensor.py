@@ -10,15 +10,27 @@ from dataclasses import dataclass
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.sensor import (CONF_STATE_CLASS, PLATFORM_SCHEMA,
-                                             SensorDeviceClass, SensorEntity,
-                                             SensorEntityDescription,
-                                             SensorStateClass)
+from homeassistant.components.sensor import (
+    CONF_STATE_CLASS,
+    PLATFORM_SCHEMA,
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
-                                 CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
-                                 LIGHT_LUX, STATE_UNKNOWN, UnitOfEnergy,
-                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature)
+from homeassistant.const import (
+    CONF_DEVICE_CLASS,
+    CONF_NAME,
+    CONF_UNIT_OF_MEASUREMENT,
+    CONF_VALUE_TEMPLATE,
+    LIGHT_LUX,
+    STATE_UNKNOWN,
+    UnitOfEnergy,
+    UnitOfPower,
+    UnitOfSpeed,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -264,7 +276,8 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
     def __init__(self, version_list, **kwargs):
-        super().__init__(**kwargs)
+        self.room = "Miniserver"
+        super().__init__("Version", **kwargs)
         try:
             self.version = ".".join([str(x) for x in version_list])
         except Exception:
@@ -298,7 +311,7 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
     """Representation of a Text Sensor."""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        LoxoneEntity.__init__(self, "Text", **kwargs)
         self._state = STATE_UNKNOWN
 
     async def event_handler(self, e):
@@ -341,7 +354,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
     """Representation of a Loxone Sensor."""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        LoxoneEntity.__init__(self, "Sensor analog", **kwargs)
         """Initialize the sensor."""
         self._format = self._get_format(self.details["format"])
         self._attr_should_poll = False
@@ -374,14 +387,6 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
         _uuid = self.unique_id
         if self._parent_id:
             _uuid = self._parent_id
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, _uuid)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="Sensor analog",
-        )
 
     def _get_entity_description(self) -> SensorEntityDescription | None:
         """Return the sensor entity description."""
