@@ -36,26 +36,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-
 async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
-    async_add_devices: AddEntitiesCallback,
+    async_add_entities: AddEntitiesCallback,
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
-    """Set up Loxone Sensor from yaml"""
-    value_template = config.get(CONF_VALUE_TEMPLATE)
-    if value_template is not None:
-        value_template.hass = hass
-
-    # Devices from yaml
-    if config != {}:
-        # Here setup all Sensors in Yaml-File
-        new_sensor = LoxoneCustomBinarySensor(**config)
-        async_add_devices([new_sensor])
-        return True
+    """Set up Loxone Binary sensors."""
     return True
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -70,39 +58,28 @@ async def async_setup_entry(
     for sensor in get_all(loxconfig, "InfoOnlyDigital"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         sensor.update({"typ": "digital"})
-        digital_sensors.append(LoxoneDigitalSensor(**sensor))
+        digital_sensors.append(LoxoneDigitalSensor("InfoOnlyDigital", **sensor))
 
     for sensor in get_all(loxconfig, "PresenceDetector"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         sensor.update({"typ": "presence"})
-        digital_sensors.append(LoxoneDigitalSensor(**sensor))
+        digital_sensors.append(LoxoneDigitalSensor("PresenceDetector", **sensor))
 
     for sensor in get_all(loxconfig, "SmokeAlarm"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         sensor.update({"typ": "smoke"})
-        digital_sensors.append(LoxoneDigitalSensor(**sensor))
+        digital_sensors.append(LoxoneDigitalSensor("SmokeAlarm", **sensor))
 
-    @callback
-    def async_add_binary_sensors(_):
-        async_add_entities(_, True)
-
-    miniserver.listeners.append(
-        async_dispatcher_connect(
-            hass,
-            miniserver.async_signal_new_device("sensors"),
-            async_add_binary_sensors,
-        )
-    )
     async_add_entities(digital_sensors)
 
 
 class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
     """Representation of a binary Loxone device."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, model, **kwargs):
         self._from_loxone_config = False
 
-        LoxoneEntity.__init__(self, **kwargs)
+        LoxoneEntity.__init__(self, model, **kwargs)
 
         if (
             "typ" in kwargs
@@ -150,11 +127,6 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
                 "device_typ": self.device_class,
             }
 
-    # @property
-    # def name(self):
-    #    """Return the name of the sensor."""
-    #    return self._name
-
     @property
     def icon(self):
         if self._from_loxone_config:
@@ -196,28 +168,6 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
             setattr(self, "_device_class", device_class)
         else:
             self._device_class = device_class
-
-    @property
-    def device_info(self):
-        _uuid = self.unique_id
-
-        if self._parent_id:
-            _uuid = self._parent_id
-
-        if self._from_loxone_config:
-            return {
-                "identifiers": {(DOMAIN, _uuid)},
-                "name": self.name,
-                "manufacturer": "Loxone",
-                "model": self.type,
-                "suggested_area": self.room,
-            }
-        else:
-            return {
-                "identifiers": {(DOMAIN, _uuid)},
-                "name": self.name,
-                "manufacturer": "Loxone",
-            }
 
     async def event_handler(self, e):
         if self._state_uuid in e.data:
