@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.fan import FanEntity, FanEntityFeature
+from homeassistant.components.fan import (
+    FanEntity,
+    FanEntityFeature,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
@@ -15,8 +18,7 @@ from voluptuous import Any, Optional
 from . import LoxoneEntity
 from .binary_sensor import LoxoneDigitalSensor
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid
 from .miniserver import get_miniserver_from_hass
 from .sensor import Loxonesensor
 
@@ -146,7 +148,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
 
     def __init__(self, **kwargs) -> None:
         """Initialize the fan."""
-        LoxoneEntity.__init__(self, **kwargs)
+        LoxoneEntity.__init__(self, "Fan", **kwargs)
 
         self._device_class = None
         self._state = STATE_UNKNOWN
@@ -156,14 +158,6 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
         self._stateAttribUuids = kwargs["states"]
         self._stateAttribValues = {}
         self._details = kwargs["details"]
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="Fan",
-        )
 
     @property
     def extra_state_attributes(self):
