@@ -161,7 +161,7 @@ class LoxWs:
         user=None,
         password=None,
         host="http://192.168.1.225 ",
-        port="8080",
+        port="80",
         token_persist_filename=None,
         loxconfig=None,
         loxone_url=None,
