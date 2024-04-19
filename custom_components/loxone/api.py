@@ -220,10 +220,16 @@ class LoxWs:
         return self._iv
 
     async def refresh_token(self):
-        while True:
-            seconds_to_refresh = self._token.get_seconds_to_expire()
-            await asyncio.sleep(seconds_to_refresh)
-            await self._refresh_token()
+        try:
+            while True:
+                seconds_to_refresh = self._token.get_seconds_to_expire()
+                await asyncio.sleep(seconds_to_refresh)
+                # await self._refresh_token()
+                self.delete_token()
+                self._token = LxToken()
+                raise ConnectionResetError
+        except Exception as e:
+            raise e
 
     async def decrypt(self, message):
         pass
@@ -287,14 +293,23 @@ class LoxWs:
         keep_alive_task = asyncio.ensure_future(self.keep_alive(KEEP_ALIVE_PERIOD))
         refresh_token_task = asyncio.ensure_future(self.refresh_token())
 
+        # consumer_task  = asyncio.create_task(self.ws_listen(), name="consumer_task")
+        # keep_alive_task  = asyncio.create_task(self.keep_alive(KEEP_ALIVE_PERIOD), name="keepalive")
+        # refresh_token_task = asyncio.create_task(self.refresh_token(), name="refresh_token")
+
         self._pending.append(consumer_task)
         self._pending.append(keep_alive_task)
         self._pending.append(refresh_token_task)
 
-        done, pending = await asyncio.wait(
-            [consumer_task, keep_alive_task, refresh_token_task],
-            return_when=asyncio.FIRST_COMPLETED,
-        )
+        done, pending = await asyncio.wait(self._pending, return_when=asyncio.FIRST_EXCEPTION)
+
+        # Check if there are any exceptions
+        for task in done:
+            try:
+                await task  # Raise exception if occurred
+            except Exception as e:
+                self.state = ""
+                _LOGGER.debug(f"Exception caught: {e}")
 
         for task in pending:
             task.cancel()
@@ -305,7 +320,7 @@ class LoxWs:
     async def reconnect(self):
         # for task in self._pending:
         #     task.cancel()
-        #
+
         self._pending = []
         for i in range(self.connect_retries):
             _LOGGER.debug("reconnect: {} from {}".format(i + 1, self.connect_retries))
@@ -329,11 +344,14 @@ class LoxWs:
             return -1
 
     async def keep_alive(self, second):
-        while True:
-            await asyncio.sleep(second)
-            if self._encryption_ready:
-                await self._ws.send("keepalive")
-
+        try:
+            while True:
+                await asyncio.sleep(second)
+                if self._encryption_ready:
+                    async with asyncio.Lock():
+                        await self._ws.send("keepalive")
+        except Exception as e:
+            raise e
     async def send_secured(self, device_uuid, value, code):
         from Crypto.Hash import HMAC, SHA1, SHA256
 
@@ -484,13 +502,15 @@ class LoxWs:
                 message = await self._ws.recv()
                 await self._async_process_message(message)
                 await asyncio.sleep(0)
-        except:
+        except Exception as e:
             await asyncio.sleep(5)
             if self._ws.closed and self._ws.close_code in [4004, 4005]:
                 self.delete_token()
 
             elif self._ws.closed and self._ws.close_code:
                 await self.reconnect()
+            else:
+                raise e
 
     async def _async_process_message(self, message):
         """Process the messages."""
