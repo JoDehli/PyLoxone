@@ -8,7 +8,7 @@ from homeassistant.components.light import (ATTR_BRIGHTNESS,
                                             LightEntity)
 from homeassistant.helpers.device_registry import DeviceInfo
 
-from PyLoxone.custom_components.loxone import LoxoneEntity
+from .. import LoxoneEntity
 
 from ..const import DOMAIN, SENDDOMAIN
 from ..helpers import hass_to_lox, lox_to_hass

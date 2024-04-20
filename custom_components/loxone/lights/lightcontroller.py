@@ -6,7 +6,7 @@ from homeassistant.components.light import (ATTR_EFFECT, ColorMode,
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers.entity import DeviceInfo
 
-from PyLoxone.custom_components.loxone import LoxoneEntity
+from .. import LoxoneEntity
 
 from ..const import DOMAIN, SENDDOMAIN, STATE_OFF
 
