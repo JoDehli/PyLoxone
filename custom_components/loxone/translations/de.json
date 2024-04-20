@@ -1,42 +1,71 @@
 {
-    "config": {
-        "abort": {
-            "single_instance_allowed": "Bereits konfiguriert"
-        },
-        "step": {
-            "user": {
-                "title": "Loxone",
-                "description": "Loxone Konfiguration",
-                "data": {
-                    "host": "Host",
-                    "username": "Benutzer",
-                    "port": "Port",
-                    "host": "Miniserver Ip",
-                    "password": "Password",
-                    "generate_scenes": "Scenen generieren",
-                    "generate_lightcontroller_subcontrols": "Subcontrols für LightcontrollerV2 erzeugen",
-                    "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
-                }
-            }
-        }
+  "config": {
+    "abort": {
+      "single_instance_allowed": "Bereits konfiguriert"
     },
-      "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "host": "Host",
-                    "username": "Benutzer",
-                    "port": "Port",
-                    "host": "Miniserver Ip",
-                    "password": "Password",
-                    "generate_scenes": "Scenen generieren",
-                    "generate_lightcontroller_subcontrols": "Subcontrols für LightcontrollerV2 erzeugen",
-                    "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
-                },
-                "description": "PyLoxone Einstellungen editieren:",
-                "title": "PyLoxone Einstellungen"
-            }
+    "step": {
+      "user": {
+        "title": "Loxone",
+        "description": "Loxone Konfiguration",
+        "data": {
+          "username": "Benutzer",
+          "port": "Port",
+          "host": "Miniserver Ip",
+          "password": "Password",
+          "generate_scenes": "Scenen generieren",
+          "generate_lightcontroller_subcontrols": "Subcontrols für LightcontrollerV2 erzeugen",
+          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
         }
+      }
     }
-
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "username": "Benutzer",
+          "port": "Port",
+          "host": "Miniserver Ip",
+          "password": "Password",
+          "generate_scenes": "Scenen generieren",
+          "generate_lightcontroller_subcontrols": "Subcontrols für LightcontrollerV2 erzeugen",
+          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+        },
+        "description": "PyLoxone Einstellungen editieren:",
+        "title": "PyLoxone Einstellungen"
+      }
+    }
+  },
+  "services": {
+    "event_websocket_command": {
+      "name": "Websocket Kommando an Server senden",
+      "description": "Sende Websocket-Befehle an den Loxone-Server. Du kannst einen Befehl an den Miniserver mithilfe einer Entität oder mithilfe einer UUID senden. Wenn du beides angibst, wird der Befehl an die Entität gesendet. Weitere Informationen und Befehle findest du unter https://www.loxone.com/dede/kb/api/",
+      "fields": {
+        "uuid": {
+          "name": "UUID",
+          "description": "UUID für die Entität, and die du einen Befehl senden möchtest."
+        },
+        "device": {
+          "name": "Gerät",
+          "description": "Gerät, an den du einen Befehl senden möchtest."
+        },
+        "value": {
+          "name": "Befehl",
+          "description": "Befehl, den du senden möchtest."
+        }
+      }
+    },
+    "enable_sun_automation": {
+        "name": "Sonnenautomatisierung aktivieren",
+        "description": "Sonnenautomatisierung für Loxone Jalousie aktivieren"
+    },
+    "disable_sun_automation": {
+        "name": "Sonnenautomatisierung deaktivieren",
+        "description": "Sonnenautomatisierung für Loxone Jalousie deaktivieren"
+    },
+    "quick_shade": {
+        "name": "Beschattung ",
+        "description": "Loxone Jalousie in Schattenposition bringen. Position wird von Loxone abhängig von mehreren Werten festgelegt."
+    }
+  }
 }
