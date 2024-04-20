@@ -1,4 +1,5 @@
 """Support for Loxone Audio zone media player."""
+
 from __future__ import annotations
 
 import logging

@@ -4,6 +4,7 @@ from typing import Any
 from homeassistant.components.light import ColorMode, LightEntity
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers.entity import DeviceInfo, ToggleEntity
+
 from PyLoxone.custom_components.loxone import LoxoneEntity
 
 from ..const import DOMAIN, SENDDOMAIN

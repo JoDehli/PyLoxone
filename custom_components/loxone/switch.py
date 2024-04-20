@@ -4,6 +4,7 @@ Loxone Switches
 For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
+
 import logging
 
 from homeassistant.components.switch import SwitchEntity

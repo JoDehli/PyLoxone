@@ -4,6 +4,7 @@ Loxone Sensors
 For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
+
 import logging
 import re
 from dataclasses import dataclass

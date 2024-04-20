@@ -4,6 +4,7 @@ Loxone Api
 For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
+
 import asyncio
 import binascii
 import datetime
@@ -301,7 +302,9 @@ class LoxWs:
         self._pending.append(keep_alive_task)
         self._pending.append(refresh_token_task)
 
-        done, pending = await asyncio.wait(self._pending, return_when=asyncio.FIRST_EXCEPTION)
+        done, pending = await asyncio.wait(
+            self._pending, return_when=asyncio.FIRST_EXCEPTION
+        )
 
         # Check if there are any exceptions
         for task in done:
@@ -352,6 +355,7 @@ class LoxWs:
                         await self._ws.send("keepalive")
         except Exception as e:
             raise e
+
     async def send_secured(self, device_uuid, value, code):
         from Crypto.Hash import HMAC, SHA1, SHA256
 

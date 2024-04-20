@@ -4,6 +4,7 @@ Component to create an interface to the Loxone Miniserver.
 For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
+
 import asyncio
 import logging
 import re

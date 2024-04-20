@@ -1,4 +1,5 @@
 """Interfaces with Alarm.com alarm control panels."""
+
 import logging
 import re
 

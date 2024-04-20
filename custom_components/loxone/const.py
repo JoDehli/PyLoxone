@@ -4,6 +4,7 @@ Loxone constants
 For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
+
 # Loxone constants
 from typing import Final
 

@@ -4,6 +4,7 @@ Loxone Numbers
 For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
+
 import logging
 
 from homeassistant.components.number import NumberEntity
