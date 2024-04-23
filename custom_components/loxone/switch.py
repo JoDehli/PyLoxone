@@ -115,7 +115,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch or pushbutton"""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        LoxoneEntity.__init__(self, "TimedSwitch", **kwargs)
         self._icon = None
         self._assumed = False
         self._state = STATE_UNKNOWN
@@ -131,14 +131,6 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             self._deactivation_delay_total = self.states["deactivationDelayTotal"]
         else:
             self._deactivation_delay_total = ""
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model=self.type,
-        )
 
     @property
     def should_poll(self):
@@ -221,7 +213,7 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch or pushbutton"""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        LoxoneEntity.__init__(self, "Switch", **kwargs)
         """Initialize the Loxone switch."""
         self._state = STATE_UNKNOWN
         self._icon = None
@@ -296,16 +288,6 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
             "platform": "loxone",
         }
 
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
-        }
-
 
 class LoxoneIntercomSubControl(LoxoneSwitch):
     def __init__(self, **kwargs):
@@ -330,14 +312,4 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
             "category": self.cat,
             "device_typ": self.type,
             "platform": "loxone",
-        }
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
         }
