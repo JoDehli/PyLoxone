@@ -253,7 +253,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
     def set_percentage(self, percentage: int) -> None:
         """Set the speed percentage of the fan."""
         interval = 3600
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             SENDDOMAIN,
             dict(
                 uuid=self.uuidAction,

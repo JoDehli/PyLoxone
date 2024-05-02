@@ -86,7 +86,7 @@ class Loxonelightscene(Scene):
 
     def activate(self):
         """Activate scene. Try to get entities into requested state."""
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             SENDDOMAIN,
             dict(uuid=self.uuidAction, value="changeTo/{}".format(self.mood_id)),
         )

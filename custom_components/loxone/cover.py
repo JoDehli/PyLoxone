@@ -15,8 +15,7 @@ from homeassistant.components.cover import (ATTR_POSITION, ATTR_TILT_POSITION,
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers import entity_platform, service
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -179,28 +178,24 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
         """Open the cover."""
         if self._position == 100.0:
             return
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="open"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="open"))
         self.schedule_update_ha_state()
 
     def close_cover(self, **kwargs):
         """Close the cover."""
         if self._position == 0:
             return
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="close"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="close"))
         self.schedule_update_ha_state()
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
         if self.is_closing:
-            self.hass.bus.async_fire(
-                SENDDOMAIN, dict(uuid=self.uuidAction, value="open")
-            )
+            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="open"))
             return
 
         if self.is_opening:
-            self.hass.bus.async_fire(
-                SENDDOMAIN, dict(uuid=self.uuidAction, value="close")
-            )
+            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="close"))
             return
 
     async def event_handler(self, event):
@@ -314,32 +309,26 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         return self._closed
 
     def open_cover(self, **kwargs: Any) -> None:
-        self.hass.bus.async_fire(
-            SENDDOMAIN, dict(uuid=self.uuidAction, value="fullopen")
-        )
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="fullopen"))
 
     def close_cover(self, **kwargs: Any) -> None:
-        self.hass.bus.async_fire(
-            SENDDOMAIN, dict(uuid=self.uuidAction, value="fullclose")
-        )
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="fullclose"))
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
 
         if self.is_closing:
-            self.hass.bus.async_fire(
-                SENDDOMAIN, dict(uuid=self.uuidAction, value="fullopen")
-            )
+            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="fullopen"))
 
         elif self.is_opening:
-            self.hass.bus.async_fire(
+            self.hass.bus.fire(
                 SENDDOMAIN, dict(uuid=self.uuidAction, value="fullclose")
             )
 
     def set_cover_position(self, **kwargs):
         """Return the current tilt position of the cover."""
         position = kwargs.get(ATTR_POSITION)
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             SENDDOMAIN,
             dict(uuid=self.uuidAction, value="moveToPosition/{}".format(position)),
         )
@@ -571,9 +560,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             self.schedule_update_ha_state()
             return
 
-        self.hass.bus.async_fire(
-            SENDDOMAIN, dict(uuid=self.uuidAction, value="FullDown")
-        )
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="FullDown"))
         self.schedule_update_ha_state()
 
     def open_cover(self, **kwargs):
@@ -584,36 +571,36 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             self._closed = False
             self.schedule_update_ha_state()
             return
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="FullUp"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="FullUp"))
         self.schedule_update_ha_state()
 
     def stop_cover(self, **kwargs):
         """Stop the cover."""
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stop"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stop"))
 
     def set_cover_position(self, **kwargs):
         """Return the current tilt position of the cover."""
         position = kwargs.get(ATTR_POSITION)
         mapped_pos = map_range(position, 0, 100, 100, 0)
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualPosition/{mapped_pos}")
         )
 
     def open_cover_tilt(self, **kwargs):
         """Close the cover tilt."""
         position = 0.0 + random.uniform(0.000000001, 0.00900000)
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}")
         )
 
     def stop_cover_tilt(self, **kwargs):
         """Stop the cover."""
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stop"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stop"))
 
     def close_cover_tilt(self, **kwargs):
         """Close the cover tilt."""
         position = 100.0 + random.uniform(0.000000001, 0.00900000)
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}")
         )
 
@@ -622,18 +609,18 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         tilt_position = kwargs.get(ATTR_TILT_POSITION)
         mapped_pos = map_range(tilt_position, 0, 100, 100, 0)
         position = mapped_pos + random.uniform(0.000000001, 0.00900000)
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             SENDDOMAIN, dict(uuid=self.uuidAction, value=f"manualLamelle/{position}")
         )
 
     def enable_sun_automation(self, **kwargs):
         """Set sun automation."""
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="auto"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="auto"))
 
     def disable_sun_automation(self, **kwargs):
         """Set sun automation."""
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="NoAuto"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="NoAuto"))
 
     def quick_shade(self, **kwargs: Any) -> None:
         """Set sun automation."""
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="shade"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="shade"))

@@ -162,13 +162,13 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
 
     def turn_on(self, **kwargs):
         """Turn the switch on."""
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse"))
         self._state = True
         self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="off"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="off"))
         self._state = False
         self.schedule_update_ha_state()
 
@@ -251,13 +251,11 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
         """Turn the switch on."""
         if not self._state:
             if self.type == "Pushbutton":
-                self.hass.bus.async_fire(
+                self.hass.bus.fire(
                     SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse")
                 )
             else:
-                self.hass.bus.async_fire(
-                    SENDDOMAIN, dict(uuid=self.uuidAction, value="On")
-                )
+                self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
             self._state = True
             self.schedule_update_ha_state()
 
@@ -265,13 +263,11 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
         """Turn the device off."""
         if self._state:
             if self.type == "Pushbutton":
-                self.hass.bus.async_fire(
+                self.hass.bus.fire(
                     SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse")
                 )
             else:
-                self.hass.bus.async_fire(
-                    SENDDOMAIN, dict(uuid=self.uuidAction, value="Off")
-                )
+                self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="Off"))
             self._state = False
             self.schedule_update_ha_state()
 
@@ -313,7 +309,7 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
 
     def turn_on(self, **kwargs):
         """Turn the switch on."""
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
         self._state = True
         self.schedule_update_ha_state()
 

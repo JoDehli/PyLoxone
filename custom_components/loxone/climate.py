@@ -199,7 +199,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         if (
             self.get_state_value("operatingMode") > 2
         ):  # Set manual temp if any of the manual modes selected
-            self.hass.bus.async_fire(
+            self.hass.bus.fire(
                 SENDDOMAIN,
                 dict(
                     uuid=self.uuidAction,
@@ -210,7 +210,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             new_offset = kwargs["temperature"] - self.get_state_value(
                 "comfortTemperature"
             )
-            self.hass.bus.async_fire(
+            self.hass.bus.fire(
                 SENDDOMAIN,
                 dict(uuid=self.uuidAction, value=f"setComfortModeTemp/{new_offset}"),
             )
@@ -282,7 +282,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             self._autoMode if hvac_mode == HVACMode.AUTO else OPMODETOLOXONE[hvac_mode]
         )
 
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             SENDDOMAIN,
             dict(uuid=self.uuidAction, value=f"setOperatingMode/{target_mode}"),
         )
@@ -299,7 +299,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             (mode["id"] for mode in self._modeList if mode["name"] == preset_mode), None
         )
         if mode_id is not None:
-            self.hass.bus.async_fire(
+            self.hass.bus.fire(
                 SENDDOMAIN, dict(uuid=self.uuidAction, value=f"override/{mode_id}")
             )
             self.schedule_update_ha_state()
@@ -372,7 +372,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
 
     def set_temperature(self, **kwargs):
         """Set new target temperature"""
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             SENDDOMAIN,
             dict(
                 uuid=self.uuidAction,
@@ -392,7 +392,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
 
     def set_hvac_mode(self, hvac_mode):
         """Set new target hvac mode."""
-        self.hass.bus.async_fire(
+        self.hass.bus.fire(
             SENDDOMAIN,
             dict(
                 uuid=self.uuidAction,

@@ -196,7 +196,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             self.hass.bus.async_fire(
                 SENDDOMAIN, dict(uuid=self.uuidAction, value="off")
             )
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
     async def async_alarm_arm_home(self, code=None):
         """Send arm hom command."""
@@ -208,7 +208,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             self.hass.bus.async_fire(
                 SENDDOMAIN, dict(uuid=self.uuidAction, value="on/0")
             )
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
     async def async_alarm_arm_away(self, code=None):
         """Send arm away command."""
@@ -220,7 +220,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             self.hass.bus.async_fire(
                 SENDDOMAIN, dict(uuid=self.uuidAction, value="on/1")
             )
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
     def async_alarm_night_away(self, code=None):
         """Send arm away command."""
@@ -230,9 +230,9 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             )
         else:
             self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
-    def alarm_trigger(self, code=None):
+    def async_alarm_trigger(self, code=None):
         """Send alarm trigger command.
 
         This method must be run in the event loop and returns a coroutine.
@@ -243,7 +243,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             )
         else:
             self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
     def alarm_arm_custom_bypass(self, code=None):
         pass
