@@ -428,7 +428,7 @@ class LoxoneEntity(Entity):
                 except (Exception,):
                     traceback.print_exc()
                     sys.exit(-1)
-        self._attr_name = self.name
+
         self.listener = None
 
     async def async_added_to_hass(self):

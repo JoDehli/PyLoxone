@@ -189,8 +189,8 @@ async def async_setup_entry(
 
 class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def __init__(self, **kwargs):
-        LoxoneEntity().__init__(**kwargs)
-        self._name = kwargs["name"]
+        super().__init__(**kwargs)
+        LoxoneEntity(**kwargs)
         if "uuidAction" in kwargs:
             self.uuidAction = kwargs["uuidAction"]
         else:
@@ -225,11 +225,6 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
                 self._state = data
 
             self.schedule_update_ha_state()
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self._name
 
     @property
     def native_value(self):
