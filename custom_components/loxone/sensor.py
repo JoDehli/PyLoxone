@@ -189,8 +189,8 @@ async def async_setup_entry(
 
 class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def __init__(self, **kwargs):
-        super(**kwargs)
         LoxoneEntity(**kwargs)
+        self._name = kwargs["name"]
         if "uuidAction" in kwargs:
             self.uuidAction = kwargs["uuidAction"]
         else:
