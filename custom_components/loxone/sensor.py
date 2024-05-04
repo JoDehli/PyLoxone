@@ -227,6 +227,11 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
             self.schedule_update_ha_state()
 
     @property
+    def name(self):
+        """Return the name of the sensor."""
+        return self._name
+    
+    @property
     def native_value(self):
         return self._state
 
