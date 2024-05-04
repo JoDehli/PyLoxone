@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import traceback
 
@@ -50,11 +49,11 @@ class MiniServer:
     def async_signal_new_device(self, device_type) -> str:
         """Gateway specific event to signal new device."""
         new_device = {
-            NEW_GROUP: f"loxone_new_group_{self.miniserverid}",
-            NEW_LIGHT: f"loxone_new_light_{self.miniserverid}",
-            NEW_SCENE: f"loxone_new_scene_{self.miniserverid}",
-            NEW_SENSOR: f"loxone_new_sensor_{self.miniserverid}",
-            NEW_COVERS: f"loxone_new_cover_{self.miniserverid}",
+            NEW_GROUP: f"loxone_new_group_{self.miniserver_id}",
+            NEW_LIGHT: f"loxone_new_light_{self.miniserver_id}",
+            NEW_SCENE: f"loxone_new_scene_{self.miniserver_id}",
+            NEW_SENSOR: f"loxone_new_sensor_{self.miniserver_id}",
+            NEW_COVERS: f"loxone_new_cover_{self.miniserver_id}",
         }
         return new_device[device_type]
 
@@ -67,49 +66,49 @@ class MiniServer:
     def serial(self):
         try:
             return self.lox_config.json["msInfo"]["serialNr"]
-        except:
+        except KeyError:
             return None
 
     @property
     def name(self):
         try:
             return self.lox_config.json["msInfo"]["msName"]
-        except:
+        except KeyError:
             return None
 
     @property
     def software_version(self):
         try:
             return ".".join([str(x) for x in self.lox_config.json["softwareVersion"]])
-        except:
+        except KeyError:
             return None
 
     @property
     def miniserver_type(self):
         try:
             return self.lox_config.json["msInfo"]["miniserverType"]
-        except:
+        except KeyError:
             return None
 
     @property
     def local_url(self):
         try:
             return self.lox_config.json["msInfo"]["localUrl"]
-        except:
+        except KeyError:
             return None
 
     @property
     def remote_url(self):
         try:
             return self.lox_config.json["msInfo"]["remoteUrl"]
-        except:
+        except KeyError:
             return None
 
     @property
     def project_name(self):
         try:
             return self.lox_config.json["msInfo"]["projectName"]
-        except:
+        except KeyError:
             return None
 
     @callback
@@ -131,7 +130,7 @@ class MiniServer:
             self.lox_config.host = self.config_entry.options[CONF_HOST]
             self.lox_config.port = self.config_entry.options[CONF_PORT]
 
-            request_code = await self.lox_config.getJson()
+            request_code = await self.lox_config.get_json()
 
             if request_code == 200 or request_code == "200":
                 self.api = LoxWs(
@@ -235,6 +234,6 @@ class MiniServer:
         return self.config_entry.data[CONF_HOST]
 
     @property
-    def miniserverid(self) -> str:
+    def miniserver_id(self) -> str:
         """Return the unique identifier of the Miniserver."""
         return self.config_entry.unique_id

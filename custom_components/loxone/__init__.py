@@ -19,7 +19,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
                                  EVENT_HOMEASSISTANT_START,
                                  EVENT_HOMEASSISTANT_STOP)
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
@@ -149,22 +149,23 @@ async def create_group_for_loxone_entities(hass, entities, name, object_id):
             object_id=object_id,
             order=None,
         )
-
     except HomeAssistantError as err:
         await group.Group.async_create_group(
             hass,
             name,
+            created_by_service=True,
             entity_ids=entities,
             icon=None,
             mode=None,
             object_id=object_id,
-            order=None,
+            order=None
         )
         _LOGGER.error("Can't create group '%s' with error: %s", name, err)
-    except Exception as err:
-        _LOGGER.info(
-            "Can't create group '%s'. Try to make at least one group manually. (https://www.home-assistant.io/integrations/group/)",
-            name,
+    except Exception as e:
+        _LOGGER.error(
+            "Can't create group '%s'. Try to make at least one group manually. ("
+            "https://www.home-assistant.io/integrations/group/)",
+            e,
         )
 
 
