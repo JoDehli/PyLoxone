@@ -189,27 +189,7 @@ async def async_setup_entry(
 
 class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def __init__(self, **kwargs):
-        LoxoneEntity(**kwargs)
-        self._name = kwargs["name"]
-        if "uuidAction" in kwargs:
-            self.uuidAction = kwargs["uuidAction"]
-        else:
-            self.uuidAction = ""
-        if "unit_of_measurement" in kwargs:
-            self._unit_of_measurement = kwargs["unit_of_measurement"]
-        else:
-            self._unit_of_measurement = ""
-
-        if "device_class" in kwargs:
-            self._device_class = kwargs["device_class"]
-        else:
-            self._device_class = None
-
-        if "state_class" in kwargs:
-            self._state_class = kwargs["state_class"]
-        else:
-            self._state_class = None
-
+        super().__init__(**kwargs)
         self._state = None
 
     async def event_handler(self, e):
@@ -224,13 +204,8 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
             else:
                 self._state = data
 
-            self.schedule_update_ha_state()
+            self.async_schedule_update_ha_state()
 
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self._name
-    
     @property
     def native_value(self):
         return self._state
@@ -257,11 +232,26 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
         return self._device_class
+    
+    @device_class.setter
+    def device_class(self, value):
+        self._device_class = value
 
     @property
     def state_class(self):
         return self._state_class
 
+    @state_class.setter
+    def state_class(self, value):
+        self._state_class = value
+
+    @property
+    def unit_of_measurement(self):
+        return self._unit_of_measurement
+    
+    @unit_of_measurement.setter
+    def unit_of_measurement(self, value):
+        self._unit_of_measurement = value
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
     def __init__(self, version_list, **kwargs):
@@ -406,7 +396,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
     async def event_handler(self, e):
         if self.uuidAction in e.data:
             self._attr_native_value = e.data[self.uuidAction]
-            self.schedule_update_ha_state()
+            self.async_schedule_update_ha_state()
 
     @property
     def extra_state_attributes(self):
