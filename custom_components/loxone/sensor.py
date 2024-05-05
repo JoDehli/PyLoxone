@@ -224,7 +224,7 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
             else:
                 self._state = data
 
-            self.schedule_update_ha_state()
+            self.async_schedule_update_ha_state()
 
     @property
     def native_value(self):
@@ -401,7 +401,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
     async def event_handler(self, e):
         if self.uuidAction in e.data:
             self._attr_native_value = e.data[self.uuidAction]
-            self.schedule_update_ha_state()
+            self.async_schedule_update_ha_state()
 
     @property
     def extra_state_attributes(self):
