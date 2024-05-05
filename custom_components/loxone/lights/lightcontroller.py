@@ -7,7 +7,6 @@ from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers.entity import DeviceInfo
 
 from .. import LoxoneEntity
-
 from ..const import DOMAIN, SENDDOMAIN, STATE_OFF
 
 
