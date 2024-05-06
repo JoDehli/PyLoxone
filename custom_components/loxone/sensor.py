@@ -8,6 +8,7 @@ https://github.com/JoDehli/PyLoxone
 import logging
 import re
 from dataclasses import dataclass
+from functools import cached_property
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -16,7 +17,7 @@ from homeassistant.components.sensor import (CONF_STATE_CLASS, PLATFORM_SCHEMA,
                                              SensorEntityDescription,
                                              SensorStateClass)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
+from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME, CONF_UNIQUE_ID,
                                  CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
                                  LIGHT_LUX, STATE_UNKNOWN, UnitOfEnergy,
                                  UnitOfPower, UnitOfSpeed, UnitOfTemperature)
@@ -189,28 +190,11 @@ async def async_setup_entry(
 
 class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def __init__(self, **kwargs):
+        self._attr_name = kwargs.pop("name", None)
+        self._attr_state_class = kwargs.pop("state_class", None)
+        self._attr_device_class = kwargs.pop("device_class", None)
+        self._attr_native_unit_of_measurement = kwargs.pop("unit_of_measurement", None)
         super().__init__(**kwargs)
-        LoxoneEntity(**kwargs)
-        if "uuidAction" in kwargs:
-            self.uuidAction = kwargs["uuidAction"]
-        else:
-            self.uuidAction = ""
-        if "unit_of_measurement" in kwargs:
-            self._unit_of_measurement = kwargs["unit_of_measurement"]
-        else:
-            self._unit_of_measurement = ""
-
-        if "device_class" in kwargs:
-            self._device_class = kwargs["device_class"]
-        else:
-            self._device_class = None
-
-        if "state_class" in kwargs:
-            self._state_class = kwargs["state_class"]
-        else:
-            self._state_class = None
-
-        self._state = None
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
@@ -218,24 +202,20 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
             if isinstance(data, (list, dict)):
                 data = str(data)
                 if len(data) >= 255:
-                    self._state = data[:255]
+                    self._attr_native_value = data[:255]
                 else:
-                    self._state = data
+                    self._attr_native_value = data
             else:
-                self._state = data
+                self._attr_native_value = data
 
             self.async_schedule_update_ha_state()
 
     @property
-    def native_value(self):
-        return self._state
-
-    @property
     def native_unit_of_measurement(self):
         """Return the unit of measurement of this entity, if any."""
-        if self._unit_of_measurement in ["None", "none", "-"]:
+        if self._attr_native_unit_of_measurement in ["None", "none", "-"]:
             return None
-        return self._unit_of_measurement
+        return self._attr_native_unit_of_measurement
 
     @property
     def extra_state_attributes(self):
@@ -248,46 +228,24 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
             "platform": "loxone",
         }
 
-    @property
-    def device_class(self):
-        """Return the class of this device, from component DEVICE_CLASSES."""
-        return self._device_class
-
-    @property
-    def state_class(self):
-        return self._state_class
-
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
+    _attr_should_poll = False
+    _attr_name = "Loxone Software Version"
+    _attr_icon = "mdi:information-outline"
+    _attr_unique_id = "loxone_software_version"
+
     def __init__(self, version_list, **kwargs):
         super().__init__(**kwargs)
         try:
-            self.version = ".".join([str(x) for x in version_list])
+            self._attr_native_value = ".".join([str(x) for x in version_list])
         except Exception:
-            self.version = STATE_UNKNOWN
+            self._attr_native_value = STATE_UNKNOWN
 
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return "Loxone Software Version"
-
-    @property
-    def should_poll(self):
-        return False
-
-    @property
-    def native_value(self):
-        return self.version
-
-    @property
-    def icon(self):
-        """Return the sensor icon."""
-        return "mdi:information-outline"
-
-    @property
-    def unique_id(self):
-        """Return unique ID."""
-        return "loxone_software_version"
+    @cached_property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return self._attr_unique_id
 
 
 class LoxoneTextSensor(LoxoneEntity, SensorEntity):

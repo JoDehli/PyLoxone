@@ -73,7 +73,6 @@ DEFAULT = ""
 
 ATTR_UUID = "uuid"
 
-ATTR_UUID = "uuid"
 ATTR_VALUE = "value"
 ATTR_CODE = "code"
 ATTR_COMMAND = "command"

@@ -18,7 +18,7 @@ import traceback
 import urllib.request as req
 import uuid
 from base64 import b64encode
-from datetime import datetime, timezone
+from datetime import datetime
 from struct import unpack
 
 import httpx
@@ -50,7 +50,7 @@ class LoxoneRequestError(Exception):
 
 
 async def raise_if_not_200(response: httpx.Response) -> None:
-    """An httpx event hook, to ensure that http responses other than 200
+    """A httpx event hook, to ensure that http responses other than 200
     raise an exception"""
     # Loxone response codes are a bit odd. It is not clear whether a response which
     # is not 200 is ever OK (eg it is unclear whether redirect response are issued).
@@ -85,7 +85,7 @@ class LoxApp(object):
         self.url = ""
         self._local = True
 
-    async def getJson(self):
+    async def get_json(self):
         auth = None
         if self.lox_user is not None and self.lox_pass is not None:
             auth = (self.lox_user, self.lox_pass)
@@ -205,7 +205,7 @@ class LoxWs:
         self._keep_alive_task = None
 
         self.message_call_back = None
-        self._pending = []
+        self.background_tasks = set()
 
         self.connect_retries = 20
         self.connect_delay = 10
@@ -284,47 +284,25 @@ class LoxWs:
             if "LL" in resp_json:
                 if "value" in resp_json["LL"]:
                     if "validUntil" in resp_json["LL"]["value"]:
-                        self._token.set_vaild_until(
+                        self._token.set_valid_until(
                             resp_json["LL"]["value"]["validUntil"]
                         )
             self.save_token()
 
     async def start(self):
-        consumer_task = asyncio.ensure_future(self.ws_listen())
-        keep_alive_task = asyncio.ensure_future(self.keep_alive(KEEP_ALIVE_PERIOD))
-        refresh_token_task = asyncio.ensure_future(self.refresh_token())
+        task = asyncio.create_task(self.ws_listen(), name="consumer_task")
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
 
-        # consumer_task  = asyncio.create_task(self.ws_listen(), name="consumer_task")
-        # keep_alive_task  = asyncio.create_task(self.keep_alive(KEEP_ALIVE_PERIOD), name="keepalive")
-        # refresh_token_task = asyncio.create_task(self.refresh_token(), name="refresh_token")
+        task = asyncio.create_task(self.keep_alive(KEEP_ALIVE_PERIOD), name="keepalive")
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
 
-        self._pending.append(consumer_task)
-        self._pending.append(keep_alive_task)
-        self._pending.append(refresh_token_task)
-
-        done, pending = await asyncio.wait(
-            self._pending, return_when=asyncio.FIRST_EXCEPTION
-        )
-
-        # Check if there are any exceptions
-        for task in done:
-            try:
-                await task  # Raise exception if occurred
-            except Exception as e:
-                self.state = ""
-                _LOGGER.debug(f"Exception caught: {e}")
-
-        for task in pending:
-            task.cancel()
-
-        if self.state != "STOPPING" and self.state != "CONNECTED":
-            await self.reconnect()
+        task = asyncio.create_task(self.refresh_token(), name="refresh_token")
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
 
     async def reconnect(self):
-        # for task in self._pending:
-        #     task.cancel()
-
-        self._pending = []
         for i in range(self.connect_retries):
             _LOGGER.debug("reconnect: {} from {}".format(i + 1, self.connect_retries))
             await self.stop()
@@ -343,7 +321,8 @@ class LoxWs:
             if not self._ws.closed:
                 await self._ws.close()
             return 1
-        except:
+        except Exception as e:
+            _LOGGER.error(e)
             return -1
 
     async def keep_alive(self, second):
@@ -372,18 +351,11 @@ class LoxWs:
 
         m.update(pwd_hash_str.encode("utf-8"))
         pwd_hash = m.hexdigest().upper()
-        if self._visual_hash.hash_alg == "SHA1":
-            digester = HMAC.new(
-                binascii.unhexlify(self._visual_hash.key),
-                pwd_hash.encode("utf-8"),
-                SHA1,
-            )
-        elif self._visual_hash.hash_alg == "SHA256":
-            digester = HMAC.new(
-                binascii.unhexlify(self._visual_hash.key),
-                pwd_hash.encode("utf-8"),
-                SHA256,
-            )
+        digester = HMAC.new(
+            binascii.unhexlify(self._visual_hash.key),
+            pwd_hash.encode("utf-8"),
+            SHA1 if self._visual_hash.hash_alg == "SHA1" else SHA256,
+        )
 
         command = "jdev/sps/ios/{}/{}/{}".format(
             digester.hexdigest(), device_uuid, value
@@ -600,10 +572,10 @@ class LoxWs:
 
             start = 0
 
-            def get_text(message, start, offset):
-                first = start
-                second = start + offset
-                event_uuid = uuid.UUID(bytes_le=message[first:second])
+            def get_text(msg, head, offset):
+                first = head
+                second = head + offset
+                event_uuid = uuid.UUID(bytes_le=msg[first:second])
                 first += offset
                 second += offset
 
@@ -616,7 +588,7 @@ class LoxWs:
                     icon_uuid_fields[4],
                 )
 
-                icon_uuid = uuid.UUID(bytes_le=message[first:second])
+                icon_uuid = uuid.UUID(bytes_le=msg[first:second])
                 icon_uuid_fields = icon_uuid.urn.replace("urn:uuid:", "").split("-")
                 uuidiconstr = "{}-{}-{}-{}{}".format(
                     icon_uuid_fields[0],
@@ -629,16 +601,14 @@ class LoxWs:
                 first = second
                 second += 4
 
-                text_length = unpack("<I", message[first:second])[0]
+                text_length = unpack("<I", msg[first:second])[0]
 
                 first = second
                 second = first + text_length
-                message_str = unpack("{}s".format(text_length), message[first:second])[
-                    0
-                ]
-                start += (floor((4 + text_length + 16 + 16 - 1) / 4) + 1) * 4
+                message_str = unpack("{}s".format(text_length), msg[first:second])[0]
+                head += (floor((4 + text_length + 16 + 16 - 1) / 4) + 1) * 4
                 event_dict[uuidstr] = message_str.decode("utf-8")
-                return start
+                return head
 
             while start < len(message):
                 start = get_text(message, start, 16)
@@ -664,7 +634,7 @@ class LoxWs:
             if "code" in resp_json["LL"]:
                 if resp_json["LL"]["code"] == "200":
                     if "value" in resp_json["LL"]:
-                        self._token.set_vaild_until(
+                        self._token.set_valid_until(
                             resp_json["LL"]["value"]["validUntil"]
                         )
                     return True
@@ -707,7 +677,8 @@ class LoxWs:
 
                         return digester.hexdigest()
             return ERROR_VALUE
-        except:
+        except Exception as e:
+            _LOGGER.error(e)
             return ERROR_VALUE
 
     async def acquire_token(self):
@@ -789,11 +760,11 @@ class LoxWs:
                         return ERROR_VALUE
             try:
                 self._token.set_token(dict_token["_token"])
-                self._token.set_vaild_until(dict_token["_valid_until"])
+                self._token.set_valid_until(dict_token["_valid_until"])
                 self._token.set_hash_alg(dict_token["_hash_alg"])
-            except KeyError as e:
+            except KeyError:
                 self._token.set_token(dict_token["token"])
-                self._token.set_vaild_until(dict_token["valid_until"])
+                self._token.set_valid_until(dict_token["valid_until"])
                 self._token.set_hash_alg(dict_token["hash_alg"])
 
             _LOGGER.debug("load_token successfully...")
@@ -817,6 +788,7 @@ class LoxWs:
             return ERROR_VALUE
 
     def save_token(self):
+        persist_token = ""
         try:
             persist_token = os.path.join(
                 get_default_config_dir(), self._token_persist_filename
@@ -824,7 +796,7 @@ class LoxWs:
 
             dict_token = {
                 "_token": self._token.token,
-                "_valid_until": self._token.vaild_until,
+                "_valid_until": self._token.valid_until,
                 "_hash_alg": self._token.hash_alg,
             }
             try:
@@ -880,14 +852,11 @@ class LoxWs:
             pwd_hash = m.hexdigest().upper()
             pwd_hash = self._username + ":" + pwd_hash
 
-            if key_salt.hash_alg == "SHA1":
-                digester = HMAC.new(
-                    binascii.unhexlify(key_salt.key), pwd_hash.encode("utf-8"), SHA1
-                )
-            elif key_salt.hash_alg == "SHA256":
-                digester = HMAC.new(
-                    binascii.unhexlify(key_salt.key), pwd_hash.encode("utf-8"), SHA256
-                )
+            digester = HMAC.new(
+                binascii.unhexlify(key_salt.key),
+                pwd_hash.encode("utf-8"),
+                SHA1 if self._visual_hash.hash_alg == "SHA1" else SHA256,
+            )
 
             _LOGGER.debug("hash_credentials successfully...")
             return digester.hexdigest()
@@ -982,7 +951,8 @@ class LoxWs:
             )
             response = await client.get(f"/{CMD_GET_PUBLIC_KEY}")
             await client.aclose()
-        except:
+        except Exception as e:
+            _LOGGER.error(e)
             return False
 
         if response.status_code != 200:
@@ -1003,6 +973,7 @@ class LoxWs:
 
     async def get_token_from_file(self):
         _LOGGER.debug("try to get_token_from_file")
+        persist_token = ""
         try:
             persist_token = os.path.join(
                 get_default_config_dir(), self._token_persist_filename
@@ -1051,18 +1022,19 @@ class LxJsonKeySalt:
 
 
 class LxToken:
-    def __init__(self, token="", vaild_until="", hash_alg="SHA1"):
+    def __init__(self, token="", valid_until=0, hash_alg="SHA1"):
         self._token = token
-        self._vaild_until = vaild_until
+        self._valid_until = valid_until
         self._hash_alg = hash_alg
 
     def get_seconds_to_expire(self):
         dt = datetime.strptime("1.1.2009", "%d.%m.%Y")
         try:
             start_date = int(dt.strftime("%s"))
-        except:
+        except Exception as e:
+            _LOGGER.debug("get_seconds_to_expire error: {}".format(e))
             start_date = int(dt.timestamp())
-        start_date = int(start_date) + self._vaild_until
+        start_date = int(start_date) + self._valid_until
         return start_date - int(round(time.time()))
 
     @property
@@ -1070,11 +1042,11 @@ class LxToken:
         return self._token
 
     @property
-    def vaild_until(self):
-        return self._vaild_until
+    def valid_until(self):
+        return self._valid_until
 
-    def set_vaild_until(self, value):
-        self._vaild_until = value
+    def set_valid_until(self, value):
+        self._valid_until = value
 
     def set_token(self, token):
         self._token = token
