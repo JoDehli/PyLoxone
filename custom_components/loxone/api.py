@@ -855,7 +855,7 @@ class LoxWs:
             digester = HMAC.new(
                 binascii.unhexlify(key_salt.key),
                 pwd_hash.encode("utf-8"),
-                SHA1 if self._visual_hash.hash_alg == "SHA1" else SHA256,
+                SHA1 if key_salt.hash_alg == "SHA1" else SHA256,
             )
 
             _LOGGER.debug("hash_credentials successfully...")
