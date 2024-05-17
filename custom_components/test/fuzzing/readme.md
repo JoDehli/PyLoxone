@@ -13,6 +13,7 @@ So here we are!
 - install the following packages:
 ```shell
 pip install pytest
+pip install homeassistant
 ```
 - you maybe have to tell python were to find the `PyLoxone` project 
 ```shell

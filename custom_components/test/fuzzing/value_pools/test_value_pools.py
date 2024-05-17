@@ -2,7 +2,7 @@ import pytest
 import logging
 
 
-from value_pool import ValuePool
+from fuzzer_utils.ValuePool import ValuePool
 from PyLoxone.custom_components.loxone.helpers import map_range
 
 
@@ -16,6 +16,9 @@ value_pool = ValuePool()
     value_pool.get_all_combinations_of_pool(value_pool.UINT_POOL, 5),
 )
 def test_map_range(value, in_min, in_max, out_min, out_max):
+    # fuzzer generiert liste von listen
+    # runner nimmt funktion und liste
+    # hier wird der Runner mit den 
     passed = True
     try:
         result = map_range(value, in_min, in_max, out_min, out_max)

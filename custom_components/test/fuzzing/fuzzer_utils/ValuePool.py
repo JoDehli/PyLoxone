@@ -5,9 +5,9 @@ from itertools import product
 class ValuePool:
     """Provides value pool for value-pool based fuzzing approches."""
 
-    UINT_POOL = []
-    INT_POOL = []
-    FLOAT_POOL = []
+    _UINT_POOL = []
+    _INT_POOL = []
+    _FLOAT_POOL = []
 
     def __init__(self) -> None:
         """Constructor
@@ -26,6 +26,7 @@ class ValuePool:
             sys.maxsize,
             sys.maxsize * sys.maxsize,
         ]
+
         self.UINT_POOL = [
             0,
             1,
@@ -33,6 +34,7 @@ class ValuePool:
             sys.maxsize,
             sys.maxsize * sys.maxsize,
         ]
+
         self.FLOAT_POOL = [
             sys.maxsize * -sys.maxsize * 0.5,
             -sys.maxsize * 0.5,
@@ -45,15 +47,24 @@ class ValuePool:
             sys.maxsize * sys.maxsize * 0.5,
         ]
 
-    def get_all_combinations_of_pool(self, pool: list, parmeters: int) -> list:
-        """Generate all possible combinations of elements in a pool, with repetition.
+    def get_unit(self) -> list:
+        return self._UINT_POOL
 
-        :param pool: A list of elements from which combinations will be formed.
-        :type pool: list
-        :param parameters: The number of elements in each combination.
-        :type parameters: int
-        :return: A list containing all possible combinations of elements from the pool.
-        :rtype: list
-        """
-        all_combinations = list(product(pool, repeat=parmeters))
-        return all_combinations
+#     def get_all_combinations_of_pool(self, pool: list, parmeters: int) -> list:
+#         """Generate all possible combinations of elements in a pool, with repetition.
+
+#         :param pool: A list of elements from which combinations will be formed.
+#         :type pool: list
+#         :param parameters: The number of elements in each combination.
+#         :type parameters: int
+#         :return: A list containing all possible combinations of elements from the pool.
+#         :rtype: list
+#         """
+#         all_combinations = list(product(pool, repeat=parmeters))
+#         return all_combinations
+
+#     def dummy(funktion):
+#         funktion("xx")
+
+
+# ValuePool.dummy(print)
