@@ -9,12 +9,12 @@ class ValuePool:
     _FLOAT_POOL = []
 
     def __init__(self) -> None:
-        """Constructor
+        """constructor
         Set values for pools.
 
-        # TODO: @jonathanheitzmann
-        # TODO: add more value pool
-        # TODO: no dublicate pool values, like in Balista. e.g. _FLOAT_POOL copyyinherits values from _INT_POOL
+        TODO: @jonathanheitzmann add more value pool
+        TODO: @jonathanheitzmann add one pool with all values
+        TODO: @jonathanheitzmann no dublicate pool values, like in Balista. e.g. _FLOAT_POOL copyyinherits values from _INT_POOL
 
         sys.maxsize: An integer giving the maximum value a variable of type Py_ssize_t can take. It's usually 2^31 - 1 on a 32-bit platform and 2^63 - 1 on a 64-bit platform.
         """

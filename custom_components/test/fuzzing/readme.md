@@ -29,6 +29,9 @@ cd /path/to/PyLoxone
 pytest custom_components/test/fuzzing/
 ```
 
+## Fuzzer layout (UML)
+![fuzzer_overview](fuzzer_overview.svg)
+
 # TODO
 ## Value pools
 - create test case with different value pools for one function

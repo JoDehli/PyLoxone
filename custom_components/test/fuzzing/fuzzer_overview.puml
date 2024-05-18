@@ -1,60 +1,65 @@
 @startuml fuzzer_overview
 
 package "fuzzing" as fuzzing <<Folder>> {
-package "fuzzer_utils" as FUtils <<Folder>> {
+    package "fuzzer_utils" as FUtils <<Folder>> {
 
-    abstract "Fuzzer" as fuzzer << abstract class >> {
-        --
-        - __int__(self) : void
-        + fuzz() : boolean
+        abstract "Fuzzer" as fuzzer << abstract class >> {
+            --
+            - __int__(self) : void
+            + fuzz() : boolean
+        }
+
+        class "ValuePoolFuzzer" as VPFuzzer << class >> {
+            --
+            - __int__(self) : void
+            + fuzz(self, param_nr : int, types : list, param_combi : int) : list
+        }
+        class "RandomFuzzer" as RFuzzer << class >> {
+            --
+            - __int__(self) : void
+            + fuzz(self) : list
+        }
+
+        class "ValuePool" as VPool << class >> {
+            - _UINT_POOL : list
+            - _INT_POOL : list
+            - _FLOAT_POOL : list
+            --
+            - __int__(self) : void
+            + get_uint(self) : list
+            + get_int(self) : list
+            + get_float(self) : list
+        }
+
+
+        abstract "Runner" as runner << abstract class >> {
+            --
+            - __int__(self) : void
+            + run() : int
+        }
+
+        class "ParamRunner" as PRunner << class >> {
+            --
+            - __int__(self) : void
+            + run(self, function : func, param : list) : int
+        }
+
+        class "GeneratorRunner" as GRunner << class >> {
+            --
+            - __int__(self) : void
+            + run() : int
+        }
     }
 
-    class "ValuePoolFuzzer" as VPFuzzer << class >> {
-        --
-        - __int__(self) : void
-        + fuzz(self, param_nr : int, types : list, param_combi : int) : list
-    }
-    class "RandomFuzzer" as RFuzzer << class >> {
-        --
-        - __int__(self) : void
-        + fuzz(self, types : string, min_val : int, max_val : int) : list
-    }
-
-    class "ValuePool" as VPool << class >> {
-        - _UINT_POOL : list
-        - _INT_POOL : list
-        - _FLOAT_POOL : list
-        - _ALL_POOL : list
-        --
-        - __int__(self) : void
-        + get_uint(self) : list
-        + get_int(self) : list
-        + get_float(self) : list
-        + get_all(self) : list
-    }
-
-
-    abstract "Runner" as runner << abstract class >> {
-        --
-        - __int__(self) : void
-        + run() : int
-    }
-
-    class "ParamRunner" as PRunner << class >> {
-        --
-        - __int__(self) : void
-        + run(self, function : func, param : list) : int
-    }
-}
 
 
 
+    fuzzer <|-- VPFuzzer : inherits from <
+    fuzzer <|-- RFuzzer : inherits from <
+    VPFuzzer --> VPool: has access to >
 
-fuzzer <|-- VPFuzzer : inherits from <
-fuzzer <|-- RFuzzer : inherits from <
-VPFuzzer --> VPool: has access to >
-
-runner <|-- PRunner : inherits from <
+    runner <|-- PRunner : inherits from <
+    runner <|-- GRunner : inherits from <
 
 }
 @enduml
