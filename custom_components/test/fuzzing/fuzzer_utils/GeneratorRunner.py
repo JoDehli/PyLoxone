@@ -1,6 +1,6 @@
 import logging
 
-from Runner import Runner
+from custom_components.test.fuzzing.fuzzer_utils.Runner import Runner
 
 
 class GeneratorRunner(Runner):

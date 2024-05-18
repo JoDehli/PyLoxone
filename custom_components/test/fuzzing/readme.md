@@ -13,11 +13,12 @@ So here we are!
 - install the following packages:
 ```shell
 pip install pytest
+pip install pytest-timeout
 pip install homeassistant
 ```
 - you maybe have to tell python were to find the `PyLoxone` project 
 ```shell
-export PYTHONPATH=$PYTHONPATH:/path/to/folder
+export PYTHONPATH=$PYTHONPATH:/path/to/PyLoxone
 ```
 ### Run
 - start the execution in the root of the repo
@@ -26,7 +27,7 @@ cd /path/to/PyLoxone
 ```
 - run `pytest`
 ```shell
-pytest custom_components/test/fuzzing/
+pytest
 ```
 
 ## Fuzzer layout (UML)

@@ -1,4 +1,4 @@
-from Fuzzer import Fuzzer
+from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 
 
 class Random(Fuzzer):

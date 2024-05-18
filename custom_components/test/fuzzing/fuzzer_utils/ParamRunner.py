@@ -1,7 +1,7 @@
 import logging
 import inspect
 
-from Runner import Runner
+from custom_components.test.fuzzing.fuzzer_utils.Runner import Runner
 
 
 class ParamRunner(Runner):
@@ -11,7 +11,7 @@ class ParamRunner(Runner):
         """constructor"""
         pass
 
-    def run(self, function: function, param_set: list) -> list:
+    def run(self, function, param_set: list) -> list:
         """Executes all transferred parameter sets for the transferred function.
 
         TODO: @hoegma implement function
@@ -35,7 +35,7 @@ class ParamRunner(Runner):
         # INFO
         sig = inspect.signature(function)
         num_params = len(sig.parameters)
-        logger.info("The given functions needs " + num_params + " parameters")
+        logger.info("The given functions needs " + str(num_params) + " parameters")
 
         dummy_result = [6, 3]
         return dummy_result

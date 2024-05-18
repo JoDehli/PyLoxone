@@ -1,5 +1,5 @@
-from Fuzzer import Fuzzer
-from ValuePool import ValuePool
+from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
+from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
 
 
 class ValuePoolFuzzer(Fuzzer):
@@ -30,14 +30,8 @@ class ValuePoolFuzzer(Fuzzer):
         """
 
         dummy_list = [
-            [-1, -1, 0],
-            [-1, 0, 1],
-            [-1, 1, -1],
-            [0, -1, 0],
-            [0, 0, 1],
-            [0, 1, -1],
-            [1, -1, 0],
-            [1, 0, 1],
-            [1, 1, -1],
+            [-1, -1, 0, 3, 6],
+            [0, 0, 0, 0, 0],
+            [-1, -1, 0, 5, 6],
         ]
         return dummy_list
