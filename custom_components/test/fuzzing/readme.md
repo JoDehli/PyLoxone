@@ -5,7 +5,7 @@ The goal is to induce unexpected behavior, crashes, or memory leaks, thereby rev
 By systematically feeding malformed or semi-random data to the software, fuzzing helps developers identify and fix critical vulnerabilities, enhancing the overall robustness and security of the application.
 
 ## Why are we fuzzing?
-We are 5 students and we have to fuzz an openscours project for a grade bonus. 
+We are 5 students, and we have to fuzz an open source project for a grade bonus. 
 So here we are!
 
 ## Start to fuzz
@@ -33,15 +33,23 @@ pytest custom_components/test/fuzzing/
 ![fuzzer_overview](fuzzer_overview.svg)
 
 # TODO
+- @ThorbenCarl: add .venv setup
+- add test files
+- consider imports
+## Random testing 
+
 ## Value pools
+- @jonathanheitzmann: custom_components/test/fuzzing/fuzzer_utils/ValuePool.py
+- @jonathanheitzmann: custom_components/test/fuzzing/fuzzer_utils/ValuePoolFuzzer.py
+- @hoegma: custom_components/test/fuzzing/fuzzer_utils/ParamRunner.py
+
 - create test case with different value pools for one function
 - write function that creates 2-way, 3-way, ... pools
 - fuzz more funktions
 - timeout?
 
-## Random testing
-
 ## Generators
+- @JKortmann: custom_components/test/fuzzing/fuzzer_utils/GeneratorRunner.py
 
 ## Input grammars
 
@@ -54,4 +62,4 @@ pytest custom_components/test/fuzzing/
 # Vulnerabilities found
 ## `helpers.py`
 ### `map_range`
-- possible zero devision
+- possible zero division

@@ -1,4 +1,5 @@
 @startuml fuzzer_overview
+allow_mixing
 
 package "fuzzing" as fuzzing <<Folder>> {
     package "fuzzer_utils" as FUtils <<Folder>> {
@@ -41,14 +42,20 @@ package "fuzzing" as fuzzing <<Folder>> {
         class "ParamRunner" as PRunner << class >> {
             --
             - __int__(self) : void
-            + run(self, function : func, param : list) : int
+            + run(self, function : function, param_set : list) : list
         }
 
         class "GeneratorRunner" as GRunner << class >> {
             --
             - __int__(self) : void
-            + run() : int
+            + run(self, function: function) : list
         }
+    }
+    package "value_pools" as VPools <<Folder>> {
+        file "test_value_pools.py"
+    }
+    package "generators" as generators <<Folder>> {
+        file "test_generators.py"
     }
 
 

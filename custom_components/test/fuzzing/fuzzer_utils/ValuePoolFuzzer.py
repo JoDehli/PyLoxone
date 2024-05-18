@@ -1,4 +1,5 @@
 from Fuzzer import Fuzzer
+from ValuePool import ValuePool
 
 
 class ValuePoolFuzzer(Fuzzer):
