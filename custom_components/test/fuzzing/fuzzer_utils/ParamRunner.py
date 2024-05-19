@@ -37,5 +37,15 @@ class ParamRunner(Runner):
         num_params = len(sig.parameters)
         logger.info("The given functions needs " + str(num_params) + " parameters")
 
-        dummy_result = [6, 3]
-        return dummy_result
+        passed_tests = 0
+        failed_tests = 0
+        for param in param_set:
+            try:
+                function(*param)
+                passed_tests += 1
+                logger.debug("This is a DEBUG message.")
+            except:
+                failed_tests += 1
+                logger.error("This is a ERROR message.")
+        
+        return [passed_tests, failed_tests]
