@@ -1,3 +1,6 @@
+import itertools
+
+
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
 
@@ -5,9 +8,10 @@ from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
 class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
 
+    value_pool = ValuePool()
+
     def __int__(self):
         """constructor"""
-        self.value_pool = ValuePool()
 
     def fuzz(
         self, param_nr: int = 1, types: list = ["INT"], param_combi: int = 1
@@ -31,15 +35,15 @@ class ValuePoolFuzzer(Fuzzer):
 
         # Valid types for fuzzing
         valid_types = {
-            "INT": self.value_pool.get_int,
-            "UINT": self.value_pool.get_uint,
-            "FLOAT": self.value_pool.get_float,
-            "STRING": self.value_pool.get_string,
-            "BOOL": self.value_pool.get_bool,
-            "BYTE": self.value_pool.get_byte,
-            "LIST": self.value_pool.get_list,
-            "DICT": self.value_pool.get_dict,
-            "DATE": self.value_pool.get_date,
+            "INT": self.value_pool.get_int(),
+            "UINT": self.value_pool.get_uint(),
+            "FLOAT": self.value_pool.get_float(),
+            "STRING": self.value_pool.get_string(),
+            "BOOL": self.value_pool.get_bool(),
+            "BYTE": self.value_pool.get_byte(),
+            "LIST": self.value_pool.get_list(),
+            "DICT": self.value_pool.get_dict(),
+            "DATE": self.value_pool.get_date(),
         }
 
         # Validate parameters
@@ -67,10 +71,3 @@ class ValuePoolFuzzer(Fuzzer):
         result = [list(combi) for combi in selected_combinations]
 
         return result
-
-        dummy_list = [
-            [-1, -1, 0, 3, 6],
-            [0, 0, 0, 0, 0],
-            [-1, -1, 0, 5, 6],
-        ]
-        return dummy_list

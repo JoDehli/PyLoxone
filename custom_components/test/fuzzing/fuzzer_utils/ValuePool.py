@@ -1,4 +1,5 @@
 import sys
+import datetime
 
 
 class ValuePool:
@@ -7,6 +8,13 @@ class ValuePool:
     _UINT_POOL = []
     _INT_POOL = []
     _FLOAT_POOL = []
+    _STRING_POOL = []
+    _BOOL_POOL = []
+    _BYTE_POOL = []
+    _LIST_POOL = []
+    _DICT_POOL = []
+    _DATE_POOL = []
+    _ALL_VALUES_POOL = []
 
     def __init__(self) -> None:
         """constructor
@@ -53,7 +61,7 @@ class ValuePool:
             sys.maxsize * sys.maxsize * 0.5,
         ]
 
-         # set values for _STRING_POOL
+        # set values for _STRING_POOL
         self._STRING_POOL = [
             "",
             "a",
@@ -105,23 +113,35 @@ class ValuePool:
         self._remove_duplicates()
 
         # create a pool with all unique values
-        self._ALL_VALUES_POOL = sorted(set(
-            self._INT_POOL + self._UINT_POOL + self._FLOAT_POOL +
-            self._STRING_POOL + self._BOOL_POOL + self._BYTE_POOL +
-            self._LIST_POOL + self._DICT_POOL + self._DATE_POOL
-        ))
+        self._ALL_VALUES_POOL = sorted(
+            set(
+                self._INT_POOL
+                + self._UINT_POOL
+                + self._FLOAT_POOL
+                + self._STRING_POOL
+                + self._BOOL_POOL
+                + self._BYTE_POOL
+                + self._LIST_POOL
+                + self._DICT_POOL
+                + self._DATE_POOL
+            )
+        )
 
-        def _remove_duplicates(self):
-            """Remove duplicates from each pool."""
-            self._INT_POOL = list(sorted(set(self._INT_POOL)))
-            self._UINT_POOL = list(sorted(set(self._UINT_POOL)))
-            self._FLOAT_POOL = list(sorted(set(self._FLOAT_POOL)))
-            self._STRING_POOL = list(sorted(set(self._STRING_POOL)))
-            self._BOOL_POOL = list(sorted(set(self._BOOL_POOL)))
-            self._BYTE_POOL = list(sorted(set(self._BYTE_POOL)))
-            self._LIST_POOL = list(sorted(set(map(tuple, self._LIST_POOL))))  # lists need to be converted to tuples for set
-            self._DICT_POOL = list(sorted(set(map(lambda d: frozenset(d.items()), self._DICT_POOL))))  # dictionaries need to be converted to frozensets for set
-            self._DATE_POOL = list(sorted(set(self._DATE_POOL)))
+    def _remove_duplicates(self):
+        """Remove duplicates from each pool."""
+        self._INT_POOL = list(sorted(set(self._INT_POOL)))
+        self._UINT_POOL = list(sorted(set(self._UINT_POOL)))
+        self._FLOAT_POOL = list(sorted(set(self._FLOAT_POOL)))
+        self._STRING_POOL = list(sorted(set(self._STRING_POOL)))
+        self._BOOL_POOL = list(sorted(set(self._BOOL_POOL)))
+        self._BYTE_POOL = list(sorted(set(self._BYTE_POOL)))
+        self._LIST_POOL = list(
+            sorted(set(map(tuple, self._LIST_POOL)))
+        )  # lists need to be converted to tuples for set
+        self._DICT_POOL = list(
+            sorted(set(map(lambda d: frozenset(d.items()), self._DICT_POOL)))
+        )  # dictionaries need to be converted to frozensets for set
+        self._DATE_POOL = list(sorted(set(self._DATE_POOL)))
 
     def get_uint(self) -> list:
         return self._UINT_POOL
@@ -152,4 +172,3 @@ class ValuePool:
 
     def get_all_values(self) -> list:
         return self._ALL_VALUES_POOL
-
