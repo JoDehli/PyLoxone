@@ -53,6 +53,76 @@ class ValuePool:
             sys.maxsize * sys.maxsize * 0.5,
         ]
 
+         # set values for _STRING_POOL
+        self._STRING_POOL = [
+            "",
+            "a",
+            "abc",
+            " " * 100,  # long string of spaces
+            "special_characters_!@#$%^&*()",
+            "üñîçødê",
+            "a" * 1000,  # very long string
+        ]
+
+        # set values for _BOOL_POOL
+        self._BOOL_POOL = [True, False]
+
+        # set values for _BYTE_POOL
+        self._BYTE_POOL = [
+            b"",
+            b"\x00",
+            b"abc",
+            bytes(range(256)),  # all possible byte values
+        ]
+
+        # set values for _LIST_POOL
+        self._LIST_POOL = [
+            [],
+            [1, 2, 3],
+            ["a", "b", "c"],
+            [True, False, None],
+            list(range(100)),  # long list
+        ]
+
+        # set values for _DICT_POOL
+        self._DICT_POOL = [
+            {},
+            {"key": "value"},
+            {"int": 1, "float": 1.0, "str": "string"},
+            {i: i for i in range(10)},  # dictionary with multiple entries
+        ]
+
+        # set values for _DATE_POOL
+        self._DATE_POOL = [
+            datetime.datetime.min,
+            datetime.datetime.max,
+            datetime.datetime.now(),
+            datetime.datetime(2000, 1, 1),
+            datetime.datetime(1970, 1, 1),
+        ]
+
+        # ensure no duplicate values in pools
+        self._remove_duplicates()
+
+        # create a pool with all unique values
+        self._ALL_VALUES_POOL = sorted(set(
+            self._INT_POOL + self._UINT_POOL + self._FLOAT_POOL +
+            self._STRING_POOL + self._BOOL_POOL + self._BYTE_POOL +
+            self._LIST_POOL + self._DICT_POOL + self._DATE_POOL
+        ))
+
+        def _remove_duplicates(self):
+            """Remove duplicates from each pool."""
+            self._INT_POOL = list(sorted(set(self._INT_POOL)))
+            self._UINT_POOL = list(sorted(set(self._UINT_POOL)))
+            self._FLOAT_POOL = list(sorted(set(self._FLOAT_POOL)))
+            self._STRING_POOL = list(sorted(set(self._STRING_POOL)))
+            self._BOOL_POOL = list(sorted(set(self._BOOL_POOL)))
+            self._BYTE_POOL = list(sorted(set(self._BYTE_POOL)))
+            self._LIST_POOL = list(sorted(set(map(tuple, self._LIST_POOL))))  # lists need to be converted to tuples for set
+            self._DICT_POOL = list(sorted(set(map(lambda d: frozenset(d.items()), self._DICT_POOL))))  # dictionaries need to be converted to frozensets for set
+            self._DATE_POOL = list(sorted(set(self._DATE_POOL)))
+
     def get_uint(self) -> list:
         return self._UINT_POOL
 
@@ -61,3 +131,25 @@ class ValuePool:
 
     def get_float(self) -> list:
         return self._FLOAT_POOL
+
+    def get_string(self) -> list:
+        return self._STRING_POOL
+
+    def get_bool(self) -> list:
+        return self._BOOL_POOL
+
+    def get_byte(self) -> list:
+        return self._BYTE_POOL
+
+    def get_list(self) -> list:
+        return self._LIST_POOL
+
+    def get_dict(self) -> list:
+        return self._DICT_POOL
+
+    def get_date(self) -> list:
+        return self._DATE_POOL
+
+    def get_all_values(self) -> list:
+        return self._ALL_VALUES_POOL
+
