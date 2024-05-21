@@ -12,7 +12,16 @@ class ParamRunner(Runner):
         pass
 
     def run(self, function, param_set: list) -> list:
-        """Executes all transferred parameter sets for the transferred function."""
+        """Executes all transferred parameter sets for the transferred function.
+
+        :param function: The passed function which is to be fuzzed.
+        :type function: function
+        :param param_set: The parameter set transferred from the fuzzer.
+        :type param_set: list
+
+        :return: Returns a list with two integers, the first number retruns the number of passed tests and the second of failed
+        :rtype: list
+        """
 
         logger = logging.getLogger(__name__)
         sig = inspect.signature(function)
@@ -29,5 +38,5 @@ class ParamRunner(Runner):
             except Exception as e:
                 failed_tests += 1
                 logger.error(f"Test failed with parameters: {param}. Exception: {e}")
-        
+
         return [passed_tests, failed_tests]
