@@ -15,6 +15,7 @@ So here we are!
 pip install pytest
 pip install pytest-timeout
 pip install homeassistant
+pip install numpy
 ```
 - you maybe have to tell python were to find the `PyLoxone` project 
 ```shell
@@ -34,25 +35,26 @@ pytest
 ![fuzzer_overview](fuzzer_overview.svg)
 
 # TODO
-- @ThorbenCarl: add .venv setup
-- add test files
-- consider imports
+- [x] @ThorbenCarl setup general python code
+- [ ] @hoegma add tutorial of .venv setup to README.md
+
 ## Random testing 
+> - not needed for grade bonus
 
 ## Value pools
-- @jonathanheitzmann: custom_components/test/fuzzing/fuzzer_utils/ValuePool.py
-- @jonathanheitzmann: custom_components/test/fuzzing/fuzzer_utils/ValuePoolFuzzer.py
-- @hoegma: custom_components/test/fuzzing/fuzzer_utils/ParamRunner.py
-
-- create test case with different value pools for one function
-- write function that creates 2-way, 3-way, ... pools
-- fuzz more funktions
-- timeout?
+- [ ] @jonathanheitzmann custom_components/test/fuzzing/fuzzer_utils/ValuePool.py
+- [ ] @jonathanheitzmann custom_components/test/fuzzing/fuzzer_utils/ValuePoolFuzzer.py
+  - [ ] @jonathanheitzmann write function that creates 2-way, 3-way, ... pools
+- [ ] @hoegma custom_components/test/fuzzing/fuzzer_utils/ParamRunner.py
+- [ ] @ThorbenCarl create some test cases for the value pool fuzzer
 
 ## Generators
-- @JKortmann: custom_components/test/fuzzing/fuzzer_utils/GeneratorRunner.py
+- [ ] @dsiev custom_components/test/fuzzing/fuzzer_utils/GeneratorRunner.py
+  - [ ] @dsiev present concept (UML)
+  - [ ] @dsiev implementation of Generators
 
 ## Input grammars
+- [ ] @JKortmann present concept (UML)
 
 ## Mutational 
 ### black-box
