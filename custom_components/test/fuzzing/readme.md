@@ -44,7 +44,7 @@ Windows
 - Click the “New” button in the top half of the dialog, to make a new user variable.
 - Name the variable PYTHONPATH and set its value to the path of your code directory. Click "OK" and "OK" again to save.
 
-Linux und macOS
+Linux and macOS
 ```shell
 export PYTHONPATH=$PYTHONPATH:/path/to/PyLoxone
 ```
@@ -62,8 +62,6 @@ pytest
 ![fuzzer_overview](fuzzer_overview.svg)
 
 # TODO
-- [x] @ThorbenCarl setup general python code
-- [x] @hoegma add tutorial of .venv setup to README.md
 
 ## Random testing 
 > - not needed for grade bonus
@@ -72,7 +70,6 @@ pytest
 - [ ] @jonathanheitzmann custom_components/test/fuzzing/fuzzer_utils/ValuePool.py
 - [ ] @jonathanheitzmann custom_components/test/fuzzing/fuzzer_utils/ValuePoolFuzzer.py
   - [ ] @jonathanheitzmann write function that creates 2-way, 3-way, ... pools
-- [x] @hoegma custom_components/test/fuzzing/fuzzer_utils/ParamRunner.py
 - [ ] @ThorbenCarl create some test cases for the value pool fuzzer
 
 ## Generators
