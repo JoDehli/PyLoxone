@@ -1,0 +1,82 @@
+@startuml fuzzer_overview
+allow_mixing
+
+package "fuzzing" as fuzzing <<Folder>> {
+    package "fuzzer_utils" as FUtils <<Folder>> {
+
+        abstract "Fuzzer" as fuzzer << abstract class >> {
+            --
+            - __int__(self) : void
+            + fuzz() : boolean
+        }
+
+        class "ValuePoolFuzzer" as VPFuzzer << class >> {
+            --
+            - __int__(self) : void
+            + fuzz(self, param_nr : int, types : list, param_combi : int) : list
+        }
+        class "RandomFuzzer" as RFuzzer << class >>
+        class "GeneratorFuzzer" as GFuzzer << class >> {
+            --
+            - __int__(self) : void
+        }
+        class "GrammarFuzzer" as GrFuzzer << class >> {
+            --
+            - __int__(self) : void
+        }
+
+        class "ValuePool" as VPool << class >> {
+            - _UINT_POOL : list
+            - _INT_POOL : list
+            - _FLOAT_POOL : list
+            --
+            - __int__(self) : void
+            + get_uint(self) : list
+            + get_int(self) : list
+            + get_float(self) : list
+        }
+
+
+        abstract "Runner" as runner << abstract class >> {
+            --
+            - __int__(self) : void
+            + run() : int
+        }
+
+        class "ParamRunner" as PRunner << class >> {
+            --
+            - __int__(self) : void
+            + run(self, function : function, param_set : list) : list
+        }
+
+        class "GeneratorRunner" as GRunner << class >> {
+            --
+            - __int__(self) : void
+            + run(self, ???) : list
+        }
+    }
+
+    folder "value_pools" as VPools  {
+        file "test_vp_on_helpers.py"
+    }
+
+    folder "generators" as generators {
+        file "test_gen_on_xxx.py"
+    }
+
+    folder "grammar" as grammar {
+        file "test_gram_on_xxx.py"
+    }
+
+
+    fuzzer <|-- VPFuzzer : inherits from <
+    fuzzer <|-- RFuzzer : inherits from <
+    fuzzer <|-- GrFuzzer : inherits from <
+    fuzzer <|-- GFuzzer : inherits from <
+    VPFuzzer --> VPool: has access to >
+
+    runner <|-- PRunner : inherits from <
+    runner <|-- GRunner : inherits from <
+
+}
+@enduml
