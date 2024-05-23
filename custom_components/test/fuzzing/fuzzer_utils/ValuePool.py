@@ -20,9 +20,7 @@ class ValuePool:
         """constructor
         Set values for pools.
 
-        TODO: @jonathanheitzmann add more value pool
-        TODO: @jonathanheitzmann add one pool with all values
-        TODO: @jonathanheitzmann no dublicate pool values, like in Balista. e.g. _FLOAT_POOL copyyinherits values from _INT_POOL
+        TODO: no dublicate pool values, like in Balista. e.g. _FLOAT_POOL copyyinherits values from _INT_POOL
 
         sys.maxsize: An integer giving the maximum value a variable of type Py_ssize_t can take. It's usually 2^31 - 1 on a 32-bit platform and 2^63 - 1 on a 64-bit platform.
         """
@@ -109,39 +107,11 @@ class ValuePool:
             datetime.datetime(1970, 1, 1),
         ]
 
-        # ensure no duplicate values in pools
-        self._remove_duplicates()
 
         # create a pool with all unique values
-        self._ALL_VALUES_POOL = sorted(
-            set(
-                self._INT_POOL
-                + self._UINT_POOL
-                + self._FLOAT_POOL
-                + self._STRING_POOL
-                + self._BOOL_POOL
-                + self._BYTE_POOL
-                + self._LIST_POOL
-                + self._DICT_POOL
-                + self._DATE_POOL
-            )
-        )
-
-    def _remove_duplicates(self):
-        """Remove duplicates from each pool."""
-        self._INT_POOL = list(sorted(set(self._INT_POOL)))
-        self._UINT_POOL = list(sorted(set(self._UINT_POOL)))
-        self._FLOAT_POOL = list(sorted(set(self._FLOAT_POOL)))
-        self._STRING_POOL = list(sorted(set(self._STRING_POOL)))
-        self._BOOL_POOL = list(sorted(set(self._BOOL_POOL)))
-        self._BYTE_POOL = list(sorted(set(self._BYTE_POOL)))
-        self._LIST_POOL = list(
-            sorted(set(map(tuple, self._LIST_POOL)))
-        )  # lists need to be converted to tuples for set
-        self._DICT_POOL = list(
-            sorted(set(map(lambda d: frozenset(d.items()), self._DICT_POOL)))
-        )  # dictionaries need to be converted to frozensets for set
-        self._DATE_POOL = list(sorted(set(self._DATE_POOL)))
+        self._ALL_VALUES_POOL = self._INT_POOL + self._UINT_POOL + self._FLOAT_POOL + self._STRING_POOL + self._BOOL_POOL + self._BYTE_POOL + self._LIST_POOL + self._DICT_POOL + self._DATE_POOL
+            
+        
 
     def get_uint(self) -> list:
         return self._UINT_POOL
