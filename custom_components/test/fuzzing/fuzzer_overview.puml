@@ -15,10 +15,7 @@ package "fuzzing" as fuzzing <<Folder>> {
             - __int__(self) : void
             + fuzz(self, param_nr : int, types : list, param_combi : int) : list
         }
-        class "RandomFuzzer" as RFuzzer << class >> {
-            --
-            - __int__(self) : void
-        }
+        class "RandomFuzzer" as RFuzzer << class >>
         class "GeneratorFuzzer" as GFuzzer << class >> {
             --
             - __int__(self) : void
