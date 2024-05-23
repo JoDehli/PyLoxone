@@ -67,10 +67,8 @@ pytest
 > - not needed for grade bonus
 
 ## Value pools
-- [ ] @jonathanheitzmann custom_components/test/fuzzing/fuzzer_utils/ValuePool.py
 - [ ] @jonathanheitzmann custom_components/test/fuzzing/fuzzer_utils/ValuePoolFuzzer.py
   - [ ] @jonathanheitzmann write function that creates 2-way, 3-way, ... pools
-- [ ] @ThorbenCarl create some test cases for the value pool fuzzer
 
 ## Generators
 - [ ] @dsiev custom_components/test/fuzzing/fuzzer_utils/GeneratorRunner.py
@@ -90,3 +88,5 @@ pytest
 ## `helpers.py`
 ### `map_range`
 - possible zero division
+
+### `test_get_all`
