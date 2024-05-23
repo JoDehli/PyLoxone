@@ -55,14 +55,18 @@ package "fuzzing" as fuzzing <<Folder>> {
             + run(self, ???) : list
         }
     }
-    package "value_pools" as VPools <<Folder>> {
-        file "test_value_pools.py"
-    }
-    package "generators" as generators <<Folder>> {
-        file "test_generators.py"
+
+    folder "value_pools" as VPools  {
+        file "test_vp_on_helpers.py"
     }
 
+    folder "generators" as generators {
+        file "test_gen_on_xxx.py"
+    }
 
+    folder "grammar" as grammar {
+        file "test_gram_on_xxx.py"
+    }
 
 
     fuzzer <|-- VPFuzzer : inherits from <

@@ -19,9 +19,7 @@ class ValuePoolFuzzer(Fuzzer):
     ) -> list:
         """Generates an individual value pool for fuzzing based on the parameters. A list of lists is returned.
 
-        TODO: @jonathanheitzmann implement function
-        TODO: @jonathanheitzmann specify valid types
-        TODO: @jonathanheitzmann add comments and update UML if necessary
+        TODO: @jonathanheitzmann implement function of param_combi
 
         :param param_nr: Number of parameters of the function to be fuzzed. Each list in the return list contains a corresponding number of entries.
         :type param_nr: int
@@ -35,6 +33,7 @@ class ValuePoolFuzzer(Fuzzer):
         """
 
         logger = logging.getLogger(__name__)
+        logger.warning("The var param_combi is not in use!")
 
         # Validate input parameters
         if param_nr <= 0:
