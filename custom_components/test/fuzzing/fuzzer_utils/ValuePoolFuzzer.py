@@ -1,4 +1,4 @@
-import itertools
+from itertools import product
 import logging
 
 
@@ -33,22 +33,10 @@ class ValuePoolFuzzer(Fuzzer):
         :return: The value pool as list of lists.
         :rtype: list
         """
-        logger = logging.getLogger(__name__)
-        # Valid types for fuzzing
-        valid_types = {
-            "INT": self.value_pool.get_int(),
-            "UINT": self.value_pool.get_uint(),
-            "FLOAT": self.value_pool.get_float(),
-            "STRING": self.value_pool.get_string(),
-            "BOOL": self.value_pool.get_bool(),
-            "BYTE": self.value_pool.get_byte(),
-            "LIST": self.value_pool.get_list(),
-            "DICT": self.value_pool.get_dict(),
-            "DATE": self.value_pool.get_date(),
-            "ALL": self.value_pool.get_all_values()
-        }
 
-        # Validate parameters
+        logger = logging.getLogger(__name__)
+
+        # Validate input parameters
         if param_nr <= 0:
             logger.error("Param Nr smaller or equal 0")
             raise ValueError("param_nr must be a positive integer.")
@@ -59,17 +47,35 @@ class ValuePoolFuzzer(Fuzzer):
             logger.error("param_combi must be between 1 and param_nr.")
             raise ValueError("param_combi must be between 1 and param_nr.")
 
-        # Generate the individual value pools for each type
-        value_pools = []
+        # Get the value pools for the valid types
+        valid_types = {
+            "INT": self.value_pool.get_int(),
+            "UINT": self.value_pool.get_uint(),
+            "FLOAT": self.value_pool.get_float(),
+            "STRING": self.value_pool.get_string(),
+            "BOOL": self.value_pool.get_bool(),
+            "BYTE": self.value_pool.get_byte(),
+            "LIST": self.value_pool.get_list(),
+            "DICT": self.value_pool.get_dict(),
+            "DATE": self.value_pool.get_date(),
+            "ALL": self.value_pool.get_all_values(),
+        }
+
+        # Check whether requested types are valid.
         for t in types:
             if t not in valid_types:
                 logger.error("Invalid type " + str(t) + "specified.")
                 raise ValueError(f"Invalid type '{t}' specified.")
 
-        
-        for t in types:
-            value_pools.append(valid_types[t])
-            
+        # Create a list of lists containing the valid values for each type in types_list
+        # e.g. [[all valid INTs], [all valid BOOLs], [all valid INTs], ...]
+        values_list = [valid_types[type_] for type_ in types]
 
+        # Use itertools.product to generate all possible combinations
+        combinations = list(product(*values_list))
 
-        return value_pools
+        # Convert tuples to lists
+        result = [list(combination) for combination in combinations]
+
+        # print(result)
+        return result
