@@ -21,7 +21,7 @@ def test_dummy():
     logger.info("Start of dummy() test.")
     param_set = value_pool_fuzzer.fuzz(5, ["INT", "INT", "INT", "INT", "INT"], 2)
     result = param_runner.run(dummy, param_set)
-    logger.info("map_range() test finished.")
+    logger.info("dummy() test finished.")
 
     assert result[1] == 0
 

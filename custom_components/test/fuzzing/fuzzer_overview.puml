@@ -15,10 +15,14 @@ package "fuzzing" as fuzzing <<Folder>> {
             - __int__(self) : void
             + fuzz(self, param_nr : int, types : list, param_combi : int) : list
         }
-        class "RandomFuzzer" as RFuzzer << class >> {
+        class "RandomFuzzer" as RFuzzer << class >>
+        class "GeneratorFuzzer" as GFuzzer << class >> {
             --
             - __int__(self) : void
-            + fuzz(self) : list
+        }
+        class "GrammarFuzzer" as GrFuzzer << class >> {
+            --
+            - __int__(self) : void
         }
 
         class "ValuePool" as VPool << class >> {
@@ -48,7 +52,7 @@ package "fuzzing" as fuzzing <<Folder>> {
         class "GeneratorRunner" as GRunner << class >> {
             --
             - __int__(self) : void
-            + run(self, function: function) : list
+            + run(self, ???) : list
         }
     }
     package "value_pools" as VPools <<Folder>> {
@@ -63,6 +67,8 @@ package "fuzzing" as fuzzing <<Folder>> {
 
     fuzzer <|-- VPFuzzer : inherits from <
     fuzzer <|-- RFuzzer : inherits from <
+    fuzzer <|-- GrFuzzer : inherits from <
+    fuzzer <|-- GFuzzer : inherits from <
     VPFuzzer --> VPool: has access to >
 
     runner <|-- PRunner : inherits from <

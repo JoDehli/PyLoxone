@@ -10,13 +10,41 @@ So here we are!
 
 ## Start to fuzz
 ### Setup
-- install the following packages:
+1. create a virtual environment:
+
+You can create the virtual environment in the project's root directory (recommended) or any other directory of your choice.
+```shell
+python -m venv venv
+```
+2. activate the virtual environment:
+
+Windows
+```shell
+.\venv\Scripts\activate
+```
+
+Linux and macOS
+```shell
+source venv/bin/activate
+```
+
+3.  install the following packages:
 ```shell
 pip install pytest
 pip install pytest-timeout
 pip install homeassistant
+pip install numpy
 ```
-- you maybe have to tell python were to find the `PyLoxone` project 
+4. you maybe have to tell python were to find the `PyLoxone` project 
+
+Windows
+- Go to the Windows menu and search for "Environment Variables".
+- Select “Advanced system settings”.
+- In the “System Properties” window, click the “Environment Variables” button.
+- Click the “New” button in the top half of the dialog, to make a new user variable.
+- Name the variable PYTHONPATH and set its value to the path of your code directory. Click "OK" and "OK" again to save.
+
+Linux and macOS
 ```shell
 export PYTHONPATH=$PYTHONPATH:/path/to/PyLoxone
 ```
@@ -34,25 +62,23 @@ pytest
 ![fuzzer_overview](fuzzer_overview.svg)
 
 # TODO
-- @ThorbenCarl: add .venv setup
-- add test files
-- consider imports
+
 ## Random testing 
+> - not needed for grade bonus
 
 ## Value pools
-- @jonathanheitzmann: custom_components/test/fuzzing/fuzzer_utils/ValuePool.py
-- @jonathanheitzmann: custom_components/test/fuzzing/fuzzer_utils/ValuePoolFuzzer.py
-- @hoegma: custom_components/test/fuzzing/fuzzer_utils/ParamRunner.py
-
-- create test case with different value pools for one function
-- write function that creates 2-way, 3-way, ... pools
-- fuzz more funktions
-- timeout?
+- [ ] @jonathanheitzmann custom_components/test/fuzzing/fuzzer_utils/ValuePool.py
+- [ ] @jonathanheitzmann custom_components/test/fuzzing/fuzzer_utils/ValuePoolFuzzer.py
+  - [ ] @jonathanheitzmann write function that creates 2-way, 3-way, ... pools
+- [ ] @ThorbenCarl create some test cases for the value pool fuzzer
 
 ## Generators
-- @JKortmann: custom_components/test/fuzzing/fuzzer_utils/GeneratorRunner.py
+- [ ] @dsiev custom_components/test/fuzzing/fuzzer_utils/GeneratorRunner.py
+  - [ ] @dsiev present concept (UML)
+  - [ ] @dsiev implementation of Generators
 
 ## Input grammars
+- [ ] @JKortmann present concept (UML)
 
 ## Mutational 
 ### black-box
