@@ -65,13 +65,11 @@ class ValuePoolFuzzer(Fuzzer):
             if t not in valid_types:
                 logger.error("Invalid type " + str(t) + "specified.")
                 raise ValueError(f"Invalid type '{t}' specified.")
-            
-        dummy_list = [
-            [-1, -1, 0, 3, 6],
-            [0, 0, 0, 0, 0],
-            [-1, -1, 0, 5, 6],
-        ]
+
+        
+        for t in types:
+            value_pools.append(valid_types[t])
             
 
 
-        return dummy_list
+        return value_pools
