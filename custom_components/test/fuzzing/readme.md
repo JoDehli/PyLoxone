@@ -57,6 +57,10 @@ cd /path/to/PyLoxone
 ```shell
 pytest
 ```
+- if you only want to run a single test file, you can enter the path to the file:
+```shell
+pytest custom_components/test/path/to/test_file.py
+```
 
 ## Fuzzer layout (UML)
 ![fuzzer_overview](fuzzer_overview.svg)
