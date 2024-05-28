@@ -1,82 +1,90 @@
 @startuml fuzzer_overview
 allow_mixing
 
-package "fuzzing" as fuzzing <<Folder>> {
-    package "fuzzer_utils" as FUtils <<Folder>> {
 
-        abstract "Fuzzer" as fuzzer << abstract class >> {
-            --
-            - __int__(self) : void
-            + fuzz() : boolean
-        }
+package "fuzzer_utils" as FUtils <<Folder>> {
 
-        class "ValuePoolFuzzer" as VPFuzzer << class >> {
-            --
-            - __int__(self) : void
-            + fuzz(self, param_nr : int, types : list, param_combi : int) : list
-        }
-        class "RandomFuzzer" as RFuzzer << class >>
-        class "GeneratorFuzzer" as GFuzzer << class >> {
-            --
-            - __int__(self) : void
-        }
-        class "GrammarFuzzer" as GrFuzzer << class >> {
-            --
-            - __int__(self) : void
-        }
-
-        class "ValuePool" as VPool << class >> {
-            - _UINT_POOL : list
-            - _INT_POOL : list
-            - _FLOAT_POOL : list
-            --
-            - __int__(self) : void
-            + get_uint(self) : list
-            + get_int(self) : list
-            + get_float(self) : list
-        }
-
-
-        abstract "Runner" as runner << abstract class >> {
-            --
-            - __int__(self) : void
-            + run() : int
-        }
-
-        class "ParamRunner" as PRunner << class >> {
-            --
-            - __int__(self) : void
-            + run(self, function : function, param_set : list) : list
-        }
-
-        class "GeneratorRunner" as GRunner << class >> {
-            --
-            - __int__(self) : void
-            + run(self, ???) : list
-        }
+    abstract "Fuzzer" as fuzzer << abstract class >> {
+        --
+        - __int__(self) : void
+        + fuzz() : boolean
     }
 
-    folder "value_pools" as VPools  {
-        file "test_vp_on_helpers.py"
+    class "ValuePoolFuzzer" as VPFuzzer << class >> {
+        --
+        - __int__(self) : void
+        + fuzz(self, param_nr : int, types : list, param_combi : int) : list
+        + limit_param_set(self, param_set : list, runs : int) : list
+    }
+    class "RandomFuzzer" as RFuzzer << class >>{
+        --
+        - __int__(self) : void
+    }
+    class "GeneratorFuzzer" as GFuzzer << class >> {
+        --
+        - __int__(self) : void
+    }
+    class "GrammarFuzzer" as GrFuzzer << class >> {
+        --
+        - __int__(self) : void
     }
 
-    folder "generators" as generators {
-        file "test_gen_on_xxx.py"
-    }
-
-    folder "grammar" as grammar {
-        file "test_gram_on_xxx.py"
+    class "ValuePool" as VPool << class >> {
+        - _UINT_POOL : list
+        - _INT_POOL : list
+        - _FLOAT_POOL : list
+        --
+        - __int__(self) : void
+        + get_uint(self) : list
+        + get_int(self) : list
+        + get_float(self) : list
     }
 
 
-    fuzzer <|-- VPFuzzer : inherits from <
-    fuzzer <|-- RFuzzer : inherits from <
-    fuzzer <|-- GrFuzzer : inherits from <
-    fuzzer <|-- GFuzzer : inherits from <
-    VPFuzzer --> VPool: has access to >
+    abstract "Runner" as runner << abstract class >> {
+        --
+        - __int__(self) : void
+        + run() : int
+    }
 
-    runner <|-- PRunner : inherits from <
-    runner <|-- GRunner : inherits from <
+    class "ParamRunner" as PRunner << class >> {
+        --
+        - __int__(self) : void
+        + run(self, function : function, param_set : list) : list
+    }
 
+    class "GeneratorRunner" as GRunner << class >> {
+        --
+        - __int__(self) : void
+        + run(self, ???) : list
+    }
 }
+
+folder "value_pools" as VPools  {
+    file "test_vp_on_helpers.py" as test_VP_H
+}
+
+folder "generators" as generators {
+    file "test_gen_on_xxx.py" as test_GEN
+}
+
+folder "grammar" as grammar {
+    file "test_gram_on_xxx.py" as test_GRA
+}
+
+
+fuzzer <|-- VPFuzzer : inherits from <
+fuzzer <|-- RFuzzer : inherits from <
+fuzzer <|-- GrFuzzer : inherits from <
+fuzzer <|-- GFuzzer : inherits from <
+VPool <--* VPFuzzer: has access to <
+
+runner <|-- PRunner : inherits from <
+runner <|-- GRunner : inherits from <
+
+VPFuzzer <-- test_VP_H : uses <
+PRunner <-- test_VP_H : uses <
+
+
+
 @enduml
