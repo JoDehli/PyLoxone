@@ -5,6 +5,76 @@ import logging
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
 
+def generate_ranking(lists):
+    # generates ranking based on length of the lists
+    rank = sorted(range(len(lists)), key=lambda x: (-len(lists[x]), x))
+    return rank
+
+def get_repeater(lists, param_combi, m):
+    #if param_combi is greater than 1 lists have to be repeated, here it is calculated how often a list must be repeated
+    repeater = 1
+    param_combi_count = 1
+    while param_combi_count < param_combi:
+        if m >= param_combi_count:
+            repeater = repeater * len(lists[m-1])
+        param_combi_count += 1
+        
+    return repeater-1
+    
+def generate_new_list(lists, param_combi, rank):
+    new_lists = []
+    spare_list = []
+    new_spare_list = []
+        
+
+    m = 0
+    while m < len(lists):
+        repeater = get_repeater(lists, param_combi, m)
+        repeater_count = 0
+        spare_list = []
+        new_spare_list = []
+        while repeater_count <= repeater: 
+            n = m + 1
+            repetition_counter = 1
+            while n < param_combi:
+                repetition_counter = repetition_counter * len(lists[rank[n]])
+                n += 1
+                
+                
+            o = 0
+            index = 0
+            while o < len(lists[rank[m]]):
+                r = 0
+                spare_list = lists[rank[m]]
+                q = len(spare_list)
+                while q < len(lists[rank[0]]):
+                    spare_list.append(spare_list[0]) #if the length of a list is smaller than the longest list we have to fill it, it could probably be more elegant
+                    q += 1
+                while r < repetition_counter:
+                    new_spare_list.append(spare_list[o])
+                    index += 1
+                    r += 1
+                o += 1
+            p = len(lists[rank[m]])
+                
+            repeater_count += 1
+                
+
+        new_lists.append(new_spare_list)
+        #print(new_lists)
+                
+        m += 1
+        
+    return new_lists
+    
+def generate_combinations(lists, param_combi):
+    #print("Input lists:", lists)
+        
+    rank = generate_ranking(lists) #ranking over length of lists
+
+    new_list = generate_new_list(lists, param_combi, rank)
+
+    return new_list
 
 class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
@@ -66,15 +136,11 @@ class ValuePoolFuzzer(Fuzzer):
                 logger.error("Invalid type " + str(t) + "specified.")
                 raise ValueError(f"Invalid type '{t}' specified.")
 
-        # Create a list of lists containing the valid values for each type in types_list
-        # e.g. [[all valid INTs], [all valid BOOLs], [all valid INTs], ...]
-        values_list = [valid_types[type_] for type_ in types]
+        value_pools = []
+        for t in types:
+            value_pools.append(valid_types[t])#creating list of the value_pool lists needed
 
-        # Use itertools.product to generate all possible combinations
-        combinations = list(product(*values_list))
+        result = generate_combinations(value_pools, param_combi)
 
-        # Convert tuples to lists
-        result = [list(combination) for combination in combinations]
-
-        # print(result)
+            
         return result
