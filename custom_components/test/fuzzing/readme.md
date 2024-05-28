@@ -66,21 +66,51 @@ pytest custom_components/test/path/to/test_file.py
 ![fuzzer_overview](fuzzer_overview.svg)
 
 # TODO
-
 ## Random testing 
 > - not needed for grade bonus
+- [ ] Implement a `RandomFuzzer`.
+  - The return value should be identical to the `fuzz()` function of the `ValuePoolFuzzer` class so that the `ParamRunner` can be used.
+  - assigend to: ---
 
 ## Value pools
-- [ ] @jonathanheitzmann custom_components/test/fuzzing/fuzzer_utils/ValuePoolFuzzer.py
-  - [ ] @jonathanheitzmann write function that creates 2-way, 3-way, ... pools
+- [ ] Update `fuzz()` function in `ValuePoolFuzzer` class. 
+  - [ ] so that 2-way, 3-way, ... pools can be created
+  - [ ] Update UML if needed
+  - [ ] Implement and test on at least one test case in `test_vp_on_helpers.py`
+  - [ ] Create merge request 
+  - assigend to: @jonathanheitzmann
+  - @jonathanheitzmann works on branch `fuzzing/value_pools`
+- [ ] Create `limit_param_set(param_set : set, runs : int)` function in `ValuePoolFuzzer` class. 
+  - [ ] Function takes a generated `param_set` (list of lists) and the integer `runs`. If `runs` is lower than the number of Lists in the `param_set` randomly sets are picked, so that `runs` is equal to number of lists in `param_set`.
+  - [ ] Update UML if needed
+  - [ ] Implement and test on at least one test case in `test_vp_on_helpers.py`
+  - [ ] Create merge request 
+  - assigend to: @hoegma
+  - @hoegma works on branch `fuzzing/value_pools-limit_param`
+- [ ] The parameter `param_nr` is superfluous and is not required in the function `fuzz()` of the `ValuePoolFuzzer` class. The number of parameters is already determined by the length of list `types`.
+  - assigend to: ---
+- [ ] The value pools contain no no neutral element like `None` or `NaN`. 
+  - assigend to: ---
+- [ ] To avoid duplication in the code, value pools should "inherit" from each other in some way.  For example, "INT" also takes all values from "UINT" (identical to Balista).
+  - assigend to: ---
 
 ## Generators
-- [ ] @dsiev custom_components/test/fuzzing/fuzzer_utils/GeneratorRunner.py
-  - [ ] @dsiev present concept (UML)
-  - [ ] @dsiev implementation of Generators
+- [ ] Implement the generators.
+  - [ ] present concept
+  - [ ] Update UML if needed
+  - [ ] Are there any subtasks that can be given to someone else?
+  - [ ] Create merge request 
+  - assigend to: @dsiev
+  - @dsiev works on branch `fuzzing/generators`
 
 ## Input grammars
-- [ ] @JKortmann present concept (UML)
+- [ ] Implement the grammars.
+  - [ ] present concept
+  - [ ] Update UML if needed
+  - [ ] Are there any subtasks that can be given to someone else?
+  - [ ] Create merge request 
+  - assigend to: @JKortmann
+  - @JKortmann works on branch `fuzzing/generators`
 
 ## Mutational 
 ### black-box
@@ -90,7 +120,5 @@ pytest custom_components/test/path/to/test_file.py
 
 # Vulnerabilities found
 ## `helpers.py`
-### `map_range`
-- possible zero division
-
-### `test_get_all`
+### `map_range()`
+- A possible 0 division is not checked or intercepted.
