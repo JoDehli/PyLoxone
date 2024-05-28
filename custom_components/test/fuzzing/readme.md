@@ -106,11 +106,23 @@ pytest
   - [ ] Are there any subtasks that can be given to someone else?
   - [ ] Create merge request 
   - assigend to: @JKortmann
-  - @JKortmann works on branch `fuzzing/generators`
+  - @JKortmann works on branch `fuzzing/grammars`
 
 ## Mutational 
 ### black-box
+- [ ] Implement the mutational fuzzing (black-box).
+  - [ ] present concept
+  - [ ] Update UML if needed
+  - [ ] Create merge request 
+  - assigend to: @ThorbenCarl
+  - @ThorbenCarl works on branch `fuzzing/mutational_black_box`
 ### grey-box
+- [ ] Implement the mutational fuzzing (grey-box).
+  - [ ] present concept
+  - [ ] Update UML if needed
+  - [ ] Create merge request 
+  - assigend to: @hoegma
+  - @hoegma works on branch `fuzzing/mutational_grey_box`
 
 ## Search based
 
