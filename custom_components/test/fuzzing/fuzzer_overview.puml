@@ -3,18 +3,11 @@ allow_mixing
 '''''''''''''''''''''''''''''''''''''''
 'Fuzzer''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
-abstract "Fuzzer" as fuzzer << abstract class >> {
+abstract class "Fuzzer" as fuzzer << abstract class >> {
     --
     - __int__(self) : void
-    + fuzz() : boolean
+    + fuzz() : list
 }
-'''''''''''''''''''''''''''''''''''''''
-class "RandomFuzzer" as RFuzzer << class >>{
-    --
-    - __int__(self) : void
-}
-note "Not implemented!" as N2
-RFuzzer .. N2
 '''''''''''''''''''''''''''''''''''''''
 class "ValuePoolFuzzer" as VPFuzzer << class >> {
     --
@@ -53,27 +46,37 @@ class "ValuePool" as VPool << class >> {
 class "GeneratorFuzzer" as GFuzzer << class >> {
     --
     - __int__(self) : void
+    + fuzz(self, ???) : list
 }
 '''''''''''''''''''''''''''''''''''''''
 class "GrammarFuzzer" as GrFuzzer << class >> {
     --
     - __int__(self) : void
-    - _convert_to_min_cost_grammar(self, grammar: Grammar) : Tuple
-    - _convert_to_max_cost_grammar(self, grammar: Grammar) : Tuple
+    - _convert_to_min_cost_grammar(self, grammar: Grammar) : tuple
+    - _convert_to_max_cost_grammar(self, grammar: Grammar) : tuple
     + fuzz(self, grammar: Grammar, start_symbol: Element, min_prio: boolean) : list
 }
 class "GrammarPool" as GrPool << class >> {
-     - _IPV4_GRAMMAR : dict
-     - _dict_GRAMMAR : dict
+    - _IPV4_GRAMMAR : dict
+    - _dict_GRAMMAR : dict
     --
     - __int__(self) : void
     + get_ipv4(self) : dict
     + get_dict(self) : dict
 }
 '''''''''''''''''''''''''''''''''''''''
+class "MutationalFuzzer" as MFuzzer << class >> {
+    --
+    - __int__(self) : void
+    - delete_random_character(self, s: str) : str
+    - insert_random_character(self, s: str) : str
+    - flip_random_character(self, s: str) : str
+    + fuzz(self, seed : list, types : list, rounds : int, mode : str) : list
+}
+'''''''''''''''''''''''''''''''''''''''
 'Runner''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
-abstract "Runner" as runner << abstract class >> {
+abstract class "Runner" as runner << abstract class >> {
     --
     - __int__(self) : void
     + run() : int
@@ -85,32 +88,50 @@ class "ParamRunner" as PRunner << class >> {
     + run(self, function : function, param_set : list) : list
 }
 '''''''''''''''''''''''''''''''''''''''
-class "GeneratorRunner" as GRunner << class >> {
-    --
-    - __int__(self) : void
-    + run(self, ???) : list
-}
-'''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
-file "test_vp_on_helpers.py" as test_VP_H
+entity  "test_vp_on_helpers.py" as test_VP_H << test case >>{
+    logger
+    value_pool_fuzzer
+    param_runner 
+    --
+    test_map_range() : None
+    test_hass_to_lox() : None
+    test_lox_to_hass() : None
+    test_lox2lox_mapped() : None
+    test_lox2hass_mapped() : None
+    test_to_hass_color_temp() : None
+    test_to_loxone_color_temp() : None
+    test_get_room_name_from_room_uuid() : None
+    test_get_cat_name_from_cat_uuid() : None
+    test_add_room_and_cat_to_value_values() : None
+    test_get_miniserver_type() : None
+    test_get_all() : None
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_gen_on_XXX.py" as test_GEN << test case >>{
 
-file "test_gen_on_xxx.py" as test_GEN
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_gram_on_XXX.py" as test_GRA << test case >>{
 
-file "test_gram_on_xxx.py" as test_GRA
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_mut_on_XXX.py" as test_MUT << test case >>{
+
+}
 '''''''''''''''''''''''''''''''''''''''
 'Fuzzer''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 fuzzer <|-- VPFuzzer : inherits from <
-fuzzer <|-- RFuzzer : inherits from <
+VPool <--* VPFuzzer: has access to <
 fuzzer <|-- GrFuzzer : inherits from <
 fuzzer <|-- GFuzzer : inherits from <
-VPool <--* VPFuzzer: has access to <
+fuzzer <|-- MFuzzer : inherits from <
 '''''''''''''''''''''''''''''''''''''''
 'Runner''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 runner <|-- PRunner : inherits from <
-runner <|-- GRunner : inherits from <
 '''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
@@ -122,6 +143,7 @@ PRunner <--* test_GRA : needs a <
 test_GRA *-> GrPool: needs a >
 '''''''''''''''''''''''''''''''''''''''
 GFuzzer <--* test_GEN : needs a <
-GRunner <--* test_GEN : needs a <
-
+'''''''''''''''''''''''''''''''''''''''
+MFuzzer <--* test_MUT : needs a <
+PRunner <--* test_MUT : needs a <
 @enduml
