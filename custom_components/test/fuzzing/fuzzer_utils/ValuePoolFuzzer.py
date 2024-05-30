@@ -1,5 +1,6 @@
 from itertools import product
 import logging
+import random
 
 
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
@@ -10,6 +11,7 @@ class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
 
     value_pool = ValuePool()
+    logger = logging.getLogger(__name__)
 
     def __int__(self):
         """constructor"""
@@ -32,18 +34,18 @@ class ValuePoolFuzzer(Fuzzer):
         :rtype: list
         """
 
-        logger = logging.getLogger(__name__)
-        logger.warning("The var param_combi is not in use!")
+        
+        self.logger.warning("The var param_combi is not in use!")
 
         # Validate input parameters
         if param_nr <= 0:
-            logger.error("Param Nr smaller or equal 0")
+            self.logger.error("Param Nr smaller or equal 0")
             raise ValueError("param_nr must be a positive integer.")
         if len(types) != param_nr:
-            logger.error("Length of types list must be equal to param_nr.")
+            self.logger.error("Length of types list must be equal to param_nr.")
             raise ValueError("Length of types list must be equal to param_nr.")
         if param_combi <= 0 or param_combi > param_nr:
-            logger.error("param_combi must be between 1 and param_nr.")
+            self.logger.error("param_combi must be between 1 and param_nr.")
             raise ValueError("param_combi must be between 1 and param_nr.")
 
         # Get the value pools for the valid types
@@ -63,7 +65,7 @@ class ValuePoolFuzzer(Fuzzer):
         # Check whether requested types are valid.
         for t in types:
             if t not in valid_types:
-                logger.error("Invalid type " + str(t) + "specified.")
+                self.logger.error("Invalid type " + str(t) + "specified.")
                 raise ValueError(f"Invalid type '{t}' specified.")
 
         # Create a list of lists containing the valid values for each type in types_list
@@ -78,3 +80,34 @@ class ValuePoolFuzzer(Fuzzer):
 
         # print(result)
         return result
+    
+    def limit_param_set(self, param_set: list, runs: int) -> list:
+        """Generates a specific selection of an individual value pool. A list of lists is returned with a specified number of elements.
+
+        :param param_set: The value pool as list of lists.
+        :type param_nr: list
+        :param runs: Number of elements selected from the value pool.
+        :type types: int
+
+        :return: A random selection of certain elements from the parameter set.
+        :rtype: list
+        """
+
+        # Validate input parameters
+        if not isinstance(param_set, list):
+            self.logger.error("Param_set must be of type list.")
+            raise TypeError("Param_set must be of type list.")
+        if len(param_set) == 0:
+            self.logger.error("Length of param_set must be greater then 0.")
+            raise ValueError("Length of param_set must be greater then 0.")
+        if not isinstance(runs, int) or runs <= 0:
+            self.logger.error("Runs must be of type int and greater than 0. Parameter set is returned unchanged.")
+            return param_set
+        
+        # Selection of random elements from param_set if the number of runs is smaller than the number of elements in param_set
+        if runs > len(param_set):
+            self.logger.info("Length of param_set is smaller than the value of runs. Returned param_set unchanged.")
+            return param_set
+        else:
+            self.logger.info(f"Decresed elements in param_set from {len(param_set)} to {runs}")
+            return random.sample(param_set, runs)
