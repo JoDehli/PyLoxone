@@ -5,13 +5,33 @@ import logging
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
 
-def generate_ranking(lists):
-    # generates ranking based on length of the lists
+def _generate_ranking(lists):
+    """
+    Generates ranking based on length of the lists.
+
+    :param lists: A list containing inner lists.
+    :type lists: list of lists
+    
+    :return: A ranking of the lists based on their length.
+    :rtype: list
+    """
     rank = sorted(range(len(lists)), key=lambda x: (-len(lists[x]), x))
     return rank
 
-def get_repeater(lists, param_combi, m):
-    #if param_combi is greater than 1 lists have to be repeated, here it is calculated how often a list must be repeated
+def _get_repeater(lists, param_combi, m):
+    """
+    Calculates how often a list must be repeated if param_combi is greater than 1.
+
+    :param lists: A list containing inner lists.
+    :type lists: list of lists
+    :param param_combi: Number of parameters to be combined.
+    :type param_combi: int
+    :param m: The current index in the lists.
+    :type m: int
+    
+    :return: The number of times a list must be repeated.
+    :rtype: int
+    """
     repeater = 1
     param_combi_count = 1
     while param_combi_count < param_combi:
@@ -21,7 +41,20 @@ def get_repeater(lists, param_combi, m):
         
     return repeater-1
     
-def generate_new_list(lists, param_combi, rank):
+def _generate_new_list(lists, param_combi, rank):
+    """
+    Generates a new list with recombinations of inner lists.
+
+    :param lists: A list containing inner lists of values.
+    :type lists: list of lists
+    :param param_combi: Number of parameters to be combined.
+    :type param_combi: int
+    :param rank: Indices of the lists sorted by their length.
+    :type rank: list
+    
+    :return: A new list with recombinations of the original lists.
+    :rtype: list of lists
+    """
     new_lists = []
     spare_list = []
     new_spare_list = []
@@ -29,7 +62,7 @@ def generate_new_list(lists, param_combi, rank):
 
     m = 0
     while m < len(lists):
-        repeater = get_repeater(lists, param_combi, m)
+        repeater = _get_repeater(lists, param_combi, m)
         repeater_count = 0
         spare_list = []
         new_spare_list = []
@@ -48,7 +81,8 @@ def generate_new_list(lists, param_combi, rank):
                 spare_list = lists[rank[m]]
                 q = len(spare_list)
                 while q < len(lists[rank[0]]):
-                    spare_list.append(spare_list[0]) #if the length of a list is smaller than the longest list we have to fill it, it could probably be more elegant
+                    """if the length of a list is smaller than the longest list we have to fill it, it could probably be more elegant"""
+                    spare_list.append(spare_list[0])
                     q += 1
                 while r < repetition_counter:
                     new_spare_list.append(spare_list[o])
@@ -59,20 +93,27 @@ def generate_new_list(lists, param_combi, rank):
                 
             repeater_count += 1
                 
-
         new_lists.append(new_spare_list)
-        #print(new_lists)
                 
         m += 1
         
     return new_lists
     
-def generate_combinations(lists, param_combi):
-    #print("Input lists:", lists)
-        
-    rank = generate_ranking(lists) #ranking over length of lists
+def _generate_combinations(lists, param_combi):
+    """
+    Generates combinations of the values in the provided lists.
 
-    new_list = generate_new_list(lists, param_combi, rank)
+    :param lists: A list containing inner lists of values.
+    :type lists: list of lists
+    :param param_combi: Number of parameters to be combined.
+    :type param_combi: int
+    
+    :return: A list with combinations of values.
+    :rtype: list of lists
+    """
+    rank = _generate_ranking(lists)
+
+    new_list = _generate_new_list(lists, param_combi, rank)
 
     return new_list
 
@@ -87,25 +128,28 @@ class ValuePoolFuzzer(Fuzzer):
     def fuzz(
         self, param_nr: int = 1, types: list = ["INT"], param_combi: int = 1
     ) -> list:
-        """Generates an individual value pool for fuzzing based on the parameters. A list of lists is returned.
-
-        TODO: @jonathanheitzmann implement function of param_combi
+        """
+        Generates an individual value pool for fuzzing based on the parameters.
 
         :param param_nr: Number of parameters of the function to be fuzzed. Each list in the return list contains a corresponding number of entries.
-        :type param_nr: int
-        :param types: A list of required data types is transferred. The list must be the same length as the number of parameters specified under param_nr for the function to be fuzzed. e.g. ["int", "float", "char"]
-        :type types: list
-        :param param_combi: param_combi can have a maximum of the number of parameters specified under param_nr. The user can specify whether he wants to have all combinations in his list (param_nr = param_combi) or e.g. only a 2-fold combination.
-        :type param_combi: int
-
-        :return: The value pool as list of lists.
-        :rtype: list
+        :type param_nr: int, defaults to 1
+        :param types: A list of required data types. The list must be the same length as param_nr.
+        :type types: list, defaults to ["INT"]
+        :param param_combi: Maximum number of parameter combinations.
+        :type param_combi: int, defaults to 1
+        
+        :raises ValueError: If param_nr is not a positive integer.
+        :raises ValueError: If length of types list is not equal to param_nr.
+        :raises ValueError: If param_combi is not between 1 and param_nr.
+        
+        :return: The value pool for fuzzing.
+        :rtype: list of lists
         """
 
         logger = logging.getLogger(__name__)
         logger.warning("The var param_combi is not in use!")
 
-        # Validate input parameters
+        """Validate input parameters"""
         if param_nr <= 0:
             logger.error("Param Nr smaller or equal 0")
             raise ValueError("param_nr must be a positive integer.")
@@ -116,7 +160,7 @@ class ValuePoolFuzzer(Fuzzer):
             logger.error("param_combi must be between 1 and param_nr.")
             raise ValueError("param_combi must be between 1 and param_nr.")
 
-        # Get the value pools for the valid types
+        """Get the value pools for the valid types"""
         valid_types = {
             "INT": self.value_pool.get_int(),
             "UINT": self.value_pool.get_uint(),
@@ -130,17 +174,19 @@ class ValuePoolFuzzer(Fuzzer):
             "ALL": self.value_pool.get_all_values(),
         }
 
-        # Check whether requested types are valid.
+        value_pools = []
+
+        
         for t in types:
+            """Check whether requested types are valid."""
             if t not in valid_types:
                 logger.error("Invalid type " + str(t) + "specified.")
                 raise ValueError(f"Invalid type '{t}' specified.")
+            else:
+                """Creating list of the value_pool lists provided in types"""
+                value_pools.append(valid_types[t])
+            
 
-        value_pools = []
-        for t in types:
-            value_pools.append(valid_types[t])#creating list of the value_pool lists needed
-
-        result = generate_combinations(value_pools, param_combi)
-
+        result = _generate_combinations(value_pools, param_combi)
             
         return result

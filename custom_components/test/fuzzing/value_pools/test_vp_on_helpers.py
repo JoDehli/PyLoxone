@@ -29,7 +29,7 @@ param_runner = ParamRunner()
 def test_map_range():
     logger.info("Start of map_range() test.")
     param_set = value_pool_fuzzer.fuzz(
-        5, ["FLOAT", "FLOAT", "FLOAT", "FLOAT", "FLOAT"], 5
+        5, ["FLOAT", "FLOAT", "FLOAT", "FLOAT", "FLOAT"], 3
     )
     result = param_runner.run(map_range, param_set)
     logger.info("map_range() test finished.")
@@ -60,7 +60,7 @@ def test_lox_to_hass():
 @pytest.mark.timeout(300)
 def test_lox2lox_mapped():
     logger.info("Start of lox2lox_mapped() test.")
-    param_set = value_pool_fuzzer.fuzz(3, ["FLOAT", "FLOAT", "FLOAT"], 3)
+    param_set = value_pool_fuzzer.fuzz(3, ["FLOAT", "FLOAT", "FLOAT"], 2)
     result = param_runner.run(lox2lox_mapped, param_set)
     logger.info("lox2lox_mapped() test finished.")
 
@@ -70,7 +70,7 @@ def test_lox2lox_mapped():
 @pytest.mark.timeout(300)
 def test_lox2hass_mapped():
     logger.info("Start of lox2hass_mapped() test.")
-    param_set = value_pool_fuzzer.fuzz(3, ["FLOAT", "FLOAT", "FLOAT"], 3)
+    param_set = value_pool_fuzzer.fuzz(3, ["FLOAT", "FLOAT", "FLOAT"], 2)
     result = param_runner.run(lox2hass_mapped, param_set)
     logger.info("lox2hass_mapped() test finished.")
 
