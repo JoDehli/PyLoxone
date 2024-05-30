@@ -1,7 +1,6 @@
 from itertools import product
 import logging
 
-
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
 
@@ -10,6 +9,7 @@ class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
 
     value_pool = ValuePool()
+    logger = logging.getLogger(__name__)
 
     def __int__(self):
         """constructor"""
@@ -32,18 +32,18 @@ class ValuePoolFuzzer(Fuzzer):
         :rtype: list
         """
 
-        logger = logging.getLogger(__name__)
-        logger.warning("The var param_combi is not in use!")
+        
+        self.logger.warning("The var param_combi is not in use!")
 
         # Validate input parameters
         if param_nr <= 0:
-            logger.error("Param Nr smaller or equal 0")
+            self.logger.error("Param Nr smaller or equal 0")
             raise ValueError("param_nr must be a positive integer.")
         if len(types) != param_nr:
-            logger.error("Length of types list must be equal to param_nr.")
+            self.logger.error("Length of types list must be equal to param_nr.")
             raise ValueError("Length of types list must be equal to param_nr.")
         if param_combi <= 0 or param_combi > param_nr:
-            logger.error("param_combi must be between 1 and param_nr.")
+            self.logger.error("param_combi must be between 1 and param_nr.")
             raise ValueError("param_combi must be between 1 and param_nr.")
 
         # Get the value pools for the valid types
@@ -63,7 +63,7 @@ class ValuePoolFuzzer(Fuzzer):
         # Check whether requested types are valid.
         for t in types:
             if t not in valid_types:
-                logger.error("Invalid type " + str(t) + "specified.")
+                self.logger.error("Invalid type " + str(t) + "specified.")
                 raise ValueError(f"Invalid type '{t}' specified.")
 
         # Create a list of lists containing the valid values for each type in types_list
