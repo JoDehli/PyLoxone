@@ -30,7 +30,7 @@ def test_map_range():
     param_set = value_pool_fuzzer.fuzz(
         5, ["FLOAT", "FLOAT", "FLOAT", "FLOAT", "FLOAT"], 5
     )
-    param_set = value_pool_fuzzer.limit_param_set(param_set, 50000)
+    param_set = param_runner.limit_param_set(param_set, 50000)
     result = param_runner.run(map_range, param_set)
     logger.info("map_range() test finished.")
 
