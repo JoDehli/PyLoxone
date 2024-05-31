@@ -57,6 +57,10 @@ cd /path/to/PyLoxone
 ```shell
 pytest
 ```
+- if you only want to run a single test file, you can enter the path to the file:
+```shell
+pytest custom_components/test/path/to/test_file.py
+```
 
 ## Fuzzer layout (UML)
 ![fuzzer_overview](fuzzer_overview.svg)
@@ -66,51 +70,53 @@ pytest
 > - not needed for grade bonus
 - [ ] Implement a `RandomFuzzer`.
   - The return value should be identical to the `fuzz()` function of the `ValuePoolFuzzer` class so that the `ParamRunner` can be used.
-  - assigend to: ---
+  - Assigned to: ---
 
 ## Value pools
 - [ ] Update `fuzz()` function in `ValuePoolFuzzer` class. 
-  - [ ] so that 2-way, 3-way, ... pools can be created
-  - [ ] Update UML if needed
-  - [ ] Implement and test on at least one test case in `test_vp_on_helpers.py`
+  - [ ] Update UML
   - [ ] Create merge request 
-  - assigend to: @jonathanheitzmann
-  - @jonathanheitzmann works on branch `fuzzing/value_pools`
-- [ ] Create `limit_param_set(param_set : set, runs : int)` function in `ValuePoolFuzzer` class. 
-  - [ ] Function takes a generated `param_set` (list of lists) and the integer `runs`. If `runs` is lower than the number of Lists in the `param_set` randomly sets are picked, so that `runs` is equal to number of lists in `param_set`.
-  - [ ] Update UML if needed
-  - [ ] Implement and test on at least one test case in `test_vp_on_helpers.py`
-  - [ ] Create merge request 
-  - assigend to: @hoegma
-  - @hoegma works on branch `fuzzing/value_pools-limit_param`
+  - Assigned to: @jonathanheitzmann
+  - @jonathanheitzmann works on branch `param_combi`
 - [ ] The parameter `param_nr` is superfluous and is not required in the function `fuzz()` of the `ValuePoolFuzzer` class. The number of parameters is already determined by the length of list `types`.
-  - assigend to: ---
+  - Assigned to: ---
 - [ ] The value pools contain no no neutral element like `None` or `NaN`. 
-  - assigend to: ---
+  - Assigned to: ---
 - [ ] To avoid duplication in the code, value pools should "inherit" from each other in some way.  For example, "INT" also takes all values from "UINT" (identical to Balista).
-  - assigend to: ---
+  - Assigned to: ---
 
 ## Generators
 - [ ] Implement the generators.
-  - [ ] present concept
+  - [ ] Present concept
   - [ ] Update UML if needed
-  - [ ] Are there any subtasks that can be given to someone else?
   - [ ] Create merge request 
-  - assigend to: @dsiev
+  - Assigned to: @dsiev
   - @dsiev works on branch `fuzzing/generators`
 
 ## Input grammars
 - [ ] Implement the grammars.
-  - [ ] present concept
+  - [ ] Is it possible to use `ParamRunner`? Are updates on the `ParamRunner` needed?
+  - [ ] Present concept
   - [ ] Update UML if needed
-  - [ ] Are there any subtasks that can be given to someone else?
   - [ ] Create merge request 
-  - assigend to: @JKortmann
-  - @JKortmann works on branch `fuzzing/generators`
+  - Assigned to: @JKortmann
+  - @JKortmann works on branch `fuzzing/grammars`
 
 ## Mutational 
 ### black-box
+- [ ] Implement the mutational fuzzing (black-box).
+  - [ ] Present concept
+  - [ ] Update UML if needed
+  - [ ] Create merge request 
+  - Assigned to: @ThorbenCarl
+  - @ThorbenCarl works on branch `fuzzing/mutational_black_box`
 ### grey-box
+- [ ] Implement the mutational fuzzing (grey-box).
+  - [ ] Present concept
+  - [ ] Update UML if needed
+  - [ ] Create merge request 
+  - Assigned to: @hoegma
+  - @hoegma works on branch `fuzzing/mutational_grey_box`
 
 ## Search based
 

@@ -39,10 +39,12 @@ class ParamRunner(Runner):
                 self.logger.debug(f"Test passed with parameters: {param}")
             except Exception as e:
                 failed_tests += 1
-                self.logger.error(f"Test failed with parameters: {param}. Exception: {e}")
+                self.logger.error(
+                    f"Test failed with parameters: {param}. Exception: {e}"
+                )
 
         return [passed_tests, failed_tests]
-    
+
     def limit_param_set(self, param_set: list, runs: int) -> list:
         """Generates a specific selection of an individual value pool. A list of lists is returned with a specified number of elements.
 
@@ -63,13 +65,19 @@ class ParamRunner(Runner):
             self.logger.error("Length of param_set must be greater then 0.")
             raise ValueError("Length of param_set must be greater then 0.")
         if not isinstance(runs, int) or runs <= 0:
-            self.logger.error("Runs must be of type int and greater than 0. Parameter set is returned unchanged.")
+            self.logger.error(
+                "Runs must be of type int and greater than 0. Parameter set is returned unchanged."
+            )
             return param_set
-        
+
         # Selection of random elements from param_set if the number of runs is smaller than the number of elements in param_set
         if runs > len(param_set):
-            self.logger.info("Length of param_set is smaller than the value of runs. Returned param_set unchanged.")
+            self.logger.info(
+                "Length of param_set is smaller than the value of runs. Returned param_set unchanged."
+            )
             return param_set
         else:
-            self.logger.info(f"Decresed elements in param_set from {len(param_set)} to {runs}")
+            self.logger.info(
+                f"Decresed elements in param_set from {len(param_set)} to {runs}"
+            )
             return random.sample(param_set, runs)

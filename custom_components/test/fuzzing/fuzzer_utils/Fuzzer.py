@@ -10,6 +10,6 @@ class Fuzzer(ABC):
         pass
 
     @abstractmethod
-    def fuzz(self):
+    def fuzz(self) -> list:
         """Abstract method, must be overloaded by the corresponding fuzzer."""
         pass
