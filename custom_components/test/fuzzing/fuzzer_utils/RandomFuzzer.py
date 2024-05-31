@@ -4,7 +4,7 @@ from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 class Random(Fuzzer):
     """Random fuzzer class, inherits from the abstract fuzzer class."""
 
-    def __int__(self):
+    def __init__(self):
         """constructor"""
         pass
 

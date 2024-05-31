@@ -5,7 +5,7 @@ class Runner(ABC):
     """Abstract class"""
 
     @abstractmethod
-    def __int__(self):
+    def __init__(self):
         """Abstract method, must be overloaded by the corresponding fuzzer."""
         pass
 
