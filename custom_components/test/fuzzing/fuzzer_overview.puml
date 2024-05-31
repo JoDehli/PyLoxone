@@ -13,7 +13,6 @@ class "ValuePoolFuzzer" as VPFuzzer << class >> {
     --
     - __init__(self) : void
     + fuzz(self, param_nr : int, types : list, param_combi : int) : list
-    + limit_param_set(self, param_set : list, runs : int) : list
 }
 class "ValuePool" as VPool << class >> {
     - _UINT_POOL : list
@@ -86,6 +85,7 @@ class "ParamRunner" as PRunner << class >> {
     --
     - __init__(self) : void
     + run(self, function : function, param_set : list) : list
+    + limit_param_set(self, param_set : list, runs : int) : list
 }
 '''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''

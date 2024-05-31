@@ -25,7 +25,7 @@ value_pool_fuzzer = ValuePoolFuzzer()
 param_runner = ParamRunner()
 
 
-def test_map_range():
+def test_map_range() -> None:
     logger.info("Start of map_range() test.")
     param_set = value_pool_fuzzer.fuzz(
         5, ["FLOAT", "FLOAT", "FLOAT", "FLOAT", "FLOAT"], 3
