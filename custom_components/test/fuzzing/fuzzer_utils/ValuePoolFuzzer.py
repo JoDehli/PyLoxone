@@ -3,9 +3,6 @@ import logging
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
 
-# from Fuzzer import Fuzzer
-# from ValuePool import ValuePool
-
 
 class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
@@ -13,12 +10,8 @@ class ValuePoolFuzzer(Fuzzer):
     value_pool = ValuePool()
     logger = logging.getLogger(__name__)
 
-    def __int__(self):
+    def __init__(self):
         """constructor"""
-        # self.__generate_ranking()
-        # self.__get_repeater()
-        # self.__generate_new_list()
-        # self.__generate_combinations()
 
     def __generate_ranking(self, lists):
         """
