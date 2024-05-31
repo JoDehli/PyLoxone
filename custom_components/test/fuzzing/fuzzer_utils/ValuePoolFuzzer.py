@@ -3,8 +3,9 @@ import logging
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
 
-#from Fuzzer import Fuzzer
-#from ValuePool import ValuePool
+# from Fuzzer import Fuzzer
+# from ValuePool import ValuePool
+
 
 class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
@@ -14,18 +15,18 @@ class ValuePoolFuzzer(Fuzzer):
 
     def __int__(self):
         """constructor"""
-        #self.__generate_ranking()
-        #self.__get_repeater()
-        #self.__generate_new_list()
-        #self.__generate_combinations()
-    
+        # self.__generate_ranking()
+        # self.__get_repeater()
+        # self.__generate_new_list()
+        # self.__generate_combinations()
+
     def __generate_ranking(self, lists):
         """
         Generates ranking based on length of the lists.
 
         :param lists: A list containing inner lists.
         :type lists: list of lists
-        
+
         :return: A ranking of the lists based on their length.
         :rtype: list
         """
@@ -42,7 +43,7 @@ class ValuePoolFuzzer(Fuzzer):
         :type param_combi: int
         :param m: The current index in the lists.
         :type m: int
-        
+
         :return: The number of times a list must be repeated.
         :rtype: int
         """
@@ -50,11 +51,11 @@ class ValuePoolFuzzer(Fuzzer):
         param_combi_count = 1
         while param_combi_count < param_combi:
             if m >= param_combi_count:
-                repeater = repeater * len(lists[m-1])
+                repeater = repeater * len(lists[m - 1])
             param_combi_count += 1
-            
-        return repeater-1
-        
+
+        return repeater - 1
+
     def __generate_new_list(self, lists, param_combi, rank, param_nr):
         """
         Generates a new list with recombinations of inner lists.
@@ -67,14 +68,12 @@ class ValuePoolFuzzer(Fuzzer):
         :type rank: list
         :param param_nr: Number of parameters of the function to be fuzzed.
         :type param_combi: int
-        
+
         :return: A new list with recombinations of the original lists.
         :rtype: list of lists
         """
         new_lists = []
         spare_list = []
-        
-            
 
         m = 0
         while m < len(lists):
@@ -82,14 +81,13 @@ class ValuePoolFuzzer(Fuzzer):
             repeater_count = 0
             spare_list = []
             new_spare_list = []
-            while repeater_count <= repeater: 
+            while repeater_count <= repeater:
                 n = m + 1
                 repetition_counter = 1
                 while n < param_combi:
                     repetition_counter = repetition_counter * len(lists[rank[n]])
                     n += 1
-                    
-                    
+
                 o = 0
                 index = 0
                 while o < len(lists[rank[m]]):
@@ -106,11 +104,11 @@ class ValuePoolFuzzer(Fuzzer):
                         r += 1
                     o += 1
                 p = len(lists[rank[m]])
-                    
+
                 repeater_count += 1
-                    
+
             new_lists.append(new_spare_list)
-                    
+
             m += 1
 
         return_list = []
@@ -127,13 +125,9 @@ class ValuePoolFuzzer(Fuzzer):
                 y += 1
             return_list.append(return_list_x)
             x += 1
-                
-        
-        
 
-            
         return return_list
-        
+
     def __generate_combinations(self, lists, param_combi, param_nr):
         """
         Generates combinations of the values in the provided lists.
@@ -144,7 +138,7 @@ class ValuePoolFuzzer(Fuzzer):
         :type param_combi: int
         :param param_nr: Number of parameters of the function to be fuzzed.
         :type param_combi: int
-        
+
         :return: A list with combinations of values.
         :rtype: list of lists
         """
@@ -155,7 +149,7 @@ class ValuePoolFuzzer(Fuzzer):
         return new_list
 
     def fuzz(
-       self, param_nr: int = 1, types: list = ["INT"], param_combi: int = 1
+        self, param_nr: int = 1, types: list = ["INT"], param_combi: int = 1
     ) -> list:
         """
         Generates an individual value pool for fuzzing based on the parameters.
@@ -175,7 +169,6 @@ class ValuePoolFuzzer(Fuzzer):
         :rtype: list of lists
         """
 
-        
         self.logger.warning("The var param_combi is not in use!")
 
         # Validate input parameters
@@ -215,5 +208,5 @@ class ValuePoolFuzzer(Fuzzer):
                 value_pools.append(valid_types[t])
 
         result = self.__generate_combinations(value_pools, param_combi, param_nr)
-            
+
         return result
