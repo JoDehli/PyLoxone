@@ -10,7 +10,7 @@ class ParamRunner(Runner):
 
     logger = logging.getLogger(__name__)
 
-    def __int__(self):
+    def __init__(self):
         """constructor"""
         pass
 
