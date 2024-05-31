@@ -14,7 +14,6 @@ package "fuzzer_utils" as FUtils <<Folder>> {
         --
         - __int__(self) : void
         + fuzz(self, param_nr : int, types : list, param_combi : int) : list
-        + limit_param_set(self, param_set : list, runs : int) : list
     }
     class "RandomFuzzer" as RFuzzer << class >>{
         --
@@ -51,6 +50,7 @@ package "fuzzer_utils" as FUtils <<Folder>> {
         --
         - __int__(self) : void
         + run(self, function : function, param_set : list) : list
+        + limit_param_set(self, param_set : list, runs : int) : list
     }
 
     class "GeneratorRunner" as GRunner << class >> {
