@@ -20,18 +20,6 @@ Annotated_Grammar = Dict[Element, List[Annotated_Element]]
 NON_TERMINAL_REGEX = re.compile(r"<.*?>")
 
 
-def list_minus(x: List, y: List) -> List:
-    return [item for item in x if item not in y]
-
-
-def remove_duplicates(l: List) -> List:
-    return list(dict.fromkeys(l))
-
-
-def contains_non_terminal(element: Element) -> bool:
-    return not not re.match(NON_TERMINAL_REGEX, element)
-
-
 class GrammarFuzzer():
 
     def __init__(self) -> None:
