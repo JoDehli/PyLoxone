@@ -2,6 +2,7 @@ import functools
 from pprint import pprint
 from typing import Dict, List, Tuple
 import re
+from enum import Enum
 
 # derivations to be supported
 # - minimal cost derivation
@@ -20,12 +21,18 @@ Annotated_Grammar = Dict[Element, List[Annotated_Element]]
 NON_TERMINAL_REGEX = re.compile(r"<.*?>")
 
 
+class CostGrammarType(Enum):
+    MIN = 1
+    MAX = 2
+
+
 class GrammarFuzzer():
 
     def __init__(self) -> None:
         pass
 
-    def convert_to_min_cost_grammar(self, grammar: Grammar) -> Tuple[Annotated_Grammar, Annotated_Non_Terminals]:
+    def convert_to_cost_grammar(self, grammar: Grammar, conversion_type: CostGrammarType) -> Tuple[
+        Annotated_Grammar, Annotated_Non_Terminals]:
         cost_grammar: Annotated_Grammar = {}
         annotated_non_terminals: Annotated_Non_Terminals = {}
 
@@ -47,7 +54,9 @@ class GrammarFuzzer():
                 annotated_elements.append((element, cost))
 
             cost_grammar[head] = annotated_elements
-            annotated_non_terminals[head] = min(annotated_elements, key=lambda x: x[1])[1] + 1
+            annotated_non_terminals[head] = min(annotated_elements, key=lambda x: x[1])[
+                                                1] + 1 if conversion_type == CostGrammarType.MIN else \
+                max(annotated_elements, key=lambda x: x[1])[1] + 1
 
         for key, value in grammar.items():
             convert_rule(key, value)
@@ -73,4 +82,4 @@ expr_grammar: Grammar = {
 }
 
 test_fuzzer = GrammarFuzzer()
-test_fuzzer.convert_to_min_cost_grammar(expr_grammar)
+test_fuzzer.convert_to_cost_grammar(expr_grammar, CostGrammarType.MAX)
