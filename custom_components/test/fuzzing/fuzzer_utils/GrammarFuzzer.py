@@ -1,5 +1,4 @@
-import functools
-from pprint import pprint
+import math
 from typing import Dict, List, Tuple
 import re
 from enum import Enum
@@ -42,9 +41,15 @@ class GrammarFuzzer():
 
             annotated_elements: List[Annotated_Element] = []
 
+            is_inf = False
+
             for element in body:
                 cost = 0
                 non_terminals = re.findall(NON_TERMINAL_REGEX, element)
+
+                if head in non_terminals:
+                    is_inf = True
+                    annotated_non_terminals[head] = math.inf
 
                 for non_terminal in non_terminals:
                     if non_terminal not in annotated_non_terminals:
@@ -54,9 +59,11 @@ class GrammarFuzzer():
                 annotated_elements.append((element, cost))
 
             cost_grammar[head] = annotated_elements
-            annotated_non_terminals[head] = min(annotated_elements, key=lambda x: x[1])[
-                                                1] + 1 if conversion_type == CostGrammarType.MIN else \
-                max(annotated_elements, key=lambda x: x[1])[1] + 1
+
+            if not is_inf:
+                annotated_non_terminals[head] = min(annotated_elements, key=lambda x: x[1])[
+                                                    1] + 1 if conversion_type == CostGrammarType.MIN else \
+                    max(annotated_elements, key=lambda x: x[1])[1] + 1
 
         for key, value in grammar.items():
             convert_rule(key, value)
@@ -81,5 +88,11 @@ expr_grammar: Grammar = {
     "<DigitR>": ["0", "1", "2", "3", "4"]
 }
 
+inf_grammar: Grammar = {
+    "<Start>": ["0", "<End>"],
+    "<End>": ["1", "<End>"],
+}
+
 test_fuzzer = GrammarFuzzer()
-test_fuzzer.convert_to_cost_grammar(expr_grammar, CostGrammarType.MAX)
+# test_fuzzer.convert_to_cost_grammar(expr_grammar, CostGrammarType.MAX)
+test_fuzzer.convert_to_cost_grammar(inf_grammar, CostGrammarType.MIN)
