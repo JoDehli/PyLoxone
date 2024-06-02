@@ -41,25 +41,28 @@ class GrammarFuzzer():
         cost_grammar: Annotated_Grammar = {}
         annotated_non_terminals: Annotated_Non_Terminals = {}
 
-        def recursive(non_terminal: Element, replacements: List[Element]):
-            annotated_replacements: List[Annotated_Element] = []
+        def convert_rule(head: Element, body: List[Element]) -> None:
+            if head in annotated_non_terminals:
+                return
 
-            for replacement in replacements:
+            annotated_elements: List[Annotated_Element] = []
+
+            for element in body:
                 cost = 0
-                non_terminals = re.findall(NON_TERMINAL_REGEX, replacement)
+                non_terminals = re.findall(NON_TERMINAL_REGEX, element)
 
-                for foo in non_terminals:
-                    if foo not in annotated_non_terminals:
-                        recursive(foo, grammar[foo])
-                    else:
-                        cost += annotated_non_terminals[foo]
-                annotated_replacements.append((replacement, cost))
+                for non_terminal in non_terminals:
+                    if non_terminal not in annotated_non_terminals:
+                        convert_rule(non_terminal, grammar[non_terminal])
+                    cost += annotated_non_terminals[non_terminal]
 
-            cost_grammar[non_terminal] = annotated_replacements
-            annotated_non_terminals[non_terminal] = min(annotated_replacements, key=lambda x: x[1])[1] + 1
+                annotated_elements.append((element, cost))
+
+            cost_grammar[head] = annotated_elements
+            annotated_non_terminals[head] = min(annotated_elements, key=lambda x: x[1])[1] + 1
 
         for key, value in grammar.items():
-            recursive(key, value)
+            convert_rule(key, value)
 
         return cost_grammar, annotated_non_terminals
 
