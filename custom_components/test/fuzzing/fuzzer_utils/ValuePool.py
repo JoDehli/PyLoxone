@@ -107,11 +107,18 @@ class ValuePool:
             datetime.datetime(1970, 1, 1),
         ]
 
-
         # create a pool with all unique values
-        self._ALL_VALUES_POOL = self._INT_POOL + self._UINT_POOL + self._FLOAT_POOL + self._STRING_POOL + self._BOOL_POOL + self._BYTE_POOL + self._LIST_POOL + self._DICT_POOL + self._DATE_POOL
-            
-        
+        self._ALL_VALUES_POOL = (
+            self._INT_POOL
+            + self._UINT_POOL
+            + self._FLOAT_POOL
+            + self._STRING_POOL
+            + self._BOOL_POOL
+            + self._BYTE_POOL
+            + self._LIST_POOL
+            + self._DICT_POOL
+            + self._DATE_POOL
+        )
 
     def get_uint(self) -> list:
         return self._UINT_POOL

@@ -6,7 +6,7 @@ from custom_components.test.fuzzing.fuzzer_utils.Runner import Runner
 class GeneratorRunner(Runner):
     """Generator runner class, inherits from the abstract runner class."""
 
-    def __int__(self):
+    def __init__(self):
         """constructor"""
         pass
 

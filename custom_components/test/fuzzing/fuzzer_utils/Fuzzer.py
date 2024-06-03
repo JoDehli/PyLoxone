@@ -5,11 +5,11 @@ class Fuzzer(ABC):
     """Abstract class"""
 
     @abstractmethod
-    def __int__(self):
+    def __init__(self):
         """Abstract method, must be overloaded by the corresponding fuzzer."""
         pass
 
     @abstractmethod
-    def fuzz(self):
+    def fuzz(self) -> list:
         """Abstract method, must be overloaded by the corresponding fuzzer."""
         pass
