@@ -70,8 +70,27 @@ class GrammarFuzzer():
 
         return cost_grammar, annotated_non_terminals
 
-    def fuzz_min_cost(self, grammar: Grammar, start_symbol: Element) -> List[str]:
-        pass
+    def fuzz_min_cost(self, grammar: Grammar, start_symbol: Element) -> str:
+        # there seems to be no destructuring assignment including type declaration :(
+        cost_grammar: Annotated_Grammar
+        annotated_non_terminals: Annotated_Non_Terminals
+
+        cost_grammar, annotated_non_terminals = self.convert_to_cost_grammar(
+            grammar, CostGrammarType.MIN)
+
+        def compose_min_cost(head: Element) -> str:
+            min_tuple: Annotated_Element = min(cost_grammar[head], key=lambda x: x[1])
+            is_non_terminal = True if re.findall(NON_TERMINAL_REGEX, min_tuple[0]) else False
+
+            if not is_non_terminal:
+                return min_tuple[0]
+            else:
+                non_terminals = re.findall(NON_TERMINAL_REGEX, min_tuple[0])
+                replacements = iter(list(map(lambda element: compose_min_cost(element), non_terminals)))
+                result = re.sub(NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
+                return result
+
+        return compose_min_cost(start_symbol)
 
     def fuzz_max_cost(self, grammar: Grammar, start_symbol: Element) -> str:
         pass
@@ -95,4 +114,5 @@ inf_grammar: Grammar = {
 
 test_fuzzer = GrammarFuzzer()
 # test_fuzzer.convert_to_cost_grammar(expr_grammar, CostGrammarType.MAX)
-test_fuzzer.convert_to_cost_grammar(inf_grammar, CostGrammarType.MIN)
+# test_fuzzer.convert_to_cost_grammar(inf_grammar, CostGrammarType.MIN)
+print(test_fuzzer.fuzz_min_cost(expr_grammar, "<IPv4>"))
