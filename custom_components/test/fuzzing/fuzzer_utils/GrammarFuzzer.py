@@ -84,16 +84,48 @@ class GrammarFuzzer():
             return result
 
     def fuzz_min_cost(self, grammar: Grammar, start_symbol: Element) -> str:
-        # there seems to be no destructuring assignment including type declaration :(
         cost_grammar: Annotated_Grammar
-
         cost_grammar, _ = self.__convert_to_cost_grammar(
             grammar, CostGrammarType.MIN)
 
         return self.__compose_min_cost(start_symbol, cost_grammar)
 
-    def fuzz_max_cost(self, grammar: Grammar, start_symbol: Element) -> str:
-        pass
+    def compose_max_cost(self, head: Element, given_cost_grammar: Annotated_Grammar, applications: int,
+                         max_applications: int) -> str:
+
+        if applications == max_applications:
+            min_tuple: Annotated_Element = min(given_cost_grammar[head], key=lambda x: x[1])
+            is_non_terminal = True if re.findall(NON_TERMINAL_REGEX, min_tuple[0]) else False
+
+            if not is_non_terminal:
+                return min_tuple[0]
+            else:
+                non_terminals = re.findall(NON_TERMINAL_REGEX, min_tuple[0])
+                replacements = iter(
+                    list(map(lambda element: self.compose_max_cost(element, given_cost_grammar, applications,
+                                                                   max_applications), non_terminals)))
+                result = re.sub(NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
+                return result
+        else:
+            max_tuple: Annotated_Element = max(given_cost_grammar[head], key=lambda x: x[1])
+            is_non_terminal = True if re.findall(NON_TERMINAL_REGEX, max_tuple[0]) else False
+
+            if not is_non_terminal:
+                return max_tuple[0]
+            else:
+                non_terminals = re.findall(NON_TERMINAL_REGEX, max_tuple[0])
+                replacements = iter(
+                    list(map(lambda element: self.compose_max_cost(element, given_cost_grammar, applications + 1,
+                                                                   max_applications), non_terminals)))
+                result = re.sub(NON_TERMINAL_REGEX, lambda element: next(replacements), max_tuple[0])
+                return result
+
+    def fuzz_max_cost(self, grammar: Grammar, start_symbol: Element, max_rule_applications: int) -> str:
+        cost_grammar: Annotated_Grammar
+        cost_grammar, _ = self.__convert_to_cost_grammar(
+            grammar, CostGrammarType.MAX)
+
+        return self.compose_max_cost(start_symbol, cost_grammar, 0, max_rule_applications)
 
 
 expr_grammar: Grammar = {
@@ -109,10 +141,12 @@ expr_grammar: Grammar = {
 
 inf_grammar: Grammar = {
     "<Start>": ["0", "<End>"],
-    "<End>": ["1", "<End>"],
+    "<End>": ["1", "1<End>"],
 }
 
 test_fuzzer = GrammarFuzzer()
 # test_fuzzer.convert_to_cost_grammar(expr_grammar, CostGrammarType.MAX)
 # test_fuzzer.convert_to_cost_grammar(inf_grammar, CostGrammarType.MIN)
 print(test_fuzzer.fuzz_min_cost(expr_grammar, "<IPv4>"))
+print(test_fuzzer.fuzz_max_cost(expr_grammar, "<IPv4>", 2))
+print(test_fuzzer.fuzz_max_cost(inf_grammar, "<Start>", 10))
