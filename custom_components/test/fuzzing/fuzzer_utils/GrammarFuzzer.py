@@ -90,8 +90,8 @@ class GrammarFuzzer():
 
         return self.__compose_min_cost(start_symbol, cost_grammar)
 
-    def compose_max_cost(self, head: Element, given_cost_grammar: Annotated_Grammar, applications: int,
-                         max_applications: int) -> str:
+    def __compose_max_cost(self, head: Element, given_cost_grammar: Annotated_Grammar, applications: int,
+                           max_applications: int) -> str:
 
         if applications == max_applications:
             min_tuple: Annotated_Element = min(given_cost_grammar[head], key=lambda x: x[1])
@@ -102,8 +102,8 @@ class GrammarFuzzer():
             else:
                 non_terminals = re.findall(NON_TERMINAL_REGEX, min_tuple[0])
                 replacements = iter(
-                    list(map(lambda element: self.compose_max_cost(element, given_cost_grammar, applications,
-                                                                   max_applications), non_terminals)))
+                    list(map(lambda element: self.__compose_max_cost(element, given_cost_grammar, applications,
+                                                                     max_applications), non_terminals)))
                 result = re.sub(NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
                 return result
         else:
@@ -115,8 +115,8 @@ class GrammarFuzzer():
             else:
                 non_terminals = re.findall(NON_TERMINAL_REGEX, max_tuple[0])
                 replacements = iter(
-                    list(map(lambda element: self.compose_max_cost(element, given_cost_grammar, applications + 1,
-                                                                   max_applications), non_terminals)))
+                    list(map(lambda element: self.__compose_max_cost(element, given_cost_grammar, applications + 1,
+                                                                     max_applications), non_terminals)))
                 result = re.sub(NON_TERMINAL_REGEX, lambda element: next(replacements), max_tuple[0])
                 return result
 
@@ -125,7 +125,7 @@ class GrammarFuzzer():
         cost_grammar, _ = self.__convert_to_cost_grammar(
             grammar, CostGrammarType.MAX)
 
-        return self.compose_max_cost(start_symbol, cost_grammar, 0, max_rule_applications)
+        return self.__compose_max_cost(start_symbol, cost_grammar, 0, max_rule_applications)
 
 
 expr_grammar: Grammar = {
