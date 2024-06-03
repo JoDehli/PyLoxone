@@ -70,6 +70,33 @@ class GrammarFuzzer():
 
         return cost_grammar, annotated_non_terminals
 
+    def __convert_to_trackable_grammar(self, grammar: Grammar) -> Tuple[Annotated_Grammar, Annotated_Non_Terminals]:
+        trackable_grammar: Annotated_Grammar = {}
+        trackable_non_terminals: Annotated_Non_Terminals = {}
+
+        def convert_rule(head: Element, body: List[Element]) -> None:
+            if head in trackable_non_terminals:
+                return
+
+            trackable_elements: List[Annotated_Element] = []
+
+            for element in body:
+                non_terminals = re.findall(NON_TERMINAL_REGEX, element)
+
+                for non_terminal in non_terminals:
+                    if non_terminal not in trackable_non_terminals:
+                        convert_rule(non_terminal, grammar[non_terminal])
+
+                trackable_elements.append((element, 0))
+
+            trackable_non_terminals[head] = 0
+            trackable_grammar[head] = trackable_elements
+
+        for key, value in grammar.items():
+            convert_rule(key, value)
+
+        return trackable_grammar, trackable_non_terminals
+
     def __compose_min_cost(self, head: Element, given_cost_grammar: Annotated_Grammar) -> str:
         min_tuple: Annotated_Element = min(given_cost_grammar[head], key=lambda x: x[1])
         is_non_terminal = True if re.findall(NON_TERMINAL_REGEX, min_tuple[0]) else False
@@ -147,6 +174,7 @@ inf_grammar: Grammar = {
 test_fuzzer = GrammarFuzzer()
 # test_fuzzer.convert_to_cost_grammar(expr_grammar, CostGrammarType.MAX)
 # test_fuzzer.convert_to_cost_grammar(inf_grammar, CostGrammarType.MIN)
+# test_fuzzer.convert_to_trackable_grammar(expr_grammar)
 print(test_fuzzer.fuzz_min_cost(expr_grammar, "<IPv4>"))
 print(test_fuzzer.fuzz_max_cost(expr_grammar, "<IPv4>", 2))
 print(test_fuzzer.fuzz_max_cost(inf_grammar, "<Start>", 10))
