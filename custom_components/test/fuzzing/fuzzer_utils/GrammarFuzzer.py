@@ -8,7 +8,7 @@ from enum import Enum
 # - maximal cost derivation
 # - three-phase derivation ?
 # - probabilistic derivation ?
-# - grammar coverage ?
+# - grammar coverage
 
 Element = str
 Grammar = Dict[Element, List[Element]]
@@ -85,11 +85,10 @@ class GrammarFuzzer():
 
                 for non_terminal in non_terminals:
                     if non_terminal not in trackable_non_terminals:
-                        convert_rule(non_terminal, grammar[non_terminal])
+                        trackable_non_terminals[head] = 0
 
                 trackable_elements.append((element, 0))
 
-            trackable_non_terminals[head] = 0
             trackable_grammar[head] = trackable_elements
 
         for key, value in grammar.items():
@@ -160,10 +159,40 @@ class GrammarFuzzer():
             if non_terminal[1] == 0: return False
 
         for rule in trackable_grammar:
-            for element in rule:
+            for element in trackable_grammar[rule]:
                 if element[1] == 0: return False
 
         return True
+
+    def fuzz_grammar_coverage(self, grammar: Grammar, start_symbol: Element) -> List[str]:
+        trackable_grammar: Annotated_Grammar
+        trackable_non_terminals: Annotated_Non_Terminals
+        trackable_grammar, trackable_non_terminals = self.__convert_to_trackable_grammar(grammar)
+
+        fuzzed_values: List[str] = []
+
+        def generate_value(head: Element):
+            min_tuple: Annotated_Element = min(trackable_grammar[head], key=lambda x: x[1])
+            is_non_terminal = True if re.findall(NON_TERMINAL_REGEX, min_tuple[0]) else False
+            trackable_grammar[head] = list(
+                map(lambda element: element if element[0] != min_tuple[0] else (element[0], element[1] + 1),
+                    trackable_grammar[head]))
+
+            if not is_non_terminal:
+                return min_tuple[0]
+            else:
+                trackable_non_terminals[head] = min_tuple[1] + 1
+                non_terminals = re.findall(NON_TERMINAL_REGEX, min_tuple[0])
+                replacements = iter(
+                    list(map(lambda element: generate_value(element), non_terminals)))
+                result = re.sub(NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
+                return result
+
+        while not self.is_grammar_covered(trackable_grammar, trackable_non_terminals):
+            fuzzed_values.append(generate_value(start_symbol))
+
+        return fuzzed_values
+
 
 
 expr_grammar: Grammar = {
@@ -186,6 +215,9 @@ test_fuzzer = GrammarFuzzer()
 # test_fuzzer.convert_to_cost_grammar(expr_grammar, CostGrammarType.MAX)
 # test_fuzzer.convert_to_cost_grammar(inf_grammar, CostGrammarType.MIN)
 # test_fuzzer.convert_to_trackable_grammar(expr_grammar)
-print(test_fuzzer.fuzz_min_cost(expr_grammar, "<IPv4>"))
-print(test_fuzzer.fuzz_max_cost(expr_grammar, "<IPv4>", 2))
-print(test_fuzzer.fuzz_max_cost(inf_grammar, "<Start>", 10))
+# test_fuzzer.__convert_to_trackable_grammar(inf_grammar)
+# print(test_fuzzer.fuzz_min_cost(expr_grammar, "<IPv4>"))
+# print(test_fuzzer.fuzz_max_cost(expr_grammar, "<IPv4>", 2))
+# print(test_fuzzer.fuzz_max_cost(inf_grammar, "<Start>", 10))
+# print(test_fuzzer.fuzz_grammar_coverage(expr_grammar, "<IPv4>"))
+# print(test_fuzzer.fuzz_grammar_coverage(inf_grammar, "<Start>"))
