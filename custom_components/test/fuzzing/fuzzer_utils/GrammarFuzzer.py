@@ -154,6 +154,17 @@ class GrammarFuzzer():
 
         return self.__compose_max_cost(start_symbol, cost_grammar, 0, max_rule_applications)
 
+    def is_grammar_covered(self, trackable_grammar: Annotated_Grammar,
+                           trackable_non_terminals: Annotated_Non_Terminals) -> bool:
+        for non_terminal in trackable_non_terminals:
+            if non_terminal[1] == 0: return False
+
+        for rule in trackable_grammar:
+            for element in rule:
+                if element[1] == 0: return False
+
+        return True
+
 
 expr_grammar: Grammar = {
     "<IPv4>": ["<Num>.<Num>.<Num>.<Num>"],
