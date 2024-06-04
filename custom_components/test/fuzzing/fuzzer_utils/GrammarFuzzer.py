@@ -17,8 +17,6 @@ Annotated_Element = Tuple[Element, int]
 Annotated_Non_Terminals = Dict[Element, int]
 Annotated_Grammar = Dict[Element, List[Annotated_Element]]
 
-NON_TERMINAL_REGEX = re.compile(r"<.*?>")
-
 
 class CostGrammarType(Enum):
     MIN = 1
@@ -26,6 +24,7 @@ class CostGrammarType(Enum):
 
 
 class GrammarFuzzer():
+    NON_TERMINAL_REGEX = re.compile(r"<.*?>")
 
     def __init__(self) -> None:
         pass
@@ -45,7 +44,7 @@ class GrammarFuzzer():
 
             for element in body:
                 cost = 0
-                non_terminals = re.findall(NON_TERMINAL_REGEX, element)
+                non_terminals = re.findall(self.NON_TERMINAL_REGEX, element)
 
                 if head in non_terminals:
                     is_inf = True
@@ -81,7 +80,7 @@ class GrammarFuzzer():
             trackable_elements: List[Annotated_Element] = []
 
             for element in body:
-                non_terminals = re.findall(NON_TERMINAL_REGEX, element)
+                non_terminals = re.findall(self.NON_TERMINAL_REGEX, element)
 
                 for non_terminal in non_terminals:
                     if non_terminal not in trackable_non_terminals:
@@ -98,15 +97,15 @@ class GrammarFuzzer():
 
     def __compose_min_cost(self, head: Element, given_cost_grammar: Annotated_Grammar) -> str:
         min_tuple: Annotated_Element = min(given_cost_grammar[head], key=lambda x: x[1])
-        is_non_terminal = True if re.findall(NON_TERMINAL_REGEX, min_tuple[0]) else False
+        is_non_terminal = True if re.findall(self.NON_TERMINAL_REGEX, min_tuple[0]) else False
 
         if not is_non_terminal:
             return min_tuple[0]
         else:
-            non_terminals = re.findall(NON_TERMINAL_REGEX, min_tuple[0])
+            non_terminals = re.findall(self.NON_TERMINAL_REGEX, min_tuple[0])
             replacements = iter(
                 list(map(lambda element: self.__compose_min_cost(element, given_cost_grammar), non_terminals)))
-            result = re.sub(NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
+            result = re.sub(self.NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
             return result
 
     def fuzz_min_cost(self, grammar: Grammar, start_symbol: Element) -> str:
@@ -121,29 +120,29 @@ class GrammarFuzzer():
 
         if applications == max_applications:
             min_tuple: Annotated_Element = min(given_cost_grammar[head], key=lambda x: x[1])
-            is_non_terminal = True if re.findall(NON_TERMINAL_REGEX, min_tuple[0]) else False
+            is_non_terminal = True if re.findall(self.NON_TERMINAL_REGEX, min_tuple[0]) else False
 
             if not is_non_terminal:
                 return min_tuple[0]
             else:
-                non_terminals = re.findall(NON_TERMINAL_REGEX, min_tuple[0])
+                non_terminals = re.findall(self.NON_TERMINAL_REGEX, min_tuple[0])
                 replacements = iter(
                     list(map(lambda element: self.__compose_max_cost(element, given_cost_grammar, applications,
                                                                      max_applications), non_terminals)))
-                result = re.sub(NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
+                result = re.sub(self.NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
                 return result
         else:
             max_tuple: Annotated_Element = max(given_cost_grammar[head], key=lambda x: x[1])
-            is_non_terminal = True if re.findall(NON_TERMINAL_REGEX, max_tuple[0]) else False
+            is_non_terminal = True if re.findall(self.NON_TERMINAL_REGEX, max_tuple[0]) else False
 
             if not is_non_terminal:
                 return max_tuple[0]
             else:
-                non_terminals = re.findall(NON_TERMINAL_REGEX, max_tuple[0])
+                non_terminals = re.findall(self.NON_TERMINAL_REGEX, max_tuple[0])
                 replacements = iter(
                     list(map(lambda element: self.__compose_max_cost(element, given_cost_grammar, applications + 1,
                                                                      max_applications), non_terminals)))
-                result = re.sub(NON_TERMINAL_REGEX, lambda element: next(replacements), max_tuple[0])
+                result = re.sub(self.NON_TERMINAL_REGEX, lambda element: next(replacements), max_tuple[0])
                 return result
 
     def fuzz_max_cost(self, grammar: Grammar, start_symbol: Element, max_rule_applications: int) -> str:
@@ -173,7 +172,7 @@ class GrammarFuzzer():
 
         def generate_value(head: Element):
             min_tuple: Annotated_Element = min(trackable_grammar[head], key=lambda x: x[1])
-            is_non_terminal = True if re.findall(NON_TERMINAL_REGEX, min_tuple[0]) else False
+            is_non_terminal = True if re.findall(self.NON_TERMINAL_REGEX, min_tuple[0]) else False
             trackable_grammar[head] = list(
                 map(lambda element: element if element[0] != min_tuple[0] else (element[0], element[1] + 1),
                     trackable_grammar[head]))
@@ -182,10 +181,10 @@ class GrammarFuzzer():
                 return min_tuple[0]
             else:
                 trackable_non_terminals[head] = min_tuple[1] + 1
-                non_terminals = re.findall(NON_TERMINAL_REGEX, min_tuple[0])
+                non_terminals = re.findall(self.NON_TERMINAL_REGEX, min_tuple[0])
                 replacements = iter(
                     list(map(lambda element: generate_value(element), non_terminals)))
-                result = re.sub(NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
+                result = re.sub(self.NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
                 return result
 
         while not self.is_grammar_covered(trackable_grammar, trackable_non_terminals):
