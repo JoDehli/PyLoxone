@@ -73,10 +73,18 @@ entity "grammar_ipv4" as ipv4 << grammars >> {
 class "MutationalFuzzer" as MFuzzer << class >> {
     --
     - __init__(self) : void
-    - delete_random_character(self, s: str) : str
-    - insert_random_character(self, s: str) : str
-    - flip_random_character(self, s: str) : str
-    + fuzz(self, seed : list, types : list, rounds : int, mode : str) : list
+    - __delete_random_char(self, s: str) : str
+    - __insert_random_char(self, s: str) : str
+    - __flip_random_char(self, s: str) : str
+    - __int_add_random_(self, n: int) : int
+    - __int_sub_random_(self, n: int) : int
+    - __int_mult_random_(self, n: int) : int
+    - __int_div_random_(self, n: int) : int
+    - __float_add_random_(self, n: float) : float
+    - __float_sub_random_(self, n: float) : float
+    - __float_mult_random_(self, n: float) : float
+    - __float_div_random_(self, n: float) : float
+    + fuzz(self, seed: list[int, float, str], rounds: int = 1) : list[list]
 }
 '''''''''''''''''''''''''''''''''''''''
 'Runner''''''''''''''''''''''''''''''''
