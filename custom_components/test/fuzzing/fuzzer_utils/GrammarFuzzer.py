@@ -102,6 +102,7 @@ class GrammarFuzzer():
             return result
 
     def fuzz_min_cost(self, grammar: Grammar, start_symbol: Element) -> str:
+        """Derives the first mininum cost value of a given grammar."""
         cost_grammar: Annotated_Grammar
         cost_grammar, _ = self.__convert_to_cost_grammar(
             grammar, CostGrammarType.MIN)
@@ -139,14 +140,15 @@ class GrammarFuzzer():
                 return result
 
     def fuzz_max_cost(self, grammar: Grammar, start_symbol: Element, max_rule_applications: int) -> str:
+        """Derives the first maximum cost value of a given grammar."""
         cost_grammar: Annotated_Grammar
         cost_grammar, _ = self.__convert_to_cost_grammar(
             grammar, CostGrammarType.MAX)
 
         return self.__compose_max_cost(start_symbol, cost_grammar, 0, max_rule_applications)
 
-    def is_grammar_covered(self, trackable_grammar: Annotated_Grammar,
-                           trackable_non_terminals: Annotated_Non_Terminals) -> bool:
+    def __is_grammar_covered(self, trackable_grammar: Annotated_Grammar,
+                             trackable_non_terminals: Annotated_Non_Terminals) -> bool:
         for non_terminal in trackable_non_terminals:
             if non_terminal[1] == 0: return False
 
@@ -157,6 +159,7 @@ class GrammarFuzzer():
         return True
 
     def fuzz_grammar_coverage(self, grammar: Grammar, start_symbol: Element) -> List[str]:
+        """Derives values until each production rule is fully covered."""
         trackable_grammar: Annotated_Grammar
         trackable_non_terminals: Annotated_Non_Terminals
         trackable_grammar, trackable_non_terminals = self.__convert_to_trackable_grammar(grammar)
@@ -180,7 +183,7 @@ class GrammarFuzzer():
                 result = re.sub(self.NON_TERMINAL_REGEX, lambda element: next(replacements), min_tuple[0])
                 return result
 
-        while not self.is_grammar_covered(trackable_grammar, trackable_non_terminals):
+        while not self.__is_grammar_covered(trackable_grammar, trackable_non_terminals):
             fuzzed_values.append(generate_value(start_symbol))
 
         return fuzzed_values
