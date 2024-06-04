@@ -48,20 +48,26 @@ class "GeneratorFuzzer" as GFuzzer << class >> {
     + fuzz(self, ???) : list
 }
 '''''''''''''''''''''''''''''''''''''''
-class "GrammarFuzzer" as GrFuzzer << class >> {
+class "CostGrammarType" as CGType << class >> {
+    + MIN : int
+    + MAX : int
     --
-    - __init__(self) : void
-    - _convert_to_min_cost_grammar(self, grammar: Grammar) : tuple
-    - _convert_to_max_cost_grammar(self, grammar: Grammar) : tuple
-    + fuzz(self, grammar: Grammar, start_symbol: Element, min_prio: boolean) : list
 }
-class "GrammarPool" as GrPool << class >> {
-    - _IPV4_GRAMMAR : dict
-    - _dict_GRAMMAR : dict
+class "GrammarFuzzer" as GrFuzzer << class >> {
+    - _NON_TERMINAL_REGEX = str
     --
     - __init__(self) : void
-    + get_ipv4(self) : dict
-    + get_dict(self) : dict
+    - __convert_to_cost_grammar(self, grammar: Grammar, conversion_type: CostGrammarType) : tuple
+    - __convert_to_trackable_grammar(self, grammar: Grammar) : tuple
+    - __compose_min_cost(self, head: Element, given_cost_grammar: Annotated_Grammar) : str
+    - __compose_max_cost(self, head: Element, given_cost_grammar: Annotated_Grammar, applications: int, max_applications: int): str
+    - __is_grammar_covered(self, trackable_grammar: Annotated_Grammar, trackable_non_terminals: Annotated_Non_Terminals) : bool
+    + fuzz_min_cost(self, grammar: Grammar, start_symbol: Element) : str
+    + fuzz_max_cost( self, grammar: Grammar, start_symbol: Element, max_rule_applications: int) : str
+    + fuzz_grammar_coverage(self, grammar: Grammar, start_symbol: Element) : list
+}
+entity "grammar_ipv4" as ipv4 << grammars >> {
+    grammar_ipv4: Grammar
 }
 '''''''''''''''''''''''''''''''''''''''
 class "MutationalFuzzer" as MFuzzer << class >> {
@@ -93,7 +99,7 @@ class "ParamRunner" as PRunner << class >> {
 entity  "test_vp_on_helpers.py" as test_VP_H << test case >>{
     logger
     value_pool_fuzzer
-    param_runner 
+    param_runner
     --
     test_map_range() : None
     test_hass_to_lox() : None
@@ -125,7 +131,7 @@ entity  "test_mut_on_XXX.py" as test_MUT << test case >>{
 '''''''''''''''''''''''''''''''''''''''
 fuzzer <|-- VPFuzzer : inherits from <
 VPool <--* VPFuzzer: has access to <
-fuzzer <|-- GrFuzzer : inherits from <
+'fuzzer <|-- GrFuzzer : inherits from <
 fuzzer <|-- GFuzzer : inherits from <
 fuzzer <|-- MFuzzer : inherits from <
 '''''''''''''''''''''''''''''''''''''''
@@ -138,9 +144,10 @@ runner <|-- PRunner : inherits from <
 VPFuzzer <--* test_VP_H : needs a <
 PRunner <--* test_VP_H : needs a <
 '''''''''''''''''''''''''''''''''''''''
+CGType <--* GrFuzzer : needs a <
 GrFuzzer <--* test_GRA : needs a <
 PRunner <--* test_GRA : needs a <
-test_GRA *-> GrPool: needs a >
+test_GRA *-> ipv4: needs a >
 '''''''''''''''''''''''''''''''''''''''
 GFuzzer <--* test_GEN : needs a <
 '''''''''''''''''''''''''''''''''''''''
