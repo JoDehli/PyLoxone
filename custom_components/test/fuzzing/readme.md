@@ -109,9 +109,12 @@ pytest custom_components/test/path/to/test_file.py
 > - Assigned to: @ThorbenCarl
 > - Branch: `fuzzing/mutational_black_box`
 - Implement the mutational fuzzing (black-box).
-  - [ ] Present concept
-  - [ ] Update UML
-  - [ ] Create merge request 
+  - [x] Present concept
+  - [ ] Implement `fuzz()` function
+  - [ ] Create test cases
+  - [ ] Implement privat `int` and `float` function
+
+  nicht random
 
 ### grey-box
 > - Assigned to: @hoegma
