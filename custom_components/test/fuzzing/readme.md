@@ -67,58 +67,63 @@ pytest custom_components/test/path/to/test_file.py
 
 # TODO
 ## Random testing 
-> - not needed for grade bonus
+> - Assigned to:
+> - Branch: `fuzzing/random_testing`
 - [ ] Implement a `RandomFuzzer`.
   - The return value should be identical to the `fuzz()` function of the `ValuePoolFuzzer` class so that the `ParamRunner` can be used.
-  - Assigned to: ---
 
-## Value pools
-- [ ] Update `fuzz()` function in `ValuePoolFuzzer` class. 
+## Value pools 
+> - Assigned to: @jonathanheitzmann
+> - Branch: `fuzzing/valuepool`
+- [ ] Update `ValuePoolFuzzer` class.
+  - [ ] Add return types to function head
   - [ ] Update UML
-  - [ ] Create merge request 
-  - Assigned to: @jonathanheitzmann
-  - @jonathanheitzmann works on branch `param_combi`
 - [ ] The parameter `param_nr` is superfluous and is not required in the function `fuzz()` of the `ValuePoolFuzzer` class. The number of parameters is already determined by the length of list `types`.
-  - Assigned to: ---
 - [ ] The value pools contain no no neutral element like `None` or `NaN`. 
-  - Assigned to: ---
-- [ ] To avoid duplication in the code, value pools should "inherit" from each other in some way.  For example, "INT" also takes all values from "UINT" (identical to Balista).
-  - Assigned to: ---
+- [ ] To avoid duplication in the code, value pools should "inherit" from each other in some way.  For example, "_INT" also takes all values from "_UINT" (identical to Balista).
 
 ## Generators
-- [ ] Implement the generators.
+> - Assigned to: @dsiev
+> - Branch: `fuzzing/valuepool`
+- Implement the generators.
   - [ ] Present concept
-  - [ ] Update UML if needed
-  - [ ] Create merge request 
-  - Assigned to: @dsiev
-  - @dsiev works on branch `fuzzing/generators`
+  - [ ] Update UML
 
 ## Input grammars
-- [ ] Implement the grammars.
+> - Assigned to: @JKortmann
+> - Branch: `fuzzing/grammars`
+- Implement the grammars.
+  - [ ] Add general function description for docstring.
+  - [ ] Check if UML is correct.
   - [ ] Is it possible to use `ParamRunner`? Are updates on the `ParamRunner` needed?
-  - [ ] Present concept
-  - [ ] Update UML if needed
-  - [ ] Create merge request 
-  - Assigned to: @JKortmann
-  - @JKortmann works on branch `fuzzing/grammars`
+  - The `GrammarFuzzer` class does not inherit from the abstract `Fuzzer` class and therefore does not implement a `fuzz()` function.
+  - Should we put the grammars in a separate `GrammarPool` class?
+  - [ ] Create Testcases
+    - What does a test case and/or a runner look like now? 
+    - How do we deal with this if the function under test requires an `int` (e.g. from the `ValuePoolFuzzer`) and a `str` from the `GrammarFuzzer`?
+  - [ ] Implementation of three-phase derivation
+  - [ ] Implementation of probabilistic derivation
 
 ## Mutational 
 ### black-box
-- [ ] Implement the mutational fuzzing (black-box).
+> - Assigned to: @ThorbenCarl
+> - Branch: `fuzzing/mutational_black_box`
+- Implement the mutational fuzzing (black-box).
   - [ ] Present concept
-  - [ ] Update UML if needed
+  - [ ] Update UML
   - [ ] Create merge request 
-  - Assigned to: @ThorbenCarl
-  - @ThorbenCarl works on branch `fuzzing/mutational_black_box`
+
 ### grey-box
+> - Assigned to: @hoegma
+> - Branch: `fuzzing/mutational_grey_box`
 - [ ] Implement the mutational fuzzing (grey-box).
   - [ ] Present concept
   - [ ] Update UML if needed
   - [ ] Create merge request 
-  - Assigned to: @hoegma
-  - @hoegma works on branch `fuzzing/mutational_grey_box`
 
 ## Search based
+> - Assigned to: @jonathanheitzmann
+> - Branch: `fuzzing/search_based`
 
 # Vulnerabilities found
 ## `helpers.py`
