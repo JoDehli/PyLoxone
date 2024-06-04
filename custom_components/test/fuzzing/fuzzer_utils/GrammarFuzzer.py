@@ -3,13 +3,6 @@ from typing import Dict, List, Tuple
 import re
 from enum import Enum
 
-# derivations to be supported
-# - minimal cost derivation
-# - maximal cost derivation
-# - three-phase derivation ?
-# - probabilistic derivation ?
-# - grammar coverage
-
 Element = str
 Grammar = Dict[Element, List[Element]]
 
@@ -191,32 +184,3 @@ class GrammarFuzzer():
             fuzzed_values.append(generate_value(start_symbol))
 
         return fuzzed_values
-
-
-
-expr_grammar: Grammar = {
-    "<IPv4>": ["<Num>.<Num>.<Num>.<Num>"],
-    "<Num>": ["<3Digits>", "<2Digits>", "<Digit>"],
-    "<3Digits>": ["2<2DigitsR>", "1<Digit><Digit>"],
-    "<2Digits>": ["<DigitP><Digit>"],
-    "<2DigitsR>": ["55", "5<DigitR>", "<DigitR><Digit>"],
-    "<Digit>": ["0", "<DigitP>"],
-    "<DigitP>": ["1", "2", "3", "4", "5", "6", "7", "8", "9"],
-    "<DigitR>": ["0", "1", "2", "3", "4"]
-}
-
-inf_grammar: Grammar = {
-    "<Start>": ["0", "<End>"],
-    "<End>": ["1", "1<End>"],
-}
-
-test_fuzzer = GrammarFuzzer()
-# test_fuzzer.convert_to_cost_grammar(expr_grammar, CostGrammarType.MAX)
-# test_fuzzer.convert_to_cost_grammar(inf_grammar, CostGrammarType.MIN)
-# test_fuzzer.convert_to_trackable_grammar(expr_grammar)
-# test_fuzzer.__convert_to_trackable_grammar(inf_grammar)
-# print(test_fuzzer.fuzz_min_cost(expr_grammar, "<IPv4>"))
-# print(test_fuzzer.fuzz_max_cost(expr_grammar, "<IPv4>", 2))
-# print(test_fuzzer.fuzz_max_cost(inf_grammar, "<Start>", 10))
-# print(test_fuzzer.fuzz_grammar_coverage(expr_grammar, "<IPv4>"))
-# print(test_fuzzer.fuzz_grammar_coverage(inf_grammar, "<Start>"))
