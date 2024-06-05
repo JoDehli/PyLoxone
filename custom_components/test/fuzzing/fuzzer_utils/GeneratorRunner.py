@@ -1,6 +1,7 @@
-
 import logging
 import inspect
+from typing import Dict, List, Set, Tuple, Type, Callable, Any
+from custom_components.test.fuzzing.fuzzer_utils.Runner import Runner
 
 class GeneratorRunner(Runner):
     """Generator runner class, inherits from the abstract runner class."""
