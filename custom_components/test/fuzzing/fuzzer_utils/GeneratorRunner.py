@@ -1,33 +1,34 @@
+
 import logging
-
-from custom_components.test.fuzzing.fuzzer_utils.Runner import Runner
-
+import inspect
 
 class GeneratorRunner(Runner):
     """Generator runner class, inherits from the abstract runner class."""
 
-    def __int__(self):
-        """constructor"""
+    def __init__(self):
+        """Constructor"""
         pass
 
-    def run(self, function: function) -> list:
-        """__summary__
-
-        TODO: @JKortmann implement function
-        TODO: @JKortmann add comments and update UML if necessary
-
-        :param function: The passed function which is to be fuzzed. @JKortmann Man müsste hier doch eine ganze Klasse übergeben?
-        :type function: function
-
-        :return: Returns a list with two integers, the first number retruns the number of passed tests and the second of failed
-        :rtype: list
-        """
-        # INFO
+    def run(self, cls: Type, sequences: List[List[Tuple[str, List[List[Any]]]]]) -> List[Tuple[str, List[Any], str, str]]:
+        """Run the generated sequences on the given class."""
         logger = logging.getLogger(__name__)
-        logger.debug("This is a DEBUG message.")
-        logger.info("This is a INFO message.")
-        logger.warning("This is a WARNING message.")
-        logger.error("This is a ERROR message.")
+        results = []
 
-        dummy_result = [6, 3]
-        return dummy_result
+        for sequence in sequences:
+            instance = cls()  # Create an instance of the class
+            for method_name, param_set in sequence:
+                method = getattr(instance, method_name)
+                sig = inspect.signature(method)
+                num_params = len(sig.parameters)
+                logger.info(f"Running {method_name} with {num_params} parameters")
+
+                for params in param_set:
+                    try:
+                        method(*params)  # Run the method with the given parameters
+                        logger.debug(f"Test passed with parameters: {params}")
+                        results.append((method_name, params, "Passed", ""))
+                    except Exception as e:
+                        logger.error(f"Test failed with parameters: {params}. Exception: {e}")
+                        results.append((method_name, params, "Failed", str(e)))
+
+        return results
