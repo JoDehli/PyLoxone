@@ -6,7 +6,7 @@ class GeneratorRunner(Runner):
     """Generator runner class, inherits from the abstract runner class."""
 
     def __init__(self):
-        """constructor"""
+        """Constructor"""
         pass
 
     def run(self, cls: Type, sequences: List[List[Tuple[str, List[List[Any]]]]]) -> List[Tuple[str, List[Any], str, str]]:
