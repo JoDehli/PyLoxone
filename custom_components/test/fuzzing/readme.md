@@ -86,15 +86,17 @@ pytest custom_components/test/path/to/test_file.py
 > - Assigned to: @dsiev
 > - Branch: `fuzzing/valuepool`
 - Implement the generators.
-  - [ ] Present concept
   - [ ] Update UML
+  - [ ] Get code running
+  - [ ] Create test cases
+  - [ ] Think about CSV variant 
 
 ## Input grammars
 > - Assigned to: @JKortmann
 > - Branch: `fuzzing/grammars`
 - Implement the grammars.
   - [ ] Add general function description for docstring.
-  - [ ] Check if UML is correct.
+  - [ ] Update and check UML
   - [ ] Is it possible to use `ParamRunner`? Are updates on the `ParamRunner` needed?
   - The `GrammarFuzzer` class does not inherit from the abstract `Fuzzer` class and therefore does not implement a `fuzz()` function.
   - Should we put the grammars in a separate `GrammarPool` class?
@@ -112,17 +114,16 @@ pytest custom_components/test/path/to/test_file.py
   - [x] Present concept
   - [ ] Implement `fuzz()` function
   - [ ] Create test cases
-  - [ ] Implement privat `int` and `float` function
-
-  nicht random
+  - [ ] Implement privat functions for `int` and `float` function
+  - [ ] Consider grammar usage 
+  - [ ] How to implement seed store? Recognize different errors.
 
 ### grey-box
 > - Assigned to: @hoegma
 > - Branch: `fuzzing/mutational_grey_box`
 - [ ] Implement the mutational fuzzing (grey-box).
   - [ ] Present concept
-  - [ ] Update UML if needed
-  - [ ] Create merge request 
+  - [ ] Update UML
 
 ## Search based
 > - Assigned to: @jonathanheitzmann
