@@ -23,15 +23,15 @@ from custom_components.test.fuzzing.fuzzer_utils.ParamRunner import ParamRunner
 
 logger = logging.getLogger(__name__)
 
-mutational_fuzzer = MutationalFuzzer()
-param_runner = ParamRunner()
+mutational_fuzzer: MutationalFuzzer = MutationalFuzzer()
+param_runner: ParamRunner = ParamRunner()
 
 
-def test_dummy() -> None:
-    logger.info("Start of test_dummy() test.")
-    param_set = mutational_fuzzer.fuzz([0.5, 0.5, 12, "xxs", 0], 100)
+def test_map_range() -> None:
+    logger.info("Start of test_map_range() test.")
+    param_set: list[list] = mutational_fuzzer.fuzz([0.5, 0.5, 12.3, 123.234, 0.0], 1000)
     param_set = param_runner.limit_param_set(param_set, 50000)
-    result = param_runner.run(map_range, param_set)
-    logger.info("test_dummy() test finished.")
+    result: list = param_runner.run(map_range, param_set)
+    logger.info("test_map_range() test finished.")
 
     assert result[1] == 0
