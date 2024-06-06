@@ -97,13 +97,12 @@ pytest custom_components/test/path/to/test_file.py
 - Implement the grammars.
   - [ ] Add general function description for docstring.
   - [ ] Update and check UML
-  - [ ] Is it possible to use `ParamRunner`? Are updates on the `ParamRunner` needed?
-  - The `GrammarFuzzer` class does not inherit from the abstract `Fuzzer` class and therefore does not implement a `fuzz()` function.
   - Should we put the grammars in a separate `GrammarPool` class?
   - [ ] Create Testcases
+    - [ ] Is it possible to use `ParamRunner`? Are updates on the `ParamRunner` needed?
     - What does a test case and/or a runner look like now? 
     - How do we deal with this if the function under test requires an `int` (e.g. from the `ValuePoolFuzzer`) and a `str` from the `GrammarFuzzer`?
-  - [ ] Implementation of three-phase derivation
+  - [ ] Implementation of three-phase derivation (or random for the `MutationalFuzzer`)
   - [ ] Implementation of probabilistic derivation
 
 ## Mutational 
@@ -111,12 +110,14 @@ pytest custom_components/test/path/to/test_file.py
 > - Assigned to: @ThorbenCarl
 > - Branch: `fuzzing/mutational_black_box`
 - Implement the mutational fuzzing (black-box).
-  - [x] Present concept
-  - [ ] Implement `fuzz()` function
-  - [ ] Create test cases
-  - [ ] Implement privat functions for `int` and `float` function
+  - [x] Implement `fuzz()` function
+  - [ ] Create test cases 
   - [ ] Consider grammar usage 
   - [ ] How to implement seed store? Recognize different errors.
+  - The seed for a number is only used to recognise whether it is int or float, it does not really have any effect on the course of the fuzzer.
+  - For `float` `+inf` and `-inf` are not tested.
+
+
 
 ### grey-box
 > - Assigned to: @hoegma

@@ -12,7 +12,7 @@ abstract class "Fuzzer" as fuzzer << abstract class >> {
 class "ValuePoolFuzzer" as VPFuzzer << class >> {
     --
     - __init__(self) : void
-    + fuzz(self, param_nr : int, types : list, param_combi : int) : list
+    + fuzz(self, param_nr : int, types : list, param_combi : int) : list[list]
 }
 class "ValuePool" as VPool << class >> {
     - _UINT_POOL : list
@@ -76,14 +76,12 @@ class "MutationalFuzzer" as MFuzzer << class >> {
     - __delete_random_char(self, s: str) : str
     - __insert_random_char(self, s: str) : str
     - __flip_random_char(self, s: str) : str
-    - __int_add_random_(self, n: int) : int
-    - __int_sub_random_(self, n: int) : int
-    - __int_mult_random_(self, n: int) : int
-    - __int_div_random_(self, n: int) : int
-    - __float_add_random_(self, n: float) : float
-    - __float_sub_random_(self, n: float) : float
-    - __float_mult_random_(self, n: float) : float
-    - __float_div_random_(self, n: float) : float
+    - __get_random_float(self) : float
+    - __check_inf(self, number: float) : float
+    - __add_random_number(self, number: float) : float
+    - __sub_random_number(self, number: float) : float
+    - __mult_random_number(self, number: float) : float
+    - __div_random_number(self, number: float) : float
     + fuzz(self, seed: list[int, float, str], rounds: int = 1) : list[list]
 }
 '''''''''''''''''''''''''''''''''''''''
@@ -131,7 +129,7 @@ entity  "test_gram_on_XXX.py" as test_GRA << test case >>{
 
 }
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_mut_on_XXX.py" as test_MUT << test case >>{
+entity  "test_mut_on_helpers.py" as test_MUT << test case >>{
 
 }
 '''''''''''''''''''''''''''''''''''''''
@@ -154,7 +152,7 @@ PRunner <--* test_VP_H : needs a <
 '''''''''''''''''''''''''''''''''''''''
 CGType <--* GrFuzzer : needs a <
 GrFuzzer <--* test_GRA : needs a <
-PRunner <--* test_GRA : needs a <
+'PRunner <--* test_GRA : needs a <
 test_GRA *-> ipv4: needs a >
 '''''''''''''''''''''''''''''''''''''''
 GFuzzer <--* test_GEN : needs a <

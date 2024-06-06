@@ -1,5 +1,6 @@
 import logging
 import random
+import math
 
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 
@@ -8,10 +9,16 @@ class MutationalFuzzer(Fuzzer):
     """Mutational fuzzer class, inherits from the abstract fuzzer class."""
 
     _logger = None
+    _multiplier: list[int] = []
 
     def __init__(self):
         """Constructor get the logger."""
         self._logger = logging.getLogger(__name__)
+
+        i: int = 10
+        while i <= 10000000000000000:
+            self._multiplier.append(i)
+            i *= 10
 
     def __delete_random_char(self, string: str) -> str:
         """Returns string with a random character deleted.
@@ -94,46 +101,46 @@ class MutationalFuzzer(Fuzzer):
         # and the substring after the random position.
         return string[:pos] + new_c + string[pos + 1 :]
 
-    def __int_add_random_(self, number: int) -> int:
+    def __get_random_float(self) -> float:
         """TODO"""
+        random_float = random.random()
+        random_float *= random.choice(self._multiplier)
 
-        bits: int = 32
-        random_int: int = random.getrandbits(bits)
-        number += random_int
+        return random_float
 
-        return number
-
-    def __int_sub_random_(self, number: int) -> int:
-        bits: int = 32
-        random_int: int = random.getrandbits(bits)
-        number -= random_int
-
-        return number
-
-    def __int_mult_random_(self, number: int) -> int:
-        random_int: int = random.randint(0, 100)  # bigger?
-        number *= random_int
+    def __check_inf(self, number: float) -> float:
+        """TODO"""
+        if math.isinf(number):
+            number = random.random()
+            self._logger.info(
+                "The return value would be - or + INF, set it to an random value between 0.0 and 1.0"
+            )
 
         return number
 
-    def __int_div_random_(self, number: int) -> int:
-        bits: int = 32
-        random_int: int = random.getrandbits(bits)
+    def __add_random_number(self, number: float) -> float:
+        """TODO"""
+        number += self.__get_random_float()
 
-        result: int = number // random_int
-        return result
+        return self.__check_inf(number)
 
-    def __float_add_random_(self, n: float) -> float:
-        return n
+    def __sub_random_number(self, number: float) -> float:
+        """TODO"""
+        number -= self.__get_random_float()
 
-    def __float_sub_random_(self, n: float) -> float:
-        return n
+        return self.__check_inf(number)
 
-    def __float_mult_random_(self, n: float) -> float:
-        return n
+    def __mult_random_number(self, number: float) -> float:
+        """TODO"""
+        number *= self.__get_random_float()
 
-    def __float_div_random_(self, n: float) -> float:
-        return n
+        return self.__check_inf(number)
+
+    def __div_random_number(self, number: float) -> float:
+        """TODO"""
+        number /= self.__get_random_float()
+
+        return self.__check_inf(number)
 
     def fuzz(
         self,
@@ -150,10 +157,7 @@ class MutationalFuzzer(Fuzzer):
         :return: Returns a list of lists. Each list in the list is a test case for the ParamRunner.
         :rtype: list
         """
-
-        result_list: list[list] = []
-
-        # Check types of the input seed
+        ### Check types of the input seed ###############################################
         for type in seed:
             if isinstance(type, int):
                 self._logger.debug(str(type) + " is instance of int.")
@@ -170,7 +174,9 @@ class MutationalFuzzer(Fuzzer):
                     + " is not a instance of int, float or str."
                     + " The MutationalFuzzer can only fuzz these types!"
                 )
+        #################################################################################
 
+        result_list: list[list] = []
         # Add seed as first param set
         result_list.append(seed)
         self._logger.debug("Creat new param_set: " + str(seed) + " in round: 0")
@@ -183,57 +189,15 @@ class MutationalFuzzer(Fuzzer):
             last_param_set = result_list[-1]
 
             for value in last_param_set:
-                if isinstance(value, int):
-                    random_case = random.randint(0, 3)
-                    match random_case:
-                        case 0:
-                            self._logger.debug(
-                                "Fuzz '" + str(value) + "' with __int_add_random_()"
-                            )
-                            next_param_set.append(self.__int_add_random_(value))
-                        case 1:
-                            self._logger.debug(
-                                "Fuzz '" + str(value) + "' with __int_sub_random_()"
-                            )
-                            next_param_set.append(self.__int_sub_random_(value))
-                        case 2:
-                            self._logger.debug(
-                                "Fuzz '" + str(value) + "' with __int_mult_random_()"
-                            )
-                            next_param_set.append(self.__int_mult_random_(value))
-                        case 3:
-                            self._logger.debug(
-                                "Fuzz '" + str(value) + "' with __int_div_random_()"
-                            )
-                            next_param_set.append(self.__int_div_random_(value))
-                        case default:
-                            self._logger.warning(
-                                "The fuzz mode "
-                                + str(random_case)
-                                + " is not specified. Use the __int_add_random_() function"
-                            )
-                            next_param_set.append(self.__int_add_random_(value))
+                if isinstance(value, str):
 
-                elif isinstance(value, float):
-
-                    next_param_set.append(1.1)
-                elif isinstance(value, str):
                     random_case = random.randint(0, 2)
                     match random_case:
                         case 0:
-                            self._logger.debug(
-                                "Fuzz '" + str(value) + "' with __delete_random_char()"
-                            )
                             next_param_set.append(self.__delete_random_char(value))
                         case 1:
-                            self._logger.debug(
-                                "Fuzz '" + str(value) + "' with __insert_random_char()"
-                            )
                             next_param_set.append(self.__insert_random_char(value))
                         case 2:
-                            self._logger.debug(
-                                "Fuzz '" + str(value) + "' with __flip_random_char()"
-                            )
                             next_param_set.append(self.__flip_random_char(value))
                         case default:
                             self._logger.warning(
@@ -242,6 +206,56 @@ class MutationalFuzzer(Fuzzer):
                                 + " is not specified. Use the __flip_random_char() function"
                             )
                             next_param_set.append(self.__flip_random_char(value))
+
+                elif isinstance(value, int) or isinstance(value, float):
+
+                    random_case = random.randint(0, 3)
+                    match random_case:
+                        case 0:
+                            if isinstance(value, int):
+                                next_param_set.append(
+                                    int(self.__add_random_number(value))
+                                )
+
+                            else:
+                                next_param_set.append(self.__add_random_number(value))
+                        case 1:
+                            if isinstance(value, int):
+                                next_param_set.append(
+                                    int(self.__sub_random_number(value))
+                                )
+
+                            else:
+                                next_param_set.append(self.__sub_random_number(value))
+                        case 2:
+                            if isinstance(value, int):
+                                next_param_set.append(
+                                    int(self.__mult_random_number(value))
+                                )
+
+                            else:
+                                next_param_set.append(self.__mult_random_number(value))
+                        case 3:
+                            if isinstance(value, int):
+                                next_param_set.append(
+                                    int(self.__div_random_number(value))
+                                )
+
+                            else:
+                                next_param_set.append(self.__div_random_number(value))
+                        case default:
+                            self._logger.warning(
+                                "The fuzz mode "
+                                + str(random_case)
+                                + " is not specified. Use the __int_add_random_() function"
+                            )
+                            if isinstance(value, int):
+                                next_param_set.append(
+                                    int(self.__add_random_number(value))
+                                )
+
+                            else:
+                                next_param_set.append(self.__add_random_number(value))
 
                 else:
                     self._logger.error(
@@ -260,5 +274,5 @@ class MutationalFuzzer(Fuzzer):
             result_list.append(next_param_set)
             current_round += 1
 
-        self._logger.debug("Generated param_set: " + str(result_list))
+        self._logger.info("Generated param_set: " + str(result_list))
         return result_list
