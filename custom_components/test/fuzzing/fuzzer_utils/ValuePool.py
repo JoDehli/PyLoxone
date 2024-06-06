@@ -24,19 +24,6 @@ class ValuePool:
 
         sys.maxsize: An integer giving the maximum value a variable of type Py_ssize_t can take. It's usually 2^31 - 1 on a 32-bit platform and 2^63 - 1 on a 64-bit platform.
         """
-        # set values for _INT_POOL
-        self._INT_POOL = [
-            sys.maxsize * -sys.maxsize,
-            -sys.maxsize,
-            -257,
-            -1,
-            0,
-            1,
-            257,
-            sys.maxsize,
-            sys.maxsize * sys.maxsize,
-        ]
-
         # set values for _UINT_POOL
         self._UINT_POOL = [
             0,
@@ -45,6 +32,14 @@ class ValuePool:
             sys.maxsize,
             sys.maxsize * sys.maxsize,
         ]
+        
+        # set values for _INT_POOL
+        self._INT_POOL = [
+            sys.maxsize * -sys.maxsize,
+            -sys.maxsize,
+            -257,
+            -1,
+        ] + self._UINT_POOL
 
         # set values for _FLOAT_POOL
         self._FLOAT_POOL = [
@@ -57,10 +52,11 @@ class ValuePool:
             257.0,
             sys.maxsize * 0.5,
             sys.maxsize * sys.maxsize * 0.5,
-        ]
+        ] + self._INT_POOL
 
         # set values for _STRING_POOL
         self._STRING_POOL = [
+            None,
             "",
             "a",
             "abc",
@@ -71,7 +67,11 @@ class ValuePool:
         ]
 
         # set values for _BOOL_POOL
-        self._BOOL_POOL = [True, False]
+        self._BOOL_POOL = [
+            None,
+            True,
+            False,
+        ]
 
         # set values for _BYTE_POOL
         self._BYTE_POOL = [
@@ -83,6 +83,7 @@ class ValuePool:
 
         # set values for _LIST_POOL
         self._LIST_POOL = [
+            None,
             [],
             [1, 2, 3],
             ["a", "b", "c"],
@@ -92,6 +93,7 @@ class ValuePool:
 
         # set values for _DICT_POOL
         self._DICT_POOL = [
+            None,
             {},
             {"key": "value"},
             {"int": 1, "float": 1.0, "str": "string"},
@@ -100,6 +102,7 @@ class ValuePool:
 
         # set values for _DATE_POOL
         self._DATE_POOL = [
+            None,
             datetime.datetime.min,
             datetime.datetime.max,
             datetime.datetime.now(),
