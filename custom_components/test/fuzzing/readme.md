@@ -111,13 +111,15 @@ pytest custom_components/test/path/to/test_file.py
 > - Branch: `fuzzing/mutational_black_box`
 - Implement the mutational fuzzing (black-box).
   - [x] Implement `fuzz()` function
-  - [ ] Create test cases 
-  - [ ] Consider grammar usage 
+  - [x] Implement fuzzer function for string functions
+  - [x] Implement fuzzer function for int and float functions
+  - [ ] Add comments
+  - [ ] Create test cases for `helpers.py`
+  - [x] Include grammars into test-cases
   - [ ] How to implement seed store? Recognize different errors.
-  - The seed for a number is only used to recognise whether it is int or float, it does not really have any effect on the course of the fuzzer.
-  - For `float` `+inf` and `-inf` are not tested.
-
-
+> Notes:
+> - The seed for a number is only used to recognise whether it is int or float, it does not really have any effect on the course of the fuzzer.
+> - For `float` `+inf` and `-inf` are not tested.
 
 ### grey-box
 > - Assigned to: @hoegma
@@ -125,6 +127,10 @@ pytest custom_components/test/path/to/test_file.py
 - [ ] Implement the mutational fuzzing (grey-box).
   - [ ] Present concept
   - [ ] Update UML
+
+### white-box
+> - Assigned to: --
+> - Branch: `fuzzing/mutational_white_box`
 
 ## Search based
 > - Assigned to: @jonathanheitzmann

@@ -189,8 +189,9 @@ class MutationalFuzzer(Fuzzer):
             last_param_set = result_list[-1]
 
             for value in last_param_set:
+                # Check if the last value was a string.                
                 if isinstance(value, str):
-
+                    # Choose randomly one fuzz function.
                     random_case = random.randint(0, 2)
                     match random_case:
                         case 0:
@@ -207,11 +208,13 @@ class MutationalFuzzer(Fuzzer):
                             )
                             next_param_set.append(self.__flip_random_char(value))
 
+                # Check if the last value was a int or float. 
                 elif isinstance(value, int) or isinstance(value, float):
-
+                    # Choose randomly one fuzz function.
                     random_case = random.randint(0, 3)
                     match random_case:
                         case 0:
+                            # If an int is required, cast the float. 
                             if isinstance(value, int):
                                 next_param_set.append(
                                     int(self.__add_random_number(value))
@@ -220,6 +223,7 @@ class MutationalFuzzer(Fuzzer):
                             else:
                                 next_param_set.append(self.__add_random_number(value))
                         case 1:
+                            # If an int is required, cast the float. 
                             if isinstance(value, int):
                                 next_param_set.append(
                                     int(self.__sub_random_number(value))
@@ -228,6 +232,7 @@ class MutationalFuzzer(Fuzzer):
                             else:
                                 next_param_set.append(self.__sub_random_number(value))
                         case 2:
+                            # If an int is required, cast the float. 
                             if isinstance(value, int):
                                 next_param_set.append(
                                     int(self.__mult_random_number(value))
@@ -236,6 +241,7 @@ class MutationalFuzzer(Fuzzer):
                             else:
                                 next_param_set.append(self.__mult_random_number(value))
                         case 3:
+                            # If an int is required, cast the float. 
                             if isinstance(value, int):
                                 next_param_set.append(
                                     int(self.__div_random_number(value))
@@ -249,6 +255,7 @@ class MutationalFuzzer(Fuzzer):
                                 + str(random_case)
                                 + " is not specified. Use the __int_add_random_() function"
                             )
+                            # If an int is required, cast the float. 
                             if isinstance(value, int):
                                 next_param_set.append(
                                     int(self.__add_random_number(value))
