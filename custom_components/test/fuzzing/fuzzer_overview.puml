@@ -104,8 +104,8 @@ class "ParamRunner" as PRunner << class >> {
 '''''''''''''''''''''''''''''''''''''''
 entity  "test_vp_on_helpers.py" as test_VP_H << test case >>{
     logger
-    value_pool_fuzzer
-    param_runner
+    value_pool_fuzzer : ValuePoolFuzzer
+    param_runner : ParamRunner
     --
     test_map_range() : None
     test_hass_to_lox() : None
@@ -130,7 +130,14 @@ entity  "test_gram_on_XXX.py" as test_GRA << test case >>{
 }
 '''''''''''''''''''''''''''''''''''''''
 entity  "test_mut_on_helpers.py" as test_MUT << test case >>{
-
+    _logger
+    _mutational_fuzzer : MutationalFuzzer
+    _grammar_fuzzer : GrammarFuzzer
+    grammar_ipv4 : Grammar
+    _param_runner : ParamRunner
+    --
+    test_demo_get_param_set() : None
+    test_map_range() : None
 }
 '''''''''''''''''''''''''''''''''''''''
 'Fuzzer''''''''''''''''''''''''''''''''
@@ -157,6 +164,8 @@ test_GRA *-> ipv4: needs a >
 '''''''''''''''''''''''''''''''''''''''
 GFuzzer <--* test_GEN : needs a <
 '''''''''''''''''''''''''''''''''''''''
-MFuzzer <--* test_MUT : needs a <
-PRunner <--* test_MUT : needs a <
+MFuzzer "1"<--* test_MUT : needs a <
+PRunner "1"<--* test_MUT : needs a <
+GrFuzzer "1"<--* test_MUT : needs a <
+ipv4 "1"<--* test_MUT : needs a <
 @enduml
