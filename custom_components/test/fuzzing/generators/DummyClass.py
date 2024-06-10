@@ -1,3 +1,4 @@
+# Dummy class for testing
 class DummyClass:
     def __init__(self, value: int):
         self.value = value
