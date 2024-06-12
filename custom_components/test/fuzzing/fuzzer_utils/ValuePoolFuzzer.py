@@ -1,5 +1,5 @@
 import logging
-
+import itertools
 
 #from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 #from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
@@ -15,7 +15,7 @@ class ValuePoolFuzzer(Fuzzer):
     def __int__(self):
         """constructor"""
     
-    def __generate_ranking(self, lists):
+    '''def __generate_ranking(self, lists):
         """
         Generates ranking based on length of the lists.
 
@@ -179,7 +179,19 @@ class ValuePoolFuzzer(Fuzzer):
 
         new_list = self.__generate_new_list(lists, param_combi, rank)
 
-        return new_list
+        return new_list'''
+    
+    def __n_way_combinations(self, num_lists_combination, *data):
+        # Create the Cartesian product of all arrays
+        product = list(itertools.product(*data))
+        
+        # Generate all 2-way combinations from the product
+        """combinations = []
+        for comb in product:
+            # Generate 2-way combinations for each tuple in the product
+            combinations.extend(itertools.combinations(comb, len(data)))"""
+        
+        return product
 
     def fuzz(
        self, types: list = ["INT"], param_combi: int = 1
@@ -236,7 +248,11 @@ class ValuePoolFuzzer(Fuzzer):
                 # Creating list of the value_pool lists provided in types
                 value_pools.append(valid_types[t])
 
+        
 
-        result = self.__generate_combinations(value_pools, param_combi)
+
+        #result = self.__generate_combinations(value_pools, param_combi)
+
+        result = self.__n_way_combinations(2, *value_pools)
             
         return result
