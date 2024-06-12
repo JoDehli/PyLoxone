@@ -86,22 +86,23 @@ pytest custom_components/test/path/to/test_file.py
 > - Assigned to: @dsiev
 > - Branch: `fuzzing/valuepool`
 - Implement the generators.
-  - [ ] Present concept
   - [ ] Update UML
+  - [ ] Get code running
+  - [ ] Create test cases
+  - [ ] Think about CSV variant 
 
 ## Input grammars
 > - Assigned to: @JKortmann
 > - Branch: `fuzzing/grammars`
 - Implement the grammars.
   - [ ] Add general function description for docstring.
-  - [ ] Check if UML is correct.
-  - [ ] Is it possible to use `ParamRunner`? Are updates on the `ParamRunner` needed?
-  - The `GrammarFuzzer` class does not inherit from the abstract `Fuzzer` class and therefore does not implement a `fuzz()` function.
+  - [ ] Update and check UML
   - Should we put the grammars in a separate `GrammarPool` class?
   - [ ] Create Testcases
+    - [ ] Is it possible to use `ParamRunner`? Are updates on the `ParamRunner` needed?
     - What does a test case and/or a runner look like now? 
     - How do we deal with this if the function under test requires an `int` (e.g. from the `ValuePoolFuzzer`) and a `str` from the `GrammarFuzzer`?
-  - [ ] Implementation of three-phase derivation
+  - [ ] Implementation of three-phase derivation (or random for the `MutationalFuzzer`)
   - [ ] Implementation of probabilistic derivation
 
 ## Mutational 
@@ -109,17 +110,27 @@ pytest custom_components/test/path/to/test_file.py
 > - Assigned to: @ThorbenCarl
 > - Branch: `fuzzing/mutational_black_box`
 - Implement the mutational fuzzing (black-box).
-  - [ ] Present concept
-  - [ ] Update UML
-  - [ ] Create merge request 
+  - [x] Implement `fuzz()` function
+  - [x] Implement fuzzer function for string functions
+  - [x] Implement fuzzer function for int and float functions
+  - [ ] Add comments
+  - [ ] Create test cases for `helpers.py`
+  - [x] Include grammars into test-cases
+  - [ ] How to implement seed store? Recognize different errors.
+> Notes:
+> - The seed for a number is only used to recognise whether it is int or float, it does not really have any effect on the course of the fuzzer.
+> - For `float` `+inf` and `-inf` are not tested.
 
 ### grey-box
 > - Assigned to: @hoegma
 > - Branch: `fuzzing/mutational_grey_box`
 - [ ] Implement the mutational fuzzing (grey-box).
   - [ ] Present concept
-  - [ ] Update UML if needed
-  - [ ] Create merge request 
+  - [ ] Update UML
+
+### white-box
+> - Assigned to: --
+> - Branch: `fuzzing/mutational_white_box`
 
 ## Search based
 > - Assigned to: @jonathanheitzmann
