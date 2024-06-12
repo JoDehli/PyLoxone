@@ -8,11 +8,11 @@ from custom_components.test.fuzzing.fuzzer_utils.Runner import Runner
 class ParamRunner(Runner):
     """Paramter runner class, inherits from the abstract runner class."""
 
-    logger = logging.getLogger(__name__)
+    __logger = None
 
     def __init__(self):
         """constructor"""
-        pass
+        self.__logger = logging.getLogger(__name__)
 
     def run(self, function, param_set: list) -> dict:
         """Executes all transferred parameter sets for the transferred function.
@@ -41,7 +41,7 @@ class ParamRunner(Runner):
 
         sig = inspect.signature(function)
         num_params = len(sig.parameters)
-        self.logger.debug(f"The given functions needs {str(num_params)} parameters")
+        self.__logger.debug(f"The given functions needs {str(num_params)} parameters")
 
         test_results = {
             "passed_tests": 0,
@@ -53,14 +53,17 @@ class ParamRunner(Runner):
             try:
                 function(*param)
                 test_results["passed_tests"] += 1
-                self.logger.debug(f"Test {index} passed with parameters: {param}")
+                self.__logger.debug(f"Test {index} passed with parameters: {param}")
             except Exception as e:
                 test_results["failed_tests"] += 1
                 test_results["failed_params"][str(index)] = param
-                self.logger.error(f"Test {index} failed with parameters: {param}.")
-                self.logger.error(f"Exception: {e}")
+                self.__logger.error(f"Test {index} failed with parameters: {param}.")
+                self.__logger.error(f"Exception: {e}")
 
-        self.logger.debug(f"Test results: {str(test_results)}")
+        if test_results["failed_tests"] > 0:
+            self.__logger.error(f"Summary: {test_results["failed_tests"]} param_sets failed for the function {function.__name__}")
+        else:
+            self.__logger.info(f"Summary: {test_results["passed_tests"]} param_sets passed for the function {function.__name__}")
 
         return test_results
 
@@ -78,25 +81,25 @@ class ParamRunner(Runner):
 
         # Validate input parameters
         if not isinstance(param_set, list):
-            self.logger.error("Param_set must be of type list.")
+            self.__logger.error("Param_set must be of type list.")
             raise TypeError("Param_set must be of type list.")
         if len(param_set) == 0:
-            self.logger.error("Length of param_set must be greater then 0.")
+            self.__logger.error("Length of param_set must be greater then 0.")
             raise ValueError("Length of param_set must be greater then 0.")
         if not isinstance(runs, int) or runs <= 0:
-            self.logger.error(
+            self.__logger.error(
                 "Runs must be of type int and greater than 0. Parameter set is returned unchanged."
             )
             return param_set
 
         # Selection of random elements from param_set if the number of runs is smaller than the number of elements in param_set
         if runs > len(param_set):
-            self.logger.info(
+            self.__logger.info(
                 "Length of param_set is smaller than the value of runs. Returned param_set unchanged."
             )
             return param_set
         else:
-            self.logger.info(
+            self.__logger.info(
                 f"Decresed elements in param_set from {len(param_set)} to {runs}"
             )
             return random.sample(param_set, runs)
