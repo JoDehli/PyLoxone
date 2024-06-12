@@ -14,7 +14,7 @@ class ParamRunner(Runner):
         """constructor"""
         pass
 
-    def run(self, function, param_set: list) -> list:
+    def run(self, function, param_set: list) -> dict:
         """Executes all transferred parameter sets for the transferred function.
 
         :param function: The passed function which is to be fuzzed.
@@ -22,28 +22,47 @@ class ParamRunner(Runner):
         :param param_set: The parameter set transferred from the fuzzer.
         :type param_set: list
 
-        :return: Returns a list with two integers, the first number retruns the number of passed tests and the second of failed
-        :rtype: list
+        :return: Returns a dict with 3 keys,
+                 the key 'passed_tests' contains the number of passed tests,
+                 the key 'failed_tests' contains the number of failed tests,
+                 and the last key 'failed_params' contains a dict with every failed param_set (compare example).
+        :rtype: dict
+
+        .. code-block:: python
+            {
+                "passed_tests": 10,
+                "failed_tests": 1,
+                "failed_params": {
+                    "1": [1.0,2,"xxx"],
+                    "2": [1.0,223,"demo"]
+                }
+            }
         """
 
         sig = inspect.signature(function)
         num_params = len(sig.parameters)
-        self.logger.info("The given functions needs " + str(num_params) + " parameters")
+        self.logger.debug(f"The given functions needs {str(num_params)} parameters")
 
-        passed_tests = 0
-        failed_tests = 0
-        for param in param_set:
+        test_results = {
+            "passed_tests": 0,
+            "failed_tests": 0,
+            "failed_params": {},
+        }
+
+        for index, param in enumerate(param_set):
             try:
                 function(*param)
-                passed_tests += 1
-                self.logger.debug(f"Test passed with parameters: {param}")
+                test_results["passed_tests"] += 1
+                self.logger.debug(f"Test {index} passed with parameters: {param}")
             except Exception as e:
-                failed_tests += 1
-                self.logger.error(
-                    f"Test failed with parameters: {param}. Exception: {e}"
-                )
+                test_results["failed_tests"] += 1
+                test_results["failed_params"][str(index)] = param
+                self.logger.error(f"Test {index} failed with parameters: {param}.")
+                self.logger.error(f"Exception: {e}")
 
-        return [passed_tests, failed_tests]
+        self.logger.debug(f"Test results: {str(test_results)}")
+
+        return test_results
 
     def limit_param_set(self, param_set: list, runs: int) -> list:
         """Generates a specific selection of an individual value pool. A list of lists is returned with a specified number of elements.

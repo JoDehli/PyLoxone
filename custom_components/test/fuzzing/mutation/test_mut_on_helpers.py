@@ -20,7 +20,9 @@ from custom_components.test.fuzzing.fuzzer_utils.MutationalFuzzer import (
     MutationalFuzzer,
 )
 from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import GrammarFuzzer
-from custom_components.test.fuzzing.fuzzer_utils.grammars.grammar_ipv4 import grammar_ipv4
+from custom_components.test.fuzzing.fuzzer_utils.grammars.grammar_ipv4 import (
+    grammar_ipv4,
+)
 from custom_components.test.fuzzing.fuzzer_utils.ParamRunner import ParamRunner
 
 
@@ -48,9 +50,11 @@ def test_demo_get_param_set() -> None:
 
 def test_map_range() -> None:
     _logger.info("Start of test_map_range() test.")
-    param_set: list[list] = _mutational_fuzzer.fuzz([0.5, 0.5, 12.3, 123.234, 0.0], 1000)
+    param_set: list[list] = _mutational_fuzzer.fuzz(
+        [0.5, 0.5, 12.3, 123.234, 0.0], 1000
+    )
     param_set = _param_runner.limit_param_set(param_set, 50000)
     result: list = _param_runner.run(map_range, param_set)
     _logger.info("test_map_range() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
