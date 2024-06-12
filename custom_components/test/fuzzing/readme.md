@@ -75,6 +75,7 @@ pytest custom_components/test/path/to/test_file.py
 ## Value pools 
 > - Assigned to: @jonathanheitzmann
 > - Branch: `fuzzing/valuepool`
+- [ ] Bug on param combi
 - [ ] Update `ValuePoolFuzzer` class.
   - [ ] Add return types to function head
   - [ ] Update UML
