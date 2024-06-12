@@ -8,16 +8,16 @@ from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 class MutationalFuzzer(Fuzzer):
     """Mutational fuzzer class, inherits from the abstract fuzzer class."""
 
-    _logger = None
-    _multiplier: list[int] = []
+    __logger = None
+    __multiplier: list[int] = []
 
     def __init__(self):
         """Constructor get the logger."""
-        self._logger = logging.getLogger(__name__)
+        self.__logger = logging.getLogger(__name__)
 
         i: int = 10
         while i <= 10000000000000000:
-            self._multiplier.append(i)
+            self.__multiplier.append(i)
             i *= 10
 
     def __delete_random_char(self, string: str) -> str:
@@ -105,7 +105,7 @@ class MutationalFuzzer(Fuzzer):
         """Returns a random float value modified by a randomly chosen multiplier.
 
         This function generates a random float value between 0.0 and 1.0, and then
-        multiplies it by a randomly selected value from the list `self._multiplier`.
+        multiplies it by a randomly selected value from the list `self.__multiplier`.
 
         :return: A random positiv float value.
         :rtype: float
@@ -113,8 +113,8 @@ class MutationalFuzzer(Fuzzer):
         # Generate a random float between 0.0 and 1.0.
         random_float = random.random()
 
-        # Multiply the random float by a randomly chosen multiplier from the list `self._multiplier`.
-        random_float *= random.choice(self._multiplier)
+        # Multiply the random float by a randomly chosen multiplier from the list `self.__multiplier`.
+        random_float *= random.choice(self.__multiplier)
 
         # Return the modified random float.
         return random_float
@@ -135,7 +135,7 @@ class MutationalFuzzer(Fuzzer):
         if math.isinf(number):
             # If the number is infinite, replace it with a random value between 0.0 and 1.0.
             number = random.random()
-            self._logger.info(
+            self.__logger.debug(
                 "The return value would be - or + INF, set it to a random value between 0.0 and 1.0"
             )
 
@@ -219,7 +219,7 @@ class MutationalFuzzer(Fuzzer):
 
     def fuzz(
         self,
-        seed: list[int, float, str],
+        seed: list,
         rounds: int = 1,
     ) -> list[list]:
         """The function returns a param_set for a ParamRunner.
@@ -239,13 +239,13 @@ class MutationalFuzzer(Fuzzer):
         ### Check types of the input seed ###############################################
         for type in seed:
             if isinstance(type, int):
-                self._logger.debug(str(type) + " is instance of int.")
+                self.__logger.debug(str(type) + " is instance of int.")
             elif isinstance(type, float):
-                self._logger.debug(str(type) + " is instance of float.")
+                self.__logger.debug(str(type) + " is instance of float.")
             elif isinstance(type, str):
-                self._logger.debug(str(type) + " is instance of str.")
+                self.__logger.debug(str(type) + " is instance of str.")
             else:
-                self._logger.error(
+                self.__logger.error(
                     str(type) + " is not a instance of int, float or str."
                 )
                 raise TypeError(
@@ -258,7 +258,7 @@ class MutationalFuzzer(Fuzzer):
         result_list: list[list] = []
         # Add seed as first param set
         result_list.append(seed)
-        self._logger.debug("Creat new param_set: " + str(seed) + " in round: 0")
+        self.__logger.debug("Creat new param_set: " + str(seed) + " in round: 0")
 
         current_round: int = 1
         next_param_set: list = []
@@ -280,7 +280,7 @@ class MutationalFuzzer(Fuzzer):
                         case 2:
                             next_param_set.append(self.__flip_random_char(value))
                         case default:
-                            self._logger.warning(
+                            self.__logger.warning(
                                 "The fuzz mode "
                                 + str(random_case)
                                 + " is not specified. Use the __flip_random_char() function"
@@ -329,7 +329,7 @@ class MutationalFuzzer(Fuzzer):
                             else:
                                 next_param_set.append(self.__div_random_number(value))
                         case default:
-                            self._logger.warning(
+                            self.__logger.warning(
                                 "The fuzz mode "
                                 + str(random_case)
                                 + " is not specified. Use the __int_add_random_() function"
@@ -344,14 +344,14 @@ class MutationalFuzzer(Fuzzer):
                                 next_param_set.append(self.__add_random_number(value))
 
                 else:
-                    self._logger.error(
+                    self.__logger.error(
                         str(value)
                         + " is not a instance of int, float or str."
                         + " Keep value, value is not longer fuzzed."
                     )
                     next_param_set.append(value)
 
-            self._logger.debug(
+            self.__logger.debug(
                 "Creat new param_set: "
                 + str(next_param_set)
                 + " in round: "
@@ -360,5 +360,36 @@ class MutationalFuzzer(Fuzzer):
             result_list.append(next_param_set)
             current_round += 1
 
-        self._logger.info("Generated param_set: " + str(result_list))
+        self.__logger.debug("Generated param_set: " + str(result_list))
+        return result_list
+
+    def fuzz_failed(
+        self,
+        seed: dict,
+        rounds: int = 1,
+    ) -> list[list]:
+        """The function returns a param_set for a ParamRunner.
+        The seed is changed randomly in any number of rounds (defined by rounds).
+        In contrast to the fuzz() function, the result dict of the run() function
+        of the ParamRunner is passed as a seed.
+        The param_set that failed in the test case is fuzzed again according to the number defined in the parameter rounds.
+
+        :param seed: The seed is the result of the fuzz() function of the ParamRunner.
+        :type seed: dict
+        :param rounds: Specifies how many param_set's are to be supplied for the runner. The default is 1.
+        :type rounds: int
+
+        :return: Returns a list of lists. Each list in the list is a test case for the ParamRunner.
+        :rtype: list
+        """
+        # Get failed parameter of the result dict.
+        failed_params: dict = seed.get("failed_params", {})
+        result_list: list[list] = []
+
+        # call for every failed set the fuzz function.
+        for param_list in failed_params.values():
+            param_sets = self.fuzz(param_list, rounds)
+            for param_set in param_sets:
+                result_list.append(param_set)
+
         return result_list

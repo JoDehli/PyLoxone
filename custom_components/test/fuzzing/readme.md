@@ -100,6 +100,7 @@ pytest custom_components/test/path/to/test_file.py
   - [ ] Update and check UML
   - Should we put the grammars in a separate `GrammarPool` class?
   - [ ] Create Testcases
+    - [ ] Create needed grammars
     - [ ] Is it possible to use `ParamRunner`? Are updates on the `ParamRunner` needed?
     - What does a test case and/or a runner look like now? 
     - How do we deal with this if the function under test requires an `int` (e.g. from the `ValuePoolFuzzer`) and a `str` from the `GrammarFuzzer`?
@@ -111,16 +112,9 @@ pytest custom_components/test/path/to/test_file.py
 > - Assigned to: @ThorbenCarl
 > - Branch: `fuzzing/mutational_black_box`
 - Implement the mutational fuzzing (black-box).
-  - [x] Implement `fuzz()` function
-  - [x] Implement fuzzer function for string functions
-  - [x] Implement fuzzer function for int and float functions
-  - [ ] Add comments
-  - [ ] Create test cases for `helpers.py`
-  - [x] Include grammars into test-cases
-  - [ ] How to implement seed store? Recognize different errors.
-> Notes:
-> - The seed for a number is only used to recognise whether it is int or float, it does not really have any effect on the course of the fuzzer.
-> - For `float` `+inf` and `-inf` are not tested.
+  - [ ] Create test cases for value pools -> waiting for @jonathanheitzmann
+  - [ ] Create test cases for black-box mutaional -> waiting for @jonathanheitzmann
+  - [x] Implementation of seed store
 
 ### grey-box
 > - Assigned to: @hoegma
