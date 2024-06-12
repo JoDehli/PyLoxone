@@ -20,8 +20,6 @@ class ValuePool:
         """constructor
         Set values for pools.
 
-        TODO: no dublicate pool values, like in Balista. e.g. _FLOAT_POOL copyyinherits values from _INT_POOL
-
         sys.maxsize: An integer giving the maximum value a variable of type Py_ssize_t can take. It's usually 2^31 - 1 on a 32-bit platform and 2^63 - 1 on a 64-bit platform.
         """
         # set values for _UINT_POOL
@@ -32,7 +30,7 @@ class ValuePool:
             sys.maxsize,
             sys.maxsize * sys.maxsize,
         ]
-        
+
         # set values for _INT_POOL
         self._INT_POOL = [
             sys.maxsize * -sys.maxsize,
@@ -110,11 +108,18 @@ class ValuePool:
             datetime.datetime(1970, 1, 1),
         ]
 
-
         # create a pool with all unique values
-        self._ALL_VALUES_POOL = self._INT_POOL + self._UINT_POOL + self._FLOAT_POOL + self._STRING_POOL + self._BOOL_POOL + self._BYTE_POOL + self._LIST_POOL + self._DICT_POOL + self._DATE_POOL
-            
-        
+        self._ALL_VALUES_POOL = (
+            self._INT_POOL
+            + self._UINT_POOL
+            + self._FLOAT_POOL
+            + self._STRING_POOL
+            + self._BOOL_POOL
+            + self._BYTE_POOL
+            + self._LIST_POOL
+            + self._DICT_POOL
+            + self._DATE_POOL
+        )
 
     def get_uint(self) -> list:
         return self._UINT_POOL
