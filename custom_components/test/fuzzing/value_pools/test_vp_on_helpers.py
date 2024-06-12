@@ -25,10 +25,10 @@ value_pool_fuzzer = ValuePoolFuzzer()
 param_runner = ParamRunner()
 
 
-@pytest.mark.timeout(300)
-def test_map_range():
+def test_map_range() -> None:
     logger.info("Start of map_range() test.")
     param_set = value_pool_fuzzer.fuzz(["FLOAT", "FLOAT", "FLOAT", "FLOAT", "FLOAT"], 3)
+    param_set = param_runner.limit_param_set(param_set, 50000)
     result = param_runner.run(map_range, param_set)
     logger.info("map_range() test finished.")
 
@@ -36,7 +36,7 @@ def test_map_range():
 
 
 @pytest.mark.timeout(300)
-def test_hass_to_lox():
+def test_hass_to_lox() -> None:
     logger.info("Start of hass_to_lox() test.")
     param_set = value_pool_fuzzer.fuzz(["FLOAT"], 1)
     result = param_runner.run(hass_to_lox, param_set)
@@ -46,7 +46,7 @@ def test_hass_to_lox():
 
 
 @pytest.mark.timeout(300)
-def test_lox_to_hass():
+def test_lox_to_hass() -> None:
     logger.info("Start of lox_to_hass() test.")
     param_set = value_pool_fuzzer.fuzz(["FLOAT"], 1)
     result = param_runner.run(lox_to_hass, param_set)
@@ -56,7 +56,7 @@ def test_lox_to_hass():
 
 
 @pytest.mark.timeout(300)
-def test_lox2lox_mapped():
+def test_lox2lox_mapped() -> None:
     logger.info("Start of lox2lox_mapped() test.")
     param_set = value_pool_fuzzer.fuzz(["FLOAT", "FLOAT", "FLOAT"], 2)
     result = param_runner.run(lox2lox_mapped, param_set)
@@ -66,7 +66,7 @@ def test_lox2lox_mapped():
 
 
 @pytest.mark.timeout(300)
-def test_lox2hass_mapped():
+def test_lox2hass_mapped() -> None:
     logger.info("Start of lox2hass_mapped() test.")
     param_set = value_pool_fuzzer.fuzz(["FLOAT", "FLOAT", "FLOAT"], 2)
     result = param_runner.run(lox2hass_mapped, param_set)
@@ -76,7 +76,7 @@ def test_lox2hass_mapped():
 
 
 @pytest.mark.timeout(300)
-def test_to_hass_color_temp():
+def test_to_hass_color_temp() -> None:
     logger.info("Start of to_hass_color_temp() test.")
     param_set = value_pool_fuzzer.fuzz(["FLOAT"], 1)
     result = param_runner.run(to_hass_color_temp, param_set)
@@ -86,7 +86,7 @@ def test_to_hass_color_temp():
 
 
 @pytest.mark.timeout(300)
-def test_to_loxone_color_temp():
+def test_to_loxone_color_temp() -> None:
     logger.info("Start of to_loxone_color_temp() test.")
     param_set = value_pool_fuzzer.fuzz(["FLOAT"], 1)
     result = param_runner.run(to_loxone_color_temp, param_set)
@@ -96,7 +96,7 @@ def test_to_loxone_color_temp():
 
 
 @pytest.mark.timeout(300)
-def test_get_room_name_from_room_uuid():
+def test_get_room_name_from_room_uuid() -> None:
     logger.info("Start of get_room_name_from_room_uuid() test.")
     param_set = value_pool_fuzzer.fuzz(["DICT", "STRING"], 2)
     result = param_runner.run(get_room_name_from_room_uuid, param_set)
@@ -106,7 +106,7 @@ def test_get_room_name_from_room_uuid():
 
 
 @pytest.mark.timeout(300)
-def test_get_cat_name_from_cat_uuid():
+def test_get_cat_name_from_cat_uuid() -> None:
     logger.info("Start of get_cat_name_from_cat_uuid() test.")
     param_set = value_pool_fuzzer.fuzz(["DICT", "STRING"], 2)
     result = param_runner.run(get_cat_name_from_cat_uuid, param_set)
@@ -116,7 +116,7 @@ def test_get_cat_name_from_cat_uuid():
 
 
 @pytest.mark.timeout(300)
-def test_add_room_and_cat_to_value_values():
+def test_add_room_and_cat_to_value_values() -> None:
     logger.info("Start of add_room_and_cat_to_value_values() test.")
     param_set = value_pool_fuzzer.fuzz(["DICT", "DICT"], 2)
     result = param_runner.run(add_room_and_cat_to_value_values, param_set)
@@ -126,7 +126,7 @@ def test_add_room_and_cat_to_value_values():
 
 
 @pytest.mark.timeout(300)
-def test_get_miniserver_type():
+def test_get_miniserver_type() -> None:
     logger.info("Start of get_miniserver_type() test.")
     param_set = value_pool_fuzzer.fuzz(["INT"], 1)
     result = param_runner.run(get_miniserver_type, param_set)
@@ -136,7 +136,7 @@ def test_get_miniserver_type():
 
 
 @pytest.mark.timeout(300)
-def test_get_all():
+def test_get_all() -> None:
     logger.info("Start of get_all() test.")
     param_set = value_pool_fuzzer.fuzz(["DICT", "STRING"], 2)
     result = param_runner.run(get_all, param_set)

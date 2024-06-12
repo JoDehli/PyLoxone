@@ -1,90 +1,171 @@
 @startuml fuzzer_overview
 allow_mixing
-
-
-package "fuzzer_utils" as FUtils <<Folder>> {
-
-    abstract "Fuzzer" as fuzzer << abstract class >> {
-        --
-        - __int__(self) : void
-        + fuzz() : boolean
-    }
-
-    class "ValuePoolFuzzer" as VPFuzzer << class >> {
-        --
-        - __int__(self) : void
-        + fuzz(self, param_nr : int, types : list, param_combi : int) : list
-        + limit_param_set(self, param_set : list, runs : int) : list
-    }
-    class "RandomFuzzer" as RFuzzer << class >>{
-        --
-        - __int__(self) : void
-    }
-    class "GeneratorFuzzer" as GFuzzer << class >> {
-        --
-        - __int__(self) : void
-    }
-    class "GrammarFuzzer" as GrFuzzer << class >> {
-        --
-        - __int__(self) : void
-    }
-
-    class "ValuePool" as VPool << class >> {
-        - _UINT_POOL : list
-        - _INT_POOL : list
-        - _FLOAT_POOL : list
-        --
-        - __int__(self) : void
-        + get_uint(self) : list
-        + get_int(self) : list
-        + get_float(self) : list
-    }
-
-
-    abstract "Runner" as runner << abstract class >> {
-        --
-        - __int__(self) : void
-        + run() : int
-    }
-
-    class "ParamRunner" as PRunner << class >> {
-        --
-        - __int__(self) : void
-        + run(self, function : function, param_set : list) : list
-    }
-
-    class "GeneratorRunner" as GRunner << class >> {
-        --
-        - __int__(self) : void
-        + run(self, ???) : list
-    }
+'''''''''''''''''''''''''''''''''''''''
+'Fuzzer''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+abstract class "Fuzzer" as fuzzer << abstract class >> {
+    --
+    - __init__(self) : void
+    + fuzz() : list
 }
-
-folder "value_pools" as VPools  {
-    file "test_vp_on_helpers.py" as test_VP_H
+'''''''''''''''''''''''''''''''''''''''
+class "ValuePoolFuzzer" as VPFuzzer << class >> {
+    --
+    - __init__(self) : void
+    + fuzz(self, param_nr : int, types : list, param_combi : int) : list[list]
 }
-
-folder "generators" as generators {
-    file "test_gen_on_xxx.py" as test_GEN
+class "ValuePool" as VPool << class >> {
+    - _UINT_POOL : list
+    - _INT_POOL : list
+    - _FLOAT_POOL : list
+    - _STRING_POOL : list
+    - _BOOL_POOL : list
+    - _BYTE_POOL : list
+    - _LIST_POOL : list
+    - _DICT_POOL : list
+    - _DATE_POOL : list
+    - _ALL_VALUES_POOL : list
+    --
+    - __init__(self) : void
+    + get_uint(self) : list
+    + get_int(self) : list
+    + get_float(self) : list
+    + get_int(self) : list
+    + get_uint(self) : list
+    + get_float(self) : list
+    + get_string(self) : list
+    + get_bool(self) : list
+    + get_byte(self) : list
+    + get_list(self) : list
+    + get_dict(self) : list
+    + get_date(self) : list
+    + get_all_values(self) : list
 }
-
-folder "grammar" as grammar {
-    file "test_gram_on_xxx.py" as test_GRA
+'''''''''''''''''''''''''''''''''''''''
+class "GeneratorFuzzer" as GFuzzer << class >> {
+    --
+    - __init__(self) : void
+    + fuzz(self, ???) : list
 }
+'''''''''''''''''''''''''''''''''''''''
+class "CostGrammarType" as CGType << class >> {
+    + MIN : int
+    + MAX : int
+    --
+}
+class "GrammarFuzzer" as GrFuzzer << class >> {
+    - _NON_TERMINAL_REGEX = str
+    --
+    - __init__(self) : void
+    - __convert_to_cost_grammar(self, grammar: Grammar, conversion_type: CostGrammarType) : tuple
+    - __convert_to_trackable_grammar(self, grammar: Grammar) : tuple
+    - __compose_min_cost(self, head: Element, given_cost_grammar: Annotated_Grammar) : str
+    - __compose_max_cost(self, head: Element, given_cost_grammar: Annotated_Grammar, applications: int, max_applications: int): str
+    - __is_grammar_covered(self, trackable_grammar: Annotated_Grammar, trackable_non_terminals: Annotated_Non_Terminals) : bool
+    + fuzz_min_cost(self, grammar: Grammar, start_symbol: Element) : str
+    + fuzz_max_cost( self, grammar: Grammar, start_symbol: Element, max_rule_applications: int) : str
+    + fuzz_grammar_coverage(self, grammar: Grammar, start_symbol: Element) : list
+}
+entity "grammar_ipv4" as ipv4 << grammars >> {
+    grammar_ipv4: Grammar
+}
+'''''''''''''''''''''''''''''''''''''''
+class "MutationalFuzzer" as MFuzzer << class >> {
+    --
+    - __init__(self) : void
+    - __delete_random_char(self, s: str) : str
+    - __insert_random_char(self, s: str) : str
+    - __flip_random_char(self, s: str) : str
+    - __get_random_float(self) : float
+    - __check_inf(self, number: float) : float
+    - __add_random_number(self, number: float) : float
+    - __sub_random_number(self, number: float) : float
+    - __mult_random_number(self, number: float) : float
+    - __div_random_number(self, number: float) : float
+    + fuzz(self, seed: list[int, float, str], rounds: int = 1) : list[list]
+}
+'''''''''''''''''''''''''''''''''''''''
+'Runner''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+abstract class "Runner" as runner << abstract class >> {
+    --
+    - __init__(self) : void
+    + run() : int
+}
+'''''''''''''''''''''''''''''''''''''''
+class "ParamRunner" as PRunner << class >> {
+    --
+    - __init__(self) : void
+    + run(self, function : function, param_set : list) : list
+    + limit_param_set(self, param_set : list, runs : int) : list
+}
+'''''''''''''''''''''''''''''''''''''''
+'Testcases'''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_vp_on_helpers.py" as test_VP_H << test case >>{
+    logger
+    value_pool_fuzzer : ValuePoolFuzzer
+    param_runner : ParamRunner
+    --
+    test_map_range() : None
+    test_hass_to_lox() : None
+    test_lox_to_hass() : None
+    test_lox2lox_mapped() : None
+    test_lox2hass_mapped() : None
+    test_to_hass_color_temp() : None
+    test_to_loxone_color_temp() : None
+    test_get_room_name_from_room_uuid() : None
+    test_get_cat_name_from_cat_uuid() : None
+    test_add_room_and_cat_to_value_values() : None
+    test_get_miniserver_type() : None
+    test_get_all() : None
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_gen_on_XXX.py" as test_GEN << test case >>{
 
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_gram_on_XXX.py" as test_GRA << test case >>{
 
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_mut_on_helpers.py" as test_MUT << test case >>{
+    _logger
+    _mutational_fuzzer : MutationalFuzzer
+    _grammar_fuzzer : GrammarFuzzer
+    grammar_ipv4 : Grammar
+    _param_runner : ParamRunner
+    --
+    test_demo_get_param_set() : None
+    test_map_range() : None
+}
+'''''''''''''''''''''''''''''''''''''''
+'Fuzzer''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
 fuzzer <|-- VPFuzzer : inherits from <
-fuzzer <|-- RFuzzer : inherits from <
-fuzzer <|-- GrFuzzer : inherits from <
-fuzzer <|-- GFuzzer : inherits from <
 VPool <--* VPFuzzer: has access to <
-
+'fuzzer <|-- GrFuzzer : inherits from <
+fuzzer <|-- GFuzzer : inherits from <
+fuzzer <|-- MFuzzer : inherits from <
+'''''''''''''''''''''''''''''''''''''''
+'Runner''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
 runner <|-- PRunner : inherits from <
-runner <|-- GRunner : inherits from <
-
-VPFuzzer <-- test_VP_H : uses <
-PRunner <-- test_VP_H : uses <
-
-
-
+'''''''''''''''''''''''''''''''''''''''
+'Testcases'''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+VPFuzzer <--* test_VP_H : needs a <
+PRunner <--* test_VP_H : needs a <
+'''''''''''''''''''''''''''''''''''''''
+CGType <--* GrFuzzer : needs a <
+GrFuzzer <--* test_GRA : needs a <
+'PRunner <--* test_GRA : needs a <
+test_GRA *-> ipv4: needs a >
+'''''''''''''''''''''''''''''''''''''''
+GFuzzer <--* test_GEN : needs a <
+'''''''''''''''''''''''''''''''''''''''
+MFuzzer "1"<--* test_MUT : needs a <
+PRunner "1"<--* test_MUT : needs a <
+GrFuzzer "1"<--* test_MUT : needs a <
+ipv4 "1"<--* test_MUT : needs a <
 @enduml

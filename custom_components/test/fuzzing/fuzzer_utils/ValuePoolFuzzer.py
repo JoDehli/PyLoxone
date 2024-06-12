@@ -4,15 +4,14 @@ import itertools
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
 
-#from Fuzzer import Fuzzer
-#from ValuePool import ValuePool
 
 class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
 
     value_pool = ValuePool()
+    logger = logging.getLogger(__name__)
 
-    def __int__(self):
+    def __init__(self):
         """constructor"""
     
     '''def __generate_ranking(self, lists):
@@ -21,7 +20,7 @@ class ValuePoolFuzzer(Fuzzer):
 
         :param lists: A list containing inner lists.
         :type lists: list of lists
-        
+
         :return: A ranking of the lists based on their length.
         :rtype: list
         """
@@ -38,7 +37,7 @@ class ValuePoolFuzzer(Fuzzer):
         :type param_combi: int
         :param m: The current index in the lists.
         :type m: int
-        
+
         :return: The number of times a list must be repeated.
         :rtype: int
         """
@@ -135,9 +134,9 @@ class ValuePoolFuzzer(Fuzzer):
                         r += 1
                     o += 1
                 p = len(lists[rank[m]])
-                    
+
                 repeater_count += 1
-                    
+
             new_lists.append(new_spare_list)
             print(f"Length of new_spare_list for m={m}:", len(new_spare_list))        
             m += 1
@@ -156,11 +155,7 @@ class ValuePoolFuzzer(Fuzzer):
                 y += 1
             return_list.append(return_list_x)
             x += 1
-                
-        
-        
 
-            
         return return_list
         
     def __generate_combinations(self, lists, param_combi):
@@ -212,15 +207,14 @@ class ValuePoolFuzzer(Fuzzer):
         :rtype: list of lists
         """
 
-        logger = logging.getLogger(__name__)
-        
+        self.logger.warning("The var param_combi is not in use!")
 
         # Validate input parameters
         if len(types) <= 0:
-            logger.error("Length of types list must be positive.")
+            self.logger.error("Length of types list must be positive.")
             raise ValueError("Length of types list must be positive.")
         if param_combi <= 0 or param_combi > len(types):
-            logger.error("param_combi must be between 1 and len(types).")
+            self.logger.error("param_combi must be between 1 and len(types).")
             raise ValueError("param_combi must be between 1 and len(types).")
 
         # Get the value pools for the valid types
@@ -242,7 +236,7 @@ class ValuePoolFuzzer(Fuzzer):
         for t in types:
             # Check whether requested types are valid.
             if t not in valid_types:
-                logger.error("Invalid type " + str(t) + "specified.")
+                self.logger.error("Invalid type " + str(t) + "specified.")
                 raise ValueError(f"Invalid type '{t}' specified.")
             else:
                 # Creating list of the value_pool lists provided in types
