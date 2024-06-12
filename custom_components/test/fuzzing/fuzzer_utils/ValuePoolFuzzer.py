@@ -1,11 +1,11 @@
 import logging
 import itertools
 
-#from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
-#from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
+from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
+from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
 
-from Fuzzer import Fuzzer
-from ValuePool import ValuePool
+#from Fuzzer import Fuzzer
+#from ValuePool import ValuePool
 
 class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
