@@ -34,7 +34,7 @@ def test_map_range() -> None:
     result = param_runner.run(map_range, param_set)
     logger.info("map_range() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
 
 
 @pytest.mark.timeout(300)
@@ -44,7 +44,7 @@ def test_hass_to_lox() -> None:
     result = param_runner.run(hass_to_lox, param_set)
     logger.info("hass_to_lox() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
 
 
 @pytest.mark.timeout(300)
@@ -54,7 +54,7 @@ def test_lox_to_hass() -> None:
     result = param_runner.run(lox_to_hass, param_set)
     logger.info("lox_to_hass() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
 
 
 @pytest.mark.timeout(300)
@@ -64,7 +64,7 @@ def test_lox2lox_mapped() -> None:
     result = param_runner.run(lox2lox_mapped, param_set)
     logger.info("lox2lox_mapped() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
 
 
 @pytest.mark.timeout(300)
@@ -74,7 +74,7 @@ def test_lox2hass_mapped() -> None:
     result = param_runner.run(lox2hass_mapped, param_set)
     logger.info("lox2hass_mapped() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
 
 
 @pytest.mark.timeout(300)
@@ -84,7 +84,7 @@ def test_to_hass_color_temp() -> None:
     result = param_runner.run(to_hass_color_temp, param_set)
     logger.info("to_hass_color_temp() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
 
 
 @pytest.mark.timeout(300)
@@ -94,7 +94,7 @@ def test_to_loxone_color_temp() -> None:
     result = param_runner.run(to_loxone_color_temp, param_set)
     logger.info("to_loxone_color_temp() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
 
 
 @pytest.mark.timeout(300)
@@ -104,7 +104,7 @@ def test_get_room_name_from_room_uuid() -> None:
     result = param_runner.run(get_room_name_from_room_uuid, param_set)
     logger.info("get_room_name_from_room_uuid() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
 
 
 @pytest.mark.timeout(300)
@@ -114,7 +114,7 @@ def test_get_cat_name_from_cat_uuid() -> None:
     result = param_runner.run(get_cat_name_from_cat_uuid, param_set)
     logger.info("get_cat_name_from_cat_uuid() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
 
 
 @pytest.mark.timeout(300)
@@ -124,7 +124,7 @@ def test_add_room_and_cat_to_value_values() -> None:
     result = param_runner.run(add_room_and_cat_to_value_values, param_set)
     logger.info("add_room_and_cat_to_value_values() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
 
 
 @pytest.mark.timeout(300)
@@ -134,13 +134,15 @@ def test_get_miniserver_type() -> None:
     result = param_runner.run(get_miniserver_type, param_set)
     logger.info("get_miniserver_type() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0
+
 
 @pytest.mark.timeout(300)
+@pytest.mark.skip(reason="No meaningful dict.")
 def test_get_all() -> None:
     logger.info("Start of get_all() test.")
     param_set = value_pool_fuzzer.fuzz(2, ["DICT", "STRING"], 2)
     result = param_runner.run(get_all, param_set)
     logger.info("get_all() test finished.")
 
-    assert result[1] == 0
+    assert result["failed_tests"] == 0

@@ -1,5 +1,10 @@
 @startuml fuzzer_overview
 allow_mixing
+
+'Web server to creat UML:
+' https://www.plantuml.com/plantuml/uml/SyfFKj2rKt3CoKnELR1Io4ZDoSa70000
+' copy the UML and generate SVG
+
 '''''''''''''''''''''''''''''''''''''''
 'Fuzzer''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
@@ -15,16 +20,16 @@ class "ValuePoolFuzzer" as VPFuzzer << class >> {
     + fuzz(self, param_nr : int, types : list, param_combi : int) : list[list]
 }
 class "ValuePool" as VPool << class >> {
-    - _UINT_POOL : list
-    - _INT_POOL : list
-    - _FLOAT_POOL : list
-    - _STRING_POOL : list
-    - _BOOL_POOL : list
-    - _BYTE_POOL : list
-    - _LIST_POOL : list
-    - _DICT_POOL : list
-    - _DATE_POOL : list
-    - _ALL_VALUES_POOL : list
+    - __UINT_POOL : list
+    - __INT_POOL : list
+    - __FLOAT_POOL : list
+    - __STRING_POOL : list
+    - __BOOL_POOL : list
+    - __BYTE_POOL : list
+    - __LIST_POOL : list
+    - __DICT_POOL : list
+    - __DATE_POOL : list
+    - __ALL_VALUES_POOL : list
     --
     - __init__(self) : void
     + get_uint(self) : list
@@ -82,7 +87,8 @@ class "MutationalFuzzer" as MFuzzer << class >> {
     - __sub_random_number(self, number: float) : float
     - __mult_random_number(self, number: float) : float
     - __div_random_number(self, number: float) : float
-    + fuzz(self, seed: list[int, float, str], rounds: int = 1) : list[list]
+    + fuzz(self, seed: list, rounds: int = 1) : list[list]
+    + fuzz_failed(self, seed: dict, rounds: int = 1) : list[list]
 }
 '''''''''''''''''''''''''''''''''''''''
 'Runner''''''''''''''''''''''''''''''''
@@ -96,7 +102,7 @@ abstract class "Runner" as runner << abstract class >> {
 class "ParamRunner" as PRunner << class >> {
     --
     - __init__(self) : void
-    + run(self, function : function, param_set : list) : list
+    + run(self, function : function, param_set : list) : dict
     + limit_param_set(self, param_set : list, runs : int) : list
 }
 '''''''''''''''''''''''''''''''''''''''
@@ -130,11 +136,11 @@ entity  "test_gram_on_XXX.py" as test_GRA << test case >>{
 }
 '''''''''''''''''''''''''''''''''''''''
 entity  "test_mut_on_helpers.py" as test_MUT << test case >>{
-    _logger
-    _mutational_fuzzer : MutationalFuzzer
-    _grammar_fuzzer : GrammarFuzzer
+    logger
+    mutational_fuzzer : MutationalFuzzer
+    grammar_fuzzer : GrammarFuzzer
     grammar_ipv4 : Grammar
-    _param_runner : ParamRunner
+    param_runner : ParamRunner
     --
     test_demo_get_param_set() : None
     test_map_range() : None
