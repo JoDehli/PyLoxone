@@ -94,18 +94,11 @@ pytest custom_components/test/path/to/test_file.py
 
 ## Input grammars
 > - Assigned to: @JKortmann
-> - Branch: `fuzzing/grammars`
 - Implement the grammars.
-  - [ ] Add general function description for docstring.
-  - [ ] Update and check UML
-  - Should we put the grammars in a separate `GrammarPool` class?
-  - [ ] Create Testcases
+  - [ ] Create Testcases (when ValuePoolFuzzer functional)
     - [ ] Create needed grammars
-    - [ ] Is it possible to use `ParamRunner`? Are updates on the `ParamRunner` needed?
-    - What does a test case and/or a runner look like now? 
-    - How do we deal with this if the function under test requires an `int` (e.g. from the `ValuePoolFuzzer`) and a `str` from the `GrammarFuzzer`?
-  - [ ] Implementation of three-phase derivation (or random for the `MutationalFuzzer`)
-  - [ ] Implementation of probabilistic derivation
+  - [ ] (OPTIONAL) Implementation of three-phase derivation (or random for the `MutationalFuzzer`)
+  - [ ] (OPTIONAL) Implementation of probabilistic derivation
 
 ## Mutational 
 ### black-box
