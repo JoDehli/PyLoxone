@@ -192,8 +192,8 @@ class ValuePoolFuzzer(Fuzzer):
             "DICT": self.value_pool.get_dict(),
             "DATE": self.value_pool.get_date(),
             "ALL": self.value_pool.get_all_values(),
-            "GRAMMAR_IPV4_MIN": [self.__grammar_fuzzer.fuzz_min_cost(grammar_ipv4, "<IPv4>")],
-            "GRAMMAR_IPV4_MAX": [self.__grammar_fuzzer.fuzz_max_cost(grammar_ipv4, "<IPv4>", 2)],
+            "GRAMMAR_IPV4_MIN": self.__grammar_fuzzer.fuzz_min_cost(grammar_ipv4, "<IPv4>"),
+            "GRAMMAR_IPV4_MAX": self.__grammar_fuzzer.fuzz_max_cost(grammar_ipv4, "<IPv4>", 2),
             "GRAMMAR_IPV4_COV": self.__grammar_fuzzer.fuzz_grammar_coverage(grammar_ipv4, "<IPv4>"),
         }
 
