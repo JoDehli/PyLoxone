@@ -156,6 +156,22 @@ class LoxApp(object):
         return self.responsecode
 
 
+async def async_open_file(filename: str) -> dict:
+    def sync_open_file(f):
+        with open(f) as f:
+            return json.load(f)
+
+    return await asyncio.to_thread(sync_open_file, filename)
+
+
+async def async_write_file(filename: str, data: dict) -> None:
+    def sync_write_file(f, d):
+        with open(f, "w") as write_file:
+            json.dump(d, write_file)
+
+    return await asyncio.to_thread(sync_write_file, filename, data)
+
+
 class LoxWs:
     def __init__(
         self,
@@ -737,27 +753,25 @@ class LoxWs:
                         key_and_salt.hash_alg,
                     )
 
-        if self.save_token() == ERROR_VALUE:
+        if await self.save_token() == ERROR_VALUE:
             return ERROR_VALUE
         return True
 
-    def load_token(self):
+    async def load_token(self):
         try:
             persist_token = os.path.join(
                 get_default_config_dir(), self._token_persist_filename
             )
             try:
-                with open(persist_token) as f:
-                    try:
-                        dict_token = json.load(f)
-                    except ValueError:
-                        return ERROR_VALUE
+                try:
+                    dict_token = await async_open_file(persist_token)
+                except ValueError:
+                    return ERROR_VALUE
             except FileNotFoundError:
-                with open(self._token_persist_filename) as f:
-                    try:
-                        dict_token = json.load(f)
-                    except ValueError:
-                        return ERROR_VALUE
+                try:
+                    dict_token = await async_open_file(self._token_persist_filename)
+                except ValueError:
+                    return ERROR_VALUE
             try:
                 self._token.set_token(dict_token["_token"])
                 self._token.set_valid_until(dict_token["_valid_until"])
@@ -787,7 +801,7 @@ class LoxWs:
             _LOGGER.debug("error deleting token...")
             return ERROR_VALUE
 
-    def save_token(self):
+    async def save_token(self):
         persist_token = ""
         try:
             persist_token = os.path.join(
@@ -800,11 +814,9 @@ class LoxWs:
                 "_hash_alg": self._token.hash_alg,
             }
             try:
-                with open(persist_token, "w") as write_file:
-                    json.dump(dict_token, write_file)
+                await async_write_file(persist_token, dict_token)
             except FileNotFoundError:
-                with open(self._token_persist_filename, "w") as write_file:
-                    json.dump(dict_token, write_file)
+                await async_write_file(self._token_persist_filename, dict_token)
 
             _LOGGER.debug("save_token successfully...")
             return True
@@ -979,7 +991,8 @@ class LoxWs:
                 get_default_config_dir(), self._token_persist_filename
             )
             if os.path.exists(persist_token):
-                if self.load_token():
+                res = await self.load_token()
+                if res:
                     _LOGGER.debug(
                         "token successfully loaded from file: {}".format(persist_token)
                     )
