@@ -34,11 +34,12 @@ def crashme(s: str) -> None:
 
 seed_manager = SeedManager()
 grey_box_fuzzer = GreyBoxFuzzer()
+data_type = DataTypeCreator()
 
 # seed specification
 
-seed_template = ["STRING"]
-seed_specification = [4]
+seed_template = ["STRING", "INT"]
+seed_specification = ['r', 'r']
 amount_seeds = 10
 
 # create a population 
