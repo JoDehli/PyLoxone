@@ -1,13 +1,15 @@
-from typing import Callable
+from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
+from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.Seed import Seed
+from typing import Callable, List
 
-class GreyBoxFuzzer:
+class GreyBoxFuzzer(Fuzzer):
     """GreyBox fuzzer class, inherits from the abstract fuzzer class."""
 
     def __init__(self):
         """initialize GreyBoxFuzzer"""
         print("Initialize GreyBoxFuzzer")
 
-    def fuzz(self, seed_template: list, function: Callable, rounds: int = 1):
+    def fuzz(self, seed_population: List[Seed], seed_template: list, function: Callable, rounds: int = 1):
         """The function returns a list of the number of passed and failed tests.
         The seed is changed randomly in any number of rounds (defined by rounds).
 
@@ -23,6 +25,8 @@ class GreyBoxFuzzer:
         :return: Returns a list indicating how many tests were successful and how many failed.
         :rtype: list
         """
+        for seed in seed_population:
+            print(seed.seed_values)
         print("Fuzzing...")
 
 
