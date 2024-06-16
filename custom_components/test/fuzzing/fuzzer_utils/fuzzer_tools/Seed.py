@@ -16,7 +16,8 @@ class Seed:
 
 
 class SeedManager:
-
+    RANGE_RANDOM_INT = 9
+    RANGE_RANDOM_STRING = 100
     __value_pool_fuzzer = ValuePoolFuzzer()
     __param_runner = ParamRunner()
     __data_type_creator = DataTypeCreator()
@@ -84,12 +85,19 @@ class SeedManager:
             param_set = []
             for seed_spec, data_type in zip(seed_specification, seed_template):
                 if data_type == "INT":
-                    param_set.append(self.__data_type_creator.create_int(seed_spec))
+                    if seed_spec == 'r':
+                        param_set.append(self.__data_type_creator.create_int(seed_spec,True))
+                    else:    
+                        param_set.append(self.__data_type_creator.create_int(seed_spec,False))
                 elif data_type == "UINT":
+                    if seed_spec == 'r':
+                        seed_spec = random.randint(1, self.RANGE_RANDOM_INT)
                     param_set.append(self.__data_type_creator.create_uint(seed_spec))
                 elif data_type == "FLOAT":
                     print("create_float")
                 elif data_type == "STRING":
+                    if seed_spec == 'r':
+                        seed_spec = random.randint(1, self.RANGE_RANDOM_STRING)
                     rand_val = random.randint(0,1)
                     if rand_val == 0:
                         param_set.append(self.__data_type_creator.create_string_only_letters(seed_spec))

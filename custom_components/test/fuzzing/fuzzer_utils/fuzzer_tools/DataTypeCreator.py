@@ -3,10 +3,13 @@ import string
 
 class DataTypeCreator:
 
+    MAX_INT = (1 << 31) - 1
+    MAX_UINT = (1 << 32) - 1
+
     def __init__(self):
         """initialize DataTypeCreator"""
 
-    def create_int(self, amount_digits: int) -> int:
+    def create_int(self, amount_digits: int = 10, random_creation: bool = True) -> int:
         """Returns an int value with a certain number of digits.
 
         This function takes a value 'amount_digits' and returns an integer with this amount of digits.
@@ -14,28 +17,35 @@ class DataTypeCreator:
         :param amount_digits: Amount of digits the integer should have
         :type amount_digits: int
 
+        :param random_creation: 
+        :type random_creation: boolean
+
         :return: Returns an integer with a certain amount of digits.
         :rtype: int
         """
-        seed_value = ''
-        for digit in range(amount_digits):
-            if digit == 0:
-                # Decide if negative of positive int
-                rand_val = random.randint(0,1)
-                if rand_val == 0:
-                    seed_value += '-'
-                # First digit should not be a 0
-                rand_val = str(random.randint(1,9))
-                seed_value += rand_val
-            else:
-                rand_val = str(random.randint(0,9))
-                seed_value += rand_val
+        if random_creation == True:
+            random_seed_value = random.randint(-self.MAX_INT, self.MAX_INT)
+            return random_seed_value
+        else:
+            seed_value = ''
+            for digit in range(amount_digits):
+                if digit == 0:
+                    # Decide if negative of positive int
+                    rand_val = random.randint(0,1)
+                    if rand_val == 0:
+                        seed_value += '-'
+                    # First digit should not be a 0
+                    rand_val = str(random.randint(1,9))
+                    seed_value += rand_val
+                else:
+                    rand_val = str(random.randint(0,9))
+                    seed_value += rand_val
 
-                # cast to int type and append to seed
-                if digit == amount_digits-1:
-                    return int(seed_value)
+                    # cast to int type and append to seed
+                    if digit == amount_digits-1:
+                        return int(seed_value)
             
-    def create_uint(self, amount_digits: int) -> int:
+    def create_uint(self, amount_digits: int = 10, random_creation: bool = True) -> int:
         """Returns an uint value with a certain number of digits.
 
         This function takes a value 'amount_digits' and returns an unsigned integer with this amount of digits.
@@ -46,19 +56,23 @@ class DataTypeCreator:
         :return: Returns an unsigned integer with a certain amount of digits.
         :rtype: int
         """
-        seed_value = ''
-        for digit in range(amount_digits):
-            if digit == 0:
-                # First digit should not be a 0
-                rand_val = str(random.randint(1,9))
-                seed_value += rand_val
-            else:
-                rand_val = str(random.randint(0,9))
-                seed_value += rand_val
+        if random_creation == True:
+            random_seed_value = random.randint(0, self.MAX_UINT)
+            return random_seed_value
+        else:
+            seed_value = ''
+            for digit in range(amount_digits):
+                if digit == 0:
+                    # First digit should not be a 0
+                    rand_val = str(random.randint(1,9))
+                    seed_value += rand_val
+                else:
+                    rand_val = str(random.randint(0,9))
+                    seed_value += rand_val
 
-                # cast to int type and append to seed
-                if digit == amount_digits-1:
-                    return int(seed_value)
+                    # cast to int type and append to seed
+                    if digit == amount_digits-1:
+                        return int(seed_value)
 
     def create_float(self, amount_digits: int) -> int:
         """Returns an int value with a certain number of digits.

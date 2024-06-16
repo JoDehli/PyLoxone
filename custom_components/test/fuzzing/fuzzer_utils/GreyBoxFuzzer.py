@@ -25,8 +25,7 @@ class GreyBoxFuzzer(Fuzzer):
         :return: Returns a list indicating how many tests were successful and how many failed.
         :rtype: list
         """
-        for seed in seed_population:
-            print(seed.seed_values)
+        
         print("Fuzzing...")
 
 
