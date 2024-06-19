@@ -19,179 +19,68 @@ class ValuePoolFuzzer(Fuzzer):
     def __init__(self):
         """constructor"""
     
-    '''def __generate_ranking(self, lists):
-        """
-        Generates ranking based on length of the lists.
-
-        :param lists: A list containing inner lists.
-        :type lists: list of lists
-
-        :return: A ranking of the lists based on their length.
-        :rtype: list
-        """
-        rank = sorted(range(len(lists)), key=lambda x: (-len(lists[x]), x))
-        return rank
-
-    def __get_repeater(self, lists, param_combi, m, rank):
-        """
-        Calculates how often a list must be repeated if param_combi is greater than 1.
-
-        :param lists: A list containing inner lists.
-        :type lists: list of lists
-        :param param_combi: Number of parameters to be combined.
-        :type param_combi: int
-        :param m: The current index in the lists.
-        :type m: int
-
-        :return: The number of times a list must be repeated.
-        :rtype: int
-        """
-        index_rank = rank.index(m)
-        print(f"Der param_combi ist {param_combi}")
-        repeater = 1
-        param_combi_count = 0
-        while param_combi_count < param_combi and param_combi_count < index_rank:
-            repeater = repeater * len(lists[rank[param_combi_count]])
-            param_combi_count += 1
-            
-        return repeater
-    
-    def __get_repetition(self, lists, param_combi, m, rank):
-        """
-        Calculates how often a list must be repeated if param_combi is greater than 1.
-
-        :param lists: A list containing inner lists.
-        :type lists: list of lists
-        :param param_combi: Number of parameters to be combined.
-        :type param_combi: int
-        :param m: The current index in the lists.
-        :type m: int
-        
-        :return: The number of times a list must be repeated.
-        :rtype: int
-        """
-        index_rank = rank.index(m)
-        print(f"Der index ist {index_rank}")
-        repetition = 1
-        while index_rank + 1 < len(rank) and index_rank < param_combi:
-            index_rank += 1
-            repetition = repetition * len(lists[rank[index_rank]])
-            print(f"len {len(lists[rank[index_rank]])}")
-            
-            
-        return repetition
-        
-    def __generate_new_list(self, lists, param_combi, rank):
-        """
-        Generates a new list with recombinations of inner lists.
-
-        :param lists: A list containing inner lists of values.
-        :type lists: list of lists
-        :param param_combi: Number of parameters to be combined.
-        :type param_combi: int
-        :param rank: Indices of the lists sorted by their length.
-        :type rank: list
-        
-        :return: A new list with recombinations of the original lists.
-        :rtype: list of lists
-        """
-        new_lists = []
-        spare_list = []
-        
-        print(lists[rank[1]])    
-
-        m = 0
-        while m < len(lists):
-            repeater = self.__get_repeater(lists, param_combi, m, rank)
-            print("Der Reapeater Wert ist:")
-            print(repeater)
-            repeater_count = 0
-            spare_list = []
-            new_spare_list = []
-            n = m + 1
-            repetition_counter = self.__get_repetition(lists, param_combi, m, rank)
-            """repetition_counter = 1
-            while n < param_combi:
-                repetition_counter = repetition_counter * len(lists[rank[n]])
-                n += 1"""
-            print("Der Reapeatition-counter Wert ist:")
-            print(repetition_counter)
-            while repeater_count < repeater: 
-                
-                
-                
-                  
-                    
-                o = 0
-                index = 0
-                while o < len(lists[m]):
-                    r = 0
-                    spare_list = lists[m]
-                    q = len(spare_list)
-                    while q < len(lists[rank[0]]):
-                        print("Values werden aufgefüllt")
-                        """if the length of a list is smaller than the longest list we have to fill it, it could probably be more elegant"""
-                        spare_list.append(spare_list[0])
-                        q += 1
-                    while r < repetition_counter:
-                        new_spare_list.append(spare_list[o])
-                        index += 1
-                        r += 1
-                    o += 1
-                p = len(lists[rank[m]])
-
-                repeater_count += 1
-
-            new_lists.append(new_spare_list)
-            print(f"Length of new_spare_list for m={m}:", len(new_spare_list))        
-            m += 1
-
-        return_list = []
-
-        x = 0
-
-        while x < len(new_spare_list):
-            y = 0
-            new_list_y = []
-            return_list_x = []
-            while y < len(lists):
-                new_list_y = new_lists[y]
-                return_list_x.append(new_list_y[x])
-                y += 1
-            return_list.append(return_list_x)
-            x += 1
-
-        return return_list
-        
-    def __generate_combinations(self, lists, param_combi):
+    def __get_fuzzing_pool(self, value_pools, param_combi):
         """
         Generates combinations of the values in the provided lists.
 
-        :param lists: A list containing inner lists of values.
+        :param value_pools: A list containing inner lists of values.
         :type lists: list of lists
         :param param_combi: Number of parameters to be combined.
         :type param_combi: int
         
-        :return: A list with combinations of values.
+        :return: A list with combinations of values, ready for fuzzing
         :rtype: list of lists
         """
-        rank = self.__generate_ranking(lists)
+        value_pool_limited = []
+        i = 0
+        while i < param_combi:
+            value_pool_limited.append(value_pools[i])
+            i += 1
 
-        new_list = self.__generate_new_list(lists, param_combi, rank)
+        return_lists = [list(t) for t in itertools.product(*value_pool_limited)]
 
-        return new_list'''
-    
-    def __n_way_combinations(self, num_lists_combination, *data):
-        # Create the Cartesian product of all arrays
-        product = list(itertools.product(*data))
-        
-        # Generate all 2-way combinations from the product
-        """combinations = []
-        for comb in product:
-            # Generate 2-way combinations for each tuple in the product
-            combinations.extend(itertools.combinations(comb, len(data)))"""
-        
-        return product
+
+
+        if param_combi > 1:
+            # Anpassung der Verschiebung, um jedes Element gleichmäßig zu verteilen
+            for m in range(param_combi, len(value_pools)):
+                pool = value_pools[m]
+                l = 0
+                n = 0
+                # Verteilt die zusätzlichen Pools auf die bereits erzeugten Listen
+                while n < len(return_lists):
+                    if l >= len(pool):
+                        l = 0
+                     # Berechnung des Index-Shifts für die gleichmäßige Verteilung
+                    if n % len(value_pools[1]) == 0:
+                        l = (n // len(value_pools[1])) * (m - param_combi + 1)
+                        if l >= len(pool):
+                            l = m - param_combi
+                
+                    return_lists[n].append(pool[l])
+                    l += 1    
+                    n += 1
+        else:
+            # Erzeuge return_lists mit jeweils einem Element aus dem ersten Werte-Pool
+            return_lists = [[item] for item in value_pools[0]]
+            # Füge Elemente aus den weiteren Werte-Pools hinzu
+            i = 1
+            while i < len(value_pools):
+                pool = value_pools[i]
+                j = 0
+                k = 0
+                while j < len(return_lists):
+                    
+                    # Falls der Index k größer ist als die Länge des aktuellen Pools, beginne von vorne
+                    if k >= len(pool):
+                        k = 0
+                    return_lists[j].append(pool[k])
+                    j += 1
+                    k += 1
+                    
+                i += 1
+                            
+        return return_lists
 
     def fuzz(
        self, types: list = ["INT"], param_combi: int = 1
@@ -212,7 +101,7 @@ class ValuePoolFuzzer(Fuzzer):
         :rtype: list of lists
         """
 
-        self.logger.warning("The var param_combi is not in use!")
+        #self.logger.warning("The var param_combi is not in use!")
 
         # Validate input parameters
         if len(types) <= 0:
@@ -239,7 +128,7 @@ class ValuePoolFuzzer(Fuzzer):
             "GRAMMAR_IPV4_COV": self.__grammar_fuzzer.fuzz_grammar_coverage(grammar_ipv4, "<IPv4>"),
         }
 
-        value_pools = []
+        data = []
 
         for t in types:
             # Check whether requested types are valid.
@@ -248,13 +137,27 @@ class ValuePoolFuzzer(Fuzzer):
                 raise ValueError(f"Invalid type '{t}' specified.")
             else:
                 # Creating list of the value_pool lists provided in types
-                value_pools.append(valid_types[t])
+                data.append(valid_types[t])
+        
+        # Sortiere die Werte-Pools nach Länge in absteigender Reihenfolge
+        sorted_indices = sorted(range(len(data)), key=lambda i: len(data[i]), reverse=True)
+        value_pools = [data[i] for i in sorted_indices]
+        value_pools = self.__get_fuzzing_pool(value_pools, param_combi)
+        # Sortiere die resultierenden Listen wieder in die ursprüngliche Reihenfolge
+        result = []
+        
+        l = 0
+        while l < len(value_pools):
+            reordered_list = []
+            vp = value_pools[l]
+            m = 0
+            while m < len(vp):
+                reordered_list.append(vp[sorted_indices.index(m)])
+                m += 1
+            l += 1
+            result.append(reordered_list)
+                 
+        return result
+
 
         
-
-
-        #result = self.__generate_combinations(value_pools, param_combi)
-
-        result = self.__n_way_combinations(2, *value_pools)
-            
-        return result
