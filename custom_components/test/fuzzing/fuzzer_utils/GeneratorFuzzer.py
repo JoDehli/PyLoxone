@@ -3,7 +3,7 @@ import random
 import inspect
 import logging
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple, Type, Callable, Any
+from typing import Dict, List, Tuple, Type, Callable, Any, Union
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils import ValuePoolFuzzer
 
@@ -18,8 +18,8 @@ class GeneratorFuzzer(Fuzzer):
         :type mode: int
         """
         self.value_pool_fuzzer = value_pool_fuzzer
-        self.param_types = defaultdict(dict)
-        self.param_types_file = "param_types.csv"
+        self.param_types = defaultdict(lambda: defaultdict(dict))
+        self.param_types_file = "./custom_components/test/fuzzing/generators/param_types.csv"
         self.mode = mode
         if self.mode == 1:
             self._load_param_types()
@@ -60,11 +60,20 @@ class GeneratorFuzzer(Fuzzer):
         :rtype: Dict[int, str]
         """
         param_types = {}
-        for i, (param_name, param) in enumerate(inspect.signature(method).parameters.items()):
+        # Get the parameters of the method
+        parameters = inspect.signature(method).parameters.items()
+
+        # Filter out the "self" parameter
+        filtered_parameters = [(param_name, param) for param_name, param in parameters if param_name != "self"]
+
+        # Assign the param type for each parameter according to the mode we are using
+        for i, (param_name, param) in enumerate(filtered_parameters):
             if param.annotation == param.empty or self.mode == 3:
-                param_type = random.choice(['INT', 'UINT', 'FLOAT', 'STRING', 'BOOL', 'BYTE', 'LIST', 'DICT', 'DATE', 'ALL'])
+                param_type = random.choice(['INT', 'UINT', 'FLOAT', 'STRING', 'BOOL', 'BYTE', 'LIST', 'DICT', 'DATE'])
                 logging.warning(f"Randomly assigned type '{param_type}' for parameter {i+1} ({param_name}) in {class_name}.{method.__name__}")
-            else:
+            elif param.annotation.__name__ == 'str':
+                param_type = 'STRING'
+            else:    
                 param_type = param.annotation.__name__.upper()
             param_types[i] = param_type
         if self.mode == 1:
@@ -100,15 +109,52 @@ class GeneratorFuzzer(Fuzzer):
         :return: List of method names forming the sequence.
         :rtype: List[str]
         """
-        methods = [method for method in dir(cls) if callable(getattr(cls, method))]
+        methods = [method for method in dir(cls) if callable(getattr(cls, method)) and not method.startswith("__")]
         start_method = random.choice(start_methods)
         sequence = [start_method]
         for _ in range(random.randint(1, max_sequence_length - 1)):
             next_method = random.choice(methods)
             sequence.append(next_method)
         return sequence
+    
+    def _to_hashable_with_marker(self, data: Any) -> Union[Tuple[str, frozenset], Any]:
+        """
+        Convert a list or a dictionary to a hashable form (frozenset) with a type marker, or return other data types unchanged.
 
-    def fuzz(self, cls: Type, start_methods: List[str], max_sequence_length: int, num_sequences: int, param_combi: int = 1) -> List[List[Tuple[str, List[Any]]]]:
+        :param data: The data to be converted to a frozenset form.
+        :type data: Any
+        :return: A tuple containing the type marker and the frozenset if 'data' is a list or a dictionary, otherwise 'data' itself.
+        :rtype: Union[Tuple[str, frozenset], Any]
+        """
+        if isinstance(data, list):
+            return ('list', frozenset(data))
+        elif isinstance(data, dict):
+            return ('dict', frozenset(data.items()))
+        else:
+            # If data is neither a list nor a dict, return it as is
+            return data
+        
+    def _to_original_from_marker(self, data_with_marker: Union[Tuple[str, frozenset], Any]) -> Any:
+        """
+        Convert data back to its original form from a hashable form (frozenset) with a type marker, or return other data types unchanged.
+
+        :param data_with_marker: The data to be converted back to its original form.
+        :type data_with_marker: Union[Tuple[str, frozenset], Any]
+        :return: The original data form if 'data_with_marker' had a type marker, otherwise 'data_with_marker' itself.
+        :rtype: Any
+        """
+        # Check if data_with_marker is a tuple and has a type marker
+        if isinstance(data_with_marker, tuple) and data_with_marker[0] in ('list', 'dict'):
+            data_type, data = data_with_marker
+            if data_type == 'list':
+                return list(data)
+            elif data_type == 'dict':
+                return dict(data)
+        else:
+            # If there is no type marker, return the data as is
+            return data_with_marker
+
+    def fuzz(self, cls: Type, start_methods: List[str], max_sequence_length: int, num_sequences: int, max_param_combi: int = 2) -> List[List[Tuple[str, Tuple[Any]]]]:
         """
         Generate unique method sequences with parameters. A sequence is unique if either the methods are chained differently or any value of any parameter differs from an otherwise identical sequence.
 
@@ -120,14 +166,14 @@ class GeneratorFuzzer(Fuzzer):
         :type max_sequence_length: int
         :param num_sequences: The number of unique sequences to generate.
         :type num_sequences: int
-        :param param_combi: Maximum number of parameter combinations.
+        :param max_param_combi: Maximum number of parameter combinations. If a method takes less parameters the combinations will be decreased accordingly.
         :type param_combi: int
         :return: List of unique method sequences with parameters.
-        :rtype: List[List[Tuple[str, List[Any]]]]
+        :rtype: List[List[Tuple[str, Tuple[Any]]]]
         example return:
         [
-            [('method1', [param1, param2]), ('method2', [param3, param4])],
-            [('method3', [param5]), ('method4', [param6, param7])]
+            [('method1', (param1, param2)), ('method2', (param3, param4))],
+            [('method3', (param5)), ('method4', (param6, param7))]
         ]  
         """
         existing_sequences = set()
@@ -135,12 +181,36 @@ class GeneratorFuzzer(Fuzzer):
             sequence = self._generate_method_sequence(cls, start_methods, max_sequence_length)
             param_sequences = []
             for method_name in sequence:
+                param_combi = max_param_combi
                 method = getattr(cls, method_name)
                 param_types = self._get_param_types(cls.__name__, method)
-                param_set = self.value_pool_fuzzer.fuzz(param_nr=len(param_types), types=[param_types[i] for i in range(len(param_types))], param_combi=param_combi)
-                # Select a random parameter set from the generated combinations
-                random_param_set = random.choice(param_set)
-                param_sequences.append((method_name, random_param_set))
-            sequence_tuple = tuple((method_name, tuple(params)) for method_name, params in param_sequences)
-            existing_sequences.add(sequence_tuple) # add the tuple of tuples if it is unique (set only contains unique entries)
-        return [list(seq) for seq in existing_sequences]
+                if len(param_types) != 0:
+                    # make sure we don't request more combinations than parameters available
+                    if max_param_combi > len(param_types):
+                        param_combi = len(param_types)
+                    # Generate parameter sets using the value pool fuzzer 
+                    param_set = self.value_pool_fuzzer.fuzz(param_nr=len(param_types), types=[param_types[i] for i in range(len(param_types))], param_combi=param_combi)
+                    # Select a random parameter set from the generated combinations
+                    random_param_set = random.choice(param_set)
+                    param_sequences.append((method_name, random_param_set))
+                else:
+                    # don't generate any param_sets if we don't need any - would raise error when calling value_pool_fuzzer.fuzz
+                    param_sequences.append((method_name, {}))
+            # convert sequence list to tuple to make it hashable to be able to add it to existing_sequences set
+            sequence_tuple = tuple(
+                (
+                    method_name, 
+                    tuple(self._to_hashable_with_marker(param) for param in params)
+                )
+                for method_name, params in param_sequences
+            )
+            existing_sequences.add(sequence_tuple) # add the sequence_tuple to set to make sure we only have unique sequences
+        # Return the sequences but revert the types back to their original
+        return [
+            [
+                (method_name, tuple(self._to_original_from_marker(param) for param in params))
+                for method_name, params in seq_tuple
+            ]
+            for seq_tuple in existing_sequences
+        ]
+
