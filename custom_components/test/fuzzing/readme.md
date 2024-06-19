@@ -82,6 +82,9 @@ pytest custom_components/test/path/to/test_file.py
 - Pull-Request 2:
 - [ ] Update `ValuePoolFuzzer` class.
   - [ ] Create Pull-Request for reviews
+    - How should the algorithm work in theory?
+    - What does it currently do, what not?
+    - What are typical error patterns?
   - [ ] Implement combinations
   - [ ] Add return types to function head
   - [ ] Update UML
