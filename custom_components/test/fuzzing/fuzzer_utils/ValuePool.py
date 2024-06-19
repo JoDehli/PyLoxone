@@ -22,7 +22,7 @@ class ValuePool:
 
         sys.maxsize: An integer giving the maximum value a variable of type Py_ssize_t can take. It's usually 2^31 - 1 on a 32-bit platform and 2^63 - 1 on a 64-bit platform.
         """
-        # set values for _UINT_POOL
+        # set values for __UINT_POOL
         self.__UINT_POOL = [
             0,
             1,
@@ -31,7 +31,7 @@ class ValuePool:
             sys.maxsize * sys.maxsize,
         ]
 
-        # set values for _INT_POOL
+        # set values for __INT_POOL
         self.__INT_POOL = [
             sys.maxsize * -sys.maxsize,
             -sys.maxsize,
@@ -39,7 +39,7 @@ class ValuePool:
             -1,
         ] + self.__UINT_POOL
 
-        # set values for _FLOAT_POOL
+        # set values for __FLOAT_POOL
         self.__FLOAT_POOL = [
             sys.maxsize * -sys.maxsize * 0.5,
             -sys.maxsize * 0.5,
@@ -50,10 +50,10 @@ class ValuePool:
             257.0,
             sys.maxsize * 0.5,
             sys.maxsize * sys.maxsize * 0.5,
-        ] + [x * 1.1 for x in self._INT_POOL]
+        ] + [x * 1.1 for x in self.__INT_POOL]
 
-        # set values for _STRING_POOL
-        self._STRING_POOL = [
+        # set values for __STRING_POOL
+        self.__STRING_POOL = [
             "",
             "a",
             "abc",
@@ -63,7 +63,7 @@ class ValuePool:
             "a" * 1000,  # very long string
         ]
 
-        # set values for _BOOL_POOL
+        # set values for __BOOL_POOL
         self.__BOOL_POOL = [
             None,
             True,
@@ -72,7 +72,7 @@ class ValuePool:
             1,
         ]
 
-        # set values for _BYTE_POOL
+        # set values for __BYTE_POOL
         self.__BYTE_POOL = [
             b"",
             b"\x00",
@@ -80,7 +80,7 @@ class ValuePool:
             bytes(range(256)),  # all possible byte values
         ]
 
-        # set values for _LIST_POOL
+        # set values for __LIST_POOL
         self.__LIST_POOL = [
             None,
             [],
@@ -90,7 +90,7 @@ class ValuePool:
             list(range(100)),  # long list
         ]
 
-        # set values for _DICT_POOL
+        # set values for __DICT_POOL
         self.__DICT_POOL = [
             None,
             {},
@@ -99,7 +99,7 @@ class ValuePool:
             {i: i for i in range(10)},  # dictionary with multiple entries
         ]
 
-        # set values for _DATE_POOL
+        # set values for __DATE_POOL
         self.__DATE_POOL = [
             None,
             datetime.datetime.min,
