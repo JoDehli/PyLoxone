@@ -5,7 +5,7 @@ import math
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 
 
-class MutationalFuzzer(Fuzzer):
+class MutationalBlackBoxFuzzer(Fuzzer):
     """Mutational fuzzer class, inherits from the abstract fuzzer class."""
 
     __logger = None

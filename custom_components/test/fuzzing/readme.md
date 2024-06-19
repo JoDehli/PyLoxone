@@ -75,27 +75,32 @@ pytest custom_components/test/path/to/test_file.py
 ## Value pools 
 > - Assigned to: @jonathanheitzmann
 > - Branch: `fuzzing/valuepool`
-- [ ] Bug on param combi
+- Pull-Request 1:
+  - [x] The parameter `param_nr` is superfluous and is not required in the function `fuzz()` of the `ValuePoolFuzzer` class. The number of parameters is already determined by the length of list `types`.
+  - [ ] The value pools contain no no neutral element like `None` or `NaN`. 
+  - [ ] To avoid duplication in the code, value pools should "inherit" from each other in some way.  For example, "_INT" also takes all values from "_UINT" (identical to Balista).
+- Pull-Request 2:
 - [ ] Update `ValuePoolFuzzer` class.
+  - [ ] Create Pull-Request for reviews
+    - How should the algorithm work in theory?
+    - What does it currently do, what not?
+    - What are typical error patterns?
+  - [ ] Implement combinations
   - [ ] Add return types to function head
   - [ ] Update UML
-- [ ] The parameter `param_nr` is superfluous and is not required in the function `fuzz()` of the `ValuePoolFuzzer` class. The number of parameters is already determined by the length of list `types`.
-- [ ] The value pools contain no no neutral element like `None` or `NaN`. 
-- [ ] To avoid duplication in the code, value pools should "inherit" from each other in some way.  For example, "_INT" also takes all values from "_UINT" (identical to Balista).
 
 ## Generators
 > - Assigned to: @dsiev
 > - Branch: `fuzzing/valuepool`
 - Implement the generators.
-  - [ ] Update UML
   - [ ] Get code running
+  - [ ] Update UML
   - [ ] Create test cases
-  - [ ] Think about CSV variant 
 
 ## Input grammars
 > - Assigned to: @JKortmann
 - Implement the grammars.
-  - [ ] Create Testcases (when ValuePoolFuzzer functional)
+  - [ ] Create Test cases -> waiting for @jonathanheitzmann
     - [ ] Create needed grammars
   - [ ] (OPTIONAL) Implementation of three-phase derivation (or random for the `MutationalFuzzer`)
   - [ ] (OPTIONAL) Implementation of probabilistic derivation
@@ -106,8 +111,7 @@ pytest custom_components/test/path/to/test_file.py
 > - Branch: `fuzzing/mutational_black_box`
 - Implement the mutational fuzzing (black-box).
   - [ ] Create test cases for value pools -> waiting for @jonathanheitzmann
-  - [ ] Create test cases for black-box mutaional -> waiting for @jonathanheitzmann
-  - [x] Implementation of seed store
+  - [ ] Create test cases for black-box mutational 
 
 ### grey-box
 > - Assigned to: @hoegma
