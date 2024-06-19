@@ -50,11 +50,10 @@ class ValuePool:
             257.0,
             sys.maxsize * 0.5,
             sys.maxsize * sys.maxsize * 0.5,
-        ] + self.__INT_POOL
+        ] + [x * 1.1 for x in self._INT_POOL]
 
         # set values for _STRING_POOL
-        self.__STRING_POOL = [
-            None,
+        self._STRING_POOL = [
             "",
             "a",
             "abc",
@@ -69,6 +68,8 @@ class ValuePool:
             None,
             True,
             False,
+            0,
+            1,
         ]
 
         # set values for _BYTE_POOL
