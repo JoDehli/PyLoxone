@@ -76,6 +76,8 @@ entity "grammar_ipv4" as ipv4 << grammars >> {
 }
 '''''''''''''''''''''''''''''''''''''''
 class "MutationalFuzzer" as MFuzzer << class >> {
+    - __logger = None
+    - __multiplier: list[int] = []
     --
     - __init__(self) : void
     - __delete_random_char(self, s: str) : str
