@@ -17,8 +17,8 @@ _LOGGER = logging.getLogger(__name__)
 
 class RGBColorPicker(LoxoneEntity, LightEntity):
     __color_mode_reported = True
-    _attr_max_color_temp_kelvin = 2000
-    _attr_min_color_temp_kelvin = 6500
+    _attr_max_color_temp_kelvin = 6500
+    _attr_min_color_temp_kelvin = 2000
 
     _attr_supported_color_modes: set[ColorMode] = {
         ColorMode.COLOR_TEMP,
