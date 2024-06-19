@@ -2,7 +2,10 @@ import logging
 import itertools
 
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
+from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import GrammarFuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
+
+from custom_components.test.fuzzing.fuzzer_utils.grammars.grammar_ipv4 import grammar_ipv4
 
 
 class ValuePoolFuzzer(Fuzzer):
@@ -10,6 +13,8 @@ class ValuePoolFuzzer(Fuzzer):
 
     value_pool = ValuePool()
     logger = logging.getLogger(__name__)
+
+    __grammar_fuzzer = GrammarFuzzer()
 
     def __init__(self):
         """constructor"""
@@ -229,6 +234,9 @@ class ValuePoolFuzzer(Fuzzer):
             "DICT": self.value_pool.get_dict(),
             "DATE": self.value_pool.get_date(),
             "ALL": self.value_pool.get_all_values(),
+            "GRAMMAR_IPV4_MIN": [self.__grammar_fuzzer.fuzz_min_cost(grammar_ipv4, "<IPv4>")],
+            "GRAMMAR_IPV4_MAX": [self.__grammar_fuzzer.fuzz_max_cost(grammar_ipv4, "<IPv4>", 2)],
+            "GRAMMAR_IPV4_COV": self.__grammar_fuzzer.fuzz_grammar_coverage(grammar_ipv4, "<IPv4>"),
         }
 
         value_pools = []
