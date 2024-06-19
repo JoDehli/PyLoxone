@@ -110,7 +110,7 @@ class "ParamRunner" as PRunner << class >> {
 '''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_vp_on_helpers.py" as test_VP_H << test case >>{
+entity  "test_vp_on_helpers.py" as test_VP_H << test cases >>{
     logger
     value_pool_fuzzer : ValuePoolFuzzer
     param_runner : ParamRunner
@@ -129,23 +129,29 @@ entity  "test_vp_on_helpers.py" as test_VP_H << test case >>{
     test_get_all() : None
 }
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_gen_on_XXX.py" as test_GEN << test case >>{
+entity  "test_gen_on_XXX.py" as test_GEN << test cases >>{
 
 }
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_gram_on_XXX.py" as test_GRA << test case >>{
+entity  "test_gram_on_XXX.py" as test_GRA << test cases >>{
 
 }
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_mut_on_helpers.py" as test_MUT << test case >>{
+entity  "test_mut_on_helpers.py" as test_MUT << test cases >>{
     logger
     mutational_fuzzer : MutationalFuzzer
     grammar_fuzzer : GrammarFuzzer
     grammar_ipv4 : Grammar
     param_runner : ParamRunner
     --
-    test_demo_get_param_set() : None
     test_map_range() : None
+    test_hass_to_lox() : None
+    test_lox_to_hass() : None
+    test_lox2lox_mapped() : None
+    test_lox2hass_mapped() : None
+    test_to_hass_color_temp() : None
+    test_to_loxone_color_temp() : None
+    test_get_miniserver_type() : None
 }
 '''''''''''''''''''''''''''''''''''''''
 'Fuzzer''''''''''''''''''''''''''''''''
@@ -174,6 +180,4 @@ GFuzzer <--* test_GEN : needs a <
 '''''''''''''''''''''''''''''''''''''''
 MFuzzer "1"<--* test_MUT : needs a <
 PRunner "1"<--* test_MUT : needs a <
-GrFuzzer "1"<--* test_MUT : needs a <
-ipv4 "1"<--* test_MUT : needs a <
 @enduml
