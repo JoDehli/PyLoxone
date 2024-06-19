@@ -17,7 +17,7 @@ from custom_components.loxone.helpers import (
     get_all,
 )
 from custom_components.test.fuzzing.fuzzer_utils.MutationalFuzzer import (
-    MutationalFuzzer,
+    MutationalBlackBoxFuzzer,
 )
 from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import GrammarFuzzer
 from custom_components.test.fuzzing.fuzzer_utils.grammars.grammar_ipv4 import (
@@ -28,7 +28,7 @@ from custom_components.test.fuzzing.fuzzer_utils.ParamRunner import ParamRunner
 
 logger = logging.getLogger(__name__)
 
-mutational_fuzzer: MutationalFuzzer = MutationalFuzzer()
+mutational_fuzzer: MutationalBlackBoxFuzzer = MutationalBlackBoxFuzzer()
 grammar_fuzzer: GrammarFuzzer = GrammarFuzzer()
 param_runner: ParamRunner = ParamRunner()
 
