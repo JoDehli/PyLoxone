@@ -17,7 +17,8 @@ abstract class "Fuzzer" as fuzzer << abstract class >> {
 class "ValuePoolFuzzer" as VPFuzzer << class >> {
     --
     - __init__(self) : void
-    + fuzz(self, param_nr : int, types : list, param_combi : int) : list[list]
+    - __get_fuzzing_pool(self, value_pools: list[list], param_combinations: int) : list[list]
+    + fuzz(self, types : list, param_combi : int) : list[list]
 }
 class "ValuePool" as VPool << class >> {
     - __UINT_POOL : list
