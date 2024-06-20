@@ -44,16 +44,16 @@ class ValuePoolFuzzer(Fuzzer):
         return_lists = [list(t) for t in itertools.product(*value_pool_limited)]
 
         if param_combi > 1:
-            # Anpassung der Verschiebung, um jedes Element gleichmäßig zu verteilen
+            # Adjust the shift to evenly distribute each element
             for m in range(param_combi, len(value_pools)):
                 pool = value_pools[m]
                 l: int = 0
                 n: int = 0
-                # Verteilt die zusätzlichen Pools auf die bereits erzeugten Listen
+                # Distribute the additional pools over the already generated lists
                 while n < len(return_lists):
                     if l >= len(pool):
                         l = 0
-                    # Berechnung des Index-Shifts für die gleichmäßige Verteilung
+                    # Calculate the index-shift for even distribution
                     if n % len(value_pools[1]) == 0:
                         l = (n // len(value_pools[1])) * (m - param_combi + 1)
                         if l >= len(pool):
@@ -63,24 +63,24 @@ class ValuePoolFuzzer(Fuzzer):
                     l += 1
                     n += 1
         else:
-            # Erzeuge return_lists mit jeweils einem Element aus dem ersten Werte-Pool
+            # Create return_lists with one element from the first value pool
             return_lists = [[item] for item in value_pools[0]]
-            # Füge Elemente aus den weiteren Werte-Pools hinzu
-            i = 1
-            while i < len(value_pools):
-                pool = value_pools[i]
-                j = 0
-                k = 0
-                while j < len(return_lists):
+            # Add elements from the other value pools
+            vp_index = 1
+            while vp_index < len(value_pools):
+                pool = value_pools[vp_index]
+                return_lists_index = 0
+                pool_index = 0
+                while return_lists_index < len(return_lists):
 
-                    # Falls der Index k größer ist als die Länge des aktuellen Pools, beginne von vorne
-                    if k >= len(pool):
-                        k = 0
-                    return_lists[j].append(pool[k])
-                    j += 1
-                    k += 1
+                    # If the pool_index is greater than the length of the current pool, start from the beginning
+                    if pool_index >= len(pool):
+                        pool_index = 0
+                    return_lists[return_lists_index].append(pool[pool_index])
+                    return_lists_index += 1
+                    pool_index += 1
 
-                i += 1
+                vp_index += 1
 
         return return_lists
 
@@ -143,13 +143,13 @@ class ValuePoolFuzzer(Fuzzer):
                 # Creating list of the value_pool lists provided in types
                 data.append(valid_types[type])
 
-        # Sortiere die Werte-Pools nach Länge in absteigender Reihenfolge
+        # Sort the value pools by length in descending order
         sorted_indices = sorted(
             range(len(data)), key=lambda i: len(data[i]), reverse=True
         )
         value_pools: list[list] = [data[i] for i in sorted_indices]
         value_pools = self.__get_fuzzing_pool(value_pools, param_combi)
-        # Sortiere die resultierenden Listen wieder in die ursprüngliche Reihenfolge
+        # Sort the resulting lists back into the original order
         result: list[list] = []
 
         l: int = 0
