@@ -5,49 +5,42 @@ import datetime
 class ValuePool:
     """Provides value pool for value-pool based fuzzing approches."""
 
-    _UINT_POOL = []
-    _INT_POOL = []
-    _FLOAT_POOL = []
-    _STRING_POOL = []
-    _BOOL_POOL = []
-    _BYTE_POOL = []
-    _LIST_POOL = []
-    _DICT_POOL = []
-    _DATE_POOL = []
-    _ALL_VALUES_POOL = []
+    __UINT_POOL = []
+    __INT_POOL = []
+    __FLOAT_POOL = []
+    __STRING_POOL = []
+    __BOOL_POOL = []
+    __BYTE_POOL = []
+    __LIST_POOL = []
+    __DICT_POOL = []
+    __DATE_POOL = []
+    __ALL_VALUES_POOL = []
 
     def __init__(self) -> None:
         """constructor
         Set values for pools.
 
-        TODO: no dublicate pool values, like in Balista. e.g. _FLOAT_POOL copyyinherits values from _INT_POOL
-
         sys.maxsize: An integer giving the maximum value a variable of type Py_ssize_t can take. It's usually 2^31 - 1 on a 32-bit platform and 2^63 - 1 on a 64-bit platform.
         """
-        # set values for _INT_POOL
-        self._INT_POOL = [
+        # set values for __UINT_POOL
+        self.__UINT_POOL = [
+            0,
+            1,
+            257,
+            sys.maxsize,
+            sys.maxsize * sys.maxsize,
+        ]
+
+        # set values for __INT_POOL
+        self.__INT_POOL = [
             sys.maxsize * -sys.maxsize,
             -sys.maxsize,
             -257,
             -1,
-            0,
-            1,
-            257,
-            sys.maxsize,
-            sys.maxsize * sys.maxsize,
-        ]
+        ] + self.__UINT_POOL
 
-        # set values for _UINT_POOL
-        self._UINT_POOL = [
-            0,
-            1,
-            257,
-            sys.maxsize,
-            sys.maxsize * sys.maxsize,
-        ]
-
-        # set values for _FLOAT_POOL
-        self._FLOAT_POOL = [
+        # set values for __FLOAT_POOL
+        self.__FLOAT_POOL = [
             sys.maxsize * -sys.maxsize * 0.5,
             -sys.maxsize * 0.5,
             -257.0,
@@ -57,10 +50,10 @@ class ValuePool:
             257.0,
             sys.maxsize * 0.5,
             sys.maxsize * sys.maxsize * 0.5,
-        ]
+        ] + [x * 1.1 for x in self.__INT_POOL]
 
-        # set values for _STRING_POOL
-        self._STRING_POOL = [
+        # set values for __STRING_POOL
+        self.__STRING_POOL = [
             "",
             "a",
             "abc",
@@ -70,19 +63,26 @@ class ValuePool:
             "a" * 1000,  # very long string
         ]
 
-        # set values for _BOOL_POOL
-        self._BOOL_POOL = [True, False]
+        # set values for __BOOL_POOL
+        self.__BOOL_POOL = [
+            None,
+            True,
+            False,
+            0,
+            1,
+        ]
 
-        # set values for _BYTE_POOL
-        self._BYTE_POOL = [
+        # set values for __BYTE_POOL
+        self.__BYTE_POOL = [
             b"",
             b"\x00",
             b"abc",
             bytes(range(256)),  # all possible byte values
         ]
 
-        # set values for _LIST_POOL
-        self._LIST_POOL = [
+        # set values for __LIST_POOL
+        self.__LIST_POOL = [
+            None,
             [],
             [1, 2, 3],
             ["a", "b", "c"],
@@ -90,16 +90,18 @@ class ValuePool:
             list(range(100)),  # long list
         ]
 
-        # set values for _DICT_POOL
-        self._DICT_POOL = [
+        # set values for __DICT_POOL
+        self.__DICT_POOL = [
+            None,
             {},
             {"key": "value"},
             {"int": 1, "float": 1.0, "str": "string"},
             {i: i for i in range(10)},  # dictionary with multiple entries
         ]
 
-        # set values for _DATE_POOL
-        self._DATE_POOL = [
+        # set values for __DATE_POOL
+        self.__DATE_POOL = [
+            None,
             datetime.datetime.min,
             datetime.datetime.max,
             datetime.datetime.now(),
@@ -108,44 +110,44 @@ class ValuePool:
         ]
 
         # create a pool with all unique values
-        self._ALL_VALUES_POOL = (
-            self._INT_POOL
-            + self._UINT_POOL
-            + self._FLOAT_POOL
-            + self._STRING_POOL
-            + self._BOOL_POOL
-            + self._BYTE_POOL
-            + self._LIST_POOL
-            + self._DICT_POOL
-            + self._DATE_POOL
+        self.__ALL_VALUES_POOL = (
+            self.__INT_POOL
+            + self.__UINT_POOL
+            + self.__FLOAT_POOL
+            + self.__STRING_POOL
+            + self.__BOOL_POOL
+            + self.__BYTE_POOL
+            + self.__LIST_POOL
+            + self.__DICT_POOL
+            + self.__DATE_POOL
         )
 
     def get_uint(self) -> list:
-        return self._UINT_POOL
+        return self.__UINT_POOL
 
     def get_int(self) -> list:
-        return self._INT_POOL
+        return self.__INT_POOL
 
     def get_float(self) -> list:
-        return self._FLOAT_POOL
+        return self.__FLOAT_POOL
 
     def get_string(self) -> list:
-        return self._STRING_POOL
+        return self.__STRING_POOL
 
     def get_bool(self) -> list:
-        return self._BOOL_POOL
+        return self.__BOOL_POOL
 
     def get_byte(self) -> list:
-        return self._BYTE_POOL
+        return self.__BYTE_POOL
 
     def get_list(self) -> list:
-        return self._LIST_POOL
+        return self.__LIST_POOL
 
     def get_dict(self) -> list:
-        return self._DICT_POOL
+        return self.__DICT_POOL
 
     def get_date(self) -> list:
-        return self._DATE_POOL
+        return self.__DATE_POOL
 
     def get_all_values(self) -> list:
-        return self._ALL_VALUES_POOL
+        return self.__ALL_VALUES_POOL
