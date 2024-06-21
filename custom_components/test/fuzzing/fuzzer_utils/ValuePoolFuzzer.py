@@ -13,10 +13,10 @@ from custom_components.test.fuzzing.fuzzer_utils.grammars.grammar_ipv4 import (
 class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
 
-    _value_pool = ValuePool()
+    _value_pool: ValuePool = ValuePool()
     _logger = logging.getLogger(__name__)
 
-    _grammar_fuzzer = GrammarFuzzer()
+    _grammar_fuzzer: GrammarFuzzer = GrammarFuzzer()
 
     def __init__(self):
         """constructor"""
@@ -41,12 +41,14 @@ class ValuePoolFuzzer(Fuzzer):
             value_pool_limited.append(value_pools[i])
             i += 1
 
-        return_lists = [list(t) for t in itertools.product(*value_pool_limited)]
+        return_lists: list[list] = [
+            list(t) for t in itertools.product(*value_pool_limited)
+        ]
 
         if param_combi > 1:
             # Adjust the shift to evenly distribute each element
             for m in range(param_combi, len(value_pools)):
-                pool = value_pools[m]
+                pool: list = value_pools[m]
                 l: int = 0
                 n: int = 0
                 # Distribute the additional pools over the already generated lists
@@ -66,11 +68,11 @@ class ValuePoolFuzzer(Fuzzer):
             # Create return_lists with one element from the first value pool
             return_lists = [[item] for item in value_pools[0]]
             # Add elements from the other value pools
-            vp_index = 1
+            vp_index: int = 1
             while vp_index < len(value_pools):
                 pool = value_pools[vp_index]
-                return_lists_index = 0
-                pool_index = 0
+                return_lists_index: int = 0
+                pool_index: int = 0
                 while return_lists_index < len(return_lists):
 
                     # If the pool_index is greater than the length of the current pool, start from the beginning
