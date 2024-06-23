@@ -2,6 +2,7 @@ import math
 from typing import Dict, List, Tuple
 import re
 from enum import Enum
+from random import sample
 
 Element = str
 Grammar = Dict[Element, List[Element]]
@@ -24,7 +25,7 @@ class GrammarFuzzer:
         pass
 
     def __convert_to_cost_grammar(
-        self, grammar: Grammar, conversion_type: CostGrammarType
+            self, grammar: Grammar, conversion_type: CostGrammarType
     ) -> Tuple[Annotated_Grammar, Annotated_Non_Terminals]:
         """TODO: Add summary"""
         cost_grammar: Annotated_Grammar = {}
@@ -69,7 +70,7 @@ class GrammarFuzzer:
         return cost_grammar, annotated_non_terminals
 
     def __convert_to_trackable_grammar(
-        self, grammar: Grammar
+            self, grammar: Grammar
     ) -> Tuple[Annotated_Grammar, Annotated_Non_Terminals]:
         """TODO: Add summary"""
         trackable_grammar: Annotated_Grammar = {}
@@ -99,7 +100,7 @@ class GrammarFuzzer:
         return trackable_grammar, trackable_non_terminals
 
     def __compose_min_cost(
-        self, head: Element, given_cost_grammar: Annotated_Grammar
+            self, head: Element, given_cost_grammar: Annotated_Grammar
     ) -> str:
         """TODO: Add summary"""
         min_tuple: Annotated_Element = min(given_cost_grammar[head], key=lambda x: x[1])
@@ -136,17 +137,17 @@ class GrammarFuzzer:
         return self.__compose_min_cost(start_symbol, cost_grammar)
 
     def __compose_max_cost(
-        self,
-        head: Element,
-        given_cost_grammar: Annotated_Grammar,
-        applications: int,
-        max_applications: int,
+            self,
+            head: Element,
+            given_cost_grammar: Annotated_Grammar,
+            applications: int,
+            max_applications: int,
     ) -> str:
         """TODO: Add summary"""
 
         if applications == max_applications:
             min_tuple: Annotated_Element = min(
-                given_cost_grammar[head], key=lambda x: x[1]
+                sample(given_cost_grammar[head], len(given_cost_grammar[head])), key=lambda x: x[1]
             )
             is_non_terminal = (
                 True if re.findall(self._NON_TERMINAL_REGEX, min_tuple[0]) else False
@@ -208,7 +209,7 @@ class GrammarFuzzer:
                 return result
 
     def fuzz_max_cost(
-        self, grammar: Grammar, start_symbol: Element, max_rule_applications: int
+            self, grammar: Grammar, start_symbol: Element, max_rule_applications: int
     ) -> str:
         """Derives the first maximum cost value of a given grammar."""
         cost_grammar: Annotated_Grammar
@@ -219,9 +220,9 @@ class GrammarFuzzer:
         )
 
     def __is_grammar_covered(
-        self,
-        trackable_grammar: Annotated_Grammar,
-        trackable_non_terminals: Annotated_Non_Terminals,
+            self,
+            trackable_grammar: Annotated_Grammar,
+            trackable_non_terminals: Annotated_Non_Terminals,
     ) -> bool:
         """TODO: Add summary"""
         for non_terminal in trackable_non_terminals:
@@ -236,7 +237,7 @@ class GrammarFuzzer:
         return True
 
     def fuzz_grammar_coverage(
-        self, grammar: Grammar, start_symbol: Element
+            self, grammar: Grammar, start_symbol: Element
     ) -> List[str]:
         """Derives values until each production rule is fully covered."""
         trackable_grammar: Annotated_Grammar
