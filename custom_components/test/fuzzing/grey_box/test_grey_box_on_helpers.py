@@ -1,6 +1,6 @@
 from custom_components.test.fuzzing.fuzzer_utils.GreyBoxFuzzer import GreyBoxFuzzer
-from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.Seed import SeedManager, Seed
-from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.DataTypeCreator import DataTypeCreator
+from custom_components.test.fuzzing.fuzzer_utils.GreyBoxRunner import GreyBoxRunner
+from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.Seed import Seed
 
 from custom_components.loxone.helpers import (
     map_range,
@@ -32,24 +32,38 @@ def crashme(s: str) -> None:
         raise Exception()
 
 
-seed_manager = SeedManager()
 grey_box_fuzzer = GreyBoxFuzzer()
-data_type = DataTypeCreator()
+grey_box_runner = GreyBoxRunner()
 
 # seed specification
 
-seed_template = ["STRING", "INT"]
-seed_specification = ['r', 'r']
 amount_seeds = 10
+seed_template = ["STRING"]
+seed_specification = ['r']
 
-# create a population 
 
-#seed_population = seed_manager.create_random_seed_population(seed_template, 3)
-seed_population = seed_manager.create_specific_seed_population(seed_template,seed_specification,amount_seeds)
+# create a population with fuzzer
+#seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
+
+seed_1 = Seed(1, ["bear"])
+seed_2 = Seed(1, ["rats"])
+seed_3 = Seed(1, ["rods"])
+seed_4 = Seed(1, ["hii!"])
+seed_5 = Seed(1, ["deer"])
+seed_6 = Seed(1, ["lol!"])
+seed_7 = Seed(1, ["bad!"])
+
+seed_population = [seed_1, seed_2, seed_3, seed_4, seed_5, seed_6, seed_7]
 
 # Print seeds in population
+print("#####  Population  #####")
 for i in seed_population:
     print(i.seed_values)
 
+print("\n#####  Execute Tests  #####\n")
 
-grey_box_fuzzer.fuzz(seed_population, seed_template, crashme,10)
+test_results = grey_box_runner.run(crashme, seed_population, 7)
+
+print("\n#####  Test restults  #####\n")
+print(f"Tests passed: {test_results['passed_tests']}")
+print(f"Tests failed: {test_results['failed_tests']}")
