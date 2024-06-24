@@ -49,21 +49,22 @@ class ValuePoolFuzzer(Fuzzer):
             # Adjust the shift to evenly distribute each element
             for m in range(param_combi, len(value_pools)):
                 pool: list = value_pools[m]
-                l: int = 0
-                n: int = 0
+                pool_index: int = 0
+                cnt_return_lists: int = 0
                 # Distribute the additional pools over the already generated lists
-                while n < len(return_lists):
-                    if l >= len(pool):
-                        l = 0
+                while cnt_return_lists < len(return_lists):
+                    if pool_index >= len(pool):
+                        pool_index = 0
                     # Calculate the index-shift for even distribution
-                    if n % len(value_pools[1]) == 0:
-                        l = (n // len(value_pools[1])) * (m - param_combi + 1)
-                        if l >= len(pool):
-                            l = m - param_combi
-
-                    return_lists[n].append(pool[l])
-                    l += 1
-                    n += 1
+                    if cnt_return_lists % len(value_pools[1]) == 0:
+                        pool_index = (cnt_return_lists // len(value_pools[1])) * (m - param_combi + 1)
+                        if pool_index >= len(pool):
+                            pool_index = m - param_combi
+                            if pool_index >= len(pool):
+                                pool_index = 0
+                    return_lists[cnt_return_lists].append(pool[pool_index])
+                    pool_index += 1
+                    cnt_return_lists += 1
         else:
             # Create return_lists with one element from the first value pool
             return_lists = [[item] for item in value_pools[0]]
@@ -154,15 +155,15 @@ class ValuePoolFuzzer(Fuzzer):
         # Sort the resulting lists back into the original order
         result: list[list] = []
 
-        l: int = 0
-        while l < len(value_pools):
+        value_pool_index: int = 0
+        while value_pool_index < len(value_pools):
             reordered_list: list = []
-            vp: list = value_pools[l]
+            vp: list = value_pools[value_pool_index]
             m: int = 0
             while m < len(vp):
                 reordered_list.append(vp[sorted_indices.index(m)])
                 m += 1
-            l += 1
+            value_pool_index += 1
             result.append(reordered_list)
 
         return result
