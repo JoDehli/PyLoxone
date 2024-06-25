@@ -5,9 +5,7 @@ import json
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import GrammarFuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
-from custom_components.test.fuzzing.fuzzer_utils.grammars.grammar_controls_json import grammar_controls_json
-
-from custom_components.test.fuzzing.fuzzer_utils.grammars.grammar_ipv4 import grammar_ipv4
+from custom_components.test.fuzzing.fuzzer_utils.grammar_pool import grammar_controls_json, grammar_ipv4
 
 
 class ValuePoolFuzzer(Fuzzer):
