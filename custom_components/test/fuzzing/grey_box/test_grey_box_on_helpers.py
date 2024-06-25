@@ -47,9 +47,9 @@ seed_specification = ['r']
 
 seed_1 = Seed(1, ["bear"])
 seed_2 = Seed(1, ["rats"])
-seed_3 = Seed(1, ["rods"])
+seed_3 = Seed(1, ["code"])
 seed_4 = Seed(1, ["hii!"])
-seed_5 = Seed(1, ["deer"])
+seed_5 = Seed(1, ["beer"])
 seed_6 = Seed(1, ["lol!"])
 seed_7 = Seed(1, ["bad!"])
 
