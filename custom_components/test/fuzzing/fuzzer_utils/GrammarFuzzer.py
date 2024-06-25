@@ -143,7 +143,7 @@ class GrammarFuzzer:
             applications: int,
             max_applications: int,
     ) -> str:
-        """TODO: Add summary"""
+        """Derives a maximum cost value of a given grammar."""
 
         if applications == max_applications:
             min_tuple: Annotated_Element = min(
