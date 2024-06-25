@@ -1,12 +1,26 @@
+from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.Seed import Seed
 from random import random
+import random
 import math
 
 class Mutator:
     def __init__(self):
         """initialize Mutator"""
-        print("Initialize Mutator")
 
-    def delete_random_char(self, string: str) -> str:
+    def mutate_grey_box_fuzzer(self, seed: Seed):
+        """Mutates all seed values.
+
+        This function takes a seed and mutates all seed values of it.
+
+        :param seed: A seed consists of a list of seed_values.
+        :type seed: Seed
+        """
+        for index, seed_value in enumerate(seed.seed_values):
+            if isinstance(seed_value, str):
+                seed.seed_values[index] = self.__grey_mutate_string(seed_value)
+
+
+    def __delete_random_char(self, string: str) -> str:
         """Returns string with a random character deleted.
 
         This function takes a string `string` as input and returns a new string
@@ -30,7 +44,7 @@ class Mutator:
         # the substring after the random position.
         return string[:pos] + string[pos + 1 :]
     
-    def insert_random_char(self, string: str) -> str:
+    def __insert_random_char(self, string: str) -> str:
         """Returns string with a random character inserted.
 
         This function takes a string `string` as input and returns a new string
@@ -53,7 +67,7 @@ class Mutator:
         # and the substring after the random position.
         return string[:pos] + random_character + string[pos:]
     
-    def flip_random_char(self, string: str) -> str:
+    def __flip_random_char(self, string: str) -> str:
         """Returns string with a random bit flipped in a random position.
 
         This function takes a string `string` as input and returns a new string
@@ -87,7 +101,7 @@ class Mutator:
         # and the substring after the random position.
         return string[:pos] + new_c + string[pos + 1 :]
     
-    def get_random_float(self) -> float:
+    def __get_random_float(self) -> float:
         """Returns a random float value modified by a randomly chosen multiplier.
 
         This function generates a random float value between 0.0 and 1.0, and then
@@ -105,7 +119,7 @@ class Mutator:
         # Return the modified random float.
         return random_float
     
-    def check_inf(self, number: float) -> float:
+    def __check_inf(self, number: float) -> float:
         """Checks if the number is infinite and replaces it with a random value if true.
 
         This function takes a floating-point number `number` as input. If the number is
@@ -128,7 +142,7 @@ class Mutator:
         # Return the potentially modified number.
         return number
     
-    def add_random_number(self, number: float) -> float:
+    def __add_random_number(self, number: float) -> float:
         """Returns the input number with a random float added.
 
         This function takes a floating-point number `number` as input and adds
@@ -147,7 +161,7 @@ class Mutator:
         # Check if the resulting number is infinite.
         return self.__check_inf(number)
     
-    def sub_random_number(self, number: float) -> float:
+    def __sub_random_number(self, number: float) -> float:
         """Subtracts a random float from the given number.
 
         This function takes a float `number` as input and subtracts a randomly
@@ -165,7 +179,7 @@ class Mutator:
         # Check if the resulting number is infinite.
         return self.__check_inf(number)
     
-    def mult_random_number(self, number: float) -> float:
+    def __mult_random_number(self, number: float) -> float:
         """Returns the result of multiplying the input number by a random float.
 
         This function takes a floating-point number `number` as input and returns
@@ -185,7 +199,7 @@ class Mutator:
         # Check if the resulting number is infinite.
         return self.__check_inf(number)
     
-    def div_random_number(self, number: float) -> float:
+    def __div_random_number(self, number: float) -> float:
         """Divides the input number by a randomly generated float.
 
         This function takes a float `number` as input and divides it by
@@ -202,3 +216,27 @@ class Mutator:
 
         # Check if the resulting number is infinite.
         return self.__check_inf(number)
+    
+    def __grey_mutate_string(self, seed_value: str) -> str:
+        """Mutates a string random.
+
+        This function takes a string and applies different mutations on it.
+        1. delete random char
+        2. insert random char
+        3. flip random char
+
+        :param seed_value: A string which should be mutated.
+        :type seed_value: str
+
+        :return: Returns the mutated seed value.
+        :rtype: str
+        """
+        random_val = random.choice([1, 2, 3])
+        if random_val == 1:
+            seed_value = self.__delete_random_char(seed_value)
+        elif random_val == 2:
+            seed_value = self.__insert_random_char(seed_value)
+        elif random_val == 3:
+            seed_value = self.__flip_random_char(seed_value)
+        
+        return seed_value

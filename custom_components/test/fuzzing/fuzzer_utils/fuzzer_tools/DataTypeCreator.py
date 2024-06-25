@@ -3,8 +3,8 @@ import string
 
 class DataTypeCreator:
 
-    MAX_INT = (1 << 31) - 1
-    MAX_UINT = (1 << 32) - 1
+    __MAX_INT = (1 << 31) - 1
+    __MAX_UINT = (1 << 32) - 1
 
     def __init__(self):
         """initialize DataTypeCreator"""
@@ -24,7 +24,7 @@ class DataTypeCreator:
         :rtype: int
         """
         if random_creation == True:
-            random_seed_value = random.randint(-self.MAX_INT, self.MAX_INT)
+            random_seed_value = random.randint(-self.__MAX_INT, self.__MAX_INT)
             return random_seed_value
         else:
             seed_value = ''
@@ -57,7 +57,7 @@ class DataTypeCreator:
         :rtype: int
         """
         if random_creation == True:
-            random_seed_value = random.randint(0, self.MAX_UINT)
+            random_seed_value = random.randint(0, self.__MAX_UINT)
             return random_seed_value
         else:
             seed_value = ''
@@ -108,7 +108,7 @@ class DataTypeCreator:
             if character == amount_chars-1:
                 return seed_value
             
-    def create_string_special_characters(self, amount_chars: int) -> int:
+    def create_string_special_characters(self, amount_chars: int) -> str:
         """Returns an string with a certain number of chars.
 
         This function takes a value 'amount_chars' and returns an string with this amount of chars.

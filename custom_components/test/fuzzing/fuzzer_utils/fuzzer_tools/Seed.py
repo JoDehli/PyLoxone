@@ -16,8 +16,7 @@ class Seed:
 
 
 class SeedManager:
-    counter = -1
-    __a = 2
+    __power_energy = 2
 
     def __init__(self):
         """initialize PowerSchedule"""
@@ -45,8 +44,6 @@ class SeedManager:
                 break
 
         return seed
-        #self.counter += 1
-        #return seed_population[self.counter]
     
     def adjust_energy(self, seed: Seed, branch_dict: dict, hashed_branch: str):
         """Adjusts the energy of a given seed. 
@@ -68,7 +65,7 @@ class SeedManager:
         :rtype: Seed
         """
         number_path_exercised = branch_dict[hashed_branch]
-        seed.energy = 1 / number_path_exercised
+        seed.energy = 1 / (number_path_exercised ** self.__power_energy)
 
     def get_normalized_energy(self, seed_population: List[Seed]) -> list:
         total_energy = 0
