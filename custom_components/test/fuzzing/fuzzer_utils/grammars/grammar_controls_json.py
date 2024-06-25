@@ -1,4 +1,4 @@
-from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import Grammar, GrammarFuzzer
+from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import Grammar
 
 grammar_controls_json: Grammar = {
     "<JSON>": ["{ <Members> }"],
