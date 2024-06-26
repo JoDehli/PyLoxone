@@ -1,11 +1,11 @@
 import logging
 import itertools
+import json
 
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import GrammarFuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
-
-from custom_components.test.fuzzing.fuzzer_utils.grammars.grammar_ipv4 import grammar_ipv4
+from custom_components.test.fuzzing.fuzzer_utils.grammar_pool import grammar_controls_json, grammar_ipv4
 
 
 class ValuePoolFuzzer(Fuzzer):
@@ -18,7 +18,7 @@ class ValuePoolFuzzer(Fuzzer):
 
     def __init__(self):
         """constructor"""
-    
+
     '''def __generate_ranking(self, lists):
         """
         Generates ranking based on length of the lists.
@@ -180,21 +180,21 @@ class ValuePoolFuzzer(Fuzzer):
         new_list = self.__generate_new_list(lists, param_combi, rank)
 
         return new_list'''
-    
+
     def __n_way_combinations(self, num_lists_combination, *data):
         # Create the Cartesian product of all arrays
         product = list(itertools.product(*data))
-        
+
         # Generate all 2-way combinations from the product
         """combinations = []
         for comb in product:
             # Generate 2-way combinations for each tuple in the product
             combinations.extend(itertools.combinations(comb, len(data)))"""
-        
+
         return product
 
     def fuzz(
-       self, types: list = ["INT"], param_combi: int = 1
+            self, types: list = ["INT"], param_combi: int = 1
     ) -> list:
         """
         Generates an individual value pool for fuzzing based on the parameters.
@@ -237,6 +237,13 @@ class ValuePoolFuzzer(Fuzzer):
             "GRAMMAR_IPV4_MIN": [self.__grammar_fuzzer.fuzz_min_cost(grammar_ipv4, "<IPv4>")],
             "GRAMMAR_IPV4_MAX": [self.__grammar_fuzzer.fuzz_max_cost(grammar_ipv4, "<IPv4>", 2)],
             "GRAMMAR_IPV4_COV": self.__grammar_fuzzer.fuzz_grammar_coverage(grammar_ipv4, "<IPv4>"),
+            "GRAMMAR_CONTROLS_JSON_MIN": [
+                json.loads(self.__grammar_fuzzer.fuzz_min_cost(grammar_controls_json, "<JSON>")), ],
+            "GRAMMAR_CONTROLS_JSON_MAX": [
+                json.loads(self.__grammar_fuzzer.fuzz_max_cost(grammar_controls_json, "<JSON>", 6)), ],
+            "GRAMMAR_CONTROLS_JSON_COV": map(lambda x: json.loads(x),
+                                             self.__grammar_fuzzer.fuzz_grammar_coverage(grammar_controls_json,
+                                                                                         "<JSON>")),
         }
 
         value_pools = []
@@ -250,11 +257,8 @@ class ValuePoolFuzzer(Fuzzer):
                 # Creating list of the value_pool lists provided in types
                 value_pools.append(valid_types[t])
 
-        
-
-
-        #result = self.__generate_combinations(value_pools, param_combi)
+        # result = self.__generate_combinations(value_pools, param_combi)
 
         result = self.__n_way_combinations(2, *value_pools)
-            
+
         return result

@@ -18,7 +18,6 @@ from custom_components.loxone.helpers import (
 from custom_components.test.fuzzing.fuzzer_utils.ValuePoolFuzzer import ValuePoolFuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ParamRunner import ParamRunner
 
-
 logger = logging.getLogger(__name__)
 
 value_pool_fuzzer = ValuePoolFuzzer()
@@ -135,12 +134,10 @@ def test_get_miniserver_type() -> None:
     assert result["failed_tests"] == 0
 
 
-
 @pytest.mark.timeout(300)
-@pytest.mark.skip(reason="No meaningful dict.")
 def test_get_all() -> None:
     logger.info("Start of get_all() test.")
-    param_set = value_pool_fuzzer.fuzz(["DICT", "STRING"], 2)
+    param_set = value_pool_fuzzer.fuzz(["GRAMMAR_CONTROLS_JSON_COV", "STRING"], 2)
     result = param_runner.run(get_all, param_set)
     logger.info("get_all() test finished.")
 
