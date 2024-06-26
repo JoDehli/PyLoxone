@@ -66,6 +66,31 @@ pytest custom_components/test/path/to/test_file.py
 ![fuzzer_overview](fuzzer_overview.svg)
 
 # TODO
+## Presentation 2024-07-05
+1. @jonathanheitzmann presenting
+  - value pools: 
+    - `ValuePool` 
+    - `ValuePoolFuzzer` 
+  - corresponding test cases.
+2. @dsiev presenting
+  - generators 
+    - `fuzzer` 
+    - `runner` ?
+  - corresponding test cases.
+3. @JKortmann presenting
+  - grammars 
+    - `GrammerFuzzer`
+    - `grammar_pool`
+  - corresponding test cases.
+4. @ThorbenCarl presenting
+  - black box mutational 
+    - `MutationalFuzzer`
+  - corresponding test cases.
+5. @hoegma presenting
+  - grey box mutational 
+    - ?
+  - corresponding test cases.
+
 ## Random testing 
 > - Assigned to:
 > - Branch: `fuzzing/random_testing`
@@ -87,8 +112,7 @@ pytest custom_components/test/path/to/test_file.py
 ## Input grammars
 > - Assigned to: @JKortmann
 - Implement the grammars.
-  - [ ] Create Test cases -> waiting for @jonathanheitzmann
-    - [ ] Create needed grammars
+  - [ ] (OPTIONAL) test cases for: `test_get_room_name_from_room_uuid()`, `test_get_cat_name_from_cat_uuid()` and `test_add_room_and_cat_to_value_values()` from `helper.py`
   - [ ] (OPTIONAL) Implementation of three-phase derivation (or random for the `MutationalFuzzer`)
   - [ ] (OPTIONAL) Implementation of probabilistic derivation
 
@@ -96,9 +120,6 @@ pytest custom_components/test/path/to/test_file.py
 ### black-box
 > - Assigned to: @ThorbenCarl
 > - Branch: `fuzzing/mutational_black_box`
-- Implement the mutational fuzzing (black-box).
-  - [ ] Create test cases for value pools -> waiting for @jonathanheitzmann
-  - [ ] Create test cases for black-box mutational 
 
 ### grey-box
 > - Assigned to: @hoegma
@@ -112,10 +133,13 @@ pytest custom_components/test/path/to/test_file.py
 > - Branch: `fuzzing/mutational_white_box`
 
 ## Search based
-> - Assigned to: @jonathanheitzmann
+> - Assigned to:
 > - Branch: `fuzzing/search_based`
 
 # Vulnerabilities found
 ## `helpers.py`
 ### `map_range()`
 - A possible 0 division is not checked or intercepted.
+
+### `get_all()`
+- If the key `controls` is not in `json_data: dict` the function crashes.
