@@ -100,23 +100,10 @@ pytest custom_components/test/path/to/test_file.py
 ## Value pools 
 > - Assigned to: @jonathanheitzmann
 > - Branch: `fuzzing/valuepool`
-- Pull-Request 1:
-  - [x] The parameter `param_nr` is superfluous and is not required in the function `fuzz()` of the `ValuePoolFuzzer` class. The number of parameters is already determined by the length of list `types`.
-  - [ ] The value pools contain no no neutral element like `None` or `NaN`. 
-  - [ ] To avoid duplication in the code, value pools should "inherit" from each other in some way.  For example, "_INT" also takes all values from "_UINT" (identical to Balista).
-- Pull-Request 2:
-- [ ] Update `ValuePoolFuzzer` class.
-  - [ ] Create Pull-Request for reviews
-    - How should the algorithm work in theory?
-    - What does it currently do, what not?
-    - What are typical error patterns?
-  - [ ] Implement combinations
-  - [ ] Add return types to function head
-  - [ ] Update UML
 
 ## Generators
 > - Assigned to: @dsiev
-> - Branch: `fuzzing/valuepool`
+> - Branch: `fuzzing/generators`
 - Implement the generators.
   - [ ] Get code running
   - [ ] Update UML
