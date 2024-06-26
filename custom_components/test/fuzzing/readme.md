@@ -142,4 +142,4 @@ pytest custom_components/test/path/to/test_file.py
 - A possible 0 division is not checked or intercepted.
 
 ### `get_all()`
-- If the key `controls` is not in `json_data: dict` the function crashes.
+- If the key `controls` or `type` is not in the `json_data: dict` the function crashes.

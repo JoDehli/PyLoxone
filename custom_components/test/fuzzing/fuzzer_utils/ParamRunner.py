@@ -61,9 +61,21 @@ class ParamRunner(Runner):
                 self.__logger.error(f"Exception: {e}")
 
         if test_results["failed_tests"] > 0:
-            self.__logger.error(f"Summary: {test_results['failed_tests']} param_sets failed for the function {function.__name__}")
+            self.__logger.error(
+                "Summary: "
+                + str(test_results["failed_tests"])
+                + " of "
+                + str(test_results["failed_tests"] + test_results["passed_tests"])
+                + " param_sets failed for the function "
+                + str(function.__name__)
+            )
         else:
-            self.__logger.info(f"Summary: {test_results['passed_tests']} param_sets passed for the function {function.__name__}")
+            self.__logger.info(
+                "Summary: All "
+                + str(test_results["passed_tests"])
+                + " param_sets passed for the function"
+                + str(function.__name__)
+            )
 
         return test_results
 
