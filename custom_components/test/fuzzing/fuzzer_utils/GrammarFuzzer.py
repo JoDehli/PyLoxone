@@ -27,12 +27,12 @@ class GrammarFuzzer:
     def __convert_to_cost_grammar(
             self, grammar: Grammar, conversion_type: CostGrammarType
     ) -> Tuple[Annotated_Grammar, Annotated_Non_Terminals]:
-        """TODO: Add summary"""
+        """Converts a common grammar to an annotated cost grammar"""
         cost_grammar: Annotated_Grammar = {}
         annotated_non_terminals: Annotated_Non_Terminals = {}
 
         def convert_rule(head: Element, body: List[Element]) -> None:
-            """TODO: Add summary"""
+            """Recursively converts a rule to an annotated cost rule"""
             if head in annotated_non_terminals:
                 return
 
@@ -72,12 +72,12 @@ class GrammarFuzzer:
     def __convert_to_trackable_grammar(
             self, grammar: Grammar
     ) -> Tuple[Annotated_Grammar, Annotated_Non_Terminals]:
-        """TODO: Add summary"""
+        """Converts a common grammar to an annotated trackable grammar"""
         trackable_grammar: Annotated_Grammar = {}
         trackable_non_terminals: Annotated_Non_Terminals = {}
 
         def convert_rule(head: Element, body: List[Element]) -> None:
-            """TODO: Add summary"""
+            """Recursively converts a rule to an annotated trackable rule"""
             if head in trackable_non_terminals:
                 return
 
@@ -102,7 +102,7 @@ class GrammarFuzzer:
     def __compose_min_cost(
             self, head: Element, given_cost_grammar: Annotated_Grammar
     ) -> str:
-        """TODO: Add summary"""
+        """Derives the first minimum cost value of a given annotated grammar."""
         min_tuple: Annotated_Element = min(given_cost_grammar[head], key=lambda x: x[1])
         is_non_terminal = (
             True if re.findall(self._NON_TERMINAL_REGEX, min_tuple[0]) else False
@@ -130,7 +130,7 @@ class GrammarFuzzer:
             return result
 
     def fuzz_min_cost(self, grammar: Grammar, start_symbol: Element) -> str:
-        """Derives the first mininum cost value of a given grammar."""
+        """Derives the first minimum cost value of a given grammar."""
         cost_grammar: Annotated_Grammar
         cost_grammar, _ = self.__convert_to_cost_grammar(grammar, CostGrammarType.MIN)
 
@@ -224,7 +224,7 @@ class GrammarFuzzer:
             trackable_grammar: Annotated_Grammar,
             trackable_non_terminals: Annotated_Non_Terminals,
     ) -> bool:
-        """TODO: Add summary"""
+        """Checks whether a given grammar is completely covered."""
         for non_terminal in trackable_non_terminals:
             if non_terminal[1] == 0:
                 return False
@@ -249,7 +249,7 @@ class GrammarFuzzer:
         fuzzed_values: List[str] = []
 
         def generate_value(head: Element):
-            """TODO: Add summary"""
+            """Recursively generates values until each production rule is fully covered."""
             min_tuple: Annotated_Element = min(
                 trackable_grammar[head], key=lambda x: x[1]
             )
