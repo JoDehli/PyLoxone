@@ -71,8 +71,9 @@ class "GrammarFuzzer" as GrFuzzer << class >> {
     + fuzz_max_cost( self, grammar: Grammar, start_symbol: Element, max_rule_applications: int) : str
     + fuzz_grammar_coverage(self, grammar: Grammar, start_symbol: Element) : list
 }
-entity "grammar_ipv4" as ipv4 << grammars >> {
+entity "grammar_pool" as gr_pool << grammars >> {
     grammar_ipv4: Grammar
+    grammar_controls_json: Grammar
 }
 '''''''''''''''''''''''''''''''''''''''
 class "MutationalFuzzer" as MFuzzer << class >> {
@@ -133,15 +134,9 @@ entity  "test_gen_on_XXX.py" as test_GEN << test cases >>{
 
 }
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_gram_on_XXX.py" as test_GRA << test cases >>{
-
-}
-'''''''''''''''''''''''''''''''''''''''
 entity  "test_mut_on_helpers.py" as test_MUT << test cases >>{
     logger
     mutational_fuzzer : MutationalFuzzer
-    grammar_fuzzer : GrammarFuzzer
-    grammar_ipv4 : Grammar
     param_runner : ParamRunner
     --
     test_map_range() : None
@@ -158,7 +153,8 @@ entity  "test_mut_on_helpers.py" as test_MUT << test cases >>{
 '''''''''''''''''''''''''''''''''''''''
 fuzzer <|-- VPFuzzer : inherits from <
 VPool <--* VPFuzzer: has access to <
-'fuzzer <|-- GrFuzzer : inherits from <
+GrFuzzer <--* VPFuzzer: has access to <
+gr_pool <-- VPFuzzer: imports <
 fuzzer <|-- GFuzzer : inherits from <
 fuzzer <|-- MFuzzer : inherits from <
 '''''''''''''''''''''''''''''''''''''''
@@ -172,9 +168,6 @@ VPFuzzer <--* test_VP_H : needs a <
 PRunner <--* test_VP_H : needs a <
 '''''''''''''''''''''''''''''''''''''''
 CGType <--* GrFuzzer : needs a <
-GrFuzzer <--* test_GRA : needs a <
-'PRunner <--* test_GRA : needs a <
-test_GRA *-> ipv4: needs a >
 '''''''''''''''''''''''''''''''''''''''
 GFuzzer <--* test_GEN : needs a <
 '''''''''''''''''''''''''''''''''''''''

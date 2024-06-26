@@ -16,9 +16,7 @@ from custom_components.test.fuzzing.fuzzer_utils.MutationalFuzzer import (
     MutationalBlackBoxFuzzer,
 )
 from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import GrammarFuzzer
-from custom_components.test.fuzzing.fuzzer_utils.grammars.grammar_ipv4 import (
-    grammar_ipv4,
-)
+from custom_components.test.fuzzing.fuzzer_utils.grammar_pool import grammar_ipv4
 from custom_components.test.fuzzing.fuzzer_utils.ParamRunner import ParamRunner
 
 
