@@ -132,11 +132,11 @@ class ValuePoolFuzzer(Fuzzer):
                 grammar_ipv4, "<IPv4>"
             ),
             "GRAMMAR_CONTROLS_JSON_MIN": [
-                json.loads(self.__grammar_fuzzer.fuzz_min_cost(grammar_controls_json, "<JSON>")), ],
+                json.loads(self._grammar_fuzzer.fuzz_min_cost(grammar_controls_json, "<JSON>")), ],
             "GRAMMAR_CONTROLS_JSON_MAX": [
-                json.loads(self.__grammar_fuzzer.fuzz_max_cost(grammar_controls_json, "<JSON>", 6)), ],
+                json.loads(self._grammar_fuzzer.fuzz_max_cost(grammar_controls_json, "<JSON>", 6)), ],
             "GRAMMAR_CONTROLS_JSON_COV": map(lambda x: json.loads(x),
-                                             self.__grammar_fuzzer.fuzz_grammar_coverage(grammar_controls_json,
+                                             self._grammar_fuzzer.fuzz_grammar_coverage(grammar_controls_json,
                                                                                          "<JSON>")),
         }
 
