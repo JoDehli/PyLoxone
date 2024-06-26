@@ -97,6 +97,69 @@ class "MutationalFuzzer" as MFuzzer << class >> {
 '''''''''''''''''''''''''''''''''''''''
 'Runner''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+class "GreyBoxFuzzer" as GBFuzzer << class >> {
+    - __RANGE_RANDOM_INT: int = 9
+    - __RANGE_RANDOM_STRING: int = 100
+    - __data_type_creator: DataTypeCreator
+    --
+    - __init__(self) : void
+    + fuzz(self, seed_template: list, seed_specification,: list = None, amount_seeds: int = 100) : list[Seed]
+}
+'''''''''''''''''''''''''''''''''''''''
+class "GreyBoxRunner" as GBRunner << class >> {
+    - __seed_manager = SeedManager()
+    - __mutator = Mutator()
+    - __branch_dict = {}
+    --
+    - __init__(self) : void
+    + run(self, function: Callable, seed_population: List[Seed], amount_runs: int = 10000) : list
+    - __hash_md5(self, branch_covered: str) : str
+    - __store_hashed_branch(self, hashed_branch: str) : void
+}
+'''''''''''''''''''''''''''''''''''''''
+class "SeedManager" as SeedManager << class >> {
+    - __power_energy: int = 2
+    --
+    - __init__(self) : void
+    + select_seed(self, seed_population: List[Seed]) : Seed
+    + adjust_energy(self, seed: Seed, branch_dict: dict, hashed_branch: str) : void
+    + get_normalized_energy(self, seed_population: List[Seed]) : list
+}
+'''''''''''''''''''''''''''''''''''''''
+class "Mutator" as Mutator << class >> {
+    --
+    - __init__(self) : void
+    + mutate_grey_box_fuzzer(self, seed: Seed) : void
+    - __delete_random_char(self, s: str) : str
+    - __insert_random_char(self, s: str) : str
+    - __flip_random_char(self, s: str) : str
+    - __get_random_float(self) : float
+    - __check_inf(self, number: float) : float
+    - __add_random_number(self, number: float) : float
+    - __sub_random_number(self, number: float) : float
+    - __mult_random_number(self, number: float) : float
+    - __div_random_number(self, number: float) : float
+    - __grey_mutate_string(self, seed_value: str) : str
+}
+'''''''''''''''''''''''''''''''''''''''
+class "Seed" as Seed << class >> {
+    - energy: int = 0
+    - seed_values: list = []
+    --
+    - __init__(self, energy: int = 0, seed_values: list = []) : void
+}
+'''''''''''''''''''''''''''''''''''''''
+class "DataTypeCreator" as DataTypeCreator << class >> {
+    - __MAX_INT: int = (1 << 31) - 1
+    - __MAX_UINT = (1 << 32) - 1
+    --
+    - __init__(self) : void
+    - create_int(self, amount_digits: int = 10, random_creation: bool = True) : int
+    - create_uint(self, amount_digits: int = 10, random_creation: bool = True) : int
+    - create_string_special_characters(self, amount_chars: int) : str
+}
+'''''''''''''''''''''''''''''''''''''''
 abstract class "Runner" as runner << abstract class >> {
     --
     - __init__(self) : void
@@ -150,6 +213,21 @@ entity  "test_mut_on_helpers.py" as test_MUT << test cases >>{
     test_get_miniserver_type() : None
 }
 '''''''''''''''''''''''''''''''''''''''
+entity  "test_grey_box_on_helpers.py" as test_GBox << test case >>{
+    logger
+    grey_box_fuzzer = GreyBoxFuzzer
+    grey_box_runner = GreyBoxRunner
+    --
+
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_grey_box_on_helpers_complex.py" as test_GBox_complex << test case >>{
+    logger
+    grey_box_fuzzer = GreyBoxFuzzer
+    grey_box_runner = GreyBoxRunner
+    --
+}
+'''''''''''''''''''''''''''''''''''''''
 'Fuzzer''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 fuzzer <|-- VPFuzzer : inherits from <
@@ -158,10 +236,21 @@ GrFuzzer <--* VPFuzzer: has access to <
 gr_pool <-- VPFuzzer: imports <
 fuzzer <|-- GFuzzer : inherits from <
 fuzzer <|-- MFuzzer : inherits from <
+GBFuzzer o-- DataTypeCreator : aggregates >
+GBFuzzer --> Seed: uses >
 '''''''''''''''''''''''''''''''''''''''
 'Runner''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 runner <|-- PRunner : inherits from <
+GBRunner o-- Mutator : aggregates >
+GBRunner o-- SeedManager : aggregates >
+GBRunner --> Seed: uses >
+'''''''''''''''''''''''''''''''''''''''
+'Other classes'''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+Mutator --> Seed: uses >
+SeedManager --> Seed: uses >
+DataTypeCreator --> Seed: uses >
 '''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
@@ -174,4 +263,11 @@ GFuzzer <--* test_GEN : needs a <
 '''''''''''''''''''''''''''''''''''''''
 MFuzzer "1"<--* test_MUT : needs a <
 PRunner "1"<--* test_MUT : needs a <
+GrFuzzer "1"<--* test_MUT : needs a <
+ipv4 "1"<--* test_MUT : needs a <
+'''''''''''''''''''''''''''''''''''''''
+GBFuzzer "1"<--* test_GBox : needs a <
+GBFuzzer "1"<--* test_GBox_complex : needs a <
+GBRunner "1"<--* test_GBox : needs a <
+GBRunner "1"<--* test_GBox_complex : needs a <
 @enduml

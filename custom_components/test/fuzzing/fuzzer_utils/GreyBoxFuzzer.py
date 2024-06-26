@@ -1,14 +1,14 @@
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.Seed import Seed
 from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.DataTypeCreator import DataTypeCreator
-from typing import Callable, List
+from typing import List
 import random
 
 class GreyBoxFuzzer(Fuzzer):
     """GreyBox fuzzer class, inherits from the abstract fuzzer class."""
 
-    RANGE_RANDOM_INT = 9
-    RANGE_RANDOM_STRING = 100
+    __RANGE_RANDOM_INT = 9
+    __RANGE_RANDOM_STRING = 100
     __data_type_creator = DataTypeCreator()
 
     def __init__(self):
@@ -18,7 +18,7 @@ class GreyBoxFuzzer(Fuzzer):
     def fuzz(self, 
              seed_template: list,
              seed_specification: list = None,
-             amount_seeds: int = 20) -> List[Seed]:
+             amount_seeds: int = 100) -> List[Seed]:
         """Returns a population of seeds with specific values based on the seed template and seed specifiction.
         
         This function takes two lists 'seed_template' and 'seed_specification' and creates seeds. 
@@ -60,13 +60,13 @@ class GreyBoxFuzzer(Fuzzer):
                         param_set.append(self.__data_type_creator.create_int(seed_spec,False))
                 elif data_type == "UINT":
                     if seed_spec == 'r':
-                        seed_spec = random.randint(1, self.RANGE_RANDOM_INT)
+                        seed_spec = random.randint(1, self.__RANGE_RANDOM_INT)
                     param_set.append(self.__data_type_creator.create_uint(seed_spec))
                 elif data_type == "FLOAT":
                     print("create_float")
                 elif data_type == "STRING":
                     if seed_spec == 'r':
-                        seed_spec = random.randint(1, self.RANGE_RANDOM_STRING)
+                        seed_spec = random.randint(1, self.__RANGE_RANDOM_STRING)
                     rand_val = random.randint(0,1)
                     if rand_val == 0:
                         param_set.append(self.__data_type_creator.create_string_only_letters(seed_spec))

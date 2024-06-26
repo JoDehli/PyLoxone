@@ -62,7 +62,7 @@ for i in seed_population:
 
 print("\n#####  Execute Tests  #####\n")
 
-test_results = grey_box_runner.run(crashme, seed_population, 7)
+test_results = grey_box_runner.run(crashme, seed_population, 10)
 
 print("\n#####  Test restults  #####\n")
 print(f"Tests passed: {test_results['passed_tests']}")
