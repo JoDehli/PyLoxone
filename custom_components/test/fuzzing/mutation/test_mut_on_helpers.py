@@ -35,22 +35,6 @@ grammar_fuzzer: GrammarFuzzer = GrammarFuzzer()
 param_runner: ParamRunner = ParamRunner()
 
 
-@pytest.mark.skipif(True, reason="Only dummy test case.")
-def test_demo_get_param_set() -> None:
-    # get a list of valid grammar outputs
-    full_grammar_cov: list = grammar_fuzzer.fuzz_grammar_coverage(
-        grammar_ipv4, "<IPv4>"
-    )
-    # choose randomly on value
-    random_valid_grammar_string = random.choice(full_grammar_cov)
-
-    # If the grammar value should be an int or float, you have to cast the string first.
-    # Get the param_set.
-    mutational_fuzzer.fuzz([0.5, 1, "demo_string", random_valid_grammar_string], 10000)
-
-    assert True
-
-
 @pytest.mark.skipif(False, reason="Not skiped!")
 def test_map_range() -> None:
     logger.info("Start of test_map_range() test.")
@@ -230,9 +214,7 @@ def test_get_all() -> None:
     random_valid_grammar_string = random.choice(full_grammar_cov)
 
     # mutate seed
-    param_set = mutational_fuzzer.fuzz(
-        [random_valid_grammar_string, "a"], 100
-    )
+    param_set = mutational_fuzzer.fuzz([random_valid_grammar_string, "a"], 100)
 
     # function under test needs a json object
     for set in param_set:
@@ -242,7 +224,9 @@ def test_get_all() -> None:
             set[0] = json.loads(set[0])
         except:
             # No -> use random default value from grammar
-            logger.debug(f"{set[0]} is not longer a valid json, replaced it with value from grammar.")
+            logger.debug(
+                f"{set[0]} is not longer a valid json, replaced it with value from grammar."
+            )
             set[0] = json.loads(random.choice(full_grammar_cov))
 
     result = param_runner.run(get_all, param_set)
