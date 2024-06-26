@@ -28,3 +28,5 @@ custom_components/loxone/homeassistant
 
 
 .DS_Store
+
+.coverage

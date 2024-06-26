@@ -106,7 +106,6 @@ class "GreyBoxFuzzer" as GBFuzzer << class >> {
 class "GreyBoxRunner" as GBRunner << class >> {
     - __seed_manager = SeedManager()
     - __mutator = Mutator()
-    - __branch_dict = {}
     --
     - __init__(self) : void
     + run(self, function: Callable, seed_population: List[Seed], amount_runs: int = 10000) : list
