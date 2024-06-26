@@ -11,13 +11,16 @@ from custom_components.test.fuzzing.fuzzer_utils.grammar_pool import grammar_con
 class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
 
-    __value_pool: ValuePool = ValuePool()
-    __logger = logging.getLogger(__name__)
+    __logger = None
 
-    __grammar_fuzzer: GrammarFuzzer = GrammarFuzzer()
+    __value_pool: ValuePool = None
+    __grammar_fuzzer: GrammarFuzzer = None
 
     def __init__(self):
         """constructor"""
+        self.__logger = logging.getLogger(__name__)
+        self.__value_pool = ValuePool()
+        self.__grammar_fuzzer = GrammarFuzzer()
 
     def __get_fuzzing_pool(
         self, value_pools: list[list], param_combi: int
@@ -132,7 +135,7 @@ class ValuePoolFuzzer(Fuzzer):
                 grammar_ipv4, "<IPv4>"
             ),
             "GRAMMAR_CONTROLS_JSON_MIN": [
-                json.loads(self._grammar_fuzzer.fuzz_min_cost(grammar_controls_json, "<JSON>")), ],
+                json.loads(self.__grammar_fuzzer.fuzz_min_cost(grammar_controls_json, "<JSON>")), ],
             "GRAMMAR_CONTROLS_JSON_MAX": [
                 json.loads(self.__grammar_fuzzer.fuzz_max_cost(grammar_controls_json, "<JSON>", 6)), ],
             "GRAMMAR_CONTROLS_JSON_COV": list(map(lambda x: json.loads(x),
