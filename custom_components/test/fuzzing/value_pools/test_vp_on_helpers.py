@@ -105,7 +105,7 @@ def test_to_loxone_color_temp() -> None:
 @pytest.mark.timeout(300)
 def test_get_room_name_from_room_uuid() -> None:
     logger.info("Start of get_room_name_from_room_uuid() test.")
-    param_set = value_pool_fuzzer.fuzz(["DICT", "STRING"], 2)
+    param_set = value_pool_fuzzer.fuzz(["GRAMMAR_LOXCONFIG_ROOMS_CATS_JSON_COV", "STRING"], 2)
     result = param_runner.run(get_room_name_from_room_uuid, param_set)
     logger.info("get_room_name_from_room_uuid() test finished.")
 
@@ -116,7 +116,7 @@ def test_get_room_name_from_room_uuid() -> None:
 @pytest.mark.timeout(300)
 def test_get_cat_name_from_cat_uuid() -> None:
     logger.info("Start of get_cat_name_from_cat_uuid() test.")
-    param_set = value_pool_fuzzer.fuzz(["DICT", "STRING"], 2)
+    param_set = value_pool_fuzzer.fuzz(["GRAMMAR_LOXCONFIG_ROOMS_CATS_JSON_COV", "STRING"], 2)
     result = param_runner.run(get_cat_name_from_cat_uuid, param_set)
     logger.info("get_cat_name_from_cat_uuid() test finished.")
 
@@ -127,7 +127,7 @@ def test_get_cat_name_from_cat_uuid() -> None:
 @pytest.mark.timeout(300)
 def test_add_room_and_cat_to_value_values() -> None:
     logger.info("Start of add_room_and_cat_to_value_values() test.")
-    param_set = value_pool_fuzzer.fuzz(["DICT", "DICT"], 2)
+    param_set = value_pool_fuzzer.fuzz(["GRAMMAR_LOXCONFIG_ROOMS_CATS_JSON_COV", "DICT"], 2)
     result = param_runner.run(add_room_and_cat_to_value_values, param_set)
     logger.info("add_room_and_cat_to_value_values() test finished.")
 
