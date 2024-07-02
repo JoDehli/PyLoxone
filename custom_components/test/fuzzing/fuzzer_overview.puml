@@ -19,10 +19,6 @@ class "ValuePoolFuzzer" as VPFuzzer << class >> {
     - __value_pool : ValuePool
     - __grammar_fuzzer : GrammarFuzzer
     --
-    - __value_pool: ValuePool
-    - __grammar_fuzzer: GrammarFuzzer
-    - _logger
-    --
     - __init__(self) : void
     - __get_fuzzing_pool(self, value_pools: list[list], param_combi: int) : list[list]
     + fuzz(self, types : list, param_combi : int) : list[list]
@@ -123,6 +119,7 @@ class "ParamRunner" as PRunner << class >> {
 '''''''''''''''''''''''''''''''''''''''
 entity  "test_vp_on_helpers.py" as test_VP_H << test cases >>{
     logger
+    value_pool_fuzzer : ValuePoolFuzzer
     value_pool_fuzzer : ValuePoolFuzzer
     param_runner : ParamRunner
     --
