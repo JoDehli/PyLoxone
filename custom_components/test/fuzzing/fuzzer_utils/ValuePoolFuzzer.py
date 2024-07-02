@@ -5,7 +5,8 @@ import json
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import GrammarFuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
-from custom_components.test.fuzzing.fuzzer_utils.grammar_pool import grammar_controls_json, grammar_ipv4
+from custom_components.test.fuzzing.fuzzer_utils.grammar_pool import grammar_controls_json, grammar_ipv4, \
+    grammar_loxconfig_rooms_cats_json
 
 
 class ValuePoolFuzzer(Fuzzer):
@@ -23,7 +24,7 @@ class ValuePoolFuzzer(Fuzzer):
         self.__grammar_fuzzer = GrammarFuzzer()
 
     def __get_fuzzing_pool(
-        self, value_pools: list[list], param_combi: int
+            self, value_pools: list[list], param_combi: int
     ) -> list[list]:
         """
         Generates combinations of the values in the provided lists.
@@ -139,8 +140,16 @@ class ValuePoolFuzzer(Fuzzer):
             "GRAMMAR_CONTROLS_JSON_MAX": [
                 json.loads(self.__grammar_fuzzer.fuzz_max_cost(grammar_controls_json, "<JSON>", 6)), ],
             "GRAMMAR_CONTROLS_JSON_COV": list(map(lambda x: json.loads(x),
-                                             self.__grammar_fuzzer.fuzz_grammar_coverage(grammar_controls_json,
-                                                                                         "<JSON>"))),
+                                                  self.__grammar_fuzzer.fuzz_grammar_coverage(grammar_controls_json,
+                                                                                              "<JSON>"))),
+            "GRAMMAR_LOXCONFIG_ROOMS_CATS_JSON_MIN": [
+                json.loads(self.__grammar_fuzzer.fuzz_min_cost(grammar_loxconfig_rooms_cats_json, "<JSON>"))],
+            "GRAMMAR_LOXCONFIG_ROOMS_CATS_JSON_MAX": [
+                json.loads(self.__grammar_fuzzer.fuzz_max_cost(grammar_loxconfig_rooms_cats_json, "<JSON>", 6))],
+            "GRAMMAR_LOXCONFIG_ROOMS_CATS_JSON_COV": list(map(lambda x: json.loads(x),
+                                                         self.__grammar_fuzzer.fuzz_grammar_coverage(
+                                                             grammar_loxconfig_rooms_cats_json,
+                                                             "<JSON>"))),
         }
 
         data: list = []
