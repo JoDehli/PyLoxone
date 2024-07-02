@@ -1,6 +1,5 @@
 from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import Grammar
 
-
 grammar_ipv4: Grammar = {
     "<IPv4>": ["<Num>.<Num>.<Num>.<Num>"],
     "<Num>": ["<3Digits>", "<2Digits>", "<Digit>"],
@@ -18,6 +17,15 @@ grammar_controls_json: Grammar = {
     "<ControlsPair>": ["\"<String>\": { <ControlsElement> }", "<ControlsPair>, \"<String>\": { <ControlsElement> }"],
     "<ControlsElement>": ["\"type\": \"<String>\""],
     "<String>": ["<Char>"],
+    "<Char>": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u",
+               "v", "w", "x", "y", "z"],
+}
+
+grammar_loxconfig_rooms_cats_json: Grammar = {
+    "<JSON>": ["{ \"rooms\": { <Members> }, \"cats\": { <Members> } }"],
+    "<Members>": ["<Pair>", "<Members>, <Pair>"],
+    "<Pair>": ["\"<Char>\": { <Element> }", "<Pair>, \"<Char>\": { <Element> }"],
+    "<Element>": ["\"name\": \"<Char>\""],
     "<Char>": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u",
                "v", "w", "x", "y", "z"],
 }
