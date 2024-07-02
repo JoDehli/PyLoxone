@@ -227,6 +227,21 @@ entity  "test_grey_box_on_helpers_complex.py" as test_GBox_complex << test case 
     --
 }
 '''''''''''''''''''''''''''''''''''''''
+entity  "test_grey_box_on_helpers.py" as test_GBox << test case >>{
+    logger
+    grey_box_fuzzer = GreyBoxFuzzer
+    grey_box_runner = GreyBoxRunner
+    --
+
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_grey_box_on_helpers_complex.py" as test_GBox_complex << test case >>{
+    logger
+    grey_box_fuzzer = GreyBoxFuzzer
+    grey_box_runner = GreyBoxRunner
+    --
+}
+'''''''''''''''''''''''''''''''''''''''
 'Fuzzer''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 fuzzer <|-- VPFuzzer : inherits from <

@@ -53,12 +53,16 @@ class GreyBoxRunner(Runner):
         }
 
         for generation in range(0, amount_runs):
+<<<<<<< HEAD
             # get seed for the test
             seed = self.__seed_manager.select_seed(seed_population)
 
             # Mutate seed values
             self.__mutator.mutate_grey_box_fuzzer(seed)
 
+=======
+            seed = self.__seed_manager.select_seed(seed_population)
+>>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
             cov = coverage.Coverage(branch=True)
             cov.start()
             try:
@@ -88,7 +92,10 @@ class GreyBoxRunner(Runner):
             if hashed_branch not in self.branch_dict:
                 self.__logger.debug(f"Newly covered branches: {branch_covered}")
                 print(f"Test {generation}, seed_value: {seed.seed_values}, Newly covered branches: {branch_covered}")
+<<<<<<< HEAD
                 seed_population.append(seed)
+=======
+>>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
                 branch_counter += 1
             else:
                 print(f"Test {generation}, seed_value: {seed.seed_values}, No newly covered branches")
@@ -102,15 +109,23 @@ class GreyBoxRunner(Runner):
             self.__seed_manager.adjust_energy(seed, self.branch_dict, hashed_branch)
             print(f"Energy after: {seed.energy}\n")
 
+<<<<<<< HEAD
             
+=======
+            # Mutate seed values
+            self.__mutator.mutate_grey_box_fuzzer(seed)
+>>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
 
         print("\n#####  Hashed branches  #####\n")    
         print(f"Branch_dict: {self.branch_dict}")
         print("\n#####  Covert branches  #####\n")
         print(f"In total there were {branch_counter} branches discovered ")
+<<<<<<< HEAD
         print("Population")
         for s in seed_population:
             print(f"{s.seed_values}")
+=======
+>>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
   
         return test_results
     
