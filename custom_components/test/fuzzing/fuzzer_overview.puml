@@ -183,6 +183,7 @@ CGType "1"<--* GrFuzzer : needs a <
 '''''''''''''''''''''''''''''''''''''''
 GFuzzer "1"<--* test_GEN : needs a <
 '''''''''''''''''''''''''''''''''''''''
+VPFuzzer "1"<-- test_MUT : imports <
 MFuzzer "1"<-- test_MUT : imports <
 GrFuzzer "1"<-- test_MUT : imports <
 PRunner "1"<-- test_MUT : imports <
