@@ -19,8 +19,12 @@ class "ValuePoolFuzzer" as VPFuzzer << class >> {
     - __value_pool : ValuePool
     - __grammar_fuzzer : GrammarFuzzer
     --
+    - __value_pool: ValuePool
+    - __grammar_fuzzer: GrammarFuzzer
+    - _logger
+    --
     - __init__(self) : void
-    - __get_fuzzing_pool(self, value_pools: list[list], param_combinations: int) : list[list]
+    - __get_fuzzing_pool(self, value_pools: list[list], param_combi: int) : list[list]
     + fuzz(self, types : list, param_combi : int) : list[list]
 }
 class "ValuePool" as VPool << class >> {
