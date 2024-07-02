@@ -46,14 +46,14 @@ seed_specification = ['r']
 #seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
 
 seed_1 = Seed(1, ["bear"])
-seed_2 = Seed(1, ["rats"])
-seed_3 = Seed(1, ["code"])
-seed_4 = Seed(1, ["hii!"])
-seed_5 = Seed(1, ["beer"])
-seed_6 = Seed(1, ["lol!"])
-seed_7 = Seed(1, ["bad!"])
+#seed_2 = Seed(1, ["rats"])
+#seed_3 = Seed(1, ["code"])
+#seed_4 = Seed(1, ["hii!"])
+#seed_5 = Seed(1, ["beer"])
+#seed_6 = Seed(1, ["lol!"])
+#seed_7 = Seed(1, ["bad!"])
 
-seed_population = [seed_1, seed_2, seed_3, seed_4, seed_5, seed_6, seed_7]
+seed_population = [seed_1]#, seed_2, seed_3, seed_4, seed_5, seed_6, seed_7]
 
 # Print seeds in population
 print("#####  Population  #####")

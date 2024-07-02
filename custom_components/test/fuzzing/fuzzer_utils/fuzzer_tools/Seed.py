@@ -3,6 +3,7 @@ from custom_components.test.fuzzing.fuzzer_utils.ValuePoolFuzzer import ValuePoo
 from custom_components.test.fuzzing.fuzzer_utils.ParamRunner import ParamRunner
 from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.DataTypeCreator import DataTypeCreator
 import random
+import copy
 
 class Seed:
 
@@ -40,7 +41,7 @@ class SeedManager:
         #print(f"random_value: {random_value}")
         for index, normalized_energy_val in enumerate(normalized_energy):
             if random_value <= normalized_energy_val:
-                seed = seed_population[index]
+                seed = copy.deepcopy(seed_population[index])
                 break
 
         return seed
