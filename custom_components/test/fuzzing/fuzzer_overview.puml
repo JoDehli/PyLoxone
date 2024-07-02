@@ -78,6 +78,7 @@ class "GrammarFuzzer" as GrFuzzer << class >> {
 entity "grammar_pool" as gr_pool << grammars >> {
     grammar_ipv4 : Grammar
     grammar_controls_json : Grammar
+    grammar_loxconfig_rooms_cats_json : Grammar
 }
 '''''''''''''''''''''''''''''''''''''''
 class "MutationalFuzzer" as MFuzzer << class >> {
