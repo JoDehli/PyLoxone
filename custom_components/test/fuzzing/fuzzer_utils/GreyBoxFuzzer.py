@@ -7,7 +7,6 @@ import random
 class GreyBoxFuzzer(Fuzzer):
     """GreyBox fuzzer class, inherits from the abstract fuzzer class."""
 
-    __RANGE_RANDOM_INT = 9
     __RANGE_RANDOM_STRING = 100
     __data_type_creator = DataTypeCreator()
 
@@ -26,6 +25,7 @@ class GreyBoxFuzzer(Fuzzer):
 
         :param seed_template: The seed_template is a list of input types for the function.
                               The entries must correspond to the valid function parameters of the function to be tested.
+                              Valid inputs are "INT", "FLOAT", "STRING" and "BOOLEAN".
                               e.g.: ["INT", "FLOAT", "STRING", "BOOLEAN"]
         :type seed_template: list
 

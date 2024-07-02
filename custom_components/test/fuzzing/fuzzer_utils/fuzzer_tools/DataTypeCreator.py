@@ -4,7 +4,6 @@ import string
 class DataTypeCreator:
 
     __MAX_INT = (1 << 31) - 1
-    __MAX_UINT = (1 << 32) - 1
 
     def __init__(self):
         """initialize DataTypeCreator"""

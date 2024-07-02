@@ -119,6 +119,7 @@ class "GreyBoxRunner" as GBRunner << class >> {
     + run(self, function: Callable, seed_population: List[Seed], amount_runs: int = 10000) : list
     - __hash_md5(self, branch_covered: str) : str
     - __store_hashed_branch(self, hashed_branch: str) : void
+    - __mutate(self, seed: Seed) : void
 }
 '''''''''''''''''''''''''''''''''''''''
 class "SeedManager" as SeedManager << class >> {
@@ -128,22 +129,6 @@ class "SeedManager" as SeedManager << class >> {
     + select_seed(self, seed_population: List[Seed]) : Seed
     + adjust_energy(self, seed: Seed, branch_dict: dict, hashed_branch: str) : void
     + get_normalized_energy(self, seed_population: List[Seed]) : list
-}
-'''''''''''''''''''''''''''''''''''''''
-class "Mutator" as Mutator << class >> {
-    --
-    - __init__(self) : void
-    + mutate_grey_box_fuzzer(self, seed: Seed) : void
-    - __delete_random_char(self, s: str) : str
-    - __insert_random_char(self, s: str) : str
-    - __flip_random_char(self, s: str) : str
-    - __get_random_float(self) : float
-    - __check_inf(self, number: float) : float
-    - __add_random_number(self, number: float) : float
-    - __sub_random_number(self, number: float) : float
-    - __mult_random_number(self, number: float) : float
-    - __div_random_number(self, number: float) : float
-    - __grey_mutate_string(self, seed_value: str) : str
 }
 '''''''''''''''''''''''''''''''''''''''
 class "Seed" as Seed << class >> {
@@ -159,7 +144,8 @@ class "DataTypeCreator" as DataTypeCreator << class >> {
     --
     - __init__(self) : void
     - create_int(self, amount_digits: int = 10, random_creation: bool = True) : int
-    - create_uint(self, amount_digits: int = 10, random_creation: bool = True) : int
+    - create_float(self, amount_digits: int = 10, random_creation: bool = True) : float
+    - create_string_only_letters(self, amount_chars: int) : int
     - create_string_special_characters(self, amount_chars: int) : str
 }
 '''''''''''''''''''''''''''''''''''''''
@@ -239,13 +225,6 @@ entity  "test_grey_box_on_helpers.py" as test_GBox << test case >>{
 
 }
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_grey_box_on_helpers_complex.py" as test_GBox_complex << test case >>{
-    logger
-    grey_box_fuzzer = GreyBoxFuzzer
-    grey_box_runner = GreyBoxRunner
-    --
-}
-'''''''''''''''''''''''''''''''''''''''
 'Fuzzer''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 fuzzer <|-- VPFuzzer : inherits from <
@@ -260,13 +239,11 @@ GBFuzzer --> Seed: uses >
 'Runner''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 runner <|-- PRunner : inherits from <
-GBRunner o-- Mutator : aggregates >
 GBRunner o-- SeedManager : aggregates >
 GBRunner --> Seed: uses >
 '''''''''''''''''''''''''''''''''''''''
 'Other classes'''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
-Mutator --> Seed: uses >
 SeedManager --> Seed: uses >
 DataTypeCreator --> Seed: uses >
 '''''''''''''''''''''''''''''''''''''''
@@ -285,7 +262,5 @@ GrFuzzer "1"<--* test_MUT : needs a <
 ipv4 "1"<--* test_MUT : needs a <
 '''''''''''''''''''''''''''''''''''''''
 GBFuzzer "1"<--* test_GBox : needs a <
-GBFuzzer "1"<--* test_GBox_complex : needs a <
 GBRunner "1"<--* test_GBox : needs a <
-GBRunner "1"<--* test_GBox_complex : needs a <
 @enduml

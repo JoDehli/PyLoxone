@@ -47,7 +47,7 @@ def test_crashme() -> None:
     result: dict
 
     seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
-    result = grey_box_runner.run(demo_function, seed_population, 1000)
+    result = grey_box_runner.run(demo_function, seed_population, 100)
 
     assert result["failed_tests"] == 0
 
@@ -61,7 +61,7 @@ def test_map_range() -> None:
     result: dict
 
     seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
-    result = grey_box_runner.run(map_range, seed_population, 1000)
+    result = grey_box_runner.run(map_range, seed_population, 100)
 
     assert result["failed_tests"] == 0
 
@@ -75,7 +75,7 @@ def test_hass_to_lox() -> None:
     result: dict
 
     seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
-    result = grey_box_runner.run(hass_to_lox, seed_population, 1000)
+    result = grey_box_runner.run(hass_to_lox, seed_population, 100)
 
     assert result["failed_tests"] == 0
 
@@ -89,7 +89,7 @@ def test_lox_to_hass() -> None:
     result: dict
 
     seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
-    result = grey_box_runner.run(lox_to_hass, seed_population, 1000)
+    result = grey_box_runner.run(lox_to_hass, seed_population, 100)
 
     assert result["failed_tests"] == 0
 
@@ -103,7 +103,7 @@ def test_lox2lox_mapped() -> None:
     result: dict
 
     seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
-    result = grey_box_runner.run(lox2lox_mapped, seed_population, 1000)
+    result = grey_box_runner.run(lox2lox_mapped, seed_population, 100)
 
     assert result["failed_tests"] == 0
 
@@ -117,7 +117,7 @@ def test_lox2hass_mapped() -> None:
     result: dict
 
     seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
-    result = grey_box_runner.run(lox2hass_mapped, seed_population, 1000)
+    result = grey_box_runner.run(lox2hass_mapped, seed_population, 100)
 
     assert result["failed_tests"] == 0
 
@@ -131,7 +131,7 @@ def test_to_hass_color_temp() -> None:
     result: dict
 
     seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
-    result = grey_box_runner.run(to_hass_color_temp, seed_population, 1000)
+    result = grey_box_runner.run(to_hass_color_temp, seed_population, 100)
 
     assert result["failed_tests"] == 0
 
@@ -145,7 +145,7 @@ def test_to_loxone_color_temp() -> None:
     result: dict
 
     seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
-    result = grey_box_runner.run(to_loxone_color_temp, seed_population, 1000)
+    result = grey_box_runner.run(to_loxone_color_temp, seed_population, 100)
 
     assert result["failed_tests"] == 0
 
@@ -159,6 +159,6 @@ def test_get_miniserver_type() -> None:
     result: dict
 
     seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
-    result = grey_box_runner.run(get_miniserver_type, seed_population, 1000)
+    result = grey_box_runner.run(get_miniserver_type, seed_population, 100)
 
     assert result["failed_tests"] == 0

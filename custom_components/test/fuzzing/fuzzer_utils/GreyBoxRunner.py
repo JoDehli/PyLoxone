@@ -2,26 +2,26 @@ import logging
 import inspect
 import coverage
 import hashlib
+import random
 from typing import Callable, List
 
 from custom_components.test.fuzzing.fuzzer_utils.Runner import Runner
 from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.Seed import Seed, SeedManager
-from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.Mutator import Mutator
-
+from custom_components.test.fuzzing.fuzzer_utils.MutationalFuzzer import MutationalBlackBoxFuzzer
 
 class GreyBoxRunner(Runner):
     """Greybox runner class, inherits from the abstract runner class."""
 
     __logger = None
     __seed_manager = None
-    __mutator = None
+    __mutationalFuzzer = None
     path_dict = {}
 
     def __init__(self):
         """constructor"""
         self.__logger = logging.getLogger(__name__)
         self.__seed_manager = SeedManager()
-        self.__mutator = Mutator()
+        self.__mutationalFuzzer = MutationalBlackBoxFuzzer()
 
     def run(self, function: Callable, seed_population: List[Seed], amount_runs: int = 10000) -> list:
         """Executes all transferred parameter sets for the transferred function.
@@ -57,7 +57,7 @@ class GreyBoxRunner(Runner):
             seed = self.__seed_manager.select_seed(seed_population)
 
             # Mutate seed values
-            self.__mutator.mutate_grey_box_fuzzer(seed)
+            self.__mutate(seed)
 
             cov = coverage.Coverage(branch=True)
             cov.start()
@@ -112,6 +112,19 @@ class GreyBoxRunner(Runner):
             self.path_dict[hashed_path] = 1
         
         return path_dict
+
+    def __mutate(self, seed: Seed):
+        """Mutates one of the seed values.
+
+        This function takes a seed and mutates one of the seed values of it.
+
+        :param seed: A seed consists of a list of seed_values.
+        :type seed: Seed
+        """
+        amount_values = len(seed.seed_values)
+        random_index = random.choice(range(0,amount_values))
+        seed_value = seed.seed_values[random_index]
+        seed.seed_values[random_index] = self.__mutationalFuzzer.fuzz([seed_value],2)[1][0]
 
 
 
