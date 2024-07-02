@@ -73,7 +73,7 @@ class ParamRunner(Runner):
             self.__logger.info(
                 "Summary: All "
                 + str(test_results["passed_tests"])
-                + " param_sets passed for the function"
+                + " param_sets passed for the function "
                 + str(function.__name__)
             )
 
