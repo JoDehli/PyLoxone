@@ -1,6 +1,7 @@
 from custom_components.test.fuzzing.fuzzer_utils.GreyBoxFuzzer import GreyBoxFuzzer
 from custom_components.test.fuzzing.fuzzer_utils.GreyBoxRunner import GreyBoxRunner
-from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.Seed import Seed
+import pytest
+import logging
 
 from custom_components.loxone.helpers import (
     map_range,
@@ -10,15 +11,19 @@ from custom_components.loxone.helpers import (
     lox2hass_mapped,
     to_hass_color_temp,
     to_loxone_color_temp,
-    get_room_name_from_room_uuid,
-    get_cat_name_from_cat_uuid,
-    add_room_and_cat_to_value_values,
     get_miniserver_type,
-    get_all,
 )
 
+logger = logging.getLogger(__name__)
+grey_box_fuzzer: GreyBoxFuzzer = GreyBoxFuzzer()
+grey_box_runner: GreyBoxRunner = GreyBoxRunner()
+
+
+
+
+
 # Function to test the grey box fuzzer
-def crashme(s: str) -> None:
+def demo_function(s: str) -> None:
     cnt = 0
     if len(s) > 0 and s[0] == 'b':
         cnt += 1
@@ -32,49 +37,14 @@ def crashme(s: str) -> None:
         raise Exception()
 
 
-grey_box_fuzzer = GreyBoxFuzzer()
-grey_box_runner = GreyBoxRunner()
-
-# seed specification
-
-amount_seeds = 10
-seed_template = ["STRING"]
-seed_specification = ['r']
+@pytest.mark.skipif(False, reason="Not skiped!")
+def test_crashme() -> None:
+    logger.info("Start of test_crashme() test.")
+    seed_template = ["STRING"]
+    seed_specification = [4]
 
 
-# create a population with fuzzer
-#seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 20)
+    seed_population = grey_box_fuzzer.fuzz(seed_template, seed_specification, 1)
+    result = grey_box_runner.run(demo_function, seed_population, 10)
 
-seed_1 = Seed(1, ["bear"])
-<<<<<<< HEAD
-#seed_2 = Seed(1, ["rats"])
-#seed_3 = Seed(1, ["code"])
-#seed_4 = Seed(1, ["hii!"])
-#seed_5 = Seed(1, ["beer"])
-#seed_6 = Seed(1, ["lol!"])
-#seed_7 = Seed(1, ["bad!"])
-
-seed_population = [seed_1]#, seed_2, seed_3, seed_4, seed_5, seed_6, seed_7]
-=======
-seed_2 = Seed(1, ["rats"])
-seed_3 = Seed(1, ["code"])
-seed_4 = Seed(1, ["hii!"])
-seed_5 = Seed(1, ["beer"])
-seed_6 = Seed(1, ["lol!"])
-seed_7 = Seed(1, ["bad!"])
-
-seed_population = [seed_1, seed_2, seed_3, seed_4, seed_5, seed_6, seed_7]
->>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
-
-# Print seeds in population
-print("#####  Population  #####")
-for i in seed_population:
-    print(i.seed_values)
-
-print("\n#####  Execute Tests  #####\n")
-
-test_results = grey_box_runner.run(crashme, seed_population, 10)
-
-print("\n#####  Test restults  #####\n")
-print(f"Tests passed: {test_results['passed_tests']}")
-print(f"Tests failed: {test_results['failed_tests']}")
+    assert result["failed_tests"] == 0

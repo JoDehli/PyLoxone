@@ -2,6 +2,7 @@ import logging
 import inspect
 import coverage
 import hashlib
+import random
 from typing import Callable, List
 
 from custom_components.test.fuzzing.fuzzer_utils.Runner import Runner
@@ -15,7 +16,7 @@ class GreyBoxRunner(Runner):
     __logger = None
     __seed_manager = None
     __mutator = None
-    branch_dict = {}
+    path_dict = {}
 
     def __init__(self):
         """constructor"""
@@ -40,8 +41,8 @@ class GreyBoxRunner(Runner):
                  the key 'failed_tests' contains the number of failed tests.
         :rtype: dict
         """
-        branch_dict = {}
-        branch_counter = 0
+        path_dict = {}
+        path_counter = 0
 
         sig = inspect.signature(function)
         num_params = len(sig.parameters)
@@ -53,16 +54,12 @@ class GreyBoxRunner(Runner):
         }
 
         for generation in range(0, amount_runs):
-<<<<<<< HEAD
             # get seed for the test
             seed = self.__seed_manager.select_seed(seed_population)
 
             # Mutate seed values
             self.__mutator.mutate_grey_box_fuzzer(seed)
 
-=======
-            seed = self.__seed_manager.select_seed(seed_population)
->>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
             cov = coverage.Coverage(branch=True)
             cov.start()
             try:
@@ -78,66 +75,61 @@ class GreyBoxRunner(Runner):
                 self.__logger.error(f"Test {generation} failed with parameters: {seed.seed_values}.")
                 self.__logger.error(f"Exception: {e}")
 
-            # check branch coverage
+            # check path coverage
             data = cov.get_data()
             filename = next(iter(data.measured_files()))
-            branch_covered = data.arcs(filename)
+            path_covered = data.arcs(filename)
 
-            # Create hash of branch
-            print(f"Branch: {branch_covered}")
-            hashed_branch = self.__hash_md5(str(branch_covered))
-            print(f"Hashed branch: {hashed_branch}")
+            # Create hash of path
+            ###################print(f"path: {path_covered}")
+            hashed_path = self.__hash_md5(str(path_covered))
+            ###################print(f"Hashed path: {hashed_path}")
             
-            # Check if a new branch was covered
-            if hashed_branch not in self.branch_dict:
-                self.__logger.debug(f"Newly covered branches: {branch_covered}")
-                print(f"Test {generation}, seed_value: {seed.seed_values}, Newly covered branches: {branch_covered}")
-<<<<<<< HEAD
+            # Check if a new path was covered
+            if hashed_path not in self.path_dict:
+                self.__logger.debug(f"Newly covered pathes: {path_covered}")
+                #print(f"Test {generation}, seed_value: {seed.seed_values}, Newly covered pathes: {path_covered}")
                 seed_population.append(seed)
-=======
->>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
-                branch_counter += 1
-            else:
-                print(f"Test {generation}, seed_value: {seed.seed_values}, No newly covered branches")
+                path_counter += 1
 
-            # store hash in branch_dict
-            branch_dict = self.__store_hashed_branch(hashed_branch, branch_dict)
+
+            # store hash in path_dict
+            path_dict = self.__store_hashed_path(hashed_path, path_dict)
             
-
             # Adjust energy of seed
-            print(f"Energy before: {seed.energy}")
-            self.__seed_manager.adjust_energy(seed, self.branch_dict, hashed_branch)
-            print(f"Energy after: {seed.energy}\n")
+            ###################print(f"Energy before: {seed.energy}")
+            self.__seed_manager.adjust_energy(seed, self.path_dict, hashed_path)
+            ###################print(f"Energy after: {seed.energy}\n")
 
-<<<<<<< HEAD
             
-=======
-            # Mutate seed values
-            self.__mutator.mutate_grey_box_fuzzer(seed)
->>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
 
-        print("\n#####  Hashed branches  #####\n")    
-        print(f"Branch_dict: {self.branch_dict}")
-        print("\n#####  Covert branches  #####\n")
-        print(f"In total there were {branch_counter} branches discovered ")
-<<<<<<< HEAD
+        #print("\n#####  Hashed pathes  #####\n")    
+        #print(f"path_dict: {self.path_dict}")
+        ###################print("\n#####  Covert pathes  #####\n")
+        self.__logger.debug("\n#####  Covert pathes  #####\n")
+        ###################print(f"In total there were {path_counter} pathes discovered")
+        self.__logger.debug(f"In total there were {path_counter} pathes discovered")
+
         print("Population")
         for s in seed_population:
             print(f"{s.seed_values}")
-=======
->>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
   
         return test_results
     
-    def __hash_md5(self, branch_covered: str) -> str:
+    def __hash_md5(self, path_covered: str) -> str:
         md5_hash = hashlib.md5()
-        md5_hash.update(branch_covered.encode('utf-8'))
+        md5_hash.update(path_covered.encode('utf-8'))
         return md5_hash.hexdigest()
     
-    def __store_hashed_branch(self, hashed_branch: str, branch_dict: dict) -> dict:
-        if hashed_branch in self.branch_dict:
-            self.branch_dict[hashed_branch] += 1
+    def __store_hashed_path(self, hashed_path: str, path_dict: dict) -> dict:
+        if hashed_path in self.path_dict:
+            self.path_dict[hashed_path] += 1
         else:
-            self.branch_dict[hashed_branch] = 1
+            self.path_dict[hashed_path] = 1
         
-        return branch_dict
+        return path_dict
+
+
+
+
+

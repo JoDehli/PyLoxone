@@ -20,7 +20,7 @@ class MutationalBlackBoxFuzzer(Fuzzer):
             self.__multiplier.append(i)
             i *= 10
 
-    def __delete_random_char(self, string: str) -> str:
+    def delete_random_char(self, string: str) -> str:
         """Returns string with a random character deleted.
 
         This function takes a string `string` as input and returns a new string
@@ -44,7 +44,7 @@ class MutationalBlackBoxFuzzer(Fuzzer):
         # the substring after the random position.
         return string[:pos] + string[pos + 1 :]
 
-    def __insert_random_char(self, string: str) -> str:
+    def insert_random_char(self, string: str) -> str:
         """Returns string with a random character inserted.
 
         This function takes a string `string` as input and returns a new string
@@ -67,7 +67,7 @@ class MutationalBlackBoxFuzzer(Fuzzer):
         # and the substring after the random position.
         return string[:pos] + random_character + string[pos:]
 
-    def __flip_random_char(self, string: str) -> str:
+    def flip_random_char(self, string: str) -> str:
         """Returns string with a random bit flipped in a random position.
 
         This function takes a string `string` as input and returns a new string

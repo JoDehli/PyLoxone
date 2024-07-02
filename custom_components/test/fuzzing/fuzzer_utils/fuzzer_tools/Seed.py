@@ -1,12 +1,6 @@
 from typing import List
-from custom_components.test.fuzzing.fuzzer_utils.ValuePoolFuzzer import ValuePoolFuzzer
-from custom_components.test.fuzzing.fuzzer_utils.ParamRunner import ParamRunner
-from custom_components.test.fuzzing.fuzzer_utils.fuzzer_tools.DataTypeCreator import DataTypeCreator
 import random
-<<<<<<< HEAD
 import copy
-=======
->>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
 
 class Seed:
 
@@ -37,18 +31,11 @@ class SeedManager:
         :return: Returns a single seed.
         :rtype: Seed
         """
-        #print(f"seed population: {seed_population}")
         normalized_energy = self.get_normalized_energy(seed_population)
-        #print(f"normalized energy: {normalized_energy}")
         random_value = random.uniform(0,1)
-        #print(f"random_value: {random_value}")
         for index, normalized_energy_val in enumerate(normalized_energy):
             if random_value <= normalized_energy_val:
-<<<<<<< HEAD
                 seed = copy.deepcopy(seed_population[index])
-=======
-                seed = seed_population[index]
->>>>>>> 29c02c73038c358c0cb8646ae0595b8561485f83
                 break
 
         return seed
