@@ -23,7 +23,6 @@ from custom_components.test.fuzzing.fuzzer_utils.MutationalFuzzer import (
 from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import GrammarFuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePoolFuzzer import ValuePoolFuzzer
 from custom_components.test.fuzzing.fuzzer_utils.grammar_pool import (
-    grammar_ipv4,
     grammar_controls_json,
     grammar_loxconfig_rooms_cats_json,
 )
