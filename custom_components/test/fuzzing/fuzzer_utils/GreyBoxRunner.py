@@ -2,7 +2,6 @@ import logging
 import inspect
 import coverage
 import hashlib
-import random
 from typing import Callable, List
 
 from custom_components.test.fuzzing.fuzzer_utils.Runner import Runner
@@ -81,14 +80,11 @@ class GreyBoxRunner(Runner):
             path_covered = data.arcs(filename)
 
             # Create hash of path
-            ###################print(f"path: {path_covered}")
             hashed_path = self.__hash_md5(str(path_covered))
-            ###################print(f"Hashed path: {hashed_path}")
             
             # Check if a new path was covered
             if hashed_path not in self.path_dict:
                 self.__logger.debug(f"Newly covered pathes: {path_covered}")
-                #print(f"Test {generation}, seed_value: {seed.seed_values}, Newly covered pathes: {path_covered}")
                 seed_population.append(seed)
                 path_counter += 1
 
@@ -97,22 +93,10 @@ class GreyBoxRunner(Runner):
             path_dict = self.__store_hashed_path(hashed_path, path_dict)
             
             # Adjust energy of seed
-            ###################print(f"Energy before: {seed.energy}")
             self.__seed_manager.adjust_energy(seed, self.path_dict, hashed_path)
-            ###################print(f"Energy after: {seed.energy}\n")
 
-            
-
-        #print("\n#####  Hashed pathes  #####\n")    
-        #print(f"path_dict: {self.path_dict}")
-        ###################print("\n#####  Covert pathes  #####\n")
         self.__logger.debug("\n#####  Covert pathes  #####\n")
-        ###################print(f"In total there were {path_counter} pathes discovered")
         self.__logger.debug(f"In total there were {path_counter} pathes discovered")
-
-        print("Population")
-        for s in seed_population:
-            print(f"{s.seed_values}")
   
         return test_results
     

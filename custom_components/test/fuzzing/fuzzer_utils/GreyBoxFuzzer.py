@@ -41,8 +41,6 @@ class GreyBoxFuzzer(Fuzzer):
         :return: Returns a list indicating how many tests were successful and how many failed.
         :rtype: list
         """
-        
-        print("Fuzzing...")
 
         # Throw exception if seed_specification and seed_template aren't the same length
         if len(seed_template) != len(seed_specification):
@@ -58,12 +56,13 @@ class GreyBoxFuzzer(Fuzzer):
                         param_set.append(self.__data_type_creator.create_int(seed_spec,True))
                     else:    
                         param_set.append(self.__data_type_creator.create_int(seed_spec,False))
-                elif data_type == "UINT":
-                    if seed_spec == 'r':
-                        seed_spec = random.randint(1, self.__RANGE_RANDOM_INT)
-                    param_set.append(self.__data_type_creator.create_uint(seed_spec))
+
                 elif data_type == "FLOAT":
-                    print("create_float")
+                    if seed_spec == 'r':
+                        param_set.append(self.__data_type_creator.create_float(seed_spec,True))
+                    else:
+                        param_set.append(self.__data_type_creator.create_float(seed_spec,False))
+
                 elif data_type == "STRING":
                     if seed_spec == 'r':
                         seed_spec = random.randint(1, self.__RANGE_RANDOM_STRING)
@@ -72,8 +71,10 @@ class GreyBoxFuzzer(Fuzzer):
                         param_set.append(self.__data_type_creator.create_string_only_letters(seed_spec))
                     elif rand_val == 1: 
                         param_set.append(self.__data_type_creator.create_string_special_characters(seed_spec))
+
                 elif data_type == "BOOL":
                     param_set.append(random.choice([True, False]))
+                    
                 elif data_type == "BYTE":
                     print("create_byte")
                 elif data_type == "LIST":
