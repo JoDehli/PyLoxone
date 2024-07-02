@@ -53,9 +53,20 @@ class "ValuePool" as VPool << class >> {
 }
 '''''''''''''''''''''''''''''''''''''''
 class "GeneratorFuzzer" as GFuzzer << class >> {
+    - _value_pool_fuzzer : ValuePoolFuzzer
+    - _param_types : defaultdict
+    - _param_types_file : str
+    - _mode : int
     --
-    - __init__(self) : void
-    + fuzz(self, ???) : list
+    - __init__(self, value_pool_fuzzer: ValuePoolFuzzer, mode: int = 1) : None
+    - _load_param_types(self) : None
+    - _save_param_types(self) : None
+    - _assign_param_types(self, class_name: str, method: Callable) : Dict[int, str]
+    - _get_param_types(self, class_name: str, method: Callable) : Dict[int, str]
+    - _generate_method_sequence(self, cls: Type, start_methods: List[str], max_sequence_length: int) : List[str]
+    - _to_hashable_with_marker(self, data: Any) : Union[Tuple[str, frozenset], Any]
+    - _to_original_from_marker(self, data_with_marker: Union[Tuple[str, frozenset], Any]) : Any
+    + fuzz(self, cls: Type, start_methods: List[str], max_sequence_length: int, num_sequences: int, max_param_combi: int = 2) : List[List[Tuple[str, Tuple[Any]]]]
 }
 '''''''''''''''''''''''''''''''''''''''
 class "CostGrammarType" as CGType << class >> {
@@ -114,6 +125,13 @@ class "ParamRunner" as PRunner << class >> {
     + limit_param_set(self, param_set : list, runs : int) : list
 }
 '''''''''''''''''''''''''''''''''''''''
+class "GeneratorRunner" as GRunner << class >> {
+    - _logger : logging.logger
+    --
+    - __init__(self) : None
+    + run(self, cls: Type, sequences: List[List[Tuple[str, Tuple[Any]]]]) : List[int]
+}
+'''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 entity  "test_vp_on_helpers.py" as test_VP_H << test cases >>{
@@ -136,7 +154,13 @@ entity  "test_vp_on_helpers.py" as test_VP_H << test cases >>{
 }
 '''''''''''''''''''''''''''''''''''''''
 entity  "test_gen_on_XXX.py" as test_GEN << test cases >>{
-
+    logger
+    value_pool_fuzzer : ValuePoolFuzzer
+    generator_fuzzer : GeneratorFuzzer
+    generator_runner : GeneratorRunner
+    --
+    test_DummyClass() : None
+    test_climate_LoxoneRoomControllerV2() : None
 }
 '''''''''''''''''''''''''''''''''''''''
 entity  "test_mut_on_helpers.py" as test_MUT << test cases >>{
@@ -166,6 +190,7 @@ fuzzer <|-- MFuzzer : inherits from <
 'Runner''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 runner <|-- PRunner : inherits from <
+runner <|-- GRunner : inherits from <
 '''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
@@ -175,6 +200,8 @@ PRunner <--* test_VP_H : needs a <
 CGType <--* GrFuzzer : needs a <
 '''''''''''''''''''''''''''''''''''''''
 GFuzzer <--* test_GEN : needs a <
+GRunner <--* test_GEN : needs a <
+VPFuzzer <--* test_GEN : needs a <
 '''''''''''''''''''''''''''''''''''''''
 MFuzzer "1"<--* test_MUT : needs a <
 PRunner "1"<--* test_MUT : needs a <

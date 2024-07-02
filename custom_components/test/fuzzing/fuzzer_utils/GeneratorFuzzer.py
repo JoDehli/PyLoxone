@@ -3,7 +3,7 @@ import random
 import inspect
 import logging
 from collections import defaultdict
-from typing import Dict, List, Tuple, Type, Callable, Any, Union
+from typing import Dict, List, Set, Tuple, Type, Callable, Any, Union
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils import ValuePoolFuzzer
 
@@ -17,35 +17,46 @@ class GeneratorFuzzer(Fuzzer):
         :param mode: Operating mode (1: use CSV, 2: no CSV but use specified types, 3: use only random types).
         :type mode: int
         """
-        self.value_pool_fuzzer = value_pool_fuzzer
-        self.param_types = defaultdict(lambda: defaultdict(dict))
-        self.param_types_file = "./custom_components/test/fuzzing/generators/param_types.csv"
-        self.mode = mode
-        if self.mode == 1:
+        self._value_pool_fuzzer: ValuePoolFuzzer = value_pool_fuzzer
+        self._param_types: defaultdict = defaultdict(lambda: defaultdict(dict))
+        self._param_types_file: str = "./custom_components/test/fuzzing/generators/param_types.csv"
+        self._mode: int = mode
+        if self._mode == 1:
             self._load_param_types()
 
     def _load_param_types(self) -> None:
         """
-        Load parameter types from a CSV file into the param_types dictionary.
+        Load parameter types from a CSV file into the _param_types dictionary.
         """
         try:
-            with open(self.param_types_file, mode='r') as file:
+            with open(self._param_types_file, mode='r') as file:
                 reader = csv.reader(file)
                 for row in reader:
+                    row: List[str]
+                    class_name: str
+                    method_name: str
+                    param_index: str
+                    param_type: str
                     class_name, method_name, param_index, param_type = row
-                    self.param_types[class_name][method_name][int(param_index)] = param_type
+                    self._param_types[class_name][method_name][int(param_index)] = param_type
         except FileNotFoundError:
             pass
 
     def _save_param_types(self) -> None:
         """
-        Save the param_types dictionary to a CSV file.
+        Save the _param_types dictionary to a CSV file.
         """
-        with open(self.param_types_file, mode='w') as file:
+        with open(self._param_types_file, mode='w') as file:
             writer = csv.writer(file)
-            for class_name, methods in self.param_types.items():
+            for class_name, methods in self._param_types.items():
+                class_name: str
+                methods: defaultdict
                 for method_name, params in methods.items():
+                    method_name: str
+                    params: dict
                     for param_index, param_type in params.items():
+                        param_index: int
+                        param_type: str
                         writer.writerow([class_name, method_name, param_index, param_type])
 
     def _assign_param_types(self, class_name: str, method: Callable) -> Dict[int, str]:
@@ -59,27 +70,64 @@ class GeneratorFuzzer(Fuzzer):
         :return: Dictionary of parameter indices and their assigned types.
         :rtype: Dict[int, str]
         """
-        param_types = {}
+        param_types: Dict[int, str] = {}
+        # recognized types without string as string needs special handling
+        recognized_types = {'int', 'uint', 'float', 'bool', 'byte', 'list', 'dict', 'date'}
         # Get the parameters of the method
         parameters = inspect.signature(method).parameters.items()
 
         # Filter out the "self" parameter
-        filtered_parameters = [(param_name, param) for param_name, param in parameters if param_name != "self"]
+        filtered_parameters: List[Tuple[str, inspect.Parameter]] = [
+            (param_name, param) for param_name, param in parameters if param_name != "self"
+        ]
 
         # Assign the param type for each parameter according to the mode we are using
         for i, (param_name, param) in enumerate(filtered_parameters):
-            if param.annotation == param.empty or self.mode == 3:
-                param_type = random.choice(['INT', 'UINT', 'FLOAT', 'STRING', 'BOOL', 'BYTE', 'LIST', 'DICT', 'DATE'])
-                logging.warning(f"Randomly assigned type '{param_type}' for parameter {i+1} ({param_name}) in {class_name}.{method.__name__}")
-            elif param.annotation.__name__ == 'str':
-                param_type = 'STRING'
-            else:    
-                param_type = param.annotation.__name__.upper()
-            param_types[i] = param_type
-        if self.mode == 1:
-            self.param_types[class_name][method.__name__] = param_types
+            i: int
+            param_name: str
+            param: inspect.Parameter
+            assigned_param_type: str
+            if param.annotation == param.empty or self._mode == 3:
+                assigned_param_type = random.choice(
+                    ['INT', 'UINT', 'FLOAT', 'STRING', 'BOOL', 'BYTE', 'LIST', 'DICT', 'DATE']
+                )
+                logging.warning(
+                    f"Randomly assigned type '{assigned_param_type}' for parameter {i+1} ({param_name}) in {class_name}.{method.__name__}"
+                )
+            elif isinstance(param.annotation, str):
+                if param.annotation == 'str':
+                    assigned_param_type = 'STRING'
+                elif param.annotation in recognized_types:
+                    assigned_param_type = param.annotation.upper()
+                else:
+                    assigned_param_type = random.choice(
+                        ['INT', 'UINT', 'FLOAT', 'STRING', 'BOOL', 'BYTE', 'LIST', 'DICT', 'DATE']
+                    )
+                    logging.warning(
+                        f"Unknown parameter type '{param.annotation}' of parameter {i+1} ({param_name}) in {class_name}.{method.__name__}. Randomly assigned '{assigned_param_type}'"
+                    )
+            elif isinstance(param.annotation, type):
+                if param.annotation.__name__ == 'str':
+                    assigned_param_type = 'STRING'
+                elif param.annotation.__name__ in recognized_types:
+                    assigned_param_type = param.annotation.__name__.upper()
+                else:
+                    assigned_param_type = random.choice(
+                        ['INT', 'UINT', 'FLOAT', 'STRING', 'BOOL', 'BYTE', 'LIST', 'DICT', 'DATE']
+                    )
+                    logging.warning(
+                        f"Unknown parameter type '{param.annotation}' of parameter {i+1} ({param_name}) in {class_name}.{method.__name__}. Randomly assigned '{assigned_param_type}'"
+                    )
+            else:
+                logging.error(
+                    f"Unhandeled way of declaring parameter type of parameter {i+1} ({param_name}) in {class_name}.{method.__name__}."
+                )
+            param_types[i] = assigned_param_type
+        if self._mode == 1:
+            self._param_types[class_name][method.__name__] = param_types
             self._save_param_types()
         return param_types
+
 
     def _get_param_types(self, class_name: str, method: Callable) -> Dict[int, str]:
         """
@@ -92,11 +140,17 @@ class GeneratorFuzzer(Fuzzer):
         :return: Dictionary of parameter indices and their types.
         :rtype: Dict[int, str]
         """
-        if self.mode == 1 and class_name in self.param_types and method.__name__ in self.param_types[class_name]:
-            return self.param_types[class_name][method.__name__]
+        if (
+            self._mode == 1
+            and class_name in self._param_types
+            and method.__name__ in self._param_types[class_name]
+        ):
+            return self._param_types[class_name][method.__name__]
         return self._assign_param_types(class_name, method)
 
-    def _generate_method_sequence(self, cls: Type, start_methods: List[str], max_sequence_length: int) -> List[str]:
+    def _generate_method_sequence(
+        self, cls: Type, start_methods: List[str], max_sequence_length: int
+    ) -> List[str]:
         """
         Generate a random method sequence with a length of up to max_sequence_length, starting with one of the start methods.
 
@@ -109,14 +163,18 @@ class GeneratorFuzzer(Fuzzer):
         :return: List of method names forming the sequence.
         :rtype: List[str]
         """
-        methods = [method for method in dir(cls) if callable(getattr(cls, method)) and not method.startswith("__")]
-        start_method = random.choice(start_methods)
-        sequence = [start_method]
+        methods: List[str] = [
+            method
+            for method in dir(cls)
+            if callable(getattr(cls, method)) and not method.startswith("__")
+        ]
+        start_method: str = random.choice(start_methods)
+        sequence: List[str] = [start_method]
         for _ in range(random.randint(1, max_sequence_length - 1)):
-            next_method = random.choice(methods)
+            next_method: str = random.choice(methods)
             sequence.append(next_method)
         return sequence
-    
+
     def _to_hashable_with_marker(self, data: Any) -> Union[Tuple[str, frozenset], Any]:
         """
         Convert a list or a dictionary to a hashable form (frozenset) with a type marker, or return other data types unchanged.
@@ -133,8 +191,10 @@ class GeneratorFuzzer(Fuzzer):
         else:
             # If data is neither a list nor a dict, return it as is
             return data
-        
-    def _to_original_from_marker(self, data_with_marker: Union[Tuple[str, frozenset], Any]) -> Any:
+
+    def _to_original_from_marker(
+        self, data_with_marker: Union[Tuple[str, frozenset], Any]
+    ) -> Any:
         """
         Convert data back to its original form from a hashable form (frozenset) with a type marker, or return other data types unchanged.
 
@@ -145,6 +205,8 @@ class GeneratorFuzzer(Fuzzer):
         """
         # Check if data_with_marker is a tuple and has a type marker
         if isinstance(data_with_marker, tuple) and data_with_marker[0] in ('list', 'dict'):
+            data_type: str
+            data: frozenset
             data_type, data = data_with_marker
             if data_type == 'list':
                 return list(data)
@@ -154,7 +216,14 @@ class GeneratorFuzzer(Fuzzer):
             # If there is no type marker, return the data as is
             return data_with_marker
 
-    def fuzz(self, cls: Type, start_methods: List[str], max_sequence_length: int, num_sequences: int, max_param_combi: int = 2) -> List[List[Tuple[str, Tuple[Any]]]]:
+    def fuzz(
+        self,
+        cls: Type,
+        start_methods: List[str],
+        max_sequence_length: int,
+        num_sequences: int,
+        max_param_combi: int = 2
+    ) -> List[List[Tuple[str, Tuple[Any]]]]:
         """
         Generate unique method sequences with parameters. A sequence is unique if either the methods are chained differently or any value of any parameter differs from an otherwise identical sequence.
 
@@ -176,35 +245,38 @@ class GeneratorFuzzer(Fuzzer):
             [('method3', (param5)), ('method4', (param6, param7))]
         ]  
         """
-        existing_sequences = set()
+        existing_sequences: Set[Tuple[str, Tuple[Any]]] = set()
         while len(existing_sequences) < num_sequences:
-            sequence = self._generate_method_sequence(cls, start_methods, max_sequence_length)
-            param_sequences = []
+            sequence: List[str] = self._generate_method_sequence(cls, start_methods, max_sequence_length)
+            param_sequences: List[Tuple[str, Tuple[Any]]] = []
             for method_name in sequence:
-                param_combi = max_param_combi
-                method = getattr(cls, method_name)
-                param_types = self._get_param_types(cls.__name__, method)
+                method_name: str
+                param_combi: int = max_param_combi
+                method: Callable = getattr(cls, method_name)
+                param_types: Dict[int, str] = self._get_param_types(cls.__name__, method)
                 if len(param_types) != 0:
                     # make sure we don't request more combinations than parameters available
                     if max_param_combi > len(param_types):
                         param_combi = len(param_types)
                     # Generate parameter sets using the value pool fuzzer 
-                    param_set = self.value_pool_fuzzer.fuzz(param_nr=len(param_types), types=[param_types[i] for i in range(len(param_types))], param_combi=param_combi)
+                    param_set: List[Tuple[Any]] = self._value_pool_fuzzer.fuzz(
+                        types=[param_types[i] for i in range(len(param_types))], param_combi=param_combi
+                    )
                     # Select a random parameter set from the generated combinations
-                    random_param_set = random.choice(param_set)
+                    random_param_set: Tuple[Any] = random.choice(param_set)
                     param_sequences.append((method_name, random_param_set))
                 else:
-                    # don't generate any param_sets if we don't need any - would raise error when calling value_pool_fuzzer.fuzz
-                    param_sequences.append((method_name, {}))
+                    # don't generate any param_sets if we don't need any - would raise error when calling _value_pool_fuzzer.fuzz
+                    param_sequences.append((method_name, {}))  # empty dict to indicate no parameters needed
             # convert sequence list to tuple to make it hashable to be able to add it to existing_sequences set
-            sequence_tuple = tuple(
+            sequence_tuple: Tuple[Tuple[str, Tuple[Union[Tuple[str, frozenset], Any]]]] = tuple(
                 (
-                    method_name, 
+                    method_name,
                     tuple(self._to_hashable_with_marker(param) for param in params)
                 )
                 for method_name, params in param_sequences
             )
-            existing_sequences.add(sequence_tuple) # add the sequence_tuple to set to make sure we only have unique sequences
+            existing_sequences.add(sequence_tuple)  # add the sequence_tuple to set to make sure we only have unique sequences
         # Return the sequences but revert the types back to their original
         return [
             [
@@ -213,4 +285,3 @@ class GeneratorFuzzer(Fuzzer):
             ]
             for seq_tuple in existing_sequences
         ]
-

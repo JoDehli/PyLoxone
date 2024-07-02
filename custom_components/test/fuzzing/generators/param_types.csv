@@ -1,8 +1,0 @@
-DummyClass,__init__,0,INT
-DummyClass,process_list,0,LIST
-DummyClass,echo,0,STRING
-DummyClass,divide,0,FLOAT
-DummyClass,multiply,0,FLOAT
-DummyClass,increment,0,INT
-DummyClass,add_and_multiply,0,INT
-DummyClass,add_and_multiply,1,FLOAT

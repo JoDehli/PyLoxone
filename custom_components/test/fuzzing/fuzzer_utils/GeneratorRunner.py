@@ -1,5 +1,5 @@
 import logging
-from typing import List, Tuple, Type, Any
+from typing import List, Tuple, Type, Any, Callable
 
 from custom_components.test.fuzzing.fuzzer_utils.Runner import Runner
 
@@ -8,7 +8,7 @@ class GeneratorRunner(Runner):
 
     def __init__(self):
         """Constructor for GeneratorRunner."""
-        pass
+        self._logger = logging.getLogger(__name__)
 
     def run(self, cls: Type, sequences: List[List[Tuple[str, Tuple[Any]]]]) -> List[int]:
         """
@@ -21,36 +21,39 @@ class GeneratorRunner(Runner):
         :return: List containing the number of passed and failed tests.
         :rtype: List[int]
         """
-        logger = logging.getLogger(__name__)
-        num_passed_tests = 0
-        num_failed_tests = 0
+        num_passed_tests: int = 0
+        num_failed_tests: int = 0
 
         for sequence in sequences:
-            failed_test = False
-            err = None
+            sequence: List[Tuple[str, Tuple[Any]]]
+            failed_test: bool = False
+            err: Exception = None
+            method_name: str
+            param_set: Tuple[Any]
             method_name, param_set = sequence[0]
-            if(method_name == '__init__'):
-                instance = cls(*param_set) # Initialize the Class with the intended parameters for __init__
-                sequence = sequence[1:] # Remove __init__ method from the sequence as we have already called it
+            if method_name == '__init__':
+                instance = cls(*param_set)  # Initialize the Class with the intended parameters for __init__
+                sequence = sequence[1:]  # Remove __init__ method from the sequence as we have already called it
             else:
                 instance = cls()  # Create an instance of the class where the __init__ method does not require parameters
             for method_name, param_set in sequence:
-                method = getattr(instance, method_name)
-                num_params = len(param_set)
-                logger.info(f"Running {method_name} with {num_params} parameters")
+                method: Callable = getattr(instance, method_name)
+                num_params: int = len(param_set)
+                self._logger.info(f"Running {method_name} with {num_params} parameters")
 
                 try:
                     method(*param_set)  # Run the method with the given parameters
                 except Exception as e:
+                    e: Exception
                     err = e
                     failed_test = True
                     break 
             
             if not failed_test:
-                logger.info(f"Test passed with sequence: {sequence}")
+                self._logger.info(f"Test passed with sequence: {sequence}")
                 num_passed_tests += 1
             else:
-                logger.error(f"Test failed with sequence: {sequence}. Exception: {err}")
+                self._logger.error(f"Test failed with sequence: {sequence}. Exception: {err}")
                 num_failed_tests += 1
-#
+
         return [num_passed_tests, num_failed_tests]
