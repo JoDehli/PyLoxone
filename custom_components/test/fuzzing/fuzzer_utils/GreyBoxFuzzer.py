@@ -71,18 +71,9 @@ class GreyBoxFuzzer(Fuzzer):
                         param_set.append(self.__data_type_creator.create_string_only_letters(seed_spec))
                     elif rand_val == 1: 
                         param_set.append(self.__data_type_creator.create_string_special_characters(seed_spec))
-
+                        
                 elif data_type == "BOOL":
                     param_set.append(random.choice([True, False]))
-                    
-                elif data_type == "BYTE":
-                    print("create_byte")
-                elif data_type == "LIST":
-                    print("create_list")
-                elif data_type == "DICT":
-                    print("create_dict")
-                elif data_type == "DATE":
-                    print("create_date")
             
             seed = Seed(1, param_set)
             seed_population.append(seed)
