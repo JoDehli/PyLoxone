@@ -140,6 +140,7 @@ pytest custom_components/test/path/to/test_file.py
 ## `helpers.py`
 ### `map_range()`
 - A possible 0 division is not checked or intercepted.
+- If `in_max` and `in_min` are equal.
 
 ### `get_all()`
 - If the key `controls` or `type` is not in the `json_data: dict` the function crashes.
