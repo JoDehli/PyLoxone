@@ -5,22 +5,23 @@ import json
 from custom_components.test.fuzzing.fuzzer_utils.Fuzzer import Fuzzer
 from custom_components.test.fuzzing.fuzzer_utils.GrammarFuzzer import GrammarFuzzer
 from custom_components.test.fuzzing.fuzzer_utils.ValuePool import ValuePool
-from custom_components.test.fuzzing.fuzzer_utils.grammar_pool import grammar_controls_json, grammar_ipv4
+from custom_components.test.fuzzing.fuzzer_utils.grammar_pool import grammar_controls_json, grammar_ipv4, \
+    grammar_loxconfig_rooms_cats_json
 
 
 class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
 
-    _value_pool: ValuePool = ValuePool()
+    __value_pool: ValuePool = ValuePool()
     _logger = logging.getLogger(__name__)
 
-    _grammar_fuzzer: GrammarFuzzer = GrammarFuzzer()
+    __grammar_fuzzer: GrammarFuzzer = GrammarFuzzer()
 
     def __init__(self):
         """constructor"""
 
     def __get_fuzzing_pool(
-        self, value_pools: list[list], param_combi: int
+            self, value_pools: list[list], param_combi: int
     ) -> list[list]:
         """
         Generates combinations of the values in the provided lists.
@@ -112,32 +113,40 @@ class ValuePoolFuzzer(Fuzzer):
 
         # Get the value pools for the valid types
         valid_types = {
-            "INT": self._value_pool.get_int(),
-            "UINT": self._value_pool.get_uint(),
-            "FLOAT": self._value_pool.get_float(),
-            "STRING": self._value_pool.get_string(),
-            "BOOL": self._value_pool.get_bool(),
-            "BYTE": self._value_pool.get_byte(),
-            "LIST": self._value_pool.get_list(),
-            "DICT": self._value_pool.get_dict(),
-            "DATE": self._value_pool.get_date(),
-            "ALL": self._value_pool.get_all_values(),
+            "INT": self.__value_pool.get_int(),
+            "UINT": self.__value_pool.get_uint(),
+            "FLOAT": self.__value_pool.get_float(),
+            "STRING": self.__value_pool.get_string(),
+            "BOOL": self.__value_pool.get_bool(),
+            "BYTE": self.__value_pool.get_byte(),
+            "LIST": self.__value_pool.get_list(),
+            "DICT": self.__value_pool.get_dict(),
+            "DATE": self.__value_pool.get_date(),
+            "ALL": self.__value_pool.get_all_values(),
             "GRAMMAR_IPV4_MIN": [
-                self._grammar_fuzzer.fuzz_min_cost(grammar_ipv4, "<IPv4>")
+                self.__grammar_fuzzer.fuzz_min_cost(grammar_ipv4, "<IPv4>")
             ],
             "GRAMMAR_IPV4_MAX": [
-                self._grammar_fuzzer.fuzz_max_cost(grammar_ipv4, "<IPv4>", 2)
+                self.__grammar_fuzzer.fuzz_max_cost(grammar_ipv4, "<IPv4>", 2)
             ],
-            "GRAMMAR_IPV4_COV": self._grammar_fuzzer.fuzz_grammar_coverage(
+            "GRAMMAR_IPV4_COV": self.__grammar_fuzzer.fuzz_grammar_coverage(
                 grammar_ipv4, "<IPv4>"
             ),
             "GRAMMAR_CONTROLS_JSON_MIN": [
                 json.loads(self.__grammar_fuzzer.fuzz_min_cost(grammar_controls_json, "<JSON>")), ],
             "GRAMMAR_CONTROLS_JSON_MAX": [
                 json.loads(self.__grammar_fuzzer.fuzz_max_cost(grammar_controls_json, "<JSON>", 6)), ],
-            "GRAMMAR_CONTROLS_JSON_COV": map(lambda x: json.loads(x),
-                                             self.__grammar_fuzzer.fuzz_grammar_coverage(grammar_controls_json,
-                                                                                         "<JSON>")),
+            "GRAMMAR_CONTROLS_JSON_COV": list(map(lambda x: json.loads(x),
+                                                  self.__grammar_fuzzer.fuzz_grammar_coverage(grammar_controls_json,
+                                                                                              "<JSON>"))),
+            "GRAMMAR_LOXCONFIG_ROOMS_CATS_JSON_MIN": [
+                json.loads(self.__grammar_fuzzer.fuzz_min_cost(grammar_loxconfig_rooms_cats_json, "<JSON>"))],
+            "GRAMMAR_LOXCONFIG_ROOMS_CATS_JSON_MAX": [
+                json.loads(self.__grammar_fuzzer.fuzz_max_cost(grammar_loxconfig_rooms_cats_json, "<JSON>", 6))],
+            "GRAMMAR_LOXCONFIG_ROOMS_CATS_JSON_COV": list(map(lambda x: json.loads(x),
+                                                         self.__grammar_fuzzer.fuzz_grammar_coverage(
+                                                             grammar_loxconfig_rooms_cats_json,
+                                                             "<JSON>"))),
         }
 
         data: list = []
