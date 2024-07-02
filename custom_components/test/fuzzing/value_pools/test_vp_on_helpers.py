@@ -149,7 +149,7 @@ def test_get_miniserver_type() -> None:
 
     assert result["failed_tests"] == 0
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 @pytest.mark.timeout(300)
 def test_get_all() -> None:
     logger.info("Start of get_all() test.")

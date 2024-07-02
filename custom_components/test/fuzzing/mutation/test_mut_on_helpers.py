@@ -37,7 +37,7 @@ value_pool_fuzzer: ValuePoolFuzzer = ValuePoolFuzzer()
 param_runner: ParamRunner = ParamRunner()
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 def test_map_range() -> None:
     logger.info("Start of test_map_range() test.")
     param_set: list[list]
@@ -55,7 +55,7 @@ def test_map_range() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 def test_hass_to_lox() -> None:
     logger.info("Start of test_hass_to_lox() test.")
     param_set: list[list]
@@ -73,7 +73,7 @@ def test_hass_to_lox() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 def test_lox_to_hass() -> None:
     logger.info("Start of test_lox_to_hass() test.")
     param_set: list[list]
@@ -91,7 +91,7 @@ def test_lox_to_hass() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 def test_lox2lox_mapped() -> None:
     logger.info("Start of test_lox2lox_mapped() test.")
     param_set: list[list]
@@ -109,7 +109,7 @@ def test_lox2lox_mapped() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 def test_lox2hass_mapped() -> None:
     logger.info("Start of test_lox2hass_mapped() test.")
     param_set: list[list]
@@ -127,7 +127,7 @@ def test_lox2hass_mapped() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 def test_to_hass_color_temp() -> None:
     logger.info("Start of test_to_hass_color_temp() test.")
     param_set: list[list]
@@ -145,7 +145,7 @@ def test_to_hass_color_temp() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 def test_to_loxone_color_temp() -> None:
     logger.info("Start of test_to_loxone_color_temp() test.")
     param_set: list[list]
@@ -163,7 +163,7 @@ def test_to_loxone_color_temp() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 def test_get_miniserver_type() -> None:
     logger.info("Start of test_get_miniserver_type() test.")
     param_set: list[list]
@@ -181,7 +181,7 @@ def test_get_miniserver_type() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 @pytest.mark.timeout(300)
 def test_get_room_name_from_room_uuid() -> None:
     logger.info("Start of test_get_room_name_from_room_uuid() test.")
@@ -221,7 +221,7 @@ def test_get_room_name_from_room_uuid() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 @pytest.mark.timeout(300)
 def test_get_cat_name_from_cat_uuid() -> None:
     logger.info("Start of test_get_cat_name_from_cat_uuid() test.")
@@ -261,7 +261,7 @@ def test_get_cat_name_from_cat_uuid() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 @pytest.mark.timeout(300)
 def test_add_room_and_cat_to_value_values() -> None:
     logger.info("Start of test_add_room_and_cat_to_value_values() test.")
@@ -326,7 +326,7 @@ def test_add_room_and_cat_to_value_values() -> None:
     assert result["failed_tests"] == 0
 
 
-@pytest.mark.skipif(False, reason="Not skiped!")
+@pytest.mark.skipif(False, reason="Not skipped!")
 def test_get_all() -> None:
     logger.info("Start of test_get_all() test.")
     param_set: list[list]
