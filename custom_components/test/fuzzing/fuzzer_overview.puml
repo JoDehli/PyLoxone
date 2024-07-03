@@ -215,16 +215,12 @@ PRunner "1"<-- test_VP_H : imports <
 '''''''''''''''''''''''''''''''''''''''
 CGType "1"<--* GrFuzzer : needs a <
 '''''''''''''''''''''''''''''''''''''''
-<<<<<<< HEAD
-GFuzzer <--* test_GEN_dummy : needs a <
-GRunner <--* test_GEN_dummy : needs a <
-VPFuzzer <--* test_GEN_dummy : needs a <
-GFuzzer <--* test_GEN_pyLoxone : needs a <
-GRunner <--* test_GEN_pyLoxone : needs a <
-VPFuzzer <--* test_GEN_pyLoxone : needs a <
-=======
-GFuzzer "1"<--* test_GEN : needs a <
->>>>>>> origin/master
+GFuzzer "1"<--* test_GEN_dummy : needs a <
+GRunner "1"<--* test_GEN_dummy : needs a <
+VPFuzzer "1"<--* test_GEN_dummy : needs a <
+GFuzzer "1"<--* test_GEN_pyLoxone : needs a <
+GRunner "1"<--* test_GEN_pyLoxone : needs a <
+VPFuzzer "1"<--* test_GEN_pyLoxone : needs a <
 '''''''''''''''''''''''''''''''''''''''
 VPFuzzer "1"<-- test_MUT : imports <
 MFuzzer "1"<-- test_MUT : imports <
