@@ -153,14 +153,23 @@ entity  "test_vp_on_helpers.py" as test_VP_H << test cases >>{
     test_get_all() : None
 }
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_gen_on_XXX.py" as test_GEN << test cases >>{
+entity  "test_gen_on_pyLoxone.py" as test_GEN_pyLoxone << test cases >>{
+    logger
+    value_pool_fuzzer : ValuePoolFuzzer
+    generator_fuzzer : GeneratorFuzzer
+    generator_runner : GeneratorRunner
+    --
+    test_climate_LoxoneRoomControllerV2() : None
+    test_api_LxToken() : None
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_gen_on_dummy.py" as test_GEN_dummy << test cases >>{
     logger
     value_pool_fuzzer : ValuePoolFuzzer
     generator_fuzzer : GeneratorFuzzer
     generator_runner : GeneratorRunner
     --
     test_DummyClass() : None
-    test_climate_LoxoneRoomControllerV2() : None
 }
 '''''''''''''''''''''''''''''''''''''''
 entity  "test_mut_on_helpers.py" as test_MUT << test cases >>{
@@ -199,9 +208,12 @@ PRunner <--* test_VP_H : needs a <
 '''''''''''''''''''''''''''''''''''''''
 CGType <--* GrFuzzer : needs a <
 '''''''''''''''''''''''''''''''''''''''
-GFuzzer <--* test_GEN : needs a <
-GRunner <--* test_GEN : needs a <
-VPFuzzer <--* test_GEN : needs a <
+GFuzzer <--* test_GEN_dummy : needs a <
+GRunner <--* test_GEN_dummy : needs a <
+VPFuzzer <--* test_GEN_dummy : needs a <
+GFuzzer <--* test_GEN_pyLoxone : needs a <
+GRunner <--* test_GEN_pyLoxone : needs a <
+VPFuzzer <--* test_GEN_pyLoxone : needs a <
 '''''''''''''''''''''''''''''''''''''''
 MFuzzer "1"<--* test_MUT : needs a <
 PRunner "1"<--* test_MUT : needs a <
