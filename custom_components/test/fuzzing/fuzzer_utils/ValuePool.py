@@ -91,15 +91,12 @@ class ValuePool:
         ]
 
         # set values for __DICT_POOL
-        # a dict is represented as a string and need to be loaded as a json in the testcase
         self.__DICT_POOL = [
-            # None, # test cases can today not handel a None value, the JSON bib can load a NONE value as a JSON
-            "{}",
-            "{\"key\": \"value\"}",
-            "{\"int\": 1, \"float\": 1.0, \"str\": \"string\"}",
-            # Bug:
-            # {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9} is not a valid dict/JSON!
-            # {i: i for i in range(10)},  # dictionary with multiple entries
+             # None, # test cases can today not handel a None value, the JSON bib can load a NONE value as a JSON
+            {},
+            {"key": "value"},
+            {"int": 1, "float": 1.0, "str": "string"},
+            {str(i): i for i in range(10)},  # dictionary with multiple entries
         ]
 
         # set values for __DATE_POOL
