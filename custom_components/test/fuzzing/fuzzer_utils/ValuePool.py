@@ -92,7 +92,7 @@ class ValuePool:
 
         # set values for __DICT_POOL
         self.__DICT_POOL = [
-             # None, # test cases can today not handel a None value, the JSON bib can load a NONE value as a JSON
+            "null",
             {},
             {"key": "value"},
             {"int": 1, "float": 1.0, "str": "string"},
