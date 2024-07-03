@@ -34,6 +34,7 @@ pip install pytest
 pip install pytest-timeout
 pip install homeassistant
 pip install numpy
+pip install coverage
 ```
 4. you maybe have to tell python were to find the `PyLoxone` project 
 
