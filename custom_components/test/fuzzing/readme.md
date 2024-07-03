@@ -67,26 +67,41 @@ pytest custom_components/test/path/to/test_file.py
 
 # TODO
 ## Presentation 2024-07-05
-1. @jonathanheitzmann presenting
+### Intro
+What is `PyLoxone`?
+Our general approach with `pytest`.
+
+### Implementation
+#### 1. @jonathanheitzmann presenting
   - value pools: 
     - Explains `ValuePool` and `ValuePoolFuzzer` using the UML diagram.
     - Shows corresponding test cases in `test_vp_on_helpers.py`
-2. @dsiev presenting
+    - What problems did I have
+#### 2. @dsiev presenting
   - generators 
     - Explains `???` and `???` using the UML diagram.
     - Shows corresponding test cases in `???.py`.
-3. @JKortmann presenting
+    - What problems did I have
+#### 3. @JKortmann presenting
   - grammars 
     - Explains `GrammerFuzzer` and `grammar_pool` using the UML diagram.
     - Shows corresponding test cases in `test_vp_on_helpers.py`.
-4. @ThorbenCarl presenting
+    - What problems did I have
+#### 4. @ThorbenCarl presenting
   - black box mutational 
     - Explains `MutationalFuzzer` using the UML diagram.
     - Shows corresponding test cases in `test_mut_on_helpers.py`.
-5. @hoegma presenting
+    - What problems did I have
+#### 5. @hoegma presenting
   - grey box mutational 
     - Explains `???` using the UML diagram.
     - Shows corresponding test cases in `???.py`.
+    - What problems did I have
+
+### Conclusion 
+- Problems with specification, what is an illegal test input if there is no specification?
+- What did we think of the project? Did the grade bonus make sense?
+
 
 ## Value pools 
 > - Assigned to: @jonathanheitzmann
@@ -97,9 +112,10 @@ pytest custom_components/test/path/to/test_file.py
 > - Assigned to: @dsiev
 > - Branch: `fuzzing/generators`
 - Implement the generators.
-  - [ ] Get code running
-  - [ ] Update UML
-  - [ ] Create test cases
+  - [x] Get code running.
+  - [x] Update UML.
+  - [ ] Write `test_gen_on_demo.py`
+  - [ ] (Optional) Create test case on PyLoxone
 
 ## Input grammars
 > - Assigned to: @JKortmann
@@ -108,15 +124,14 @@ pytest custom_components/test/path/to/test_file.py
 ### black-box
 > - Assigned to: @ThorbenCarl
 > - Branch: `fuzzing/mutational_black_box`
-  - [x] Add missing test cases of `helpers.py`.
 
 ### grey-box
 > - Assigned to: @hoegma
 > - Branch: `fuzzing/mutational_grey_box`
 - [ ] Implement the mutational fuzzing (grey-box).
-  - [ ] Get code running
-  - [ ] Update UML
-  - [ ] Create test cases
+  - [x] Get code running
+  - [x] Update UML
+  - [x] Create test cases
 
 # Vulnerabilities found
 ## `helpers.py`
