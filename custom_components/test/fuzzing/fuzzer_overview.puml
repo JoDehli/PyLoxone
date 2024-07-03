@@ -15,10 +15,9 @@ abstract class "Fuzzer" as fuzzer << abstract class >> {
 }
 '''''''''''''''''''''''''''''''''''''''
 class "ValuePoolFuzzer" as VPFuzzer << class >> {
-    --
-    - __value_pool: ValuePool
-    - __grammar_fuzzer: GrammarFuzzer
-    - _logger
+    - __logger 
+    - __value_pool : ValuePool
+    - __grammar_fuzzer : GrammarFuzzer
     --
     - __init__(self) : void
     - __get_fuzzing_pool(self, value_pools: list[list], param_combi: int) : list[list]
@@ -75,7 +74,7 @@ class "CostGrammarType" as CGType << class >> {
     --
 }
 class "GrammarFuzzer" as GrFuzzer << class >> {
-    - _NON_TERMINAL_REGEX = str
+    - _NON_TERMINAL_REGEX : str
     --
     - __init__(self) : void
     - __convert_to_cost_grammar(self, grammar: Grammar, conversion_type: CostGrammarType) : tuple
@@ -88,13 +87,14 @@ class "GrammarFuzzer" as GrFuzzer << class >> {
     + fuzz_grammar_coverage(self, grammar: Grammar, start_symbol: Element) : list
 }
 entity "grammar_pool" as gr_pool << grammars >> {
-    grammar_ipv4: Grammar
-    grammar_controls_json: Grammar
+    grammar_ipv4 : Grammar
+    grammar_controls_json : Grammar
+    grammar_loxconfig_rooms_cats_json : Grammar
 }
 '''''''''''''''''''''''''''''''''''''''
 class "MutationalFuzzer" as MFuzzer << class >> {
-    - __logger = None
-    - __multiplier: list[int] = []
+    - __logger
+    - __multiplier : list[int]
     --
     - __init__(self) : void
     - __delete_random_char(self, s: str) : str
@@ -119,6 +119,7 @@ abstract class "Runner" as runner << abstract class >> {
 }
 '''''''''''''''''''''''''''''''''''''''
 class "ParamRunner" as PRunner << class >> {
+    - __logger
     --
     - __init__(self) : void
     + run(self, function : function, param_set : list) : dict
@@ -136,6 +137,7 @@ class "GeneratorRunner" as GRunner << class >> {
 '''''''''''''''''''''''''''''''''''''''
 entity  "test_vp_on_helpers.py" as test_VP_H << test cases >>{
     logger
+    value_pool_fuzzer : ValuePoolFuzzer
     value_pool_fuzzer : ValuePoolFuzzer
     param_runner : ParamRunner
     --
@@ -175,6 +177,7 @@ entity  "test_gen_on_dummy.py" as test_GEN_dummy << test cases >>{
 entity  "test_mut_on_helpers.py" as test_MUT << test cases >>{
     logger
     mutational_fuzzer : MutationalFuzzer
+    grammar_fuzzer : GrammarFuzzer
     param_runner : ParamRunner
     --
     test_map_range() : None
@@ -184,15 +187,19 @@ entity  "test_mut_on_helpers.py" as test_MUT << test cases >>{
     test_lox2hass_mapped() : None
     test_to_hass_color_temp() : None
     test_to_loxone_color_temp() : None
+    test_get_room_name_from_room_uuid() : None
+    test_get_cat_name_from_cat_uuid() : None
+    test_add_room_and_cat_to_value_values() : None
     test_get_miniserver_type() : None
+    test_get_all() : None
 }
 '''''''''''''''''''''''''''''''''''''''
 'Fuzzer''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 fuzzer <|-- VPFuzzer : inherits from <
-VPool <--* VPFuzzer: has access to <
-GrFuzzer <--* VPFuzzer: has access to <
-gr_pool <-- VPFuzzer: imports <
+VPool "1"<--* VPFuzzer: has access to <
+GrFuzzer "1"<--* VPFuzzer: has access to <
+gr_pool "1"<-- VPFuzzer: imports <
 fuzzer <|-- GFuzzer : inherits from <
 fuzzer <|-- MFuzzer : inherits from <
 '''''''''''''''''''''''''''''''''''''''
@@ -203,18 +210,24 @@ runner <|-- GRunner : inherits from <
 '''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
-VPFuzzer <--* test_VP_H : needs a <
-PRunner <--* test_VP_H : needs a <
+VPFuzzer "1"<-- test_VP_H : imports <
+PRunner "1"<-- test_VP_H : imports <
 '''''''''''''''''''''''''''''''''''''''
-CGType <--* GrFuzzer : needs a <
+CGType "1"<--* GrFuzzer : needs a <
 '''''''''''''''''''''''''''''''''''''''
+<<<<<<< HEAD
 GFuzzer <--* test_GEN_dummy : needs a <
 GRunner <--* test_GEN_dummy : needs a <
 VPFuzzer <--* test_GEN_dummy : needs a <
 GFuzzer <--* test_GEN_pyLoxone : needs a <
 GRunner <--* test_GEN_pyLoxone : needs a <
 VPFuzzer <--* test_GEN_pyLoxone : needs a <
+=======
+GFuzzer "1"<--* test_GEN : needs a <
+>>>>>>> origin/master
 '''''''''''''''''''''''''''''''''''''''
-MFuzzer "1"<--* test_MUT : needs a <
-PRunner "1"<--* test_MUT : needs a <
+VPFuzzer "1"<-- test_MUT : imports <
+MFuzzer "1"<-- test_MUT : imports <
+GrFuzzer "1"<-- test_MUT : imports <
+PRunner "1"<-- test_MUT : imports <
 @enduml
