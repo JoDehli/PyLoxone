@@ -12,13 +12,16 @@ from custom_components.test.fuzzing.fuzzer_utils.grammar_pool import grammar_con
 class ValuePoolFuzzer(Fuzzer):
     """Value pool fuzzer class, inherits from the abstract fuzzer class."""
 
-    __value_pool: ValuePool = ValuePool()
-    _logger = logging.getLogger(__name__)
+    __logger = None
 
-    __grammar_fuzzer: GrammarFuzzer = GrammarFuzzer()
+    __value_pool: ValuePool = None
+    __grammar_fuzzer: GrammarFuzzer = None
 
     def __init__(self):
         """constructor"""
+        self.__logger = logging.getLogger(__name__)
+        self.__value_pool = ValuePool()
+        self.__grammar_fuzzer = GrammarFuzzer()
 
     def __get_fuzzing_pool(
             self, value_pools: list[list], param_combi: int
@@ -105,10 +108,10 @@ class ValuePoolFuzzer(Fuzzer):
 
         # Validate input parameters
         if len(types) <= 0:
-            self._logger.error("Length of types list must be positive.")
+            self.__logger.error("Length of types list must be positive.")
             raise ValueError("Length of types list must be positive.")
         if param_combi <= 0 or param_combi > len(types):
-            self._logger.error("param_combi must be between 1 and len(types).")
+            self.__logger.error("param_combi must be between 1 and len(types).")
             raise ValueError("param_combi must be between 1 and len(types).")
 
         # Get the value pools for the valid types
@@ -154,7 +157,7 @@ class ValuePoolFuzzer(Fuzzer):
         for type in types:
             # Check whether requested types are valid.
             if type not in valid_types:
-                self._logger.error("Invalid type " + str(type) + " specified.")
+                self.__logger.error("Invalid type " + str(type) + " specified.")
                 raise ValueError(f"Invalid type '{type}' specified.")
             else:
                 # Creating list of the value_pool lists provided in types

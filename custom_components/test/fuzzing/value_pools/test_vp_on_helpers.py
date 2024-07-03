@@ -1,5 +1,6 @@
 import pytest
 import logging
+import json
 
 from custom_components.loxone.helpers import (
     map_range,
@@ -128,6 +129,10 @@ def test_get_cat_name_from_cat_uuid() -> None:
 def test_add_room_and_cat_to_value_values() -> None:
     logger.info("Start of add_room_and_cat_to_value_values() test.")
     param_set = value_pool_fuzzer.fuzz(["GRAMMAR_LOXCONFIG_ROOMS_CATS_JSON_COV", "DICT"], 2)
+    # function under test needs a json object
+    for set in param_set:
+        set[1] = json.loads(set[1])
+        
     result = param_runner.run(add_room_and_cat_to_value_values, param_set)
     logger.info("add_room_and_cat_to_value_values() test finished.")
 
@@ -144,7 +149,7 @@ def test_get_miniserver_type() -> None:
 
     assert result["failed_tests"] == 0
 
-
+@pytest.mark.skipif(False, reason="Not skipped!")
 @pytest.mark.timeout(300)
 def test_get_all() -> None:
     logger.info("Start of get_all() test.")
