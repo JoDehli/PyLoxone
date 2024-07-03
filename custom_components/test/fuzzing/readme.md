@@ -43,7 +43,7 @@ Windows
 - Select “Advanced system settings”.
 - In the “System Properties” window, click the “Environment Variables” button.
 - Click the “New” button in the top half of the dialog, to make a new user variable.
-- Name the variable PYTHONPATH and set its value to the path of your code directory. Click "OK" and "OK" again to save.
+- Name the variable `PYTHONPATH` and set its value to the path of your code directory. Click "OK" and "OK" again to save.
 
 Linux and macOS
 ```shell
