@@ -51,6 +51,21 @@ class "ValuePool" as VPool << class >> {
     + get_all_values(self): list
 }
 '''''''''''''''''''''''''''''''''''''''
+class "GeneratorFuzzer" as GFuzzer << class >> {
+    - _value_pool_fuzzer : ValuePoolFuzzer
+    - _param_types : defaultdict
+    - _param_types_file : str
+    - _mode : int
+    --
+    - __init__(self, value_pool_fuzzer: ValuePoolFuzzer, mode: int = 1) : None
+    - _load_param_types(self) : None
+    - _save_param_types(self) : None
+    - _assign_param_types(self, class_name: str, method: Callable) : Dict[int, str]
+    - _get_param_types(self, class_name: str, method: Callable) : Dict[int, str]
+    - _generate_method_sequence(self, cls: Type, start_methods: List[str], max_sequence_length: int) : List[str]
+    - _to_hashable_with_marker(self, data: Any) : Union[Tuple[str, frozenset], Any]
+    - _to_original_from_marker(self, data_with_marker: Union[Tuple[str, frozenset], Any]) : Any
+    + fuzz(self, cls: Type, start_methods: List[str], max_sequence_length: int, num_sequences: int, max_param_combi: int = 2) : List[List[Tuple[str, Tuple[Any]]]]
 class "GeneratorFuzzer" as GFuzzer << class >> #LightSkyBlue {
     --
     - __init__(self) : void
@@ -158,9 +173,16 @@ abstract class "Runner" as runner << abstract class >> #LightGreen {
 class "ParamRunner" as PRunner << class >> #LightGreen {
     - __logger
     --
-    - __init__(self): void
-    + run(self, function: function, param_set: list): dict
-    + limit_param_set(self, param_set: list, runs: int): list
+    - __init__(self) : void
+    + run(self, function : function, param_set : list) : dict
+    + limit_param_set(self, param_set : list, runs : int) : list
+}
+'''''''''''''''''''''''''''''''''''''''
+class "GeneratorRunner" as GRunner << class >> {
+    - _logger : logging.logger
+    --
+    - __init__(self) : None
+    + run(self, cls: Type, sequences: List[List[Tuple[str, Tuple[Any]]]]) : List[int]
 }
 '''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''
@@ -185,6 +207,22 @@ entity  "test_vp_on_helpers.py" as test_VP_H << test cases >> #LightGray {
     test_get_all(): None
 }
 '''''''''''''''''''''''''''''''''''''''
+entity  "test_gen_on_pyLoxone.py" as test_GEN_pyLoxone << test cases >>{
+    logger
+    value_pool_fuzzer : ValuePoolFuzzer
+    generator_fuzzer : GeneratorFuzzer
+    generator_runner : GeneratorRunner
+    --
+    test_api_LxToken() : None
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_gen_on_dummy.py" as test_GEN_dummy << test cases >>{
+    logger
+    value_pool_fuzzer : ValuePoolFuzzer
+    generator_fuzzer : GeneratorFuzzer
+    generator_runner : GeneratorRunner
+    --
+    test_DummyClass() : None
 entity  "test_gen_on_XXX.py" as test_GEN << test cases >> #LightGray {
 
 }
@@ -240,6 +278,7 @@ GBFuzzer --> Seed: uses >
 '''''''''''''''''''''''''''''''''''''''
 runner <|-- PRunner: inherits from <
 runner <|-- GBRunner: inherits from <
+runner <|-- GRunner : inherits from <
 GBRunner o-- SeedManager: aggregates >
 GBRunner --> Seed: uses >
 '''''''''''''''''''''''''''''''''''''''
@@ -255,6 +294,12 @@ PRunner "1"<-- test_VP_H: imports <
 '''''''''''''''''''''''''''''''''''''''
 CGType "1"<--* GrFuzzer: needs a <
 '''''''''''''''''''''''''''''''''''''''
+GFuzzer "1"<--* test_GEN_dummy : needs a <
+GRunner "1"<--* test_GEN_dummy : needs a <
+VPFuzzer "1"<--* test_GEN_dummy : needs a <
+GFuzzer "1"<--* test_GEN_pyLoxone : needs a <
+GRunner "1"<--* test_GEN_pyLoxone : needs a <
+VPFuzzer "1"<--* test_GEN_pyLoxone : needs a <
 GFuzzer "1"<--* test_GEN: needs a <
 '''''''''''''''''''''''''''''''''''''''
 VPFuzzer "1"<-- test_MUT: imports <
