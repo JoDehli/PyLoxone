@@ -8,13 +8,13 @@ allow_mixing
 '''''''''''''''''''''''''''''''''''''''
 'Fuzzer''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
-abstract class "Fuzzer" as fuzzer << abstract class >> {
+abstract class "Fuzzer" as fuzzer << abstract class >> #LightSkyBlue {
     --
     - __init__(self): void
     + fuzz(): list
 }
 '''''''''''''''''''''''''''''''''''''''
-class "ValuePoolFuzzer" as VPFuzzer << class >> {
+class "ValuePoolFuzzer" as VPFuzzer << class >> #LightSkyBlue {
     - __logger 
     - __value_pool: ValuePool
     - __grammar_fuzzer: GrammarFuzzer
@@ -51,7 +51,7 @@ class "ValuePool" as VPool << class >> {
     + get_all_values(self): list
 }
 '''''''''''''''''''''''''''''''''''''''
-class "GeneratorFuzzer" as GFuzzer << class >> {
+class "GeneratorFuzzer" as GFuzzer << class >> #LightSkyBlue {
     --
     - __init__(self) : void
     + fuzz(self, ???) : list
@@ -62,7 +62,7 @@ class "CostGrammarType" as CGType << class >> {
     + MAX: int
     --
 }
-class "GrammarFuzzer" as GrFuzzer << class >> {
+class "GrammarFuzzer" as GrFuzzer << class >> #LightSkyBlue {
     - _NON_TERMINAL_REGEX: str
     --
     - __init__(self): void
@@ -81,7 +81,7 @@ entity "grammar_pool" as gr_pool << grammars >> {
     grammar_loxconfig_rooms_cats_json: Grammar
 }
 '''''''''''''''''''''''''''''''''''''''
-class "MutationalFuzzer" as MFuzzer << class >> {
+class "MutationalFuzzer" as MFuzzer << class >> #LightSkyBlue {
     - __logger
     - __multiplier: list[int]
     --
@@ -102,7 +102,7 @@ class "MutationalFuzzer" as MFuzzer << class >> {
 'Runner''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
-class "GreyBoxFuzzer" as GBFuzzer << class >> {
+class "GreyBoxFuzzer" as GBFuzzer << class >> #LightSkyBlue {
     - __RANGE_RANDOM_INT: int = 9
     - __RANGE_RANDOM_STRING: int = 100
     - __data_type_creator: DataTypeCreator
@@ -111,7 +111,7 @@ class "GreyBoxFuzzer" as GBFuzzer << class >> {
     + fuzz(self, seed_template: list, seed_specification: list = None, amount_seeds: int = 100): list[Seed]
 }
 '''''''''''''''''''''''''''''''''''''''
-class "GreyBoxRunner" as GBRunner << class >> {
+class "GreyBoxRunner" as GBRunner << class >> #LightGreen {
     - __seed_manager = SeedManager()
     - __mutator = Mutator()
     --
@@ -149,13 +149,13 @@ class "DataTypeCreator" as DataTypeCreator << class >> {
     - create_string_special_characters(self, amount_chars: int): str
 }
 '''''''''''''''''''''''''''''''''''''''
-abstract class "Runner" as runner << abstract class >> {
+abstract class "Runner" as runner << abstract class >> #LightGreen {
     --
     - __init__(self): void
     + run(): int
 }
 '''''''''''''''''''''''''''''''''''''''
-class "ParamRunner" as PRunner << class >> {
+class "ParamRunner" as PRunner << class >> #LightGreen {
     - __logger
     --
     - __init__(self): void
@@ -165,7 +165,7 @@ class "ParamRunner" as PRunner << class >> {
 '''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_vp_on_helpers.py" as test_VP_H << test cases >>{
+entity  "test_vp_on_helpers.py" as test_VP_H << test cases >> #LightGray {
     logger
     value_pool_fuzzer: ValuePoolFuzzer
     value_pool_fuzzer: ValuePoolFuzzer
@@ -185,11 +185,11 @@ entity  "test_vp_on_helpers.py" as test_VP_H << test cases >>{
     test_get_all(): None
 }
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_gen_on_XXX.py" as test_GEN << test cases >>{
+entity  "test_gen_on_XXX.py" as test_GEN << test cases >> #LightGray {
 
 }
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_mut_on_helpers.py" as test_MUT << test cases >>{
+entity  "test_mut_on_helpers.py" as test_MUT << test cases >> #LightGray {
     logger
     mutational_fuzzer: MutationalFuzzer
     grammar_fuzzer: GrammarFuzzer
@@ -209,7 +209,7 @@ entity  "test_mut_on_helpers.py" as test_MUT << test cases >>{
     test_get_all(): None
 }
 '''''''''''''''''''''''''''''''''''''''
-entity  "test_grey_box_on_helpers.py" as test_GBox << test case >>{
+entity  "test_grey_box_on_helpers.py" as test_GBox << test case >>  #LightGray {
     logger
     grey_box_fuzzer = GreyBoxFuzzer
     grey_box_runner = GreyBoxRunner
