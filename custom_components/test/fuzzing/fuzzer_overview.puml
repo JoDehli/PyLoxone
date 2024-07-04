@@ -294,7 +294,6 @@ VPFuzzer "1"<--* test_GEN_dummy: needs a <
 GFuzzer "1"<--* test_GEN_pyLoxone: needs a <
 GRunner "1"<--* test_GEN_pyLoxone: needs a <
 VPFuzzer "1"<--* test_GEN_pyLoxone: needs a <
-GFuzzer "1"<--* test_GEN: needs a <
 '''''''''''''''''''''''''''''''''''''''
 VPFuzzer "1"<-- test_MUT: imports <
 MFuzzer "1"<-- test_MUT: imports <
