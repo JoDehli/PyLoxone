@@ -209,7 +209,6 @@ entity  "test_gen_on_pyLoxone.py" as test_GEN_pyLoxone << test cases >>{
     generator_fuzzer : GeneratorFuzzer
     generator_runner : GeneratorRunner
     --
-    test_climate_LoxoneRoomControllerV2() : None
     test_api_LxToken() : None
 }
 '''''''''''''''''''''''''''''''''''''''
@@ -279,9 +278,7 @@ GBFuzzer --> Seed: uses >
 'Runner''''''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
 runner <|-- PRunner : inherits from <
-<<<<<<< HEAD
 runner <|-- GRunner : inherits from <
-=======
 GBRunner o-- SeedManager : aggregates >
 GBRunner --> Seed: uses >
 '''''''''''''''''''''''''''''''''''''''
@@ -289,7 +286,6 @@ GBRunner --> Seed: uses >
 '''''''''''''''''''''''''''''''''''''''
 SeedManager --> Seed: uses >
 DataTypeCreator --> Seed: uses >
->>>>>>> origin/master
 '''''''''''''''''''''''''''''''''''''''
 'Testcases'''''''''''''''''''''''''''''
 '''''''''''''''''''''''''''''''''''''''
