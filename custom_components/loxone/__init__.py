@@ -27,6 +27,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
+from homeassistant.setup import async_setup_component
 
 from .api import LoxApp, LoxWs
 from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
@@ -74,7 +75,6 @@ CONFIG_SCHEMA = vol.Schema(
 
 _UNDEF: dict = {}
 
-
 # TODO: Implement a complete restart of the loxone component without restart HomeAssistant
 # TODO: Unload device
 # TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
@@ -113,19 +113,21 @@ async def async_migrate_entry(hass, config_entry):
 
 
 async def async_set_options(hass, config_entry):
-    data = {**config_entry.data}
+    options_in = {**config_entry.options}
     options = {
-        CONF_HOST: data.pop(CONF_HOST, ""),
-        CONF_PORT: data.pop(CONF_PORT, DEFAULT_PORT),
-        CONF_USERNAME: data.pop(CONF_USERNAME, ""),
-        CONF_PASSWORD: data.pop(CONF_PASSWORD, ""),
-        CONF_SCENE_GEN: data.pop(CONF_SCENE_GEN, ""),
-        CONF_SCENE_GEN_DELAY: data.pop(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE),
-        CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: data.pop(
+        CONF_HOST: options_in.pop(CONF_HOST, ""),
+        CONF_PORT: options_in.pop(CONF_PORT, DEFAULT_PORT),
+        CONF_USERNAME: options_in.pop(CONF_USERNAME, ""),
+        CONF_PASSWORD: options_in.pop(CONF_PASSWORD, ""),
+        CONF_SCENE_GEN: options_in.pop(CONF_SCENE_GEN, ""),
+        CONF_SCENE_GEN_DELAY: options_in.pop(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE),
+        CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: options_in.pop(
             CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, ""
         ),
     }
-    hass.config_entries.async_update_entry(config_entry, data=data, options=options)
+    hass.config_entries.async_update_entry(
+        config_entry, data=config_entry.data, options=options
+    )
 
 
 async def async_config_entry_updated(hass, entry) -> None:
@@ -185,17 +187,25 @@ async def async_setup_entry(hass, config_entry):
 
     setup_tasks = []
 
+    #for platform in LOXONE_PLATFORMS:
+    #    _LOGGER.debug("starting loxone {}...".format(platform))
+    await hass.config_entries.async_forward_entry_setups(config_entry, LOXONE_PLATFORMS)
     for platform in LOXONE_PLATFORMS:
-        _LOGGER.debug("starting loxone {}...".format(platform))
-
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(config_entry, platform)
-        )
         setup_tasks.append(
             hass.async_create_task(
                 async_load_platform(hass, platform, DOMAIN, {}, config_entry)
             )
         )
+        # hass.async_create_task(
+        #     hass.config_entries.async_forward_entry_setup(config_entry, platform)
+        # )
+        #await hass.config_entries.async_forward_entry_setup(config_entry, platform)
+
+        # setup_tasks.append(
+        #     hass.async_create_task(
+        #         async_load_platform(hass, platform, DOMAIN, {}, config_entry)
+        #     )
+        # )
 
     if setup_tasks:
         await asyncio.wait(setup_tasks)
@@ -312,7 +322,7 @@ async def async_setup_entry(hass, config_entry):
                     accontrols.sort()
                     numbers.sort()
                     texts.sort()
-
+                    await async_setup_component(hass, "group", {})
                     await create_group_for_loxone_entities(
                         hass, sensors_analog, "Loxone Analog Sensors", "loxone_analog"
                     )
@@ -372,22 +382,49 @@ async def async_setup_entry(hass, config_entry):
                         "loxone_group",
                     )
                 except Exception as err:
-                    _LOGGER.error("Error Group generation: %s", err)
+                    _LOGGER.error(
+                        "Can't create group '%s'. Try to make at least one group manually. ("
+                        "https://www.home-assistant.io/integrations/group/)",
+                        err,
+                    )
 
     await miniserver.async_set_callback(message_callback)
 
     res = await miniserver.start_ws()
-    if not res:
+    if not res or res == -500:
+        if res == -500:
+            hass.config_entries.async_update_entry(config_entry, data={})
         return False
 
-    for platform in ["scene"]:
-        _LOGGER.debug("starting loxone {}...".format(platform))
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(config_entry, platform)
-        )
+    _LOGGER.debug("starting loxone {}...".format("scene"))
+    hass.async_create_task(hass.config_entries.async_forward_entry_setups(config_entry, ["scene"]))
 
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, miniserver.start_loxone)
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, miniserver.stop_loxone)
+    async def start_event(event):
+        token = miniserver.api.token_as_dict
+        hass.config_entries.async_update_entry(
+            config_entry,
+            data={
+                "token": token["_token"],
+                "hash_alg": token["_hash_alg"],
+                "valid_until": token["_valid_until"],
+            },
+        )
+        await miniserver.start_loxone()
+
+    async def stop_event(event):
+        token = miniserver.api.token_as_dict
+        hass.config_entries.async_update_entry(
+            config_entry,
+            data={
+                "token": token["_token"],
+                "hash_alg": token["_hash_alg"],
+                "valid_until": token["_valid_until"],
+            },
+        )
+        await miniserver.stop_loxone()
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, start_event)
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event)
     hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
 
     hass.bus.async_listen(SENDDOMAIN, miniserver.listen_loxone_send)
@@ -398,6 +435,13 @@ async def async_setup_entry(hass, config_entry):
     )
 
     hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
+
+    # if config_entry.unique_id is None:
+    #     hass.config_entries.async_update_entry(
+    #         config_entry, unique_id=miniserver.serial, data=new_data
+    #     )
+    #     # Workaround
+    #     await asyncio.sleep(5)
 
     return True
 

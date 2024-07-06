@@ -41,7 +41,7 @@ class MiniServer:
         self.hass = hass
         self.config_entry = config_entry
         self.lox_config = None
-        self.api = None
+        self.api: LoxWs | None = None
         self.callback = None
         self.entities = {}
         self.listeners = []
@@ -117,7 +117,12 @@ class MiniServer:
         await self.api.stop()
 
     async def start_ws(self):
+        if "token" in self.config_entry.data:
+            self.api.set_token_from_dict(self.config_entry.data)
+
         res = await self.api.async_init()
+        if res == -500:
+            return -500
         if not res or res == -1:
             _LOGGER.error("Error connecting to loxone miniserver #1")
             return False
@@ -163,10 +168,10 @@ class MiniServer:
     async def async_set_callback(self, message_callback):
         self.api.message_call_back = message_callback
 
-    async def start_loxone(self, event):
+    async def start_loxone(self):
         await self.api.start()
 
-    async def stop_loxone(self, event):
+    async def stop_loxone(self):
         _ = await self.api.stop()
         _LOGGER.debug(_)
 
