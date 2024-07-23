@@ -12,14 +12,15 @@ from functools import cached_property
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.sensor import (
-    CONF_STATE_CLASS, PLATFORM_SCHEMA, SensorDeviceClass, SensorEntity,
-    SensorEntityDescription, SensorStateClass)
+from homeassistant.components.sensor import (CONF_STATE_CLASS, PLATFORM_SCHEMA,
+                                             SensorDeviceClass, SensorEntity,
+                                             SensorEntityDescription,
+                                             SensorStateClass)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_DEVICE_CLASS, CONF_NAME, CONF_UNIQUE_ID, CONF_UNIT_OF_MEASUREMENT,
-    CONF_VALUE_TEMPLATE, LIGHT_LUX, STATE_UNKNOWN, UnitOfEnergy, UnitOfPower,
-    UnitOfSpeed, UnitOfTemperature)
+from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME, CONF_UNIQUE_ID,
+                                 CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
+                                 LIGHT_LUX, STATE_UNKNOWN, UnitOfEnergy,
+                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -37,6 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = "Loxone Sensor"
 
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_ACTIONID): cv.string,
@@ -47,14 +49,22 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
+
 @dataclass
 class LoxoneRequiredKeysMixin:
     """Mixin for required keys."""
+
     loxone_format_string: str
+
 
 @dataclass
 class LoxoneEntityDescription(SensorEntityDescription, LoxoneRequiredKeysMixin):
     """Describes Loxone sensor entity."""
+
+
+# https://github.com/jbouwh/core/blob/bf2d40efd436556908c885e3e103168719ae1471/homeassistant/components/mysensors/sensor.py
+# https://github.com/jbouwh/core/blob/a5cf8210ae0080a388425bcdc7d21325d3b032c6/homeassistant/components/netatmo/sensor.py
+
 
 SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
@@ -86,7 +96,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     ),
     LoxoneEntityDescription(
         key="kwh",
-        name="Kilowatt-hour",
+        name="Kilowatt per hour",
         suggested_display_precision=1,
         loxone_format_string=UnitOfEnergy.KILO_WATT_HOUR,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
@@ -95,7 +105,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     ),
     LoxoneEntityDescription(
         key="wh",
-        name="Watt-hour",
+        name="Watt per hour",
         suggested_display_precision=1,
         loxone_format_string=UnitOfEnergy.WATT_HOUR,
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
@@ -112,15 +122,6 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
     ),
     LoxoneEntityDescription(
-        key="power_kw",
-        name="Kilowatt",
-        suggested_display_precision=3,
-        loxone_format_string=UnitOfPower.KILO_WATT,
-        native_unit_of_measurement=UnitOfPower.KILO_WATT,
-        state_class=SensorStateClass.MEASUREMENT,
-        device_class=SensorDeviceClass.POWER,
-    ),    
-    LoxoneEntityDescription(
         key="light_level",
         name="Light Level",
         loxone_format_string=LIGHT_LUX,
@@ -130,7 +131,9 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     ),
 )
 
+
 SENSOR_FORMATS = [desc.loxone_format_string for desc in SENSOR_TYPES]
+
 
 async def async_setup_platform(
     hass: HomeAssistant,
@@ -149,6 +152,7 @@ async def async_setup_platform(
         new_sensor = LoxoneCustomSensor(**config)
         async_add_devices([new_sensor])
 
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -165,46 +169,11 @@ async def async_setup_entry(
     for sensor in get_all(loxconfig, "InfoOnlyAnalog"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         sensor.update({"typ": "analog"})
-        sensors.append(LoxoneSensor(**sensor))
+        sensors.append(Loxonesensor(**sensor))
 
     for sensor in get_all(loxconfig, "TextInput"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         sensors.append(LoxoneTextSensor(**sensor))
-
-    for sensor in get_all(loxconfig, "EnergyManager2"):
-        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-
-        # New objects dictionary
-        new_objects = {}
-
-        # Extract data and states
-        data = sensor
-        states = data["states"]
-
-        # Iterate over each state and create a new object
-        for state_name, state_value in states.items():
-            if state_name == "jLocked" or state_name == "loads":
-                continue
-
-            # Create a fresh dictionary for each state entry
-            new_obj = {
-                "energymanager_id": data["uuidAction"],
-                "energymanager_name": data["name"],
-                "name": state_name,
-                "type": data["type"],
-                "uuidAction": data["states"][state_name],
-                "room": data["room"],
-                "cat": data["cat"],
-                "defaultRating": data["defaultRating"],
-                "isFavorite": data["isFavorite"],
-                "isSecured": data["isSecured"],
-                "defaultIcon": data["defaultIcon"],
-                "restrictions": data["restrictions"],
-                "details": data["details"],
-                "states": {"value": state_value}
-            }
-            
-            sensors.append(LoxoneEnergyManagerSensor(**new_obj))
 
     @callback
     def async_add_sensors(_):
@@ -217,6 +186,7 @@ async def async_setup_entry(
     )
 
     async_add_entities(sensors)
+
 
 class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def __init__(self, **kwargs):
@@ -249,11 +219,15 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return device specific state attributes."""
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
         return {
             "uuid": self.uuidAction,
             "platform": "loxone",
         }
+
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
     _attr_should_poll = False
@@ -273,17 +247,18 @@ class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
         """Return a unique ID."""
         return self._attr_unique_id
 
+
 class LoxoneTextSensor(LoxoneEntity, SensorEntity):
     """Representation of a Text Sensor."""
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        LoxoneEntity.__init__(self, **kwargs)
         self._state = STATE_UNKNOWN
 
     async def event_handler(self, e):
         if self.states["text"] in e.data:
             self._state = str(e.data[self.states["text"]])
-            self.async_schedule_update_ha_state()
+            self.schedule_update_ha_state()
 
     @property
     def device_class(self):
@@ -304,7 +279,10 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return device specific state attributes."""
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
         return {
             "uuid": self.uuidAction,
             "device_typ": self.type,
@@ -312,16 +290,44 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
             "category": self.cat,
         }
 
-class LoxoneSensor(LoxoneEntity, SensorEntity):
+
+class Loxonesensor(LoxoneEntity, SensorEntity):
     """Representation of a Loxone Sensor."""
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        LoxoneEntity.__init__(self, **kwargs)
         """Initialize the sensor."""
-
+        self._format = self._get_format(self.details["format"])
         self._attr_should_poll = False
+        self._attr_native_unit_of_measurement = self._clean_unit(self.details["format"])
+        self._parent_id = kwargs.get("parent_id", None)
+
+        if entity_description := self._get_entity_description():
+            self.entity_description = entity_description
+        else:
+
+            def parse_digits_after_decimal(format_string):
+                # Define a regular expression pattern to match digits after the decimal point
+                pattern = r"\.(\d+)"
+
+                # Use re.search to find the first match in the format string
+                match = re.search(pattern, format_string)
+
+                if match:
+                    # Extract the digits part and convert it to an integer
+                    digits = int(match.group(1))
+                    return digits
+                else:
+                    # Return a default value or raise an error if no match is found
+                    return None  # or raise an exception
+
+            precision = parse_digits_after_decimal(self.details["format"])
+            if precision:
+                self._attr_suggested_display_precision = precision
 
         _uuid = self.unique_id
+        if self._parent_id:
+            _uuid = self._parent_id
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, _uuid)},
@@ -357,64 +363,13 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return device specific state attributes."""
+        """Return device specific state attributes.
+
+        Implemented by platform classes.
+        """
         return {
             "uuid": self.uuidAction,
             "device_typ": self.typ + "_sensor",
-            "platform": "loxone",
-            "category": self.cat,
-        }
-
-class LoxoneEnergyManagerSensor(LoxoneEntity, SensorEntity):
-    """Representation of a Loxone Sensor."""
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._attr_should_poll = False
-
-        self._parent_id = self.energymanager_id
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self._parent_id)},
-            name=f"{DOMAIN} {self.energymanager_name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="Sensor analog",
-        )
-
-    def _get_entity_description(self) -> SensorEntityDescription | None:
-        """Return the sensor entity description."""
-        if self._attr_native_unit_of_measurement in SENSOR_FORMATS:
-            return SENSOR_TYPES[
-                SENSOR_FORMATS.index(UnitOfPower.KILO_WATT)
-            ]
-        return None
-
-    async def event_handler(self, e):
-        if self.uuidAction in e.data:
-            value = e.data[self.uuidAction]
-            try:
-                # Attempt to convert the value to a float
-                self._attr_native_value = float(value)
-            except ValueError:
-                # Handle the case where the value cannot be converted
-                self._attr_native_value = None
-            self.async_schedule_update_ha_state()
-
-    @property
-    def native_unit_of_measurement(self):
-        """Return the unit of measurement of this entity, if any."""
-        if self._attr_native_unit_of_measurement in ["None", "none", "-"]:
-            return None
-        return self._attr_native_unit_of_measurement
-
-    @property
-    def extra_state_attributes(self):
-        """Return device specific state attributes."""
-        return {
-            "uuid": self._parent_id,
-            "state_uuid": self.uuidAction,
-            "device_type": self.type + "_sensor",
             "platform": "loxone",
             "category": self.cat,
         }
