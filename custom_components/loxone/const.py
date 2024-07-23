@@ -14,6 +14,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
     Platform.SWITCH,
+    Platform.BUTTON,
     Platform.COVER,
     Platform.FAN,
     Platform.LIGHT,
