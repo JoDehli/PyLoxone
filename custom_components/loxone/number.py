@@ -23,7 +23,6 @@ from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
 
-
 async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
@@ -32,7 +31,6 @@ async def async_setup_platform(
 ) -> None:
     """Set up Loxone Number."""
     return True
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -61,19 +59,17 @@ async def async_setup_entry(
 
     async_add_entities(entities)
 
-
 class LoxoneNumber(LoxoneEntity, NumberEntity):
-    """Representation of a loxone number"""
+    """Representation of a Loxone number."""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
-        """Initialize the Loxone number."""
-        self._state = STATE_UNKNOWN
-        self._icon = None
+        super().__init__(**kwargs)
+        self._attr_native_value = STATE_UNKNOWN
+        self._attr_icon = None
         self._assumed = False
-        self._native_max_value = kwargs["details"]["max"]
-        self._native_min_value = kwargs["details"]["min"]
-        self._native_step = kwargs["details"]["step"]
+        self._attr_native_max_value = kwargs["details"]["max"]
+        self._attr_native_min_value = kwargs["details"]["min"]
+        self._attr_native_step = kwargs["details"]["step"]
 
     @property
     def should_poll(self):
@@ -82,23 +78,23 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
 
     @property
     def icon(self):
-        """Return the icon to use for device if any."""
-        return self._icon
+        """Return the icon to use for the device, if any."""
+        return self._attr_icon
 
     @property
     def native_max_value(self):
-        """Return the native_max_value to use for device if any."""
-        return self._native_max_value
+        """Return the maximum value for the number."""
+        return self._attr_native_max_value
 
     @property
     def native_min_value(self):
-        """Return the native_min_value to use for device if any."""
-        return self._native_min_value
+        """Return the minimum value for the number."""
+        return self._attr_native_min_value
 
     @property
     def native_step(self):
-        """Return the native_min_value to use for device if any."""
-        return self._native_step
+        """Return the step value for the number."""
+        return self._attr_native_step
 
     @property
     def assumed_state(self):
@@ -107,8 +103,8 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
 
     @property
     def native_value(self):
-        """Return the state of the sensor."""
-        return self._state
+        """Return the state of the number."""
+        return self._attr_native_value
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
@@ -116,20 +112,17 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
             if isinstance(data, (list, dict)):
                 data = str(data)
                 if len(data) >= 255:
-                    self._state = data[:255]
+                    self._attr_native_value = data[:255]
                 else:
-                    self._state = data
+                    self._attr_native_value = data
             else:
-                self._state = data
+                self._attr_native_value = data
 
-            self.schedule_update_ha_state()
+            self.async_schedule_update_ha_state()
 
     @property
     def extra_state_attributes(self):
-        """Return device specific state attributes.
-
-        Implemented by platform classes.
-        """
+        """Return device-specific state attributes."""
         return {
             "uuid": self.uuidAction,
             "state_uuid": self.states["value"],
@@ -141,13 +134,14 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
 
     @property
     def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
-        }
+        """Return device information."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=self.name,
+            manufacturer="Loxone",
+            model=self.type,
+            suggested_area=self.room,
+        )
 
     async def async_set_native_value(self, value: float):
         """Set new value."""
