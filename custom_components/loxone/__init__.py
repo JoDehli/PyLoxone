@@ -187,8 +187,6 @@ async def async_setup_entry(hass, config_entry):
 
     setup_tasks = []
 
-    #for platform in LOXONE_PLATFORMS:
-    #    _LOGGER.debug("starting loxone {}...".format(platform))
     await hass.config_entries.async_forward_entry_setups(config_entry, LOXONE_PLATFORMS)
     for platform in LOXONE_PLATFORMS:
         setup_tasks.append(
@@ -196,16 +194,6 @@ async def async_setup_entry(hass, config_entry):
                 async_load_platform(hass, platform, DOMAIN, {}, config_entry)
             )
         )
-        # hass.async_create_task(
-        #     hass.config_entries.async_forward_entry_setup(config_entry, platform)
-        # )
-        #await hass.config_entries.async_forward_entry_setup(config_entry, platform)
-
-        # setup_tasks.append(
-        #     hass.async_create_task(
-        #         async_load_platform(hass, platform, DOMAIN, {}, config_entry)
-        #     )
-        # )
 
     if setup_tasks:
         await asyncio.wait(setup_tasks)
@@ -274,6 +262,7 @@ async def async_setup_entry(hass, config_entry):
                     sensors_analog = []
                     sensors_digital = []
                     switches = []
+                    buttons = []
                     covers = []
                     lights = []
                     dimmers = []
@@ -294,8 +283,10 @@ async def async_setup_entry(hass, config_entry):
                                 sensors_digital.append(s_dict["entity_id"])
                             elif device_typ in ["Jalousie", "Gate", "Window"]:
                                 covers.append(s_dict["entity_id"])
-                            elif device_typ in ["Switch", "Pushbutton", "TimedSwitch"]:
+                            elif device_typ in ["Switch", "TimedSwitch"]:
                                 switches.append(s_dict["entity_id"])
+                            elif device_typ in ["Pushbutton"]:
+                                buttons.append(s_dict["entity_id"])
                             elif device_typ in ["LightControllerV2"]:
                                 lights.append(s_dict["entity_id"])
                             elif device_typ == "Dimmer":
@@ -315,6 +306,7 @@ async def async_setup_entry(hass, config_entry):
                     sensors_digital.sort()
                     covers.sort()
                     switches.sort()
+                    buttons.sort()
                     lights.sort()
                     climates.sort()
                     dimmers.sort()
@@ -334,6 +326,9 @@ async def async_setup_entry(hass, config_entry):
                     )
                     await create_group_for_loxone_entities(
                         hass, switches, "Loxone Switches", "loxone_switches"
+                    )
+                    await create_group_for_loxone_entities(
+                        hass, buttons, "Loxone Buttons", "loxone_buttons"
                     )
                     await create_group_for_loxone_entities(
                         hass, covers, "Loxone Covers", "loxone_covers"
@@ -366,21 +361,7 @@ async def async_setup_entry(hass, config_entry):
                         hass, texts, "Loxone Texts", "loxone_texts"
                     )
                     await hass.async_block_till_done()
-                    await create_group_for_loxone_entities(
-                        hass,
-                        [
-                            "group.loxone_analog",
-                            "group.loxone_digital",
-                            "group.loxone_switches",
-                            "group.loxone_covers",
-                            "group.loxone_lights",
-                            "group.loxone_ventilations",
-                            "group.loxone_numbers",
-                            "group.loxone_texts",
-                        ],
-                        "Loxone Group",
-                        "loxone_group",
-                    )
+
                 except Exception as err:
                     _LOGGER.error(
                         "Can't create group '%s'. Try to make at least one group manually. ("
@@ -397,7 +378,9 @@ async def async_setup_entry(hass, config_entry):
         return False
 
     _LOGGER.debug("starting loxone {}...".format("scene"))
-    hass.async_create_task(hass.config_entries.async_forward_entry_setups(config_entry, ["scene"]))
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setups(config_entry, ["scene"])
+    )
 
     async def start_event(event):
         token = miniserver.api.token_as_dict
@@ -435,13 +418,6 @@ async def async_setup_entry(hass, config_entry):
     )
 
     hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
-
-    # if config_entry.unique_id is None:
-    #     hass.config_entries.async_update_entry(
-    #         config_entry, unique_id=miniserver.serial, data=new_data
-    #     )
-    #     # Workaround
-    #     await asyncio.sleep(5)
 
     return True
 
