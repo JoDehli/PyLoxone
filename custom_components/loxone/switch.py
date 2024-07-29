@@ -17,8 +17,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid, add_room_and_cat_to_value_values
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,37 +44,17 @@ async def async_setup_entry(
     entities = []
 
     for switch_entity in get_all(
-        loxconfig, ["Pushbutton", "Switch", "TimedSwitch", "Intercom"]
+        loxconfig, ["Switch", "TimedSwitch", "Intercom"]
     ):
-        if switch_entity["type"] in ["Pushbutton", "Switch"]:
-            switch_entity.update(
-                {
-                    "room": get_room_name_from_room_uuid(
-                        loxconfig, switch_entity.get("room", "")
-                    ),
-                    "cat": get_cat_name_from_cat_uuid(
-                        loxconfig, switch_entity.get("cat", "")
-                    ),
-                    "config_entry": config_entry,
-                }
-            )
-            new_push_button = LoxoneSwitch(**switch_entity)
-            entities.append(new_push_button)
+        if switch_entity["type"] in ["Switch"]:
+            add_room_and_cat_to_value_values(loxconfig, switch_entity)
+            new_switch = LoxoneSwitch(**switch_entity)
+            entities.append(new_switch)
 
         elif switch_entity["type"] == "TimedSwitch":
-            switch_entity.update(
-                {
-                    "room": get_room_name_from_room_uuid(
-                        loxconfig, switch_entity.get("room", "")
-                    ),
-                    "cat": get_cat_name_from_cat_uuid(
-                        loxconfig, switch_entity.get("cat", "")
-                    ),
-                    "config_entry": config_entry,
-                }
-            )
-            new_push_button = LoxoneTimedSwitch(**switch_entity)
-            entities.append(new_push_button)
+            add_room_and_cat_to_value_values(loxconfig, switch_entity)
+            new_switch = LoxoneTimedSwitch(**switch_entity)
+            entities.append(new_switch)
 
         elif switch_entity["type"] == "Intercom":
             if "subControls" in switch_entity:
@@ -105,14 +84,14 @@ async def async_setup_entry(
                     )
                     _.update({"config_entry": config_entry})
 
-                    new_push_button = LoxoneIntercomSubControl(**_)
-                    entities.append(new_push_button)
+                    new_switch = LoxoneIntercomSubControl(**_)
+                    entities.append(new_switch)
 
     async_add_entities(entities)
 
 
 class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
-    """Representation of a loxone switch or pushbutton"""
+    """Representation of a loxone switch"""
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
@@ -218,7 +197,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
 
 
 class LoxoneSwitch(LoxoneEntity, SwitchEntity):
-    """Representation of a loxone switch or pushbutton"""
+    """Representation of a loxone switch"""
 
     def __init__(self, **kwargs):
         LoxoneEntity.__init__(self, **kwargs)
@@ -250,24 +229,14 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
     def turn_on(self, **kwargs):
         """Turn the switch on."""
         if not self._state:
-            if self.type == "Pushbutton":
-                self.hass.bus.fire(
-                    SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse")
-                )
-            else:
-                self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
+            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
             self._state = True
             self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
         if self._state:
-            if self.type == "Pushbutton":
-                self.hass.bus.fire(
-                    SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse")
-                )
-            else:
-                self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="Off"))
+            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="Off"))
             self._state = False
             self.schedule_update_ha_state()
 
