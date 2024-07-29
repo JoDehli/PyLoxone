@@ -282,6 +282,7 @@ async def async_setup_entry(hass, config_entry):
                     accontrols = []
                     numbers = []
                     texts = []
+                    buttons[]
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
@@ -294,8 +295,10 @@ async def async_setup_entry(hass, config_entry):
                                 sensors_digital.append(s_dict["entity_id"])
                             elif device_typ in ["Jalousie", "Gate", "Window"]:
                                 covers.append(s_dict["entity_id"])
-                            elif device_typ in ["Switch", "Pushbutton", "TimedSwitch"]:
+                            elif device_typ in ["Switch", "TimedSwitch"]:
                                 switches.append(s_dict["entity_id"])
+                            elif device_typ == "Pushbutton":
+                                buttons.append(s_dict["entity_id"])
                             elif device_typ in ["LightControllerV2"]:
                                 lights.append(s_dict["entity_id"])
                             elif device_typ == "Dimmer":
@@ -315,6 +318,7 @@ async def async_setup_entry(hass, config_entry):
                     sensors_digital.sort()
                     covers.sort()
                     switches.sort()
+                    buttons.sort()
                     lights.sort()
                     climates.sort()
                     dimmers.sort()
@@ -334,6 +338,9 @@ async def async_setup_entry(hass, config_entry):
                     )
                     await create_group_for_loxone_entities(
                         hass, switches, "Loxone Switches", "loxone_switches"
+                    )
+                    await create_group_for_loxone_entities(
+                        hass, switches, "Loxone Buttons", "loxone_buttons"
                     )
                     await create_group_for_loxone_entities(
                         hass, covers, "Loxone Covers", "loxone_covers"
@@ -372,6 +379,7 @@ async def async_setup_entry(hass, config_entry):
                             "group.loxone_analog",
                             "group.loxone_digital",
                             "group.loxone_switches",
+                            "group.loxone_buttons",
                             "group.loxone_covers",
                             "group.loxone_lights",
                             "group.loxone_ventilations",
