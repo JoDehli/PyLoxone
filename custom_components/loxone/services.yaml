@@ -23,6 +23,35 @@ event_websocket_command:
       selector:
         text:
 
+event_secured_websocket_command:
+  description: Send secured websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/
+  fields:
+    uuid:
+      name: UUID
+      description: Uuid for entity which you want to send a command
+      example: 0f1e0b31-0178-7f77-ffff402fb0c34b9e
+      selector:
+        text:
+    device:
+      name: Entity
+      description: Device which you want to send a command
+      example: Switch 1
+      selector:
+        entity:
+          integration: loxone
+    value:
+      name: Command
+      description: Command which you want to send
+      example: pulse
+      selector:
+        text:
+    code:
+      name: Code
+      description: Code for the entity
+      example: 1234
+      selector:
+        text:
+
 sync_areas:
   description:
     Applies areas to the loxone entites based on the room from loxone. If area not exists entites will not be

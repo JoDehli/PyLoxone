@@ -227,6 +227,19 @@ async def async_setup_entry(hass, config_entry):
             entity_uuid = entity.unique_id
         await miniserver.api.send_websocket_command(entity_uuid, value)
 
+    async def handle_secured_websocket_command(call):
+        """Handle websocket command services."""
+        value = call.data.get(ATTR_VALUE, DEFAULT)
+        code = call.data.get(ATTR_CODE, DEFAULT)
+        if call.data.get(ATTR_DEVICE) is None:
+            entity_uuid = call.data.get(ATTR_UUID, DEFAULT)
+        else:
+            entity_registry = er.async_get(hass)
+            entity_id = call.data.get(ATTR_DEVICE)
+            entity = entity_registry.async_get(entity_id)
+            entity_uuid = entity.unique_id
+        await miniserver.api.send_secured__websocket_command(entity_uuid, value, code)
+
     async def sync_areas_with_loxone(data={}):
         create_areas = data.get(ATTR_AREA_CREATE, DEFAULT)
         if create_areas not in [True, False]:
@@ -415,6 +428,10 @@ async def async_setup_entry(hass, config_entry):
 
     hass.services.async_register(
         DOMAIN, "event_websocket_command", handle_websocket_command
+    )
+
+    hass.services.async_register(
+        DOMAIN, "event_secured_websocket_command", handle_secured_websocket_command
     )
 
     hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
