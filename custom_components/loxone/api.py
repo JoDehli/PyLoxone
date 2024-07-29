@@ -348,7 +348,7 @@ class LoxWs:
     async def send_secured(self, device_uuid, value, code):
         from Crypto.Hash import HMAC, SHA1, SHA256
 
-        pwd_hash_str = code + ":" + self._visual_hash.salt
+        pwd_hash_str = str(code) + ":" + self._visual_hash.salt
         if self._visual_hash.hash_alg == "SHA1":
             m = hashlib.sha1()
         elif self._visual_hash.hash_alg == "SHA256":
