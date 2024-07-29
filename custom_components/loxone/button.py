@@ -42,26 +42,26 @@ async def async_setup_entry(
 
     for button_entity in get_all(loxconfig, ["Pushbutton"]):
         button_entity = add_room_and_cat_to_value_values(loxconfig, button_entity)
-        entities.append(LoxoneButton("pulse", **button_entity))
-
-    for button_entity in get_all(loxconfig, "EnergyManager2"):
-        button_entity = add_room_and_cat_to_value_values(loxconfig, button_entity)
-        entities.append(LoxoneButton("manage", **button_entity))
+        entities.append(LoxoneButton(**button_entity))
 
     async_add_entities(entities)
 
 class LoxoneButton(LoxoneEntity, ButtonEntity):
     """Representation of a Loxone pushbutton."""
 
-    def __init__(self, value, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.value = value
-        self._attr_name = "Check inputs"
         self._attr_icon = None
 
-    def press(self):
+    @property
+    def icon(self):
+        """Return the icon to use for device if any."""
+        return self._attr_icon
+
+
+    def press(self, **kwargs):
         """Press the button."""
-        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=self.value))
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse"))
         self.schedule_update_ha_state()
 
     @property
@@ -69,6 +69,7 @@ class LoxoneButton(LoxoneEntity, ButtonEntity):
         """Return device specific state attributes."""
         return {
             "uuid": self.uuidAction,
+            "state_uuid": self.states["active"],
             "room": self.room,
             "category": self.cat,
             "device_typ": self.type,

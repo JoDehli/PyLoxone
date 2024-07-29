@@ -282,7 +282,7 @@ async def async_setup_entry(hass, config_entry):
                     accontrols = []
                     numbers = []
                     texts = []
-                    buttons[]
+                    buttons = []
 
                     for s in entity_ids:
                         s_dict = s.as_dict()
