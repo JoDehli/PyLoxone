@@ -353,7 +353,7 @@ async def async_setup_entry(hass, config_entry):
                         hass, switches, "Loxone Switches", "loxone_switches"
                     )
                     await create_group_for_loxone_entities(
-                        hass, switches, "Loxone Buttons", "loxone_buttons"
+                        hass, buttons, "Loxone Buttons", "loxone_buttons"
                     )
                     await create_group_for_loxone_entities(
                         hass, covers, "Loxone Covers", "loxone_covers"
