@@ -55,17 +55,39 @@
         }
       }
     },
+    "event_secured_websocket_command": {
+      "name": "Websocket passwordgeschütztes Kommando an Server senden",
+      "description": "Sende Websocket-Befehle an den Loxone-Server. Du kannst einen Befehl an den Miniserver mithilfe einer Entität oder mithilfe einer UUID senden. Wenn du beides angibst, wird der Befehl an die Entität gesendet. Weitere Informationen und Befehle findest du unter https://www.loxone.com/dede/kb/api/",
+      "fields": {
+        "uuid": {
+          "name": "UUID",
+          "description": "UUID für die Entität, and die du einen Befehl senden möchtest."
+        },
+        "device": {
+          "name": "Gerät",
+          "description": "Gerät, an den du einen Befehl senden möchtest."
+        },
+        "value": {
+          "name": "Befehl",
+          "description": "Befehl, den du senden möchtest."
+        },
+        "code": {
+          "name": "Password",
+          "description": "Visual Password für diese Entität."
+        }
+      }
+    },
     "enable_sun_automation": {
-        "name": "Sonnenautomatisierung aktivieren",
-        "description": "Sonnenautomatisierung für Loxone Jalousie aktivieren"
+      "name": "Sonnenautomatisierung aktivieren",
+      "description": "Sonnenautomatisierung für Loxone Jalousie aktivieren"
     },
     "disable_sun_automation": {
-        "name": "Sonnenautomatisierung deaktivieren",
-        "description": "Sonnenautomatisierung für Loxone Jalousie deaktivieren"
+      "name": "Sonnenautomatisierung deaktivieren",
+      "description": "Sonnenautomatisierung für Loxone Jalousie deaktivieren"
     },
     "quick_shade": {
-        "name": "Beschattung ",
-        "description": "Loxone Jalousie in Schattenposition bringen. Position wird von Loxone abhängig von mehreren Werten festgelegt."
+      "name": "Beschattung ",
+      "description": "Loxone Jalousie in Schattenposition bringen. Position wird von Loxone abhängig von mehreren Werten festgelegt."
     }
   }
 }
