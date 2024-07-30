@@ -21,6 +21,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.ALARM_CONTROL_PANEL,
     Platform.MEDIA_PLAYER,
     Platform.NUMBER,
+    Platform.BUTTON,
 ]
 
 LOXONE_DEFAULT_PORT = 8080
