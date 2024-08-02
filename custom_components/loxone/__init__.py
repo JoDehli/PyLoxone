@@ -75,10 +75,11 @@ CONFIG_SCHEMA = vol.Schema(
 
 _UNDEF: dict = {}
 
+
+
 # TODO: Implement a complete restart of the loxone component without restart HomeAssistant
 # TODO: Unload device
 # TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
-
 
 async def async_unload_entry(hass, config_entry):
     """Restart of Home Assistant needed."""
@@ -301,30 +302,30 @@ async def async_setup_entry(hass, config_entry):
                         s_dict = s.as_dict()
                         attr = s_dict["attributes"]
                         if "platform" in attr and attr["platform"] == DOMAIN:
-                            device_typ = attr.get("device_typ", "")
-                            if device_typ == "analog_sensor":
+                            device_type = attr.get("device_type", "")
+                            if device_type == "analog_sensor":
                                 sensors_analog.append(s_dict["entity_id"])
-                            elif device_typ == "digital_sensor":
+                            elif device_type == "digital_sensor":
                                 sensors_digital.append(s_dict["entity_id"])
-                            elif device_typ in ["Jalousie", "Gate", "Window"]:
+                            elif device_type in ["Jalousie", "Gate", "Window"]:
                                 covers.append(s_dict["entity_id"])
-                            elif device_typ in ["Switch", "TimedSwitch"]:
+                            elif device_type in ["Switch", "TimedSwitch"]:
                                 switches.append(s_dict["entity_id"])
-                            elif device_typ == "Pushbutton":
+                            elif device_type == "Pushbutton":
                                 buttons.append(s_dict["entity_id"])
-                            elif device_typ in ["LightControllerV2"]:
+                            elif device_type in ["LightControllerV2"]:
                                 lights.append(s_dict["entity_id"])
-                            elif device_typ == "Dimmer":
+                            elif device_type == "Dimmer":
                                 dimmers.append(s_dict["entity_id"])
-                            elif device_typ == "IRoomControllerV2":
+                            elif device_type == "IRoomControllerV2":
                                 climates.append(s_dict["entity_id"])
-                            elif device_typ == "Ventilation":
+                            elif device_type == "Ventilation":
                                 fans.append(s_dict["entity_id"])
-                            elif device_typ == "AcControl":
+                            elif device_type == "AcControl":
                                 accontrols.append(s_dict["entity_id"])
-                            elif device_typ == "Slider":
+                            elif device_type == "Slider":
                                 numbers.append(s_dict["entity_id"])
-                            elif device_typ == "TextInput":
+                            elif device_type == "TextInput":
                                 texts.append(s_dict["entity_id"])
 
                     sensors_analog.sort()

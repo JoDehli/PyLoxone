@@ -16,8 +16,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DEFAULT_AUDIO_ZONE_V2_PLAY_STATE, DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import add_room_and_cat_to_value_values, get_all, get_or_create_device
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,14 +58,10 @@ async def async_setup_entry(
     entities = []
 
     for audioZone in get_all(loxconfig, "AudioZoneV2"):
+        audioZone = add_room_and_cat_to_value_values(loxconfig, audioZone)
         audioZone.update(
             {
                 "hass": hass,
-                "typ": "AudioZoneV2",
-                "room": get_room_name_from_room_uuid(
-                    loxconfig, audioZone.get("room", "")
-                ),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, audioZone.get("cat", "")),
             }
         )
         entities.append(LoxoneAudioZoneV2(**audioZone))
@@ -93,20 +88,16 @@ class LoxoneAudioZoneV2(LoxoneEntity, MediaPlayerEntity):
 
     def __init__(self, **kwargs):
         _LOGGER.debug(f"Input AudioZoneV2: {kwargs}")
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.hass = kwargs["hass"]
 
         self._attr_device_class = MediaPlayerDeviceClass.SPEAKER
         self._state = play_state_to_media_player_state(DEFAULT_AUDIO_ZONE_V2_PLAY_STATE)
         self._volume = 0
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model=self.typ,
-        )
+        self.type = "AudioZoneV2"
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+
 
     async def event_handler(self, event):
         should_update = False

@@ -17,7 +17,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import get_all, get_cat_name_from_cat_uuid, get_room_name_from_room_uuid, add_room_and_cat_to_value_values
+from .helpers import add_room_and_cat_to_value_values, get_all, get_or_create_device
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,16 +43,15 @@ async def async_setup_entry(
     loxconfig = miniserver.lox_config.json
     entities = []
 
-    for switch_entity in get_all(
-        loxconfig, ["Switch", "TimedSwitch", "Intercom"]
-    ):
-        if switch_entity["type"] in ["Switch"]:
-            add_room_and_cat_to_value_values(loxconfig, switch_entity)
+    for switch_entity in get_all(loxconfig, ["Switch", "TimedSwitch", "Intercom"]):
+        
+        switch_entity = add_room_and_cat_to_value_values(loxconfig, switch_entity)
+
+        if switch_entity["type"] in ["Switch"]:    
             new_switch = LoxoneSwitch(**switch_entity)
             entities.append(new_switch)
 
         elif switch_entity["type"] == "TimedSwitch":
-            add_room_and_cat_to_value_values(loxconfig, switch_entity)
             new_switch = LoxoneTimedSwitch(**switch_entity)
             entities.append(new_switch)
 
@@ -60,7 +59,9 @@ async def async_setup_entry(
             if "subControls" in switch_entity:
                 for sub_name in switch_entity["subControls"]:
                     subcontol = switch_entity["subControls"][sub_name]
+
                     _ = subcontol
+                    _ = add_room_and_cat_to_value_values(loxconfig, _)
                     _.update(
                         {
                             "name": "{} - {}".format(
@@ -68,21 +69,6 @@ async def async_setup_entry(
                             )
                         }
                     )
-                    _.update(
-                        {
-                            "room": get_room_name_from_room_uuid(
-                                loxconfig, switch_entity.get("room", "")
-                            ),
-                        }
-                    )
-                    _.update(
-                        {
-                            "cat": get_cat_name_from_cat_uuid(
-                                loxconfig, switch_entity.get("cat", "")
-                            )
-                        }
-                    )
-                    _.update({"config_entry": config_entry})
 
                     new_switch = LoxoneIntercomSubControl(**_)
                     entities.append(new_switch)
@@ -94,7 +80,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch"""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self._icon = None
         self._assumed = False
         self._state = STATE_UNKNOWN
@@ -111,13 +97,9 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
         else:
             self._deactivation_delay_total = ""
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model=self.type,
-        )
+        self.type = "TimeSwitch"
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+
 
     @property
     def should_poll(self):
@@ -179,7 +161,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             "uuid": self.uuidAction,
             "room": self.room,
             "category": self.cat,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
         }
 
@@ -200,11 +182,15 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch"""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         """Initialize the Loxone switch."""
         self._state = STATE_UNKNOWN
         self._icon = None
         self._assumed = False
+
+        self.type = "Switch"
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+
 
     @property
     def should_poll(self):
@@ -257,24 +243,18 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
             "state_uuid": self.states["active"],
             "room": self.room,
             "category": self.cat,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
-        }
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
         }
 
 
 class LoxoneIntercomSubControl(LoxoneSwitch):
     def __init__(self, **kwargs):
         LoxoneSwitch.__init__(self, **kwargs)
+
+        self.type = "IntercomSubControl"
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+
 
     def turn_on(self, **kwargs):
         """Turn the switch on."""
@@ -293,16 +273,6 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
             "state_uuid": self.states["active"],
             "room": self.room,
             "category": self.cat,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
-        }
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
         }

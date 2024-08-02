@@ -10,7 +10,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 
 from .. import LoxoneEntity
 from ..const import DOMAIN, SENDDOMAIN
-from ..helpers import hass_to_lox, lox_to_hass
+from ..helpers import hass_to_lox, lox_to_hass, get_or_create_device
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,9 +26,9 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
     }
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         """Initialize the LumiTech."""
-        self._attr_unique_id = self.uuidAction
+        self.unique_id = self.uuidAction
         self._attr_color_mode = ColorMode.UNKNOWN
         self._color_uuid = kwargs.get("states", {}).get("color", None)
         self._sequence_uuid = kwargs.get("states", {}).get("sequence", None)
@@ -37,31 +37,22 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
         self._light_controller_id = kwargs.get("lightcontroller_id", None)
         self._light_controller_name = kwargs.get("lightcontroller_name", None)
 
-        self._name = self._attr_name
+        self.name = self._attr_name
         if self._light_controller_name:
             self._attr_name = f"{self._light_controller_name}-{self._attr_name}"
 
         if self._light_controller_id:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._light_controller_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="LightControllerV2",
-            )
+            self.type = "LightControllerV2"
+            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type + "_new", self.room)
         else:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._attr_unique_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="ColorPickerV2",
-            )
+            self.type = "ColorPickerV2"
+            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type + "_new", self.room)
+
 
     @cached_property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return self._attr_unique_id
+        return self.unique_id
 
     @property
     def is_on(self) -> bool:
@@ -166,18 +157,9 @@ class LumiTech(RGBColorPicker):
         RGBColorPicker.__init__(self, **kwargs)
         """Initialize the LumiTech."""
         if self._light_controller_id:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._light_controller_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="LightControllerV2",
-            )
+            self.type = "LightControllerV2"
+            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type + "_new", self.room)
         else:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._attr_unique_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="LumiTech",
-            )
+            self.type = "LumiTech"
+            self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)            
+

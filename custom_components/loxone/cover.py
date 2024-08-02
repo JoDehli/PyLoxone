@@ -25,8 +25,7 @@ from . import LoxoneEntity
 from .const import (DOMAIN, SENDDOMAIN, SERVICE_DISABLE_SUN_AUTOMATION,
                     SERVICE_ENABLE_SUN_AUTOMATION, SERVICE_QUICK_SHADE,
                     SUPPORT_QUICK_SHADE, SUPPORT_SUN_AUTOMATION)
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid, map_range)
+from .helpers import add_room_and_cat_to_value_values, get_all, get_or_create_device, map_range
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,26 +51,24 @@ async def async_setup_entry(
     """Set Loxone covers."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
-    covers = []
+    entities = []
 
     for cover in get_all(loxconfig, ["Jalousie", "Gate", "Window"]):
+        cover = add_room_and_cat_to_value_values(loxconfig, cover)
         cover.update(
             {
                 "hass": hass,
-                "room": get_room_name_from_room_uuid(loxconfig, cover.get("room", "")),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, cover.get("cat", "")),
             }
         )
-
         if cover["type"] == "Gate":
             new_gate = LoxoneGate(**cover)
-            covers.append(new_gate)
+            entities.append(new_gate)
         elif cover["type"] == "Window":
             new_window = LoxoneWindow(**cover)
-            covers.append(new_window)
+            entities.append(new_window)
         else:
             new_jalousie = LoxoneJalousie(**cover)
-            covers.append(new_jalousie)
+            entities.append(new_jalousie)
 
     @callback
     def async_add_covers(_):
@@ -82,7 +79,7 @@ async def async_setup_entry(
             hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_entities
         )
     )
-    async_add_entities(covers)
+    async_add_entities(entities)
 
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
@@ -106,26 +103,20 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
     """Loxone Gate"""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.hass = kwargs["hass"]
         self._position_uuid = kwargs["states"]["position"]
         self._state_uuid = kwargs["states"]["active"]
         self._position = None
         self._is_opening = False
         self._is_closing = False
+        self.type = "Gate"
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
 
         if self._position is None:
             self._closed = True
         else:
             self._closed = self.current_cover_position <= 0
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=self.name,
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="Gate",
-        )
 
     @property
     def supported_features(self):
@@ -225,7 +216,7 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
         """
         return {
             "uuid": self.uuidAction,
-            "device_typ": self.type,
+            "device_type": self.type,
             "category": self.cat,
             "platform": "loxone",
         }
@@ -234,19 +225,14 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
 class LoxoneWindow(LoxoneEntity, CoverEntity):
     # pylint: disable=no-self-use
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.hass = kwargs["hass"]
         self._position = None
         self._closed = True
         self._direction = 0
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=self.name,
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="Window",
-        )
+        self.type = "Window"
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
 
     async def event_handler(self, e):
         if self.states["position"] in e.data or self.states["direction"] in e.data:
@@ -278,7 +264,7 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         """
         device_att = {
             "uuid": self.uuidAction,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
             "room": self.room,
             "category": self.cat,
@@ -339,7 +325,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
 
     # pylint: disable=no-self-use
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.hass = kwargs["hass"]
 
         if "autoInfoText" not in self.states:
@@ -372,13 +358,8 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         else:
             self._closed = self.current_cover_position <= 0
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="Jalousie",
-        )
+        self.type = "Jalousie"
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
 
     @property
     def supported_features(self):
@@ -531,7 +512,7 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         """
         device_att = {
             "uuid": self.uuidAction,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
             "room": self.room,
             "category": self.cat,

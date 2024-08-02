@@ -21,8 +21,7 @@ from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
 from .const import CONF_HVAC_AUTO_MODE, DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import add_room_and_cat_to_value_values, get_all, get_or_create_device
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -72,41 +71,34 @@ async def async_setup_entry(
     """Set up LoxoneRoomControllerV2."""
     miniserver = get_miniserver_from_hass(hass)
     loxconfig = miniserver.lox_config.json
-    devices = []
+    entities = []
 
     for climate in get_all(loxconfig, "IRoomControllerV2"):
+        climate = add_room_and_cat_to_value_values(loxconfig, climate)
         climate.update(
             {
                 "hass": hass,
-                "room": get_room_name_from_room_uuid(
-                    loxconfig, climate.get("room", "")
-                ),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, climate.get("cat", "")),
                 CONF_HVAC_AUTO_MODE: 0,
             }
         )
-        devices.append(LoxoneRoomControllerV2(**climate))
+        entities.append(LoxoneRoomControllerV2(**climate))
 
     for accontrol in get_all(loxconfig, "AcControl"):
+        accontrol = add_room_and_cat_to_value_values(loxconfig, accontrol)
         accontrol.update(
             {
                 "hass": hass,
-                "typ": "accontrol",
-                "room": get_room_name_from_room_uuid(
-                    loxconfig, accontrol.get("room", "")
-                ),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, accontrol.get("cat", "")),
             }
         )
-        devices.append(LoxoneAcControl(**accontrol))
+        entities.append(LoxoneAcControl(**accontrol))
 
-    async_add_entities(devices)
+    async_add_entities(entities)
 
 
 class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller"""
 
-    _attr_supported_features = (
+    attr_supported_features = (
         ClimateEntityFeature.PRESET_MODE
         | ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.TURN_OFF
@@ -114,33 +106,20 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     )
 
     def __init__(self, **kwargs):
-        _LOGGER.debug(f"Input: {kwargs}")
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.hass = kwargs["hass"]
         self._autoMode = kwargs[CONF_HVAC_AUTO_MODE]
-
         self._stateAttribUuids = kwargs["states"]
         self._stateAttribValues = {}
-
+        self.type = "RoomControllerV2"
         self._modeList = kwargs["details"]["timerModes"]
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="RoomControllerV2",
-        )
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
 
     def get_mode_from_id(self, mode_id):
         for mode in self._modeList:
             if mode["id"] == mode_id:
                 return mode["name"]
-
-    @property
-    def device_class(self):
-        """Return the class of this device, from component DEVICE_CLASSES."""
-        return self.type
 
     async def event_handler(self, event):
         # _LOGGER.debug(f"Climate Event data: {event.data}")
@@ -168,11 +147,6 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         Implemented by platform classes.
         """
         return {
-            "uuid": self.uuidAction,
-            "device_typ": self.type,
-            "room": self.room,
-            "category": self.cat,
-            "platform": "loxone",
             "is_overridden": self.is_overridden,
         }
 
@@ -308,29 +282,23 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 # ------------------ AC CONTROL --------------------------------------------------------
 class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     """Representation of a ACControl Loxone device."""
-
-    _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+    
+    attr_supported_features = (
+        ClimateEntityFeature.PRESET_MODE
+        | ClimateEntityFeature.TARGET_TEMPERATURE
+        | ClimateEntityFeature.TURN_OFF
+        | ClimateEntityFeature.TURN_ON
+    )
 
     def __init__(self, **kwargs):
         _LOGGER.debug(f"Input AcControl: {kwargs}")
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.hass = kwargs["hass"]
 
         self._stateAttribUuids = kwargs["states"]
         self._stateAttribValues = {}
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="accontrol",
-        )
-
-    @property
-    def device_class(self):
-        """Return the class of this device, from component DEVICE_CLASSES."""
-        return self.type
+        self.type = "AcControl"
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
 
     async def event_handler(self, event):
         # _LOGGER.debug(f"Climate Event data: {event.data}")
@@ -359,7 +327,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         """
         return {
             "uuid": self.uuidAction,
-            "device_typ": self.type,
+            "device_type": self.type,
             "room": self.room,
             "category": self.cat,
             "platform": "loxone",

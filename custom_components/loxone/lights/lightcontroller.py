@@ -8,7 +8,7 @@ from homeassistant.helpers.entity import DeviceInfo
 
 from .. import LoxoneEntity
 from ..const import DOMAIN, SENDDOMAIN, STATE_OFF
-
+from ..helpers import get_or_create_device
 
 class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
     """Representation of a Light Controller V2."""
@@ -18,7 +18,7 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
     _attr_supported_color_modes = {ColorMode.ONOFF}
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self._state = STATE_UNKNOWN
         self._active_moods = []
         self._moodlist = []
@@ -35,13 +35,9 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
                 "type": control["type"],
             }
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=f"{self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="LightControllerV2",
-        )
+        self.type = "LightControllerV2"
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)            
+
 
     @property
     def device_class(self):
@@ -174,7 +170,7 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             "room": self.room,
             "category": self.cat,
             "selected_scene": self.effect,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
             "subcontrols": self._sub_controls,
         }

@@ -17,8 +17,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import add_room_and_cat_to_value_values, get_all, get_or_create_device
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,17 +44,7 @@ async def async_setup_entry(
     entities = []
 
     for number_entity in get_all(loxconfig, ["Slider"]):
-        number_entity.update(
-            {
-                "room": get_room_name_from_room_uuid(
-                    loxconfig, number_entity.get("room", "")
-                ),
-                "cat": get_cat_name_from_cat_uuid(
-                    loxconfig, number_entity.get("cat", "")
-                ),
-                "config_entry": config_entry,
-            }
-        )
+        number_entity = add_room_and_cat_to_value_values(loxconfig, number_entity)
         new_number = LoxoneNumber(**number_entity)
         entities.append(new_number)
 
@@ -66,7 +55,7 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
     """Representation of a loxone number"""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         """Initialize the Loxone number."""
         self._state = STATE_UNKNOWN
         self._icon = None
@@ -74,6 +63,9 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
         self._native_max_value = kwargs["details"]["max"]
         self._native_min_value = kwargs["details"]["min"]
         self._native_step = kwargs["details"]["step"]
+
+        self.type = "Slider"
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
 
     @property
     def should_poll(self):
@@ -135,18 +127,8 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
             "state_uuid": self.states["value"],
             "room": self.room,
             "category": self.cat,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
-        }
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
         }
 
     async def async_set_native_value(self, value: float):

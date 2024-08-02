@@ -16,39 +16,29 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
     _attr_supported_color_modes = {ColorMode.ONOFF}
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self._attr_is_on = STATE_UNKNOWN
-        self._attr_unique_id = self.uuidAction
+        self.unique_id = self.uuidAction
         self._async_add_devices = kwargs["async_add_devices"]
         self._light_controller_id = kwargs.get("lightcontroller_id", None)
         self._light_controller_name = kwargs.get("lightcontroller_name", None)
 
-        self._name = self._attr_name
+        self.name = self._attr_name
         if self._light_controller_name:
             self._attr_name = f"{self._light_controller_name}-{self._attr_name}"
 
         if self._light_controller_id:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._light_controller_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="LightControllerV2",
-            )
+            self.type = "LightControllerV2"
+            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type + "_new", self.room)            
         else:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._attr_unique_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="Light",
-            )
+            self.type = "Light"
+            self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)               
 
         state_attributes = {
             "uuid": self.uuidAction,
             "room": self.room,
             "category": self.cat,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
         }
         if self._light_controller_name:
@@ -59,7 +49,7 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
     @cached_property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return self._attr_unique_id
+        return self.unique_id
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))

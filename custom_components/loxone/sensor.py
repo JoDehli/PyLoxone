@@ -29,7 +29,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
-from .helpers import add_room_and_cat_to_value_values, get_all
+from .helpers import add_room_and_cat_to_value_values, get_all, get_or_create_device
 from .miniserver import get_miniserver_from_hass
 
 NEW_SENSOR = "sensors"
@@ -37,7 +37,6 @@ NEW_SENSOR = "sensors"
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = "Loxone Sensor"
-
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -49,22 +48,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-
 @dataclass
 class LoxoneRequiredKeysMixin:
     """Mixin for required keys."""
-
     loxone_format_string: str
-
 
 @dataclass
 class LoxoneEntityDescription(SensorEntityDescription, LoxoneRequiredKeysMixin):
     """Describes Loxone sensor entity."""
-
-
-# https://github.com/jbouwh/core/blob/bf2d40efd436556908c885e3e103168719ae1471/homeassistant/components/mysensors/sensor.py
-# https://github.com/jbouwh/core/blob/a5cf8210ae0080a388425bcdc7d21325d3b032c6/homeassistant/components/netatmo/sensor.py
-
 
 SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
@@ -131,9 +122,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     ),
 )
 
-
 SENSOR_FORMATS = [desc.loxone_format_string for desc in SENSOR_TYPES]
-
 
 async def async_setup_platform(
     hass: HomeAssistant,
@@ -147,11 +136,10 @@ async def async_setup_platform(
         value_template.hass = hass
 
     # Devices from yaml
-    if config != {}:
-        # Here setup all Sensors in Yaml-File
+    if config:
+        # Setup all Sensors in Yaml-File
         new_sensor = LoxoneCustomSensor(**config)
-        async_add_devices([new_sensor])
-
+        async_add_devices([new_sensor], update_before_add=True)
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -162,18 +150,18 @@ async def async_setup_entry(
     miniserver = get_miniserver_from_hass(hass)
 
     loxconfig = miniserver.lox_config.json
-    sensors = []
+    entities = []
     if "softwareVersion" in loxconfig:
-        sensors.append(LoxoneVersionSensor(loxconfig["softwareVersion"]))
+        entities.append(LoxoneVersionSensor(loxconfig["softwareVersion"]))
 
     for sensor in get_all(loxconfig, "InfoOnlyAnalog"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-        sensor.update({"typ": "analog"})
-        sensors.append(Loxonesensor(**sensor))
+        sensor.update({"type": "analog"})
+        entities.append(LoxoneSensor(**sensor))
 
     for sensor in get_all(loxconfig, "TextInput"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-        sensors.append(LoxoneTextSensor(**sensor))
+        entities.append(LoxoneTextSensor(**sensor))
 
     @callback
     def async_add_sensors(_):
@@ -185,16 +173,16 @@ async def async_setup_entry(
         )
     )
 
-    async_add_entities(sensors)
-
+    async_add_entities(entities, update_before_add=True)
 
 class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._attr_name = kwargs.pop("name", None)
         self._attr_state_class = kwargs.pop("state_class", None)
         self._attr_device_class = kwargs.pop("device_class", None)
         self._attr_native_unit_of_measurement = kwargs.pop("unit_of_measurement", None)
-        super().__init__(**kwargs)
+        self._attr_native_value = None  # Initialize state
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
@@ -219,15 +207,11 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return device specific state attributes.
-
-        Implemented by platform classes.
-        """
+        """Return device specific state attributes."""
         return {
             "uuid": self.uuidAction,
             "platform": "loxone",
         }
-
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
     _attr_should_poll = False
@@ -247,18 +231,17 @@ class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
         """Return a unique ID."""
         return self._attr_unique_id
 
-
 class LoxoneTextSensor(LoxoneEntity, SensorEntity):
     """Representation of a Text Sensor."""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self._state = STATE_UNKNOWN
 
     async def event_handler(self, e):
         if self.states["text"] in e.data:
             self._state = str(e.data[self.states["text"]])
-            self.schedule_update_ha_state()
+            self.async_schedule_update_ha_state()
 
     @property
     def device_class(self):
@@ -279,24 +262,19 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return device specific state attributes.
-
-        Implemented by platform classes.
-        """
+        """Return device specific state attributes."""
         return {
             "uuid": self.uuidAction,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
             "category": self.cat,
         }
 
-
-class Loxonesensor(LoxoneEntity, SensorEntity):
+class LoxoneSensor(LoxoneEntity, SensorEntity):
     """Representation of a Loxone Sensor."""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
-        """Initialize the sensor."""
+        super().__init__(**kwargs)
         self._format = self._get_format(self.details["format"])
         self._attr_should_poll = False
         self._attr_native_unit_of_measurement = self._clean_unit(self.details["format"])
@@ -305,23 +283,7 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
         if entity_description := self._get_entity_description():
             self.entity_description = entity_description
         else:
-
-            def parse_digits_after_decimal(format_string):
-                # Define a regular expression pattern to match digits after the decimal point
-                pattern = r"\.(\d+)"
-
-                # Use re.search to find the first match in the format string
-                match = re.search(pattern, format_string)
-
-                if match:
-                    # Extract the digits part and convert it to an integer
-                    digits = int(match.group(1))
-                    return digits
-                else:
-                    # Return a default value or raise an error if no match is found
-                    return None  # or raise an exception
-
-            precision = parse_digits_after_decimal(self.details["format"])
+            precision = self._parse_digits_after_decimal(self.details["format"])
             if precision:
                 self._attr_suggested_display_precision = precision
 
@@ -329,13 +291,18 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
         if self._parent_id:
             _uuid = self._parent_id
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, _uuid)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="Sensor analog",
-        )
+        self.type = "Sensor analog"
+        self._attr_device_info = get_or_create_device(_uuid, self.name, self.type + "_new", self.room)
+
+    def _parse_digits_after_decimal(self, format_string):
+        """Parse digits after the decimal point from the format string."""
+        pattern = r"\.(\d+)"
+        match = re.search(pattern, format_string)
+        if match:
+            digits = int(match.group(1))
+            return digits
+        return None
+
 
     def _get_entity_description(self) -> SensorEntityDescription | None:
         """Return the sensor entity description."""
@@ -363,13 +330,10 @@ class Loxonesensor(LoxoneEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """Return device specific state attributes.
-
-        Implemented by platform classes.
-        """
+        """Return device specific state attributes."""
         return {
             "uuid": self.uuidAction,
-            "device_typ": self.typ + "_sensor",
+            "device_type": self.type + "_sensor",
             "platform": "loxone",
             "category": self.cat,
         }
