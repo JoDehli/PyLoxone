@@ -139,11 +139,6 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
             self._attr_device_info = get_or_create_device(
                 self.unique_id, self.name, self.type, ""
             )
-            return {
-                "identifiers": {(DOMAIN, self.unique_id)},
-                "name": self.name,
-                "manufacturer": "Loxone",
-            }
 
     @property
     def icon(self):
