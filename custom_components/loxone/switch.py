@@ -98,7 +98,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             self._deactivation_delay_total = ""
 
         self.type = "TimeSwitch"
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
 
 
     @property
@@ -189,7 +189,7 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
         self._assumed = False
 
         self.type = "Switch"
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
 
 
     @property
@@ -253,7 +253,7 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
         LoxoneSwitch.__init__(self, **kwargs)
 
         self.type = "IntercomSubControl"
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
 
 
     def turn_on(self, **kwargs):

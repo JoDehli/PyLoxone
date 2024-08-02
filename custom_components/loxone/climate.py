@@ -114,7 +114,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         self.type = "RoomControllerV2"
         self._modeList = kwargs["details"]["timerModes"]
 
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
 
     def get_mode_from_id(self, mode_id):
         for mode in self._modeList:
@@ -298,7 +298,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         self._stateAttribUuids = kwargs["states"]
         self._stateAttribValues = {}
         self.type = "AcControl"
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
 
     async def event_handler(self, event):
         # _LOGGER.debug(f"Climate Event data: {event.data}")

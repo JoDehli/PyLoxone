@@ -78,7 +78,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         self._armed_delay = 0.0
         self._armed_delay_total_delay = 0.0
         self._code = str(kwargs["code"]) if kwargs["code"] else None
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, "Alarm_new", self.room)
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, "Alarm", self.room)
 
         # if "states" in kwargs:
         #     states = kwargs['states']

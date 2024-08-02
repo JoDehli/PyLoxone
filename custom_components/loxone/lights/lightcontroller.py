@@ -36,7 +36,7 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             }
 
         self.type = "LightControllerV2"
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)            
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)            
 
 
     @property

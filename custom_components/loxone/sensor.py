@@ -292,7 +292,7 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
             _uuid = self._parent_id
 
         self.type = "Sensor analog"
-        self._attr_device_info = get_or_create_device(_uuid, self.name, self.type + "_new", self.room)
+        self._attr_device_info = get_or_create_device(_uuid, self.name, self.type, self.room)
 
     def _parse_digits_after_decimal(self, format_string):
         """Parse digits after the decimal point from the format string."""

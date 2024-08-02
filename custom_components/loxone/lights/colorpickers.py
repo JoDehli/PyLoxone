@@ -43,10 +43,10 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
 
         if self._light_controller_id:
             self.type = "LightControllerV2"
-            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type + "_new", self.room)
+            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type, self.room)
         else:
             self.type = "ColorPickerV2"
-            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type + "_new", self.room)
+            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type, self.room)
 
 
     @cached_property
@@ -158,8 +158,8 @@ class LumiTech(RGBColorPicker):
         """Initialize the LumiTech."""
         if self._light_controller_id:
             self.type = "LightControllerV2"
-            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type + "_new", self.room)
+            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type, self.room)
         else:
             self.type = "LumiTech"
-            self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)            
+            self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)            
 

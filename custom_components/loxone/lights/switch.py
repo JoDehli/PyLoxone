@@ -29,10 +29,10 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
 
         if self._light_controller_id:
             self.type = "LightControllerV2"
-            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type + "_new", self.room)            
+            self._attr_device_info = get_or_create_device(self._light_controller_id, self.name, self.type, self.room)            
         else:
             self.type = "Light"
-            self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)               
+            self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)               
 
         state_attributes = {
             "uuid": self.uuidAction,

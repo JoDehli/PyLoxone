@@ -51,7 +51,7 @@ class LoxoneButton(LoxoneEntity, ButtonEntity):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
 
     def press(self, **kwargs):
         """Press the button."""

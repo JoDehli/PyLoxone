@@ -157,7 +157,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
         self._details = kwargs["details"]
 
         self.type = "Fan"
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
 
 
     @property

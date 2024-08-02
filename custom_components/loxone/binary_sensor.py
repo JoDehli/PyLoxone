@@ -131,9 +131,9 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
             self.unique_id = self._parent_id
 
         if self._from_loxone_config:
-            self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+            self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
         else:
-            self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", "")
+            self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, "")
             return {
                 "identifiers": {(DOMAIN, self.unique_id)},
                 "name": self.name,

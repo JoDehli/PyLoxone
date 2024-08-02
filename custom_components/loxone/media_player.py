@@ -96,7 +96,7 @@ class LoxoneAudioZoneV2(LoxoneEntity, MediaPlayerEntity):
         self._volume = 0
 
         self.type = "AudioZoneV2"
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
 
 
     async def event_handler(self, event):

@@ -65,7 +65,7 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
         self._native_step = kwargs["details"]["step"]
 
         self.type = "Slider"
-        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type + "_new", self.room)
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
 
     @property
     def should_poll(self):
