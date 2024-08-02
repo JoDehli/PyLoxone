@@ -11,7 +11,6 @@ import datetime
 import hashlib
 import json
 import logging
-import os
 import queue
 import time
 import traceback
@@ -22,7 +21,6 @@ from datetime import datetime
 from struct import unpack
 
 import httpx
-from homeassistant.config import get_default_config_dir
 
 from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_ENCRYPT_CMD, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
@@ -199,7 +197,7 @@ class LoxWs:
         self._rsa_cipher = None
         self._session_key = None
         self._ws = None
-        self._current_message_typ = None
+        self._current_message_type = None
         self._encryption_ready = False
         self._visual_hash = None
         self._keep_alive_task = None
@@ -415,7 +413,7 @@ class LoxWs:
 
             message = await self._ws.recv()
             await self.parse_loxone_message(message)
-            if self._current_message_typ != 0:
+            if self._current_message_type != 0:
                 _LOGGER.debug("error by getting the session key response...")
                 return ERROR_VALUE
 
@@ -496,17 +494,17 @@ class LoxWs:
         """Process the messages."""
         if len(message) == 8:
             unpacked_data = unpack("ccccI", message)
-            self._current_message_typ = int.from_bytes(
+            self._current_message_type = int.from_bytes(
                 unpacked_data[1], byteorder="big"
             )
-            if self._current_message_typ == 6:
+            if self._current_message_type == 6:
                 _LOGGER.debug("Keep alive response received...")
         else:
             parsed_data = await self._parse_loxone_message(message)
             if parsed_data != {}:
                 _LOGGER.debug(
                     "message [type:{}]):{}".format(
-                        self._current_message_typ, parsed_data
+                        self._current_message_type, parsed_data
                     )
                 )
 
@@ -545,17 +543,17 @@ class LoxWs:
             if self.message_call_back is not None:
                 if "LL" not in parsed_data and parsed_data != {}:
                     await self.message_call_back(parsed_data)
-            self._current_message_typ = None
+            self._current_message_type = None
             await asyncio.sleep(0)
 
     async def _parse_loxone_message(self, message):
         """Parser of the Loxone message."""
         event_dict = {}
-        if self._current_message_typ == 0:
+        if self._current_message_type == 0:
             event_dict = message
-        elif self._current_message_typ == 1:
+        elif self._current_message_type == 1:
             pass
-        elif self._current_message_typ == 2:
+        elif self._current_message_type == 2:
             length = len(message)
             num = length / 24
             start = 0
@@ -571,7 +569,7 @@ class LoxWs:
                 event_dict[uuidstr] = value
                 start += 24
                 end += 24
-        elif self._current_message_typ == 3:
+        elif self._current_message_type == 3:
             from math import floor
 
             start = 0
@@ -617,10 +615,10 @@ class LoxWs:
             while start < len(message):
                 start = get_text(message, start, 16)
 
-        elif self._current_message_typ == 6:
+        elif self._current_message_type == 6:
             event_dict["keep_alive"] = "received"
         else:
-            self._current_message_typ = 7
+            self._current_message_type = 7
         return event_dict
 
     async def use_token(self):
@@ -817,7 +815,7 @@ class LoxWs:
         if len(message) == 8:
             try:
                 unpacked_data = unpack("ccccI", message)
-                self._current_message_typ = int.from_bytes(
+                self._current_message_type = int.from_bytes(
                     unpacked_data[1], byteorder="big"
                 )
                 _LOGGER.debug("parse_loxone_message successfully...")

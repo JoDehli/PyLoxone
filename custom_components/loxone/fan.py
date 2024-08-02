@@ -8,18 +8,17 @@ from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from voluptuous import Any, Optional
 
 from . import LoxoneEntity
 from .binary_sensor import LoxoneDigitalSensor
-from .const import DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .const import SENDDOMAIN
+from .helpers import (add_room_and_cat_to_value_values, get_all,
+                      get_or_create_device)
 from .miniserver import get_miniserver_from_hass
-from .sensor import Loxonesensor
+from .sensor import LoxoneSensor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,11 +56,10 @@ async def async_setup_entry(
     entities = []
 
     for fan in get_all(loxconfig, "Ventilation"):
+        fan = add_room_and_cat_to_value_values(loxconfig, fan)
         fan.update(
             {
-                "typ": "ventilation",
-                "room": get_room_name_from_room_uuid(loxconfig, fan.get("room", "")),
-                "cat": get_cat_name_from_cat_uuid(loxconfig, fan.get("cat", "")),
+                "type": "ventilation",
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
             }
@@ -71,7 +69,7 @@ async def async_setup_entry(
             presence = {
                 "parent_id": fan["uuidAction"],
                 "uuidAction": fan["states"]["presence"],
-                "typ": "presence",
+                "type": "presence",
                 "room": fan.get("room", ""),
                 "cat": fan.get("cat", ""),
                 "name": fan["name"] + " - Presence",
@@ -84,7 +82,7 @@ async def async_setup_entry(
             humidity = {
                 "parent_id": fan["uuidAction"],
                 "uuidAction": fan["states"]["humidityIndoor"],
-                "typ": "analog",
+                "type": "analog",
                 "room": fan.get("room", ""),
                 "cat": fan.get("cat", ""),
                 "name": fan["name"] + " - Humidity",
@@ -93,12 +91,12 @@ async def async_setup_entry(
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
             }
-            entities.append(Loxonesensor(**humidity))
+            entities.append(LoxoneSensor(**humidity))
         if fan["details"]["hasAirQuality"] and "airQualityIndoor" in fan["states"]:
             air_quality = {
                 "parent_id": fan["uuidAction"],
                 "uuidAction": fan["states"]["airQualityIndoor"],
-                "typ": "analog",
+                "type": "analog",
                 "room": fan.get("room", ""),
                 "cat": fan.get("cat", ""),
                 "name": fan["name"] + " - Air Quality",
@@ -107,12 +105,12 @@ async def async_setup_entry(
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
             }
-            entities.append(Loxonesensor(**air_quality))
+            entities.append(LoxoneSensor(**air_quality))
         # if "temperatureIndoor" in fan["states"]:
         #     temperature = {
         #         "parent_id": fan["uuidAction"],
         #         "uuidAction": fan["states"]["temperatureIndoor"],
-        #         "typ": "analog",
+        #         "type": "analog",
         #         "room": fan.get("room", ""),
         #         "cat": fan.get("cat", ""),
         #         "name": fan["name"] + " - Temperature",
@@ -121,12 +119,12 @@ async def async_setup_entry(
         #         },
         #         "async_add_devices": async_add_entities
         #     }
-        #     entities.append(Loxonesensor(**temperature))
+        #     entities.append(LoxoneSensor(**temperature))
         if "temperatureOutdoor" in fan["states"]:
             temperature = {
                 "parent_id": fan["uuidAction"],
                 "uuidAction": fan["states"]["temperatureOutdoor"],
-                "typ": "analog",
+                "type": "analog",
                 "room": fan.get("room", ""),
                 "cat": fan.get("cat", ""),
                 "name": fan["name"] + " - Temperature",
@@ -135,7 +133,7 @@ async def async_setup_entry(
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
             }
-            entities.append(Loxonesensor(**temperature))
+            entities.append(LoxoneSensor(**temperature))
 
         entities.append(LoxoneVentilation(**fan))
 
@@ -147,7 +145,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
 
     def __init__(self, **kwargs) -> None:
         """Initialize the fan."""
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
 
         self._device_class = None
         self._state = STATE_UNKNOWN
@@ -158,12 +156,9 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
         self._stateAttribValues = {}
         self._details = kwargs["details"]
 
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self.unique_id)},
-            name=f"{DOMAIN} {self.name}",
-            manufacturer="Loxone",
-            suggested_area=self.room,
-            model="Fan",
+        self.type = "Fan"
+        self._attr_device_info = get_or_create_device(
+            self.unique_id, self.name, self.type, self.room
         )
 
     @property
@@ -176,7 +171,7 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
             "uuid": self.uuidAction,
             "room": self.room,
             "category": self.cat,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
         }
 

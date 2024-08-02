@@ -10,15 +10,14 @@ import logging
 from homeassistant.components.text import TextEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_UNKNOWN
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
-from .const import DOMAIN, SENDDOMAIN
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .const import SENDDOMAIN
+from .helpers import (add_room_and_cat_to_value_values, get_all,
+                      get_or_create_device)
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,14 +44,10 @@ async def async_setup_entry(
     entities = []
 
     for text_entity in get_all(loxconfig, ["TextInput"]):
+
+        text_entity = add_room_and_cat_to_value_values(loxconfig, text_entity)
         text_entity.update(
             {
-                "room": get_room_name_from_room_uuid(
-                    loxconfig, text_entity.get("room", "")
-                ),
-                "cat": get_cat_name_from_cat_uuid(
-                    loxconfig, text_entity.get("cat", "")
-                ),
                 "config_entry": config_entry,
             }
         )
@@ -66,12 +61,17 @@ class LoxoneText(LoxoneEntity, TextEntity):
     """Representation of a loxone text"""
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         """Initialize the Loxone text."""
         self._state = STATE_UNKNOWN
         self._icon = None
         self._assumed = False
         self._native_value = ""
+
+        self.type = "TextInput"
+        self._attr_device_info = get_or_create_device(
+            self.unique_id, self.name, self.type, self.room
+        )
 
     @property
     def should_poll(self):
@@ -118,18 +118,8 @@ class LoxoneText(LoxoneEntity, TextEntity):
             "state_uuid": self.states["text"],
             "room": self.room,
             "category": self.cat,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
-        }
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
-            "manufacturer": "Loxone",
-            "model": self.type,
-            "suggested_area": self.room,
         }
 
     async def async_set_value(self, value: str):

@@ -7,6 +7,23 @@ https://home-assistant.io/components/loxone/
 
 import numpy as np
 
+from .const import DOMAIN
+
+# Initialize a device registry
+device_registry = {}
+
+
+def get_or_create_device(device_uuid, device_name, device_type, device_room):
+    if device_uuid not in device_registry:
+        device_registry[device_uuid] = {
+            "identifiers": {(DOMAIN, device_uuid)},
+            "name": f"{DOMAIN} {device_name}",
+            "manufacturer": "Loxone",
+            "model": device_type,
+            "suggested_area": device_room,
+        }
+    return device_registry[device_uuid]
+
 
 def map_range(value, in_min, in_max, out_min, out_max):
     return out_min + (((value - in_min) / (in_max - in_min)) * (out_max - out_min))
@@ -84,7 +101,7 @@ def get_miniserver_type(t):
         return "Miniserver Go (Gen 2)"
     elif t == 4:
         return "Miniserver Compact"
-    return "Unknown Typ"
+    return "Unknown type"
 
 
 def get_all(json_data, name):

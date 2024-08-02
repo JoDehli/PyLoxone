@@ -6,8 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from .helpers import (get_all, get_cat_name_from_cat_uuid,
-                      get_room_name_from_room_uuid)
+from .helpers import add_room_and_cat_to_value_values, get_all
 from .lights.colorpickers import LumiTech, RGBColorPicker
 from .lights.dimmer import EIBDimmer, LoxoneDimmer
 from .lights.lightcontroller import LoxoneLightControllerV2
@@ -59,7 +58,7 @@ async def async_setup_entry(
         "generate_lightcontroller_subcontrols", False
     )
     loxconfig = miniserver.lox_config.json
-    entites = []
+    entities = []
     dimmers_without_light_controller = get_all(loxconfig, ["Dimmer", "EIBDimmer"])
 
     switches = []
@@ -67,19 +66,14 @@ async def async_setup_entry(
     color_pickers = []
 
     for light_controller in get_all(loxconfig, "LightControllerV2"):
+        light_controller = add_room_and_cat_to_value_values(loxconfig, light_controller)
         light_controller.update(
             {
-                "room": get_room_name_from_room_uuid(
-                    loxconfig, light_controller.get("room", "")
-                ),
-                "cat": get_cat_name_from_cat_uuid(
-                    loxconfig, light_controller.get("cat", "")
-                ),
                 "async_add_devices": async_add_entities,
             }
         )
         new_light_controller = LoxoneLightControllerV2(**light_controller)
-        entites.append(new_light_controller)
+        entities.append(new_light_controller)
 
         if generate_subcontrols and "subControls" in light_controller:
             for sub_control_uuid in light_controller["subControls"]:
@@ -90,15 +84,9 @@ async def async_setup_entry(
                     continue
                 sub_control = light_controller["subControls"][sub_control_uuid]
                 # Update for all entities
-
+                sub_control = add_room_and_cat_to_value_values(loxconfig, sub_control)
                 sub_control.update(
                     {
-                        "room": get_room_name_from_room_uuid(
-                            loxconfig, light_controller.get("room", "")
-                        ),
-                        "cat": get_cat_name_from_cat_uuid(
-                            loxconfig, light_controller.get("cat", "")
-                        ),
                         "lightcontroller_id": light_controller.get("uuidAction", None),
                         "lightcontroller_name": light_controller.get("name", None),
                         "async_add_devices": async_add_entities,
@@ -119,26 +107,23 @@ async def async_setup_entry(
 
     for switch in switches:
         new_switch = LoxoneLightSwitch(**switch)
-        entites.append(new_switch)
+        entities.append(new_switch)
 
     for dimmer in dimmers + dimmers_without_light_controller:
         if "async_add_devices" not in dimmer:
+            dimmer = add_room_and_cat_to_value_values(loxconfig, dimmer)
             dimmer.update(
                 {
-                    "room": get_room_name_from_room_uuid(
-                        loxconfig, dimmer.get("room", "")
-                    ),
-                    "cat": get_cat_name_from_cat_uuid(loxconfig, dimmer.get("cat", "")),
                     "async_add_devices": async_add_entities,
                 }
             )
 
         if dimmer["type"] == DimmerTypes.DIMMER:
             new_dimmer = LoxoneDimmer(**dimmer)
-            entites.append(new_dimmer)
+            entities.append(new_dimmer)
         elif dimmer["type"] == DimmerTypes.EIBDIMMER:
             new_eib_dimmer = EIBDimmer(**dimmer)
-            entites.append(new_eib_dimmer)
+            entities.append(new_eib_dimmer)
         else:
             _LOGGER.error(f"Not implemented Dimmer Type {dimmer['type']}")
 
@@ -148,13 +133,13 @@ async def async_setup_entry(
             if picker_type:
                 if picker_type == ColorPickerTypes.LUMITECH:
                     new_lumitech = LumiTech(**color_picker)
-                    entites.append(new_lumitech)
+                    entities.append(new_lumitech)
                 elif picker_type == ColorPickerTypes.RGB:
                     new_rgb_color_picker = RGBColorPicker(**color_picker)
-                    entites.append(new_rgb_color_picker)
+                    entities.append(new_rgb_color_picker)
                 else:
                     _LOGGER.error(f"Not implemented Colorpicker Type {picker_type}")
             else:
                 _LOGGER.error(f"Could not read picker_type of colorpicker")
 
-    async_add_entities(entites)
+    async_add_entities(entities)

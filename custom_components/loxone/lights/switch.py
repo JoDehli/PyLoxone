@@ -7,6 +7,7 @@ from homeassistant.helpers.entity import DeviceInfo, ToggleEntity
 
 from .. import LoxoneEntity
 from ..const import DOMAIN, SENDDOMAIN
+from ..helpers import get_or_create_device
 
 
 class LoxoneLightSwitch(LoxoneEntity, LightEntity):
@@ -16,7 +17,7 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
     _attr_supported_color_modes = {ColorMode.ONOFF}
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self._attr_is_on = STATE_UNKNOWN
         self._attr_unique_id = self.uuidAction
         self._async_add_devices = kwargs["async_add_devices"]
@@ -28,27 +29,21 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
             self._attr_name = f"{self._light_controller_name}-{self._attr_name}"
 
         if self._light_controller_id:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._light_controller_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="LightControllerV2",
+            self.type = "LightControllerV2"
+            self._attr_device_info = get_or_create_device(
+                self._light_controller_id, self.name, self.type, self.room
             )
         else:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._attr_unique_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="Light",
+            self.type = "Light"
+            self._attr_device_info = get_or_create_device(
+                self.unique_id, self.name, self.type, self.room
             )
 
         state_attributes = {
             "uuid": self.uuidAction,
             "room": self.room,
             "category": self.cat,
-            "device_typ": self.type,
+            "device_type": self.type,
             "platform": "loxone",
         }
         if self._light_controller_name:

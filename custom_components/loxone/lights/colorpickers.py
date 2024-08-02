@@ -10,7 +10,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 
 from .. import LoxoneEntity
 from ..const import DOMAIN, SENDDOMAIN
-from ..helpers import hass_to_lox, lox_to_hass
+from ..helpers import get_or_create_device, hass_to_lox, lox_to_hass
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
     }
 
     def __init__(self, **kwargs):
-        LoxoneEntity.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         """Initialize the LumiTech."""
         self._attr_unique_id = self.uuidAction
         self._attr_color_mode = ColorMode.UNKNOWN
@@ -42,20 +42,14 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
             self._attr_name = f"{self._light_controller_name}-{self._attr_name}"
 
         if self._light_controller_id:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._light_controller_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="LightControllerV2",
+            self.type = "LightControllerV2"
+            self._attr_device_info = get_or_create_device(
+                self._light_controller_id, self.name, self.type, self.room
             )
         else:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._attr_unique_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="ColorPickerV2",
+            self.type = "ColorPickerV2"
+            self._attr_device_info = get_or_create_device(
+                self._light_controller_id, self.name, self.type, self.room
             )
 
     @cached_property
@@ -163,21 +157,15 @@ class LumiTech(RGBColorPicker):
     """Representation of a Loxone LumiTech Dimmer."""
 
     def __init__(self, **kwargs):
-        RGBColorPicker.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         """Initialize the LumiTech."""
         if self._light_controller_id:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._light_controller_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="LightControllerV2",
+            self.type = "LightControllerV2"
+            self._attr_device_info = get_or_create_device(
+                self._light_controller_id, self.name, self.type, self.room
             )
         else:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, self._attr_unique_id)},
-                name=f"{self._name}",
-                manufacturer="Loxone",
-                suggested_area=self.room,
-                model="LumiTech",
+            self.type = "LumiTech"
+            self._attr_device_info = get_or_create_device(
+                self.unique_id, self.name, self.type, self.room
             )
