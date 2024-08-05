@@ -55,6 +55,28 @@
         }
       }
     },
+    "event_secured_websocket_command": {
+      "name": "Send secured websocket command",
+      "description": "Send websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/",
+      "fields": {
+        "uuid": {
+          "name": "UUID",
+          "description": "Uuid for entity which you want to send a command."
+        },
+        "device": {
+          "name": "Entity",
+          "description": "Device which you want to send a command"
+        },
+        "value": {
+          "name": "Command",
+          "description": "Command which you want to send"
+        },
+        "code": {
+          "name": "Password",
+          "description": "Visual password for this entity."
+        }
+      }
+    },
     "sync_areas": {
       "name": "Sync areas",
       "description": "Applies areas to the loxone entites based on the room from loxone. If area not exists entites will not be changed",

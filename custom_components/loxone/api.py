@@ -11,7 +11,6 @@ import datetime
 import hashlib
 import json
 import logging
-import os
 import queue
 import time
 import traceback
@@ -22,7 +21,6 @@ from datetime import datetime
 from struct import unpack
 
 import httpx
-from homeassistant.config import get_default_config_dir
 
 from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_ENCRYPT_CMD, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
@@ -156,22 +154,6 @@ class LoxApp(object):
         return self.responsecode
 
 
-async def async_open_file(filename: str) -> dict:
-    def sync_open_file(f):
-        with open(f) as f:
-            return json.load(f)
-
-    return await asyncio.to_thread(sync_open_file, filename)
-
-
-async def async_write_file(filename: str, data: dict) -> None:
-    def sync_write_file(f, d):
-        with open(f, "w") as write_file:
-            json.dump(d, write_file)
-
-    return await asyncio.to_thread(sync_write_file, filename, data)
-
-
 class LoxWs:
     def __init__(
         self,
@@ -215,7 +197,7 @@ class LoxWs:
         self._rsa_cipher = None
         self._session_key = None
         self._ws = None
-        self._current_message_typ = None
+        self._current_message_type = None
         self._encryption_ready = False
         self._visual_hash = None
         self._keep_alive_task = None
@@ -227,6 +209,17 @@ class LoxWs:
         self.connect_delay = 10
         self.state = "CLOSED"
         self._secured_queue = queue.Queue(maxsize=1)
+
+    @property
+    def token_as_dict(self):
+        return self._token.__dict__
+
+    def set_token_from_dict(self, token_dict):
+        self._token = LxToken(
+            token=token_dict["token"],
+            hash_alg=token_dict["hash_alg"],
+            valid_until=token_dict["valid_until"],
+        )
 
     @property
     def key(self):
@@ -303,7 +296,6 @@ class LoxWs:
                         self._token.set_valid_until(
                             resp_json["LL"]["value"]["validUntil"]
                         )
-            self.save_token()
 
     async def start(self):
         task = asyncio.create_task(self.ws_listen(), name="consumer_task")
@@ -354,7 +346,7 @@ class LoxWs:
     async def send_secured(self, device_uuid, value, code):
         from Crypto.Hash import HMAC, SHA1, SHA256
 
-        pwd_hash_str = code + ":" + self._visual_hash.salt
+        pwd_hash_str = str(code) + ":" + self._visual_hash.salt
         if self._visual_hash.hash_alg == "SHA1":
             m = hashlib.sha1()
         elif self._visual_hash.hash_alg == "SHA256":
@@ -391,13 +383,6 @@ class LoxWs:
     async def async_init(self):
         import websockets as wslib
 
-        _LOGGER.debug("try to read token")
-        # Read token from file
-        try:
-            await self.get_token_from_file()
-        except IOError:
-            _LOGGER.debug("error token read")
-
         # Get public key from Loxone
         resp = await self.get_public_key()
 
@@ -428,7 +413,7 @@ class LoxWs:
 
             message = await self._ws.recv()
             await self.parse_loxone_message(message)
-            if self._current_message_typ != 0:
+            if self._current_message_type != 0:
                 _LOGGER.debug("error by getting the session key response...")
                 return ERROR_VALUE
 
@@ -454,14 +439,15 @@ class LoxWs:
         ):
             res = await self.acquire_token()
         else:
+            _LOGGER.debug("use loaded token...")
             res = await self.use_token()
             # Delete old token
             if res is ERROR_VALUE:
-                self.delete_token()
+                # self.delete_token()
                 _LOGGER.debug(
                     "Old Token found and deleted. Please restart Homeassistant to aquire new token."
                 )
-                return ERROR_VALUE
+                return -500
 
         if res is ERROR_VALUE:
             return ERROR_VALUE
@@ -508,17 +494,17 @@ class LoxWs:
         """Process the messages."""
         if len(message) == 8:
             unpacked_data = unpack("ccccI", message)
-            self._current_message_typ = int.from_bytes(
+            self._current_message_type = int.from_bytes(
                 unpacked_data[1], byteorder="big"
             )
-            if self._current_message_typ == 6:
+            if self._current_message_type == 6:
                 _LOGGER.debug("Keep alive response received...")
         else:
             parsed_data = await self._parse_loxone_message(message)
             if parsed_data != {}:
                 _LOGGER.debug(
                     "message [type:{}]):{}".format(
-                        self._current_message_typ, parsed_data
+                        self._current_message_type, parsed_data
                     )
                 )
 
@@ -557,17 +543,17 @@ class LoxWs:
             if self.message_call_back is not None:
                 if "LL" not in parsed_data and parsed_data != {}:
                     await self.message_call_back(parsed_data)
-            self._current_message_typ = None
+            self._current_message_type = None
             await asyncio.sleep(0)
 
     async def _parse_loxone_message(self, message):
         """Parser of the Loxone message."""
         event_dict = {}
-        if self._current_message_typ == 0:
+        if self._current_message_type == 0:
             event_dict = message
-        elif self._current_message_typ == 1:
+        elif self._current_message_type == 1:
             pass
-        elif self._current_message_typ == 2:
+        elif self._current_message_type == 2:
             length = len(message)
             num = length / 24
             start = 0
@@ -583,7 +569,7 @@ class LoxWs:
                 event_dict[uuidstr] = value
                 start += 24
                 end += 24
-        elif self._current_message_typ == 3:
+        elif self._current_message_type == 3:
             from math import floor
 
             start = 0
@@ -629,10 +615,10 @@ class LoxWs:
             while start < len(message):
                 start = get_text(message, start, 16)
 
-        elif self._current_message_typ == 6:
+        elif self._current_message_type == 6:
             event_dict["keep_alive"] = "received"
         else:
-            self._current_message_typ = 7
+            self._current_message_type = 7
         return event_dict
 
     async def use_token(self):
@@ -753,77 +739,7 @@ class LoxWs:
                         key_and_salt.hash_alg,
                     )
 
-        if await self.save_token() == ERROR_VALUE:
-            return ERROR_VALUE
         return True
-
-    async def load_token(self):
-        try:
-            persist_token = os.path.join(
-                get_default_config_dir(), self._token_persist_filename
-            )
-            try:
-                try:
-                    dict_token = await async_open_file(persist_token)
-                except ValueError:
-                    return ERROR_VALUE
-            except FileNotFoundError:
-                try:
-                    dict_token = await async_open_file(self._token_persist_filename)
-                except ValueError:
-                    return ERROR_VALUE
-            try:
-                self._token.set_token(dict_token["_token"])
-                self._token.set_valid_until(dict_token["_valid_until"])
-                self._token.set_hash_alg(dict_token["_hash_alg"])
-            except KeyError:
-                self._token.set_token(dict_token["token"])
-                self._token.set_valid_until(dict_token["valid_until"])
-                self._token.set_hash_alg(dict_token["hash_alg"])
-
-            _LOGGER.debug("load_token successfully...")
-            return True
-        except IOError:
-            _LOGGER.debug("error load_token...")
-            return ERROR_VALUE
-
-    def delete_token(self):
-        try:
-            persist_token = os.path.join(
-                get_default_config_dir(), self._token_persist_filename
-            )
-            try:
-                os.remove(persist_token)
-            except FileNotFoundError:
-                os.remove(self._token_persist_filename)
-
-        except IOError:
-            _LOGGER.debug("error deleting token...")
-            return ERROR_VALUE
-
-    async def save_token(self):
-        persist_token = ""
-        try:
-            persist_token = os.path.join(
-                get_default_config_dir(), self._token_persist_filename
-            )
-
-            dict_token = {
-                "_token": self._token.token,
-                "_valid_until": self._token.valid_until,
-                "_hash_alg": self._token.hash_alg,
-            }
-            try:
-                await async_write_file(persist_token, dict_token)
-            except FileNotFoundError:
-                await async_write_file(self._token_persist_filename, dict_token)
-
-            _LOGGER.debug("save_token successfully...")
-            return True
-        except IOError:
-            _LOGGER.debug("error save_token...")
-            _LOGGER.debug("tokenpath: {}".format(persist_token))
-            return ERROR_VALUE
 
     async def encrypt(self, command):
         from Crypto.Util import Padding
@@ -899,7 +815,7 @@ class LoxWs:
         if len(message) == 8:
             try:
                 unpacked_data = unpack("ccccI", message)
-                self._current_message_typ = int.from_bytes(
+                self._current_message_type = int.from_bytes(
                     unpacked_data[1], byteorder="big"
                 )
                 _LOGGER.debug("parse_loxone_message successfully...")
@@ -982,23 +898,6 @@ class LoxWs:
             _LOGGER.debug("public key load error")
             return False
         return True
-
-    async def get_token_from_file(self):
-        _LOGGER.debug("try to get_token_from_file")
-        persist_token = ""
-        try:
-            persist_token = os.path.join(
-                get_default_config_dir(), self._token_persist_filename
-            )
-            if os.path.exists(persist_token):
-                res = await self.load_token()
-                if res:
-                    _LOGGER.debug(
-                        "token successfully loaded from file: {}".format(persist_token)
-                    )
-        except FileExistsError:
-            _LOGGER.debug("error loading token {}".format(persist_token))
-            _LOGGER.debug("{}".format(traceback.print_exc()))
 
 
 # Loxone Stuff

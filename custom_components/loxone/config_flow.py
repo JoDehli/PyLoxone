@@ -51,7 +51,7 @@ class LoxoneFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(step_id="user", data_schema=LOXONE_SCHEMA)
 
-        return self.async_create_entry(title="PyLoxone", data=user_input)
+        return self.async_create_entry(title="PyLoxone", data={}, options=user_input)
 
     async def async_step_import(self, import_config):
         return await self.async_step_user(user_input=import_config)
