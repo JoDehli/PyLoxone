@@ -16,8 +16,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN
-from .helpers import (add_room_and_cat_to_value_values, get_all,
-                      get_or_create_device)
+from .helpers import add_room_and_cat_to_value_values, get_all
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,9 +54,12 @@ class LoxoneButton(LoxoneEntity, ButtonEntity):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._attr_device_info = get_or_create_device(
-            self.unique_id, self.name, self.type, self.room
-        )
+        self._attr_icon = None
+
+    @property
+    def icon(self):
+        """Return the icon to use for device if any."""
+        return self._attr_icon
 
     def press(self, **kwargs):
         """Press the button."""
@@ -75,3 +77,14 @@ class LoxoneButton(LoxoneEntity, ButtonEntity):
             "device_type": self.type,
             "platform": "loxone",
         }
+
+    @property
+    def device_info(self):
+        """Return device information."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self.unique_id)},
+            name=self.name,
+            manufacturer="Loxone",
+            model=self.type,
+            suggested_area=self.room,
+        )
