@@ -55,14 +55,18 @@ class LoxoneButton(LoxoneEntity, ButtonEntity):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._attr_device_info = get_or_create_device(
-            self.unique_id, self.name, self.type, self.room
-        )
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
+        self._attr_icon = None
 
     def press(self, **kwargs):
         """Press the button."""
         self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse"))
         self.schedule_update_ha_state()
+
+    @property
+    def icon(self):
+        """Return the icon to use for device if any."""
+        return self._attr_icon
 
     @property
     def extra_state_attributes(self):
