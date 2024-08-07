@@ -67,7 +67,6 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         return self._attr_unique_id
 
     async def async_turn_on(self, **kwargs) -> None:
-        print("async_turn_on dimmer", kwargs)
         if ATTR_BRIGHTNESS in kwargs:
             self.hass.bus.async_fire(
                 SENDDOMAIN,
