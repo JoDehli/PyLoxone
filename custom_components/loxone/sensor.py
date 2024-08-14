@@ -185,12 +185,13 @@ async def async_setup_entry(
 
 class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
         self._attr_name = kwargs.pop("name", None)
         self._attr_state_class = kwargs.pop("state_class", None)
         self._attr_device_class = kwargs.pop("device_class", None)
         self._attr_native_unit_of_measurement = kwargs.pop("unit_of_measurement", None)
         self._attr_native_value = None  # Initialize state
+        # Must be after the kwargs.pop functions!
+        super().__init__(**kwargs)
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
