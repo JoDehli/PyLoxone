@@ -70,6 +70,7 @@ async def raise_if_not_200(response: httpx.Response) -> None:
 
 class LoxApp(object):
     def __init__(self):
+        """Initialize the LoxApp object."""
         self.host = None
         self.port = None
         self.loxapppath = LOXAPPPATH
@@ -84,6 +85,7 @@ class LoxApp(object):
         self._local = True
 
     async def get_json(self):
+        """Get the json data from the Loxone Miniserver."""
         auth = None
         if self.lox_user is not None and self.lox_pass is not None:
             auth = (self.lox_user, self.lox_pass)
@@ -155,6 +157,7 @@ class LoxApp(object):
 
 
 class LoxWs:
+    """Loxone Websocket class."""
     def __init__(
         self,
         user=None,
@@ -206,15 +209,17 @@ class LoxWs:
         self.background_tasks = set()
 
         self.connect_retries = 20
-        self.connect_delay = 10
+        self.connect_delay = 15
         self.state = "CLOSED"
         self._secured_queue = queue.Queue(maxsize=1)
 
     @property
     def token_as_dict(self):
+        """Return the token as a dictionary."""
         return self._token.__dict__
 
-    def set_token_from_dict(self, token_dict):
+    def set_token_from_dict(self, token_dict: dict):
+        """Set the token from a dictionary"""
         self._token = LxToken(
             token=token_dict["token"],
             hash_alg=token_dict["hash_alg"],
@@ -223,63 +228,60 @@ class LoxWs:
 
     @property
     def key(self):
+        """Return the key."""
         return self._key
 
     @property
     def iv(self):
+        """Return the iv."""
         return self._iv
 
     async def refresh_token(self):
+        """Refresh the token."""
         try:
             while True:
                 seconds_to_refresh = self._token.get_seconds_to_expire()
                 await asyncio.sleep(seconds_to_refresh)
-                # await self._refresh_token()
-                self.delete_token()
                 self._token = LxToken()
-                raise ConnectionResetError
+                #raise ConnectionResetError
         except Exception as e:
             raise e
 
     async def decrypt(self, message):
+        """Decrypt the message."""
         pass
 
     async def _refresh_token(self):
+        """Refresh the token."""
         from Crypto.Hash import HMAC, SHA1, SHA256
-
+        _LOGGER.debug("Try to refresh token.")
+        # Send command to get the key
         command = "{}".format(CMD_GET_KEY)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
         message = await self._ws.recv()
         resp_json = json.loads(message)
         token_hash = None
-        if "LL" in resp_json:
-            if "value" in resp_json["LL"]:
-                key = resp_json["LL"]["value"]
-                if key == "":
-                    if self._version < 12.0:
-                        digester = HMAC.new(
-                            binascii.unhexlify(key),
-                            self._token.token.encode("utf-8"),
-                            SHA1,
-                        )
-                    else:
-                        digester = HMAC.new(
-                            binascii.unhexlify(key),
-                            self._token.token.encode("utf-8"),
-                            SHA256,
-                        )
-                    token_hash = digester.hexdigest()
 
-        if token_hash is not None:
-            if self._version < 10.2:
-                command = "{}{}/{}".format(
-                    CMD_REFRESH_TOKEN, token_hash, self._username
+        # Check if the response contains the key
+        if "LL" in resp_json and "value" in resp_json["LL"]:
+            key = resp_json["LL"]["value"]
+            if key == "":
+                # Determine the hash algorithm based on the version
+                hash_alg = SHA1 if self._version < 12.0 else SHA256
+                digester = HMAC.new(
+                    binascii.unhexlify(key),
+                    self._token.token.encode("utf-8"),
+                    hash_alg,
                 )
-            else:
-                command = "{}{}/{}".format(
-                    CMD_REFRESH_TOKEN_JSON_WEB, token_hash, self._username
-                )
+                token_hash = digester.hexdigest()
+
+        if token_hash:
+            command = "{}{}/{}".format(
+                CMD_REFRESH_TOKEN if self._version < 10.2 else CMD_REFRESH_TOKEN_JSON_WEB,
+                token_hash,
+                self._username
+            )
 
             enc_command = await self.encrypt(command)
             await self._ws.send(enc_command)
@@ -290,40 +292,44 @@ class LoxWs:
                 "Seconds before refresh: {}".format(self._token.get_seconds_to_expire())
             )
 
-            if "LL" in resp_json:
-                if "value" in resp_json["LL"]:
-                    if "validUntil" in resp_json["LL"]["value"]:
-                        self._token.set_valid_until(
-                            resp_json["LL"]["value"]["validUntil"]
-                        )
+            if "LL" in resp_json and "value" in resp_json["LL"] and "validUntil" in resp_json["LL"]["value"]:
+                self._token.set_valid_until(
+                    resp_json["LL"]["value"]["validUntil"]
+                )
 
-    async def start(self):
-        task = asyncio.create_task(self.ws_listen(), name="consumer_task")
-        self.background_tasks.add(task)
-        task.add_done_callback(self.background_tasks.discard)
+    async def start(self) -> None:
+        """Start the websocket connection."""
+        tasks = [
+            asyncio.create_task(self.ws_listen(), name="consumer_task"),
+            asyncio.create_task(self.keep_alive(KEEP_ALIVE_PERIOD), name="keepalive"),
+            asyncio.create_task(self.refresh_token(), name="refresh_token")
+        ]
+        for task in tasks:
+            self.background_tasks.add(task)
+            task.add_done_callback(self.background_tasks.discard)
 
-        task = asyncio.create_task(self.keep_alive(KEEP_ALIVE_PERIOD), name="keepalive")
-        self.background_tasks.add(task)
-        task.add_done_callback(self.background_tasks.discard)
-
-        task = asyncio.create_task(self.refresh_token(), name="refresh_token")
-        self.background_tasks.add(task)
-        task.add_done_callback(self.background_tasks.discard)
-
-    async def reconnect(self):
-        for i in range(self.connect_retries):
-            _LOGGER.debug("reconnect: {} from {}".format(i + 1, self.connect_retries))
+    async def reconnect(self) -> None:
+        """Reconnect the websocket."""
+        for attempt in range(self.connect_retries):
+            _LOGGER.debug(f"Reconnect attempt {attempt + 1} of {self.connect_retries}")
             await self.stop()
             self.state = "CONNECTING"
-            _LOGGER.debug("wait for {} seconds...".format(self.connect_delay))
+            _LOGGER.debug(f"Waiting for {self.connect_delay} seconds before retrying...")
             await asyncio.sleep(self.connect_delay)
             res = await self.async_init()
             if res is True:
+                _LOGGER.debug("Reconnection successful.")
                 await self.start()
+                self.state = "CONNECTED"
                 break
+            else:
+                _LOGGER.debug("Reconnection failed.")
+        else:
+            _LOGGER.error("All reconnection attempts failed.")
+            self.state = "CLOSED"
 
     # https://github.com/aio-libs/aiohttp/issues/754
-    async def stop(self):
+    async def stop(self) -> int:
         try:
             self.state = "STOPPING"
             if not self._ws.closed:
@@ -333,7 +339,7 @@ class LoxWs:
             _LOGGER.error(e)
             return -1
 
-    async def keep_alive(self, second):
+    async def keep_alive(self, second: int) -> None:
         try:
             while True:
                 await asyncio.sleep(second)
@@ -343,7 +349,7 @@ class LoxWs:
         except Exception as e:
             raise e
 
-    async def send_secured(self, device_uuid, value, code):
+    async def send_secured(self, device_uuid: str, value: str, code: str):
         from Crypto.Hash import HMAC, SHA1, SHA256
 
         pwd_hash_str = str(code) + ":" + self._visual_hash.salt
@@ -370,11 +376,11 @@ class LoxWs:
         )
         await self._ws.send(command)
 
-    async def send_secured__websocket_command(self, device_uuid, value, code):
+    async def send_secured__websocket_command(self, device_uuid: str, value: str, code: str) -> None:
         self._secured_queue.put((device_uuid, value, code))
         await self.get_visual_hash()
 
-    async def send_websocket_command(self, device_uuid, value):
+    async def send_websocket_command(self, device_uuid: str, value: str) -> None:
         """Send a websocket command to the Miniserver."""
         command = "jdev/sps/io/{}/{}".format(device_uuid, value)
         _LOGGER.debug("send command: {}".format(command))
@@ -443,7 +449,6 @@ class LoxWs:
             res = await self.use_token()
             # Delete old token
             if res is ERROR_VALUE:
-                # self.delete_token()
                 _LOGGER.debug(
                     "Old Token found and deleted. Please restart Homeassistant to aquire new token."
                 )
@@ -468,13 +473,12 @@ class LoxWs:
         self.state = "CONNECTED"
         return True
 
-    async def get_visual_hash(self):
+    async def get_visual_hash(self) -> None:
         command = "{}{}".format(CMD_GET_VISUAL_PASSWD, self._username)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
 
-    async def ws_listen(self):
-        """Listen to all commands from the Miniserver."""
+    async def ws_listen(self) -> None:
         try:
             while True:
                 message = await self._ws.recv()
@@ -483,15 +487,14 @@ class LoxWs:
         except Exception as e:
             await asyncio.sleep(5)
             if self._ws.closed and self._ws.close_code in [4004, 4005]:
-                self.delete_token()
+                self._token = LxToken()
 
             elif self._ws.closed and self._ws.close_code:
                 await self.reconnect()
             else:
                 raise e
 
-    async def _async_process_message(self, message):
-        """Process the messages."""
+    async def _async_process_message(self, message: str) -> None:
         if len(message) == 8:
             unpacked_data = unpack("ccccI", message)
             self._current_message_type = int.from_bytes(
