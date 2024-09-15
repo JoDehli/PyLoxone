@@ -40,11 +40,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.lox_config
     entities = []
 
     for switch_entity in get_all(loxconfig, ["Switch", "TimedSwitch", "Intercom"]):
-
         switch_entity = add_room_and_cat_to_value_values(loxconfig, switch_entity)
 
         if switch_entity["type"] in ["Switch"]:

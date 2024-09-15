@@ -57,7 +57,7 @@ async def async_setup_entry(
     generate_subcontrols = config_entry.options.get(
         "generate_lightcontroller_subcontrols", False
     )
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.lox_config
     entities = []
     dimmers_without_light_controller = get_all(loxconfig, ["Dimmer", "EIBDimmer"])
 

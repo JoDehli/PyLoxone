@@ -156,7 +156,7 @@ async def async_setup_entry(
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
 
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.lox_config
     entities = []
     if "softwareVersion" in loxconfig:
         entities.append(LoxoneVersionSensor(loxconfig["softwareVersion"]))
@@ -174,11 +174,11 @@ async def async_setup_entry(
     def async_add_sensors(_):
         async_add_entities(_, True)
 
-    miniserver.listeners.append(
-        async_dispatcher_connect(
-            hass, miniserver.async_signal_new_device(NEW_SENSOR), async_add_sensors
-        )
-    )
+    # miniserver.listeners.append(
+    #     async_dispatcher_connect(
+    #         hass, miniserver.async_signal_new_device(NEW_SENSOR), async_add_sensors
+    #     )
+    # )
 
     async_add_entities(entities, update_before_add=True)
 

@@ -54,7 +54,7 @@ async def async_setup_entry(
 ) -> None:
     """Load Loxone Audio zones based on a config entry."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.lox_config
     entities = []
 
     for audioZone in get_all(loxconfig, "AudioZoneV2"):

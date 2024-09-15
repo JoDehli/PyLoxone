@@ -70,7 +70,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up LoxoneRoomControllerV2."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.lox_config
     entities = []
 
     for climate in get_all(loxconfig, "IRoomControllerV2"):

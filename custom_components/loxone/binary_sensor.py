@@ -66,7 +66,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.lox_config
     entities = []
 
     for sensor in get_all(loxconfig, "InfoOnlyDigital"):
@@ -88,13 +88,13 @@ async def async_setup_entry(
     def async_add_binary_sensors(_):
         async_add_entities(_, True)
 
-    miniserver.listeners.append(
-        async_dispatcher_connect(
-            hass,
-            miniserver.async_signal_new_device("sensors"),
-            async_add_binary_sensors,
-        )
-    )
+    # miniserver.listeners.append(
+    #     async_dispatcher_connect(
+    #         hass,
+    #         miniserver.async_signal_new_device("sensors"),
+    #         async_add_binary_sensors,
+    #     )
+    # )
     async_add_entities(entities)
 
 

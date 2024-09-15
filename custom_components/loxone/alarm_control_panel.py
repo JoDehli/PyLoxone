@@ -56,7 +56,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Loxone Alarms."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config.json
+    loxconfig = miniserver.lox_config
     entities = []
     for loxone_alarm in get_all(loxconfig, "Alarm"):
         loxone_alarm = add_room_and_cat_to_value_values(loxconfig, loxone_alarm)
