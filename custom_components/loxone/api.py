@@ -158,6 +158,7 @@ class LoxApp(object):
 
 class LoxWs:
     """Loxone Websocket class."""
+
     def __init__(
         self,
         user=None,
@@ -243,7 +244,7 @@ class LoxWs:
                 seconds_to_refresh = self._token.get_seconds_to_expire()
                 await asyncio.sleep(seconds_to_refresh)
                 self._token = LxToken()
-                #raise ConnectionResetError
+                # raise ConnectionResetError
         except Exception as e:
             raise e
 
@@ -254,6 +255,7 @@ class LoxWs:
     async def _refresh_token(self):
         """Refresh the token."""
         from Crypto.Hash import HMAC, SHA1, SHA256
+
         _LOGGER.debug("Try to refresh token.")
         # Send command to get the key
         command = "{}".format(CMD_GET_KEY)
@@ -278,9 +280,13 @@ class LoxWs:
 
         if token_hash:
             command = "{}{}/{}".format(
-                CMD_REFRESH_TOKEN if self._version < 10.2 else CMD_REFRESH_TOKEN_JSON_WEB,
+                (
+                    CMD_REFRESH_TOKEN
+                    if self._version < 10.2
+                    else CMD_REFRESH_TOKEN_JSON_WEB
+                ),
                 token_hash,
-                self._username
+                self._username,
             )
 
             enc_command = await self.encrypt(command)
@@ -292,17 +298,19 @@ class LoxWs:
                 "Seconds before refresh: {}".format(self._token.get_seconds_to_expire())
             )
 
-            if "LL" in resp_json and "value" in resp_json["LL"] and "validUntil" in resp_json["LL"]["value"]:
-                self._token.set_valid_until(
-                    resp_json["LL"]["value"]["validUntil"]
-                )
+            if (
+                "LL" in resp_json
+                and "value" in resp_json["LL"]
+                and "validUntil" in resp_json["LL"]["value"]
+            ):
+                self._token.set_valid_until(resp_json["LL"]["value"]["validUntil"])
 
     async def start(self) -> None:
         """Start the websocket connection."""
         tasks = [
             asyncio.create_task(self.ws_listen(), name="consumer_task"),
             asyncio.create_task(self.keep_alive(KEEP_ALIVE_PERIOD), name="keepalive"),
-            asyncio.create_task(self.refresh_token(), name="refresh_token")
+            asyncio.create_task(self.refresh_token(), name="refresh_token"),
         ]
         for task in tasks:
             self.background_tasks.add(task)
@@ -314,7 +322,9 @@ class LoxWs:
             _LOGGER.debug(f"Reconnect attempt {attempt + 1} of {self.connect_retries}")
             await self.stop()
             self.state = "CONNECTING"
-            _LOGGER.debug(f"Waiting for {self.connect_delay} seconds before retrying...")
+            _LOGGER.debug(
+                f"Waiting for {self.connect_delay} seconds before retrying..."
+            )
             await asyncio.sleep(self.connect_delay)
             res = await self.async_init()
             if res is True:
@@ -376,7 +386,9 @@ class LoxWs:
         )
         await self._ws.send(command)
 
-    async def send_secured__websocket_command(self, device_uuid: str, value: str, code: str) -> None:
+    async def send_secured__websocket_command(
+        self, device_uuid: str, value: str, code: str
+    ) -> None:
         self._secured_queue.put((device_uuid, value, code))
         await self.get_visual_hash()
 

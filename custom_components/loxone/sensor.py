@@ -19,8 +19,9 @@ from homeassistant.components.sensor import (CONF_STATE_CLASS, PLATFORM_SCHEMA,
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
                                  CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
-                                 LIGHT_LUX, STATE_UNKNOWN, UnitOfEnergy,
-                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature)
+                                 LIGHT_LUX, PERCENTAGE, STATE_UNKNOWN,
+                                 UnitOfEnergy, UnitOfPower, UnitOfSpeed,
+                                 UnitOfTemperature)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -124,6 +125,14 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         native_unit_of_measurement=LIGHT_LUX,
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.ILLUMINANCE,
+    ),
+    LoxoneEntityDescription(
+        key="humidity_or_battery",
+        name="Humidity or Battery",
+        suggested_display_precision=1,
+        loxone_format_string=PERCENTAGE,
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
 )
 
@@ -294,6 +303,7 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
 
         if entity_description := self._get_entity_description():
             self.entity_description = entity_description
+
         else:
             precision = self._parse_digits_after_decimal(self.details["format"])
             if precision:
