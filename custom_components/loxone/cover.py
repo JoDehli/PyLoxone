@@ -205,7 +205,7 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
                 self._is_opening = False
 
                 if event.data[self._state_uuid] == -1:
-                    self._is_opening = True
+                    self._is_closing = True
                 elif event.data[self._state_uuid] == 1:
                     self._is_opening = True
             self.schedule_update_ha_state()
