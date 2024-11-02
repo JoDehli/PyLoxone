@@ -7,8 +7,9 @@ https://github.com/JoDehli/pyloxone-api
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import Awaitable, Optional, Union
+from typing import Union
 
 import websockets.client
 
@@ -32,28 +33,15 @@ class LoxoneWebsocketClientProtocol(websockets.client.WebSocketClientProtocol):
         super().__init__(*args, **kwargs)
         self._last_header = None
 
-    # async def ping(self, data: Optional[Data] = None) -> Awaitable[None]:
-    #     _LOGGER.debug("Send keepalive")
-    #     await self.send("keepalive")
-    #     pong_waiter = self.loop.create_future()
-    #     import asyncio
-    #     return asyncio.shield(pong_waiter)
-    #     #return await super().ping("keepalive")
-
     async def recv(self) -> str | bytes:
         result = await super().recv()
         _LOGGER.debug(f"Received: {result[:80]!r}")
         return result
 
     async def send(self, msg) -> None:
-        # result = await super().send(msg)
-        # self._socket_lock = asyncio.Lock()
-        import asyncio
-
         async with asyncio.Lock():
             _LOGGER.debug(f"Sent:{msg}")
             result = await super().send(msg)
-
         return result
 
     async def recv_message(self) -> BaseMessage:
