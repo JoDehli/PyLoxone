@@ -20,7 +20,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
                                  CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
                                  LIGHT_LUX, STATE_UNKNOWN, UnitOfEnergy,
-                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature)
+                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature,PERCENTAGE)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -124,6 +124,15 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         native_unit_of_measurement=LIGHT_LUX,
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.ILLUMINANCE,
+    ),
+    LoxoneEntityDescription(
+        key="humidity_or_battery",
+        name="Humidity or Battery",
+        loxone_format_string=PERCENTAGE,
+        suggested_display_precision=1,
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        # device_class is missing because it is not clear if hum or bat
     ),
 )
 
