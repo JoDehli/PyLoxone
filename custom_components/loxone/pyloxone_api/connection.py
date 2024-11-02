@@ -27,11 +27,9 @@ from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Util import Padding
-from websockets.client import WebSocketClientProtocol, connect
+from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
-from websockets.legacy.client import WebSocketClientProtocol
 
-from . import exceptions
 from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_GET_API_KEY, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
                     CMD_GET_PUBLIC_KEY, CMD_GET_VISUAL_PASSWD, CMD_KEEP_ALIVE,
@@ -41,7 +39,6 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
                     TIMEOUT, TOKEN_PERMISSION)
 from .exceptions import LoxoneException
-from .helper import generate_hmac, hash_algorithms, hash_token
 from .loxone_http_client import LoxoneAsyncHttpClient
 from .loxone_token import LoxoneToken, LxJsonKeySalt
 from .message import (BaseMessage, BinaryFile, LLResponse, MessageType,
@@ -420,10 +417,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                 username=self.username,
                 password=self.password,
                 port=self.port,
-                session=session
+                session=session,
             )
             api_resp = await connector.get(CMD_GET_API_KEY)
-            data =  await api_resp.content.read()
+            data = await api_resp.content.read()
             _value = LLResponse(data).value
             # The json returned by the miniserver is invalid. It contains " and '.
             # We need to normalise it
