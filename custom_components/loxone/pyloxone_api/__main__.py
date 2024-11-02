@@ -12,7 +12,6 @@ where username, password host and port are your Loxone login credentials
 import asyncio
 import logging
 import sys
-from typing import Awaitable, Callable
 
 from .connection import LoxoneConnection
 
