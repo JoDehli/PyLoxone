@@ -448,7 +448,9 @@ class LoxoneConnection(LoxoneBaseConnection):
             if status == 200:
                 data = await lox_app_data.content.read()
                 self.structure_file = json.loads(data)
-                self.structure_file["softwareVersion"] = (
+                self.structure_file[
+                    "softwareVersion"
+                ] = (
                     self.miniserver_version
                 )  # FIXME Legacy use only. Need to fix pyloxone
 

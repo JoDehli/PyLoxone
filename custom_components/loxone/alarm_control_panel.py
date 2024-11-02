@@ -83,6 +83,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         self._attr_device_info = get_or_create_device(
             self.unique_id, self.name, "Alarm", self.room
         )
+
     @property
     def supported_features(self):
         return (
@@ -192,7 +193,8 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         """Send arm home command."""
         if self.isSecured:
             self.hass.bus.async_fire(
-                SECUREDSENDDOMAIN, dict(uuid=self.uuidAction, value="delayedon/0", code=code)
+                SECUREDSENDDOMAIN,
+                dict(uuid=self.uuidAction, value="delayedon/0", code=code),
             )
         else:
             self.hass.bus.async_fire(
@@ -204,7 +206,8 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         """Send arm away command."""
         if self.isSecured:
             self.hass.bus.async_fire(
-                SECUREDSENDDOMAIN, dict(uuid=self.uuidAction, value="delayedon/1", code=code)
+                SECUREDSENDDOMAIN,
+                dict(uuid=self.uuidAction, value="delayedon/1", code=code),
             )
         else:
             self.hass.bus.async_fire(
