@@ -7,7 +7,8 @@ https://github.com/JoDehli/pyloxone-api
 
 import logging
 import warnings
-import httpx
+
+import aiohttp
 
 from .const import TIMEOUT
 from .exceptions import (LoxoneMaxNumOfConnectionsError,
@@ -17,23 +18,21 @@ from .exceptions import (LoxoneMaxNumOfConnectionsError,
 
 _LOGGER = logging.getLogger(__name__)
 
-# Filter out the specific warning
-warnings.filterwarnings(
-    "ignore",
-    message="Detected blocking call to load_verify_locations",
-    module="httpx._config"
-)
-import aiohttp
 
 class LoxoneAsyncHttpClient:
     def __init__(
-        self, host: str, port: int, username: str, password: str, scheme: str = "http",
-            session: aiohttp.ClientSession = None
+        self,
+        host: str,
+        port: int,
+        username: str,
+        password: str,
+        scheme: str = "http",
+        session: aiohttp.ClientSession = None,
     ):
-        #super().__init__()
+        # super().__init__()
         if session is None:
             self.session = aiohttp.ClientSession()
-        #session.auth = aiohttp.BasicAuth(username, password)
+        # session.auth = aiohttp.BasicAuth(username, password)
         else:
             self.session = session
 
@@ -44,23 +43,15 @@ class LoxoneAsyncHttpClient:
 
     async def get(self, endpoint):
         url = f"{self.base_url}{endpoint}"
-        response = await self.session.get(url, auth=aiohttp.BasicAuth(self.username, self.password))
+        response = await self.session.get(
+            url, auth=aiohttp.BasicAuth(self.username, self.password)
+        )
         if response.status != 200:
             await self._handle_error(response)
         return response
 
-        # async with self.session.get(url) as response:
-        #     if response.status != 200:
-        #         await self._handle_error(response)
-        #     data = await response.content.read()
-        #     return response
-
-        #response = await self.session.get(url)
-        #await self._handle_error(response)
-
-
     async def close(self):
-        await self.session.aclose()
+        await self.session.close()
 
     @staticmethod
     async def _handle_error(response):
