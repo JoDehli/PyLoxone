@@ -18,14 +18,6 @@ from collections import namedtuple
 from dataclasses import asdict, dataclass
 from typing import Final
 
-# from typing import Final, NoReturn
-#
-# from Crypto.Hash import HMAC, SHA1, SHA256
-#
-# from .const import CMD_GET_KEY2, DEFAULT_TOKEN_PERSIST_NAME, CMD_GET_KEY
-# from .exceptions import LoxoneException
-# from .loxone_types import MiniserverProtocol
-
 LOXONE_EPOCH: Final = datetime.datetime(2009, 1, 1, 0, 0)
 
 
