@@ -140,6 +140,22 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
                 self.unique_id, self.name, self.type, ""
             )
 
+        if self._from_loxone_config:
+            self._attr_extra_state_attributes = {
+                "uuid": self.uuidAction,
+                "state_uuid": self._state_uuid,
+                "room": self.room,
+                "category": self.cat,
+                "device_typ": self.type,
+                "platform": "loxone",
+            }
+        else:
+            self._attr_extra_state_attributes = {
+                "uuid": self.uuidAction,
+                "platform": "loxone",
+                "device_typ": self.device_class
+            }
+
     @property
     def icon(self):
         if self._from_loxone_config:
