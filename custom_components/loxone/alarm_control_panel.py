@@ -214,8 +214,8 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         self.async_schedule_update_ha_state()
 
     @property
-    def state(self):
-        """Return the state of the entity."""
+    def alarm_state(self) -> AlarmControlPanelState | None:
+        """Return the state of the device."""
         if self._level >= 1.0:
             return AlarmControlPanelState.TRIGGERED
         if self._armed_delay or self._armed_at:
@@ -225,6 +225,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         if self._state:
             return AlarmControlPanelState.ARMED_AWAY
         return AlarmControlPanelState.DISARMED
+
 
     @property
     def extra_state_attributes(self):
