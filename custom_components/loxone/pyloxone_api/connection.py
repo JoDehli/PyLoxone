@@ -20,15 +20,13 @@ from types import TracebackType
 from typing import (Any, Awaitable, Callable, Dict, List, NoReturn, Optional,
                     Sequence, Union)
 
-import websockets
-import websockets as wslib
+import websockets.exceptions
+import websockets.legacy.client as wslib
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Util import Padding
-from websockets.client import WebSocketClientProtocol
-from websockets.exceptions import ConnectionClosed
 
 from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_GET_API_KEY, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
@@ -38,7 +36,7 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     IV_BYTES, KEEP_ALIVE_PERIOD, LOXAPPPATH, MAX_REFRESH_DELAY,
                     SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
                     TIMEOUT, TOKEN_PERMISSION)
-from .exceptions import LoxoneException
+from .exceptions import LoxoneException, LoxoneTokenError
 from .loxone_http_client import LoxoneAsyncHttpClient
 from .loxone_token import LoxoneToken, LxJsonKeySalt
 from .message import (BaseMessage, BinaryFile, LLResponse, MessageType,
@@ -350,9 +348,9 @@ class LoxoneConnection(LoxoneBaseConnection):
         # noinspection PyUnreachableCode
         token_refresh = asyncio.ensure_future(check_refresh_token())
 
-        self._pending_task.append(self._recv_loop)
-        self._pending_task.append(keep_alive_task)
-        self._pending_task.append(token_refresh)
+        #self._pending_task.append(self._recv_loop)
+        #self._pending_task.append(keep_alive_task)
+        #self._pending_task.append(token_refresh)
         try:
             done, pending = await asyncio.wait(
                 [
@@ -368,7 +366,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 except websockets.exceptions.ConnectionClosedOK as e:
                     _LOGGER.debug("Task ConnectionClosedOK received")
                     # Cancel pending tasks
-                except exceptions.LoxoneTokenError as e:
+                except LoxoneTokenError as e:
                     raise e
                 except Exception as e:
                     _LOGGER.debug(f"Task {task} raised an exception: {e}")
@@ -508,7 +506,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         # # Open a websocket connection
         # scheme = "wss" if self._use_tls else "ws"
         # url = f"{scheme}://{self._host}:{self._port}/ws/rfc6455"
-        _ = await wslib.client.connect(
+        _ = await wslib.connect(
             url,
             timeout=TIMEOUT,
             ping_interval=None,

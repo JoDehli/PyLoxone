@@ -11,7 +11,7 @@ import asyncio
 import logging
 from typing import Union
 
-import websockets.client
+import websockets.legacy.client
 
 from .exceptions import LoxoneException
 from .message import BaseMessage, MessageType, parse_header, parse_message
@@ -28,7 +28,7 @@ Data = Union[str, bytes]
 """
 
 
-class LoxoneWebsocketClientProtocol(websockets.client.WebSocketClientProtocol):
+class LoxoneWebsocketClientProtocol(websockets.legacy.client.WebSocketClientProtocol):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._last_header = None
