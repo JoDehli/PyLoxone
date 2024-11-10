@@ -399,7 +399,7 @@ class LoxWs:
         await self._ws.send(command)
 
     async def async_init(self):
-        import websockets as wslib
+        import websockets.legacy.client as wslib
 
         # Get public key from Loxone
         resp = await self.get_public_key()
@@ -423,8 +423,9 @@ class LoxWs:
                 new_url = self._loxone_url.replace("https", "wss")
             else:
                 new_url = self._loxone_url.replace("http", "ws")
+
             self._ws = await wslib.connect(
-                "{}/ws/rfc6455".format(new_url), timeout=TIMEOUT
+                 "{}/ws/rfc6455".format(new_url), timeout=TIMEOUT
             )
 
             await self._ws.send("{}{}".format(CMD_KEY_EXCHANGE, self._session_key))
