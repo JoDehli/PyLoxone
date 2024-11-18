@@ -18,9 +18,16 @@ import urllib.request as req
 import uuid
 from base64 import b64encode
 from datetime import datetime
+from math import floor
 from struct import unpack
 
 import httpx
+import websockets.legacy.client as wslib
+from Crypto.Cipher import AES, PKCS1_v1_5
+from Crypto.Hash import HMAC, SHA1, SHA256
+from Crypto.PublicKey import RSA
+from Crypto.Random import get_random_bytes
+from Crypto.Util import Padding
 
 from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_ENCRYPT_CMD, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
@@ -254,7 +261,6 @@ class LoxWs:
 
     async def _refresh_token(self):
         """Refresh the token."""
-        from Crypto.Hash import HMAC, SHA1, SHA256
 
         _LOGGER.debug("Try to refresh token.")
         # Send command to get the key
@@ -360,7 +366,6 @@ class LoxWs:
             raise e
 
     async def send_secured(self, device_uuid: str, value: str, code: str):
-        from Crypto.Hash import HMAC, SHA1, SHA256
 
         pwd_hash_str = str(code) + ":" + self._visual_hash.salt
         if self._visual_hash.hash_alg == "SHA1":
@@ -399,7 +404,6 @@ class LoxWs:
         await self._ws.send(command)
 
     async def async_init(self):
-        import websockets.legacy.client as wslib
 
         # Get public key from Loxone
         resp = await self.get_public_key()
@@ -425,7 +429,7 @@ class LoxWs:
                 new_url = self._loxone_url.replace("http", "ws")
 
             self._ws = await wslib.connect(
-                 "{}/ws/rfc6455".format(new_url), timeout=TIMEOUT
+                "{}/ws/rfc6455".format(new_url), timeout=TIMEOUT
             )
 
             await self._ws.send("{}{}".format(CMD_KEY_EXCHANGE, self._session_key))
@@ -586,7 +590,6 @@ class LoxWs:
                 start += 24
                 end += 24
         elif self._current_message_type == 3:
-            from math import floor
 
             start = 0
 
@@ -660,7 +663,6 @@ class LoxWs:
 
     async def hash_token(self):
         try:
-            from Crypto.Hash import HMAC, SHA1, SHA256
 
             command = "{}".format(CMD_GET_KEY)
             enc_command = await self.encrypt(command)
@@ -758,7 +760,6 @@ class LoxWs:
         return True
 
     async def encrypt(self, command):
-        from Crypto.Util import Padding
 
         if not self._encryption_ready:
             return command
@@ -779,7 +780,6 @@ class LoxWs:
 
     def hash_credentials(self, key_salt):
         try:
-            from Crypto.Hash import HMAC, SHA1, SHA256
 
             pwd_hash_str = self._pasword + ":" + key_salt.salt
             if key_salt.hash_alg == "SHA1":
@@ -809,7 +809,6 @@ class LoxWs:
             return None
 
     def genarate_salt(self):
-        from Crypto.Random import get_random_bytes
 
         salt = get_random_bytes(SALT_BYTES)
         salt = binascii.hexlify(salt).decode("utf-8")
@@ -853,7 +852,6 @@ class LoxWs:
 
     def get_new_aes_chiper(self):
         try:
-            from Crypto.Cipher import AES
 
             _new_aes = AES.new(self._key, AES.MODE_CBC, self._iv)
             _LOGGER.debug("get_new_aes_chiper successfully...")
@@ -864,9 +862,6 @@ class LoxWs:
 
     def init_rsa_cipher(self):
         try:
-            from Crypto.Cipher import PKCS1_v1_5
-            from Crypto.PublicKey import RSA
-
             self._public_key = self._public_key.replace(
                 "-----BEGIN CERTIFICATE-----", "-----BEGIN PUBLIC KEY-----\n"
             )
@@ -918,13 +913,11 @@ class LoxWs:
 
 # Loxone Stuff
 def gen_init_vec():
-    from Crypto.Random import get_random_bytes
 
     return get_random_bytes(IV_BYTES)
 
 
 def gen_key():
-    from Crypto.Random import get_random_bytes
 
     return get_random_bytes(AES_KEY_SIZE)
 
