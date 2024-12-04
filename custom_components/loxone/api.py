@@ -189,7 +189,6 @@ class LoxWs:
             if "softwareVersion" in self._loxconfig:
                 vers = self._loxconfig["softwareVersion"]
                 if isinstance(vers, list) and len(vers) >= 2:
-                    _LOGGER.warn(vers)
                     try:
                         self._version = float("{}.{}".format(vers[0], vers[1]))
                     except ValueError:
