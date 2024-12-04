@@ -285,13 +285,6 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     """Representation of a ACControl Loxone device."""
 
-    attr_supported_features = (
-        ClimateEntityFeature.PRESET_MODE
-        | ClimateEntityFeature.TARGET_TEMPERATURE
-        | ClimateEntityFeature.TURN_OFF
-        | ClimateEntityFeature.TURN_ON
-    )
-
     def __init__(self, **kwargs):
         _LOGGER.debug(f"Input AcControl: {kwargs}")
         super().__init__(**kwargs)
@@ -304,19 +297,25 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
             self.unique_id, self.name, self.type, self.room
         )
 
+    @property
+    def supported_features(self) -> int:
+        """Return the supported features."""
+        return (
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.TURN_OFF
+            | ClimateEntityFeature.TURN_ON
+        )
+
     async def event_handler(self, event):
         # _LOGGER.debug(f"Climate Event data: {event.data}")
         update = False
-
         for key in set(self._stateAttribUuids.values()) & event.data.keys():
             self._stateAttribValues[key] = event.data[key]
             update = True
-
         if update:
             self.schedule_update_ha_state()
-
         # _LOGGER.debug(f"State attribs after event handling: {self._stateAttribValues}")
-
+  
     def get_state_value(self, name):
         uuid = self._stateAttribUuids[name]
         return (
