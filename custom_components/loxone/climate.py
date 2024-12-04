@@ -307,14 +307,15 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         )
 
     async def event_handler(self, event):
+        # _LOGGER.debug(f"Climate Event data: {event.data}")
         update = False
-
         for key in set(self._stateAttribUuids.values()) & event.data.keys():
             self._stateAttribValues[key] = event.data[key]
             update = True
-
         if update:
             self.schedule_update_ha_state()
+        # _LOGGER.debug(f"State attribs after event handling: {self._stateAttribValues}")
+  
     def get_state_value(self, name):
         uuid = self._stateAttribUuids[name]
         return (
