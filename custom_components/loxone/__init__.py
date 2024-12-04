@@ -24,6 +24,8 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr
+
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
@@ -76,14 +78,47 @@ CONFIG_SCHEMA = vol.Schema(
 _UNDEF: dict = {}
 
 
-# TODO: Implement a complete restart of the loxone component without restart HomeAssistant
-# TODO: Unload device
-# TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
-
-
 async def async_unload_entry(hass, config_entry):
-    """Restart of Home Assistant needed."""
-    return False
+    """Unload a config entry."""
+    miniserver = hass.data[DOMAIN].pop(config_entry.entry_id, None)
+    if miniserver:
+        await miniserver.stop_loxone()  # Stop any ongoing tasks or WebSocket connections.
+
+    # Unload platforms
+    unload_ok = await hass.config_entries.async_unload_platforms(
+        config_entry, LOXONE_PLATFORMS
+    )
+
+    return unload_ok
+
+async def remove_unavailable_entities(hass, config_entry):
+    """Remove only truly unavailable entities."""
+    entity_registry = er.async_get(hass)
+
+    for entity_id, entry in list(entity_registry.entities.items()):
+        if entry.config_entry_id == config_entry.entry_id:
+            state = hass.states.get(entity_id)
+            # Only remove entities that are both unavailable and should not be recreated
+            if state is None or state.state == "unavailable":
+                entity_registry.async_remove(entity_id)
+
+async def remove_unused_devices(hass, config_entry):
+    """Remove unused devices for the given config entry."""
+    device_registry = dr.async_get(hass)  # Use the updated method
+    entity_registry = er.async_get(hass)
+
+    for device_id, device in list(device_registry.devices.items()):
+        if config_entry.entry_id in device.config_entries:
+            # Check if the device has associated entities
+            associated_entities = [
+                entity
+                for entity in entity_registry.entities.values()
+                if entity.device_id == device_id
+            ]
+            if not associated_entities:
+                device_registry.async_remove_device(device_id)
+
+# TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
 
 
 async def async_setup(hass, config):
@@ -178,6 +213,10 @@ async def async_setup_entry(hass, config_entry):
 
     if not config_entry.options:
         await async_set_options(hass, config_entry)
+
+    # Remove unavailable entities and unused devices
+    await remove_unavailable_entities(hass, config_entry)
+    await remove_unused_devices(hass, config_entry)
 
     miniserver = MiniServer(hass, config_entry)
 
@@ -418,11 +457,6 @@ async def async_setup_entry(hass, config_entry):
             hass.config_entries.async_update_entry(config_entry, data={})
         return False
 
-    _LOGGER.debug("starting loxone {}...".format("scene"))
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setups(config_entry, ["scene"])
-    )
-
     async def start_event(event):
         token = miniserver.api.token_as_dict
         hass.config_entries.async_update_entry(
@@ -454,14 +488,8 @@ async def async_setup_entry(hass, config_entry):
     hass.bus.async_listen(SENDDOMAIN, miniserver.listen_loxone_send)
     hass.bus.async_listen(SECUREDSENDDOMAIN, miniserver.listen_loxone_send)
 
-    hass.services.async_register(
-        DOMAIN, "event_websocket_command", handle_websocket_command
-    )
-
-    hass.services.async_register(
-        DOMAIN, "event_secured_websocket_command", handle_secured_websocket_command
-    )
-
+    hass.services.async_register(DOMAIN, "event_websocket_command", handle_websocket_command)
+    hass.services.async_register(DOMAIN, "event_secured_websocket_command", handle_secured_websocket_command)
     hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
 
     # if config_entry.unique_id is None:
