@@ -84,6 +84,12 @@ async def async_unload_entry(hass, config_entry):
     if miniserver:
         await miniserver.stop_loxone()  # Stop any ongoing tasks or WebSocket connections.
 
+    hass.services.async_remove(DOMAIN, "event_websocket_command")
+    hass.services.async_remove(DOMAIN, "event_secured_websocket_command")
+    hass.services.async_remove(DOMAIN, "sync_areas")
+
+    hass.data.pop(DOMAIN, None)
+
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(
         config_entry, LOXONE_PLATFORMS
