@@ -189,6 +189,7 @@ class LoxWs:
             if "softwareVersion" in self._loxconfig:
                 vers = self._loxconfig["softwareVersion"]
                 if isinstance(vers, list) and len(vers) >= 2:
+                    _LOGGER.warn(vers)
                     try:
                         self._version = float("{}.{}".format(vers[0], vers[1]))
                     except ValueError:
@@ -401,7 +402,22 @@ class LoxWs:
         """Send a websocket command to the Miniserver."""
         command = "jdev/sps/io/{}/{}".format(device_uuid, value)
         _LOGGER.debug("send command: {}".format(command))
-        await self._ws.send(command)
+
+        try:
+            await self._ws.send(command)
+        except Exception as e:
+            _LOGGER.error("Failed to send command: %s. Attempting to reconnect.", e)
+            await self.reconnect()
+
+            if self.state == "CONNECTED":  # Ensure reconnection was successful
+                _LOGGER.debug("Reconnection successful. Retrying command...")
+                try:
+                    await self._ws.send(command)
+                except Exception as retry_error:
+                    _LOGGER.error("Retry failed after reconnection: %s", retry_error)
+            else:
+                _LOGGER.error("Cannot retry command, reconnection failed.")
+
 
     async def async_init(self):
 
