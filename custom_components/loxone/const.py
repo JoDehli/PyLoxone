@@ -22,6 +22,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.MEDIA_PLAYER,
     Platform.NUMBER,
     Platform.BUTTON,
+    Platform.SCENE,
 ]
 
 LOXONE_DEFAULT_PORT = 8080

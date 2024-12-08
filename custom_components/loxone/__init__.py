@@ -418,11 +418,6 @@ async def async_setup_entry(hass, config_entry):
             hass.config_entries.async_update_entry(config_entry, data={})
         return False
 
-    _LOGGER.debug("starting loxone {}...".format("scene"))
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setups(config_entry, ["scene"])
-    )
-
     async def start_event(event):
         token = miniserver.api.token_as_dict
         hass.config_entries.async_update_entry(
