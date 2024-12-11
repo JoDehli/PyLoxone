@@ -37,8 +37,7 @@ from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
                     CMD_GET_VISUAL_PASSWD, CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
                     CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
                     CMD_REQUEST_TOKEN_JSON_WEB,
-                    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
-                    CONF_SCENE_GEN_DELAY, DEFAULT, DEFAULT_DELAY_SCENE,
+                    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, DEFAULT,
                     DEFAULT_PORT, DEFAULT_TOKEN_PERSIST_NAME, DOMAIN,
                     DOMAIN_DEVICES, ERROR_VALUE, EVENT, IV_BYTES,
                     KEEP_ALIVE_PERIOD, LOXAPPPATH, LOXONE_PLATFORMS,
@@ -62,10 +61,6 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Required(CONF_PASSWORD): cv.string,
                 vol.Required(CONF_HOST): cv.string,
                 vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
-                vol.Optional(CONF_SCENE_GEN, default=True): cv.boolean,
-                vol.Optional(
-                    CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE
-                ): cv.positive_int,
                 vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): bool,
             }
         ),
@@ -97,19 +92,67 @@ async def async_setup(hass, config):
     return True
 
 
-async def async_migrate_entry(hass, config_entry):
-    # _LOGGER.debug("Migrating from version %s", config_entry.version)
+# https://github.com/home-assistant/core/blob/555d7f1ea420acb969194ab00d91e85626a368d9/homeassistant/components/intellifire/__init__.py#L63
+# https://github.com/home-assistant/core/blob/17533823075d68068ca9cf69c90b12088a0a2eb8/homeassistant/components/stookwijzer/__init__.py#L39
+# https://github.com/home-assistant/core/blob/555d7f1ea420acb969194ab00d91e85626a368d9/homeassistant/components/airvisual/__init__.py#L230
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
+    """
+    Handle migration of configuration entries to newer versions.
+
+    Parameters:
+        hass: Home Assistant instance.
+        config_entry: The configuration entry to be migrated.
+
+    Returns:
+        True if the migration was successful.
+    """
+    # Migration logic from version 1 to 2
     if config_entry.version == 1:
-        new = {**config_entry.options, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: True}
-        config_entry.options = {**new}
-        config_entry.version = 2
+        # Add option for light controller subcontrol generation
+        new_options = {
+            **config_entry.options,
+            CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: True,
+        }
+
+        # Update the entry with the new options and version
+        hass.config_entries.async_update_entry(
+            config_entry,
+            options=new_options,
+            version=2,
+        )
         _LOGGER.info("Migration to version %s successful", 2)
 
+    # Migration logic from version 2 to 3
     if config_entry.version == 2:
-        new = {**config_entry.options, CONF_SCENE_GEN_DELAY: DEFAULT_DELAY_SCENE}
-        config_entry.options = {**new}
-        config_entry.version = 3
+        # Add scene delay and generation
+        new_options = {
+            **config_entry.options,
+            CONF_SCENE_GEN_DELAY: DEFAULT_DELAY_SCENE,
+        }
+
+        # Update the entry with the new options and version
+        hass.config_entries.async_update_entry(
+            config_entry,
+            options=new_options,
+            version=3,
+        )
         _LOGGER.info("Migration to version %s successful", 3)
+
+    # Migration logic from version 3 to 4
+    if config_entry.version == 3:
+        # Remove deprecated configuration options
+        new_options = {**config_entry.options}
+        new_options.pop(CONF_SCENE_GEN, None)  # Remove if exists
+        new_options.pop(CONF_SCENE_GEN_DELAY, None)  # Remove if exists
+
+        # Update the entry with the new options and version
+        hass.config_entries.async_update_entry(
+            config_entry,
+            options=new_options,
+            version=4,
+        )
+        _LOGGER.info("Migration to version %s successful", 4)
+
     return True
 
 

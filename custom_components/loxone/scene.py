@@ -15,8 +15,7 @@ from homeassistant.helpers.entity_platform import (AddEntitiesCallback,
                                                    async_call_later)
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from .const import (CONF_SCENE_GEN, CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE,
-                    DOMAIN, SENDDOMAIN)
+from .const import DOMAIN, SENDDOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,19 +34,15 @@ async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
-) -> None:
+) -> True:
     """Set up Scenes."""
 
-    delay_scene = config_entry.options.get(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE)
-    create_scene = config_entry.options.get(CONF_SCENE_GEN, False)
-
     async def setup_scenes():
-        print("Generate Scenes")
+        _LOGGER.debug("Generate Scenes...")
         scenes = []
         entity_ids = hass.states.async_entity_ids("LIGHT")
 
         for _ in entity_ids:
-            print("Entity:", _)
             state = hass.states.get(_)
             att = state.attributes
             if "platform" in att and att["platform"] == DOMAIN:
@@ -66,9 +61,8 @@ async def async_setup_entry(
                         )
         async_add_entities(scenes)
 
-    if create_scene:
-        unsub = async_dispatcher_connect(hass, f"{DOMAIN}_light_ready", setup_scenes)
-        hass.data.setdefault(DOMAIN, {}).setdefault("unsub", []).append(unsub)
+    unsub = async_dispatcher_connect(hass, f"{DOMAIN}_light_ready", setup_scenes)
+    hass.data.setdefault(DOMAIN, {}).setdefault("unsub", []).append(unsub)
 
     return True
 
