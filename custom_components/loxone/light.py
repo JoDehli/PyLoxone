@@ -3,9 +3,11 @@ from enum import StrEnum
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
+from .const import DOMAIN
 from .helpers import add_room_and_cat_to_value_values, get_all
 from .lights.colorpickers import LumiTech, RGBColorPicker
 from .lights.dimmer import EIBDimmer, LoxoneDimmer
@@ -143,3 +145,5 @@ async def async_setup_entry(
                 _LOGGER.error(f"Could not read picker_type of colorpicker")
 
     async_add_entities(entities)
+    async_dispatcher_send(hass, f"{DOMAIN}_light_ready")
+    return True

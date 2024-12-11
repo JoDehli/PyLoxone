@@ -11,17 +11,18 @@ from typing import Final
 from homeassistant.const import Platform
 
 LOXONE_PLATFORMS: Final[list[Platform]] = [
+    Platform.SCENE,
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
     Platform.SWITCH,
     Platform.COVER,
     Platform.FAN,
-    Platform.LIGHT,
     Platform.CLIMATE,
     Platform.ALARM_CONTROL_PANEL,
     Platform.MEDIA_PLAYER,
     Platform.NUMBER,
     Platform.BUTTON,
+    Platform.LIGHT,
 ]
 
 LOXONE_DEFAULT_PORT = 8080
@@ -61,7 +62,6 @@ CMD_GET_VISUAL_PASSWD = "jdev/sys/getvisusalt/"
 DEFAULT_TOKEN_PERSIST_NAME = "lox_token.cfg"
 ERROR_VALUE = -1
 DEFAULT_PORT = 8080
-DEFAULT_DELAY_SCENE = 3
 DEFAULT_IP = ""
 
 EVENT = "loxone_event"
@@ -82,8 +82,6 @@ ATTR_AREA_CREATE = "create_areas"
 DOMAIN_DEVICES = "devices"
 
 CONF_ACTIONID = "uuidAction"
-CONF_SCENE_GEN = "generate_scenes"
-CONF_SCENE_GEN_DELAY = "generate_scenes_delay"
 CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN = "generate_lightcontroller_subcontrols"
 DEFAULT_FORCE_UPDATE = False
 
