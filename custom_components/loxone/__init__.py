@@ -44,7 +44,7 @@ from .const import (AES_KEY_SIZE, ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND,
                     SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
                     SECUREDSENDDOMAIN, SENDDOMAIN, TIMEOUT, TOKEN_PERMISSION,
                     TOKEN_REFRESH_DEFAULT_SECONDS, TOKEN_REFRESH_RETRY_COUNT,
-                    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, cfmt)
+                    TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY, cfmt,CONF_SCENE_GEN,CONF_SCENE_GEN_DELAY)
 from .helpers import get_miniserver_type
 from .miniserver import (MiniServer, get_miniserver_from_config,
                          get_miniserver_from_hass)

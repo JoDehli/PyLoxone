@@ -82,6 +82,8 @@ ATTR_AREA_CREATE = "create_areas"
 DOMAIN_DEVICES = "devices"
 
 CONF_ACTIONID = "uuidAction"
+CONF_SCENE_GEN = "generate_scenes"
+CONF_SCENE_GEN_DELAY = "generate_scenes_delay"
 CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN = "generate_lightcontroller_subcontrols"
 DEFAULT_FORCE_UPDATE = False
 
@@ -99,17 +101,6 @@ STATE_OFF = "off"
 
 DEFAULT_AUDIO_ZONE_V2_PLAY_STATE = -1
 
-cfmt = """\
-(                                  # start of capture group 1
-%                                  # literal "%"
-(?:                                # first option
-(?:[-+0 #]{0,5})                   # optional flags
-(?:\d+|\*)?                        # width
-(?:\.(?:\d+|\*))?                  # precision
-(?:h|l|ll|w|I|I32|I64)?            # size
-[cCdiouxXeEfgGaAnpsSZ]             # type
-) |                                # OR
-%%) 
-"""
+cfmt = r"""(%(?:(?:[-+0 #]{0,5})(?:\d+|\*)?(?:\.(?:\d+|\*))?(?:h|l|ll|w|I|I32|I64)?[cCdiouxXeEfgGaAnpsSZ])|%%)"""
 
 # End of loxone constants
