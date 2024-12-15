@@ -101,17 +101,6 @@ STATE_OFF = "off"
 
 DEFAULT_AUDIO_ZONE_V2_PLAY_STATE = -1
 
-cfmt = """\
-(                                  # start of capture group 1
-%                                  # literal "%"
-(?:                                # first option
-(?:[-+0 #]{0,5})                   # optional flags
-(?:\d+|\*)?                        # width
-(?:\.(?:\d+|\*))?                  # precision
-(?:h|l|ll|w|I|I32|I64)?            # size
-[cCdiouxXeEfgGaAnpsSZ]             # type
-) |                                # OR
-%%) 
-"""
+cfmt = r"""(%(?:(?:[-+0 #]{0,5})(?:\d+|\*)?(?:\.(?:\d+|\*))?(?:h|l|ll|w|I|I32|I64)?[cCdiouxXeEfgGaAnpsSZ])|%%)"""
 
 # End of loxone constants
