@@ -8,7 +8,8 @@ https://github.com/JoDehli/PyLoxone
 from collections import OrderedDict
 
 import voluptuous as vol
-from homeassistant import config_entries
+from homeassistant.config_entries import (CONN_CLASS_LOCAL_POLL, ConfigEntry,
+                                          ConfigFlow, OptionsFlow)
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME)
 from homeassistant.core import callback
@@ -30,17 +31,17 @@ LOXONE_SCHEMA = vol.Schema(
 )
 
 
-class LoxoneFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
+class LoxoneFlowHandler(ConfigFlow, domain=DOMAIN):
     """Handle Pyloxone handle."""
 
     VERSION = 3
-    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
+    CONNECTION_CLASS = CONN_CLASS_LOCAL_POLL
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(config_entry: ConfigEntry):
         """Get the options flow for this handler."""
-        return LoxoneOptionsFlowHandler(config_entry)
+        return LoxoneOptionsFlowHandler()
 
     async def async_step_user(self, user_input=None):
         """Handle a flow initialized by the user."""
@@ -57,12 +58,8 @@ class LoxoneFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return await self.async_step_user(user_input=import_config)
 
 
-class LoxoneOptionsFlowHandler(config_entries.OptionsFlow):
+class LoxoneOptionsFlowHandler(OptionsFlow):
     """Handle Loxone options."""
-
-    def __init__(self, config_entry):
-        """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
