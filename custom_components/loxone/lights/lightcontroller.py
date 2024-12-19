@@ -10,7 +10,6 @@ from .. import LoxoneEntity
 from ..const import DOMAIN, SENDDOMAIN, STATE_OFF
 from ..helpers import get_or_create_device
 
-
 class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
     """Representation of a Light Controller V2."""
 
@@ -128,7 +127,7 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
 
     async def event_handler(self, event):
         request_update = False
-
+        
         if self.uuidAction in event.data:
             self._state = event.data[self.uuidAction]
             request_update = True

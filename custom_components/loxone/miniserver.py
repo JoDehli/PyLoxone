@@ -119,7 +119,6 @@ class MiniServer:
     async def start_ws(self):
         if "token" in self.config_entry.data:
             self.api.set_token_from_dict(self.config_entry.data)
-
         res = await self.api.async_init()
         if res == -500:
             return -500
@@ -169,11 +168,14 @@ class MiniServer:
         self.api.message_call_back = message_callback
 
     async def start_loxone(self):
+        _LOGGER.debug("Calling API start")
         await self.api.start()
 
     async def stop_loxone(self):
+        _LOGGER.debug("Calling API stop")
         _ = await self.api.stop()
-        _LOGGER.debug(_)
+        self.api = None
+        _LOGGER.debug(f"Stopped api: {_}")
 
     async def listen_loxone_send(self, event):
         """Listen for change Events from Loxone Components"""

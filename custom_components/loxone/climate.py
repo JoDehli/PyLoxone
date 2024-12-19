@@ -293,7 +293,6 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     )
 
     def __init__(self, **kwargs):
-        _LOGGER.debug(f"Input AcControl: {kwargs}")
         super().__init__(**kwargs)
         self.hass = kwargs["hass"]
 

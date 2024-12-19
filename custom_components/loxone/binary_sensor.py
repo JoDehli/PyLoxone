@@ -153,7 +153,7 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
             self._attr_extra_state_attributes = {
                 "uuid": self.uuidAction,
                 "platform": "loxone",
-                "device_typ": self.device_class,
+                "device_typ": self.device_class
             }
 
     @property
