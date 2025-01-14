@@ -223,11 +223,14 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         # and default to Celsius if not.
         format_str = self.details.get("format")
 
-        if "°C" in format_str:
+        if format_str is None:
             return UnitOfTemperature.CELSIUS
 
-        if "°F" in format_str:
+        if "°F" in format_str or "F" in format_str:
             return UnitOfTemperature.FAHRENHEIT
+
+        if "°C" in format_str or "C" in format_str:
+            return UnitOfTemperature.CELSIUS
 
         return UnitOfTemperature.CELSIUS
 
