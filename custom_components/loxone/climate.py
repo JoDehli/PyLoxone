@@ -312,10 +312,21 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     @property
     def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
-        if "format" in self.details:
-            if self.details["format"].find("°"):
-                return UnitOfTemperature.CELSIUS
+        # The Loxone Config app allows the designer to set an arbitrary
+        # format string for the room controller's input temperature sensor.
+        # We assume that the format string contains the unit of temperature,
+        # and default to Celsius if not.
+        format_str = self.details.get("format")
+
+        if format_str is None:
+            return UnitOfTemperature.CELSIUS
+
+        if "°F" in format_str or "F" in format_str:
             return UnitOfTemperature.FAHRENHEIT
+
+        if "°C" in format_str or "C" in format_str:
+            return UnitOfTemperature.CELSIUS
+
         return UnitOfTemperature.CELSIUS
 
     def get_key_or_value_from_states(self, input_value) -> str | None:
