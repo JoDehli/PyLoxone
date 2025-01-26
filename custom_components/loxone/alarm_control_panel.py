@@ -226,6 +226,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             return AlarmControlPanelState.ARMED_AWAY
         return AlarmControlPanelState.DISARMED
 
+
     @property
     def extra_state_attributes(self):
         """Return the state attributes."""

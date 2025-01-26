@@ -14,6 +14,8 @@ from homeassistant.helpers.entity_platform import (AddEntitiesCallback,
                                                    async_call_later)
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
+from functools import cached_property
+
 from .const import (CONF_SCENE_GEN, CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE,
                     DOMAIN, SENDDOMAIN)
 
@@ -52,11 +54,11 @@ async def async_setup_entry(
                         mood_id = entity.get_id_by_moodname(effect)
                         uuid = entity.uuidAction
                         scenes.append(
-                            Loxonelightscene(
+                            LoxoneLightScene(
                                 "{}-{}".format(entity.name, effect),
                                 mood_id,
                                 uuid,
-                                entity.unique_id,
+                                "X",
                             )
                         )
         async_add_entities(scenes)
@@ -67,17 +69,18 @@ async def async_setup_entry(
     return True
 
 
-class Loxonelightscene(Scene):
+class LoxoneLightScene(Scene):
     def __init__(self, name, mood_id, uuid, light_controller_id):
-        self.name = name
+        self.name = name + "_" + str(mood_id)
         self.mood_id = mood_id
         self.uuidAction = uuid
         self._light_controller_id = light_controller_id
 
-    @property
+    @cached_property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return f"{self._light_controller_id}-{self.mood_id}"
+        _LOGGER.debug(f"name: {self.name}")
+        return self.name
 
     def activate(self):
         """Activate scene. Try to get entities into requested state."""
