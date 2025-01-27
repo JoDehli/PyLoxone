@@ -7,7 +7,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from .helpers import add_room_and_cat_to_value_values, get_all
-from .lights.colorpickers import LumiTech, RGBColorPicker
+from .lights.colorpickers import LumiTech, RGBColorPicker, TunableWhiteLight
 from .lights.dimmer import EIBDimmer, LoxoneDimmer
 from .lights.lightcontroller import LoxoneLightControllerV2
 from .lights.switch import LoxoneLightSwitch
@@ -30,6 +30,7 @@ class LoxoneLights(StrEnum):
 class ColorPickerTypes(StrEnum):
     RGB = "Rgb"
     LUMITECH = "Lumitech"
+    TUNABLEWHITE = "TunableWhite"
 
 
 class DimmerTypes(StrEnum):
@@ -137,8 +138,11 @@ async def async_setup_entry(
                 elif picker_type == ColorPickerTypes.RGB:
                     new_rgb_color_picker = RGBColorPicker(**color_picker)
                     entities.append(new_rgb_color_picker)
+                elif picker_type == ColorPickerTypes.TUNABLEWHITE:
+                    new_tunablewhite_picker = TunableWhiteLight(**color_picker)
+                    entities.append(new_tunablewhite_picker)
                 else:
-                    _LOGGER.error(f"Not implemented Colorpicker Type {picker_type}")
+                    _LOGGER.error(f"Not implemented Colorpicker Type {picker_type} for {color_picker}")
             else:
                 _LOGGER.error(f"Could not read picker_type of colorpicker")
 
