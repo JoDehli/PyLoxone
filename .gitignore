@@ -25,3 +25,8 @@ hass.py
 __pycache__
 custom_components/loxone/homeassistant
 .vscode
+
+
+.DS_Store
+
+.coverage
