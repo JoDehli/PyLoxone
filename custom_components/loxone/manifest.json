@@ -8,7 +8,7 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/JoDehli/PyLoxone/issues",
   "requirements": [
-    "websockets>=11.0.1,<14",
+    "websockets>=14",
     "pycryptodome",
     "numpy",
     "httpx"
