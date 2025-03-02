@@ -101,10 +101,11 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
                     effect_ids.append(mood_id)
 
             self.hass.bus.async_fire(
-                SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
-            )
+                    SENDDOMAIN,
+                    dict(uuid=self.uuidAction, value="changeTo/{}".format(effect_ids[0])),
+                )
 
-            for _ in effect_ids:
+            for _ in effect_ids[1:]:
                 self.hass.bus.async_fire(
                     SENDDOMAIN,
                     dict(uuid=self.uuidAction, value="addMood/{}".format(_)),
