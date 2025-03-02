@@ -43,8 +43,6 @@ from .message import (BaseMessage, BinaryFile, LLResponse, MessageType,
                       TextMessage, parse_message)
 from .websocket_protocol import LoxoneClientConnection
 
-#rom .websocket_protocol import LoxoneWebsocketClientProtocol
-
 _LOGGER = logging.getLogger(__name__)
 import warnings
 
@@ -277,7 +275,7 @@ class LoxoneBaseConnection:
 
 
 class LoxoneConnection(LoxoneBaseConnection):
-    connection: Optional[None]
+    connection: Optional[LoxoneClientConnection]
     _recv_loop: Optional["asyncio.Task[None]"]
 
     async def __aenter__(self) -> "LoxoneConnection":
@@ -382,7 +380,7 @@ class LoxoneConnection(LoxoneBaseConnection):
     async def _do_start_listening(
         self,
         callback: Optional[Callable[[Any], Optional[Awaitable[None]]]],
-        connection: None,
+        connection: LoxoneClientConnection,
     ) -> None:
         # with contextlib.suppress(ConnectionClosed):
 
@@ -406,7 +404,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             except Exception as e:
                 raise e
 
-    async def open(self, session) -> Optional[None]:
+    async def open(self, session) -> Optional[LoxoneClientConnection]:
         if self.connection:
             # someone else already created a new connection
             return self.connection
