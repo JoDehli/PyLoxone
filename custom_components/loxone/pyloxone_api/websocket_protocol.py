@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Union
+from typing import Union, Iterable, AsyncIterable
 
-import websockets.legacy.client
+from websockets import ClientConnection
 
 from .exceptions import LoxoneException
 from .message import BaseMessage, MessageType, parse_header, parse_message
@@ -27,21 +27,20 @@ Data = Union[str, bytes]
 
 """
 
-
-class LoxoneWebsocketClientProtocol(websockets.legacy.client.WebSocketClientProtocol):
+class LoxoneClientConnection(ClientConnection):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._last_header = None
 
-    async def recv(self) -> str | bytes:
-        result = await super().recv()
+    async def recv(self,decode: bool | None = None) -> str | bytes:
+        result = await super().recv(decode)
         _LOGGER.debug(f"Received: {result[:80]!r}")
         return result
 
-    async def send(self, msg) -> None:
+    async def send(self, message: Data | Iterable[Data] | AsyncIterable[Data], text: bool | None = None) -> None:
         async with asyncio.Lock():
-            _LOGGER.debug(f"Sent:{msg}")
-            result = await super().send(msg)
+            _LOGGER.debug(f"Sent:{message}")
+            result = await super().send(message, text)
         return result
 
     async def recv_message(self) -> BaseMessage:
