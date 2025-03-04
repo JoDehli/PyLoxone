@@ -366,7 +366,7 @@ class LoxWs:
     async def stop(self) -> int:
         try:
             self.state = "STOPPING"
-            if not self._ws.closed:
+            if not self._ws.state is State.CLOSED:
                 await self._ws.close()
             return 1
         except Exception as e:
