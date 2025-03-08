@@ -22,7 +22,8 @@ from math import floor
 from struct import unpack
 
 import httpx
-import websockets.legacy.client as wslib
+import websockets as wslib
+from websockets.protocol import State
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.PublicKey import RSA
@@ -365,7 +366,7 @@ class LoxWs:
     async def stop(self) -> int:
         try:
             self.state = "STOPPING"
-            if not self._ws.closed:
+            if not self._ws.state is State.CLOSED:
                 await self._ws.close()
             return 1
         except Exception as e:
@@ -446,7 +447,7 @@ class LoxWs:
                 new_url = self._loxone_url.replace("http", "ws")
 
             self._ws = await wslib.connect(
-                "{}/ws/rfc6455".format(new_url), timeout=TIMEOUT
+                "{}/ws/rfc6455".format(new_url), open_timeout=TIMEOUT
             )
 
             await self._ws.send("{}{}".format(CMD_KEY_EXCHANGE, self._session_key))
@@ -491,14 +492,14 @@ class LoxWs:
         if res is ERROR_VALUE:
             return ERROR_VALUE
 
-        if self._ws.closed:
+        if self._ws.state is State.CLOSED:
             _LOGGER.debug(f"Connection closed. Reason {self._ws.close_code}")
             return False
 
         command = "{}".format(CMD_ENABLE_UPDATES)
         enc_command = await self.encrypt(command)
         await self._ws.send(enc_command)
-        if self._ws.closed:
+        if self._ws.state is State.CLOSED:
             _LOGGER.debug(f"Connection closed. Reason {self._ws.close_code}")
             return False
         _ = await self._ws.recv()
