@@ -142,7 +142,9 @@ async def async_setup_entry(
                     new_tunablewhite_picker = TunableWhiteLight(**color_picker)
                     entities.append(new_tunablewhite_picker)
                 else:
-                    _LOGGER.error(f"Not implemented Colorpicker Type {picker_type} for {color_picker}")
+                    _LOGGER.error(
+                        f"Not implemented Colorpicker Type {picker_type} for {color_picker}"
+                    )
             else:
                 _LOGGER.error(f"Could not read picker_type of colorpicker")
 

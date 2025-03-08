@@ -23,12 +23,12 @@ from struct import unpack
 
 import httpx
 import websockets as wslib
-from websockets.protocol import State
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Util import Padding
+from websockets.protocol import State
 
 from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_ENCRYPT_CMD, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
