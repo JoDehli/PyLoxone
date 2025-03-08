@@ -14,6 +14,7 @@ from ..helpers import get_or_create_device, hass_to_lox, lox_to_hass
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class TunableWhiteLight(LoxoneEntity, LightEntity):
     _attr_max_color_temp_kelvin = 6500
     _attr_min_color_temp_kelvin = 2000
@@ -210,7 +211,8 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
                     dict(
                         uuid=self.uuidAction,
                         value="temp({},{})".format(
-                            hass_to_lox(self._attr_brightness), self._attr_color_temp_kelvin
+                            hass_to_lox(self._attr_brightness),
+                            self._attr_color_temp_kelvin,
                         ),
                     ),
                 )

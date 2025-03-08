@@ -20,8 +20,8 @@ from types import TracebackType
 from typing import (Any, Awaitable, Callable, Dict, List, NoReturn, Optional,
                     Sequence, Union)
 
-import websockets.exceptions
 import websockets as wslib
+import websockets.exceptions
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.PublicKey import RSA
@@ -349,9 +349,9 @@ class LoxoneConnection(LoxoneBaseConnection):
         # noinspection PyUnreachableCode
         token_refresh = asyncio.ensure_future(check_refresh_token())
 
-        #self._pending_task.append(self._recv_loop)
-        #self._pending_task.append(keep_alive_task)
-        #self._pending_task.append(token_refresh)
+        # self._pending_task.append(self._recv_loop)
+        # self._pending_task.append(keep_alive_task)
+        # self._pending_task.append(token_refresh)
         try:
             done, pending = await asyncio.wait(
                 [
