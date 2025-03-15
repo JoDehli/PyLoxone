@@ -321,24 +321,7 @@ class LoxWs:
         ]
         for task in tasks:
             self.background_tasks.add(task)
-
-        done, pending = await asyncio.wait(
-            self.background_tasks, return_when=asyncio.FIRST_EXCEPTION
-        )
-
-        # Check if there are any exceptions
-        for task in done:
-            try:
-                await task  # Raise exception if occurred
-            except Exception as e:
-                self.state = ""
-                _LOGGER.debug(f"Exception caught: {e}")
-
-        for task in pending:
-            task.cancel()
-
-        if self.state != "STOPPING" and self.state != "CONNECTED":
-            await self.reconnect()
+            task.add_done_callback(self.background_tasks.discard)
 
     async def reconnect(self) -> None:
         """Reconnect the websocket."""
