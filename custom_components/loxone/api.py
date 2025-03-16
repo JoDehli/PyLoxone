@@ -362,7 +362,8 @@ class LoxWs:
                 await asyncio.sleep(second)
                 if self._encryption_ready:
                     async with asyncio.Lock():
-                        await self._ws.send("keepalive")
+                        if self._ws.state is State.OPEN:
+                            await self._ws.send("keepalive")
         except Exception as e:
             raise e
 
@@ -390,7 +391,9 @@ class LoxWs:
         command = "jdev/sps/ios/{}/{}/{}".format(
             digester.hexdigest(), device_uuid, value
         )
-        await self._ws.send(command)
+        async with asyncio.Lock():
+            if self._ws.state is State.OPEN:
+                await self._ws.send(command)
 
     async def send_secured__websocket_command(
         self, device_uuid: str, value: str, code: str
@@ -402,10 +405,11 @@ class LoxWs:
         """Send a websocket command to the Miniserver."""
         command = "jdev/sps/io/{}/{}".format(device_uuid, value)
         _LOGGER.debug("send command: {}".format(command))
-        await self._ws.send(command)
+        async with asyncio.Lock():
+            if self._ws.state is State.OPEN:
+                await self._ws.send(command)
 
     async def async_init(self):
-
         # Get public key from Loxone
         resp = await self.get_public_key()
 
