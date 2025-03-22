@@ -67,16 +67,34 @@ class LoxoneRequestError(Exception):
     """An exception raised during an http request"""
 
 
+def detect_encoding(byte_string):
+    encodings = ['utf-8', 'iso-8859-1', 'ascii', 'utf-16', 'utf-32', 'latin-1', 'cp1252', 'mac-roman', 'big5',
+                 'shift_jis', 'euc-jp', 'gb2312']
+
+    for encoding in encodings:
+        try:
+            byte_string.decode(encoding)
+            return encoding
+        except (UnicodeDecodeError, AttributeError):
+            continue
+    return None
+
 def check_and_decode_if_needed(message):
     if isinstance(message, bytes):
         try:
-            message = message.decode("utf-8")
-            return message
+            return message.decode("utf-8")
         except UnicodeDecodeError as e:
-            _LOGGER.error(
-                f"Decoding error for message {message} (Type: {type(message)})"
+            _LOGGER.info(
+                f"Decoding problem for message {message} (Type: {type(message)}) Try to get the encoding..."
             )
-            raise e
+            encoding = detect_encoding(message)
+            if encoding:
+                return message.decode(encoding)
+            _LOGGER.info(
+                f"No vaild encoding found for {message} (Type: {type(message)}). Replaced all invaild characters."
+            )
+            return message.decode("utf-8", errors="replace")
+    return message
 
 
 async def raise_if_not_200(response: httpx.Response) -> None:
