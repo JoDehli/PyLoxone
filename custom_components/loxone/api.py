@@ -68,8 +68,20 @@ class LoxoneRequestError(Exception):
 
 
 def detect_encoding(byte_string):
-    encodings = ['utf-8', 'iso-8859-1', 'ascii', 'utf-16', 'utf-32', 'latin-1', 'cp1252', 'mac-roman', 'big5',
-                 'shift_jis', 'euc-jp', 'gb2312']
+    encodings = [
+        "utf-8",
+        "iso-8859-1",
+        "ascii",
+        "utf-16",
+        "utf-32",
+        "latin-1",
+        "cp1252",
+        "mac-roman",
+        "big5",
+        "shift_jis",
+        "euc-jp",
+        "gb2312",
+    ]
 
     for encoding in encodings:
         try:
@@ -78,6 +90,7 @@ def detect_encoding(byte_string):
         except (UnicodeDecodeError, AttributeError):
             continue
     return None
+
 
 def check_and_decode_if_needed(message):
     if isinstance(message, bytes):
