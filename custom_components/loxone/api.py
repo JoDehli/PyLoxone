@@ -18,6 +18,7 @@ import urllib.request as req
 import uuid
 from base64 import b64encode
 from datetime import datetime
+from enum import Enum
 from math import floor
 from struct import unpack
 
@@ -43,6 +44,17 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
 _LOGGER = logging.getLogger(__name__)
 
 
+class MessageType(Enum):
+    TextMessage = 0
+    BinaryFile = 1
+    EventTableValueStates = 2
+    EventTableTextStates = 3
+    EventTableDaytimerStates = 4
+    OutOfService = 5
+    Keepalive = 6
+    EventTableWeatherStates = 7
+
+
 class LoxoneException(Exception):
     """Base class for all Loxone Exceptions"""
 
@@ -53,6 +65,18 @@ class LoxoneHTTPStatusError(LoxoneException):
 
 class LoxoneRequestError(Exception):
     """An exception raised during an http request"""
+
+
+def check_and_decode_if_needed(message):
+    if isinstance(message, bytes):
+        try:
+            message = message.decode("utf-8")
+            return message
+        except UnicodeDecodeError as e:
+            _LOGGER.error(
+                f"Decoding error for message {message} (Type: {type(message)})"
+            )
+            raise e
 
 
 async def raise_if_not_200(response: httpx.Response) -> None:
@@ -519,18 +543,18 @@ class LoxWs:
     async def _async_process_message(self, message: str) -> None:
         if len(message) == 8:
             unpacked_data = unpack("ccccI", message)
-            self._current_message_type = int.from_bytes(
-                unpacked_data[1], byteorder="big"
+            self._current_message_type = MessageType(
+                int.from_bytes(unpacked_data[1], byteorder="big")
             )
-            if self._current_message_type == 6:
+            if self._current_message_type == MessageType.Keepalive:
                 _LOGGER.debug("Keep alive response received...")
         else:
             parsed_data = await self._parse_loxone_message(message)
             if parsed_data != {}:
                 _LOGGER.debug(
-                    "message [type:{}]):{}".format(
-                        self._current_message_type, parsed_data
-                    )
+                    "message [{}]: {}".format(
+                        self._current_message_type.name, parsed_data
+                    ).strip()
                 )
 
             try:
@@ -576,22 +600,13 @@ class LoxWs:
 
     async def _parse_loxone_message(self, message):
         """Parser of the Loxone message."""
-
-        def check_and_decode_if_needed(message):
-            if isinstance(message, bytes):
-                try:
-                    message = message.decode("utf-8")
-                    return message
-                except UnicodeDecodeError:
-                    _LOGGER.error(f"Decoding error for message {message}")
-
         event_dict = {}
-        if self._current_message_type == 0:
+        if self._current_message_type == MessageType.TextMessage:
             message = check_and_decode_if_needed(message)
             event_dict = message
-        elif self._current_message_type == 1:
+        elif self._current_message_type == MessageType.BinaryFile:
             pass
-        elif self._current_message_type == 2:
+        elif self._current_message_type == MessageType.EventTableValueStates:
             length = len(message)
             num = length / 24
             start = 0
@@ -607,7 +622,7 @@ class LoxWs:
                 event_dict[uuidstr] = value
                 start += 24
                 end += 24
-        elif self._current_message_type == 3:
+        elif self._current_message_type == MessageType.EventTableTextStates:
             start = 0
 
             def get_text(msg, head, offset):
@@ -644,16 +659,16 @@ class LoxWs:
                 second = first + text_length
                 message_str = unpack("{}s".format(text_length), msg[first:second])[0]
                 head += (floor((4 + text_length + 16 + 16 - 1) / 4) + 1) * 4
-                event_dict[uuidstr] = message_str.decode("utf-8")
+                event_dict[uuidstr] = check_and_decode_if_needed(message_str)
                 return head
 
             while start < len(message):
                 start = get_text(message, start, 16)
 
-        elif self._current_message_type == 6:
+        elif self._current_message_type == MessageType.Keepalive:
             event_dict["keep_alive"] = "received"
         else:
-            self._current_message_type = 7
+            self._current_message_type = MessageType.EventTableWeatherStates
         return event_dict
 
     async def use_token(self):
