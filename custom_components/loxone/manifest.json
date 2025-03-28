@@ -10,7 +10,6 @@
   "requirements": [
     "websockets>=14",
     "pycryptodome",
-    "numpy",
     "httpx"
   ],
   "version": "0.8.0"

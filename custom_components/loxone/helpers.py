@@ -5,8 +5,6 @@ For more details about this component, please refer to the documentation at
 https://home-assistant.io/components/loxone/
 """
 
-import numpy as np
-
 from .const import DOMAIN
 
 # Initialize a device registry
@@ -55,14 +53,32 @@ def lox2hass_mapped(x, min_v, max_v):
     return lox_to_hass(x)
 
 
+# def to_hass_color_temp(temp: float):
+#     """Linear interpolation between Loxone values from 2700 to 6500"""
+#     return np.interp(temp, [2700, 6500], [500, 153])
+#
+#
+# def to_loxone_color_temp(temp: float):
+#     """Linear interpolation between HASS values from 153 to 500"""
+#     return np.interp(temp, [153, 500], [6500, 2700])
+
+
 def to_hass_color_temp(temp: float):
     """Linear interpolation between Loxone values from 2700 to 6500"""
-    return np.interp(temp, [2700, 6500], [500, 153])
+    if temp <= 2700:
+        return 500
+    if temp >= 6500:
+        return 153
+    return 500 + (temp - 2700) * (153 - 500) / (6500 - 2700)
 
 
 def to_loxone_color_temp(temp: float):
     """Linear interpolation between HASS values from 153 to 500"""
-    return np.interp(temp, [153, 500], [6500, 2700])
+    if temp <= 153:
+        return 6500
+    if temp >= 500:
+        return 2700
+    return 6500 + (temp - 153) * (2700 - 6500) / (500 - 153)
 
 
 def get_room_name_from_room_uuid(lox_config: dict, room_uuid: str):
