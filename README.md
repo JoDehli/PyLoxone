@@ -50,6 +50,10 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - Slider
 - TextInput
 
+## Known Limitations
+
+- Pushbuttons are stateless. They can not be used to reliably trigger automations. Use a Switch as a workaround and turn it off again in the Automation or in Loxone itself. 
+
 ## Log Configuration
 Use the following settings if you paste a log into a issue:
 
