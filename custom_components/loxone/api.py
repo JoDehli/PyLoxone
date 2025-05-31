@@ -110,8 +110,8 @@ def check_and_decode_if_needed(message):
     return message
 
 
-async def raise_if_not_200(response: httpx.Response) -> None:
-    """A httpx event hook, to ensure that http responses other than 200
+async def raise_if_not_200_307(response: httpx.Response) -> None:
+    """A httpx event hook, to ensure that http responses other than 200 and 307
     raise an exception"""
     # Loxone response codes are a bit odd. It is not clear whether a response which
     # is not 200 is ever OK (eg it is unclear whether redirect response are issued).
@@ -120,7 +120,9 @@ async def raise_if_not_200(response: httpx.Response) -> None:
     #
     # And there are references to non-standard codes in the docs (eg a 900 error).
     # At present, treat any non-200 code as an exception.
-    if response.status_code != 200:
+    #
+    # Exception: Loxone cloud access uses a 307 temporary redirect code, so we allow that too.
+    if response.status_code != 200 and response.status_code != 307:
         if response.is_stream_consumed:
             raise LoxoneHTTPStatusError(
                 f"Code {response.status_code}. Miniserver response was {response.text}"
@@ -172,7 +174,7 @@ class LoxApp(object):
             verify=False,
             follow_redirects=True,
             timeout=TIMEOUT,
-            event_hooks={"response": [raise_if_not_200]},
+            event_hooks={"response": [raise_if_not_200_307]},
         )
 
         api_resp = await client.get("/jdev/cfg/apiKey")
@@ -202,7 +204,7 @@ class LoxApp(object):
                 verify=True,
                 follow_redirects=True,
                 timeout=TIMEOUT,
-                event_hooks={"response": [raise_if_not_200]},
+                event_hooks={"response": [raise_if_not_200_307]},
             )
             self.url = _base_url
 
@@ -948,7 +950,7 @@ class LoxWs:
                 follow_redirects=True,
                 verify=False,
                 timeout=TIMEOUT,
-                event_hooks={"response": [raise_if_not_200]},
+                event_hooks={"response": [raise_if_not_200_307]},
             )
             response = await client.get(f"/{CMD_GET_PUBLIC_KEY}")
             await client.aclose()
