@@ -21,11 +21,13 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  EVENT_HOMEASSISTANT_STOP)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
+from homeassistant.setup import async_setup_component
 
 from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     ATTR_UUID, ATTR_VALUE,
@@ -264,8 +266,162 @@ async def async_setup_entry(hass, config_entry):
             entity_uuid = entity.unique_id
         await api.send_secured__websocket_command(entity_uuid, value, code)
 
+    async def sync_areas_with_loxone(data={}):
+        create_areas = data.get(ATTR_AREA_CREATE, DEFAULT)
+        if create_areas not in [True, False]:
+            create_areas = False
+        lox_items = []
+        er_registry = er.async_get(hass)
+        ar_registry = ar.async_get(hass)
+        for id, entry in er_registry.entities.items():
+            if entry.platform == DOMAIN:
+                state = hass.states.get(entry.entity_id)
+                if hasattr(state, "attributes") and "room" in state.attributes:
+                    area = ar_registry.async_get_area_by_name(state.attributes["room"])
+                    if area is None and create_areas:
+                        area = ar_registry.async_get_or_create(state.attributes["room"])
+                    if area and entry.area_id is None:
+                        lox_items.append((entry.entity_id, area.id))
+
+        for _ in lox_items:
+            er_registry.async_update_entity(_[0], area_id=_[1])
+
+    async def handle_sync_areas_with_loxone(call):
+        await sync_areas_with_loxone(call.data)
+
     async def loxone_discovered(event):
         miniserver = get_miniserver_from_hass(hass)
+        if miniserver.miniserver_type < 2 and "component" in event.data:
+            if event.data["component"] == DOMAIN:
+                try:
+                    _LOGGER.info("loxone discovered")
+                    await asyncio.sleep(0.1)
+                    # await sync_areas_with_loxone()
+                    entity_ids = hass.states.async_all()
+                    sensors_analog = []
+                    sensors_digital = []
+                    switches = []
+                    covers = []
+                    lights = []
+                    dimmers = []
+                    climates = []
+                    fans = []
+                    accontrols = []
+                    numbers = []
+                    texts = []
+                    buttons = []
+
+                    for s in entity_ids:
+                        s_dict = s.as_dict()
+                        attr = s_dict["attributes"]
+                        if "platform" in attr and attr["platform"] == DOMAIN:
+                            device_type = attr.get("device_type", "")
+                            if device_type == "analog_sensor":
+                                sensors_analog.append(s_dict["entity_id"])
+                            elif device_type == "digital_sensor":
+                                sensors_digital.append(s_dict["entity_id"])
+                            elif device_type in ["Jalousie", "Gate", "Window"]:
+                                covers.append(s_dict["entity_id"])
+                            elif device_type in ["Switch", "TimedSwitch"]:
+                                switches.append(s_dict["entity_id"])
+                            elif device_type == "Pushbutton":
+                                buttons.append(s_dict["entity_id"])
+                            elif device_type in ["LightControllerV2"]:
+                                lights.append(s_dict["entity_id"])
+                            elif device_type == "Dimmer":
+                                dimmers.append(s_dict["entity_id"])
+                            elif device_type == "IRoomControllerV2":
+                                climates.append(s_dict["entity_id"])
+                            elif device_type == "Ventilation":
+                                fans.append(s_dict["entity_id"])
+                            elif device_type == "AcControl":
+                                accontrols.append(s_dict["entity_id"])
+                            elif device_type == "Slider":
+                                numbers.append(s_dict["entity_id"])
+                            elif device_type == "TextInput":
+                                texts.append(s_dict["entity_id"])
+
+                    sensors_analog.sort()
+                    sensors_digital.sort()
+                    covers.sort()
+                    switches.sort()
+                    buttons.sort()
+                    lights.sort()
+                    climates.sort()
+                    dimmers.sort()
+                    fans.sort()
+                    accontrols.sort()
+                    numbers.sort()
+                    texts.sort()
+                    await async_setup_component(hass, "group", {})
+                    await create_group_for_loxone_entities(
+                        hass, sensors_analog, "Loxone Analog Sensors", "loxone_analog"
+                    )
+                    await create_group_for_loxone_entities(
+                        hass,
+                        sensors_digital,
+                        "Loxone Digital Sensors",
+                        "loxone_digital",
+                    )
+                    await create_group_for_loxone_entities(
+                        hass, switches, "Loxone Switches", "loxone_switches"
+                    )
+                    await create_group_for_loxone_entities(
+                        hass, buttons, "Loxone Buttons", "loxone_buttons"
+                    )
+                    await create_group_for_loxone_entities(
+                        hass, covers, "Loxone Covers", "loxone_covers"
+                    )
+                    await create_group_for_loxone_entities(
+                        hass, lights, "Loxone LightControllers", "loxone_lights"
+                    )
+                    await create_group_for_loxone_entities(
+                        hass, lights, "Loxone Dimmer", "loxone_dimmers"
+                    )
+                    await create_group_for_loxone_entities(
+                        hass, climates, "Loxone Room Controllers", "loxone_climates"
+                    )
+                    await create_group_for_loxone_entities(
+                        hass,
+                        fans,
+                        "Loxone Ventilation Controllers",
+                        "loxone_ventilations",
+                    )
+                    await create_group_for_loxone_entities(
+                        hass,
+                        accontrols,
+                        "Loxone AC Controllers",
+                        "loxone_accontrollers",
+                    )
+                    await create_group_for_loxone_entities(
+                        hass, numbers, "Loxone Numbers", "loxone_numbers"
+                    )
+                    await create_group_for_loxone_entities(
+                        hass, texts, "Loxone Texts", "loxone_texts"
+                    )
+                    await hass.async_block_till_done()
+                    await create_group_for_loxone_entities(
+                        hass,
+                        [
+                            "group.loxone_analog",
+                            "group.loxone_digital",
+                            "group.loxone_switches",
+                            "group.loxone_buttons",
+                            "group.loxone_covers",
+                            "group.loxone_lights",
+                            "group.loxone_ventilations",
+                            "group.loxone_numbers",
+                            "group.loxone_texts",
+                        ],
+                        "Loxone Group",
+                        "loxone_group",
+                    )
+                except Exception as err:
+                    _LOGGER.error(
+                        "Can't create group '%s'. Try to make at least one group manually. ("
+                        "https://www.home-assistant.io/integrations/group/)",
+                        err,
+                    )
 
     async def start_event(_):
         try:
@@ -331,6 +487,15 @@ async def async_setup_entry(hass, config_entry):
     hass.services.async_register(
         DOMAIN, "event_secured_websocket_command", handle_secured_websocket_command
     )
+
+    hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
+
+    # if config_entry.unique_id is None:
+    #     hass.config_entries.async_update_entry(
+    #         config_entry, unique_id=miniserver.serial, data=new_data
+    #     )
+    #     # Workaround
+    #     await asyncio.sleep(5)
 
     return True
 
