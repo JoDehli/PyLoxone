@@ -14,7 +14,7 @@ from typing import AsyncIterable, Iterable, Union
 from websockets import ClientConnection
 
 from .exceptions import LoxoneException
-from .message import BaseMessage, MessageType, parse_header, parse_message
+from .message import BaseMessage, MessageType, parse_header, parse_message, check_and_decode_if_needed
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class LoxoneClientConnection(ClientConnection):
         super().__init__(*args, **kwargs)
         self._last_header = None
 
-    async def recv(self, decode: bool | None = None) -> str | bytes:
+    async def recv(self, decode: bool | None = False) -> str | bytes:
         result = await super().recv(decode)
         _LOGGER.debug(f"Received: {result[:80]!r}")
         return result
@@ -93,6 +93,8 @@ class LoxoneClientConnection(ClientConnection):
             raise LoxoneException("Miniserver is out of service")
         # get the message body
         message_data = await self.recv()
+        if header.message_type == MessageType.TEXT:
+            message_data = check_and_decode_if_needed(message_data)
 
         _LOGGER.debug(f"Parsing message {message_data[:80]!r} ({header.message_type})")
         message = parse_message(message_data, header.message_type)

@@ -6,19 +6,16 @@ https://github.com/JoDehli/pyloxone-api
 """
 
 import asyncio
-import contextlib
 import hashlib
 import json
 import logging
 import time
-import types
 import urllib
-import uuid
 from base64 import b64decode, b64encode
 from queue import Queue
 from types import TracebackType
 from typing import (Any, Awaitable, Callable, Dict, List, NoReturn, Optional,
-                    Sequence, Union)
+                    )
 
 import websockets as wslib
 import websockets.exceptions
@@ -27,6 +24,7 @@ from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Util import Padding
+from async_upnp_client import aiohttp
 
 from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_GET_API_KEY, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
@@ -78,7 +76,7 @@ class LoxoneBaseConnection:
         self.token = token
         self.port = port
         self.timeout = None if timeout == 0 else timeout
-        self.connection: Optional[Any] = None
+        self.connection: wslib.ClientConnection | None = None
         self._recv_loop: Optional[Any] = None
         self._pending_task = []
 
@@ -293,6 +291,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         self, callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]] = None
     ) -> None:
         """Open, and start listening."""
+        self.connection = None
         if not self.connection:
             _LOGGER.debug("No existing connection found. Opening a new connection.")
             self.connection = await self.open()
@@ -404,7 +403,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             except Exception as e:
                 raise e
 
-    async def open(self, session) -> Optional[LoxoneClientConnection]:
+    async def open(self, session: aiohttp.ClientSession | None = None) -> Optional[LoxoneClientConnection]:
         if self.connection:
             # someone else already created a new connection
             return self.connection
@@ -507,13 +506,12 @@ class LoxoneConnection(LoxoneBaseConnection):
         # # Open a websocket connection
         # scheme = "wss" if self._use_tls else "ws"
         # url = f"{scheme}://{self._host}:{self._port}/ws/rfc6455"
-        _ = await wslib.connect(
+        self.connection = await wslib.connect(
             url,
             open_timeout=TIMEOUT,
             create_connection=LoxoneClientConnection,
         )
 
-        self.connection = _
         return self.connection
 
     async def close(self) -> None:
@@ -645,7 +643,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         ):
             if message.code == 401:
                 self.reset_token()
-                raise exceptions.LoxoneTokenError("Token not vaild anymore")
+                raise LoxoneTokenError("Token not vaild anymore")
             else:
                 _LOGGER.debug("Got message authwithtoken")
                 await self._send_text_command(f"{CMD_ENABLE_UPDATES}", encrypted=True)

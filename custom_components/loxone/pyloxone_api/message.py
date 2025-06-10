@@ -6,12 +6,56 @@ https://github.com/JoDehli/pyloxone-api
 """
 
 import json
+import logging
 import math
 import struct
 import uuid
 from enum import IntEnum
 
 from .exceptions import LoxoneException
+
+_LOGGER = logging.getLogger(__name__)
+
+def detect_encoding(byte_string):
+    encodings = [
+        "utf-8",
+        "iso-8859-1",
+        "ascii",
+        "utf-16",
+        "utf-32",
+        "latin-1",
+        "cp1252",
+        "mac-roman",
+        "big5",
+        "shift_jis",
+        "euc-jp",
+        "gb2312",
+    ]
+
+    for encoding in encodings:
+        try:
+            byte_string.decode(encoding)
+            return encoding
+        except (UnicodeDecodeError, AttributeError):
+            continue
+    return None
+
+def check_and_decode_if_needed(message):
+    if isinstance(message, bytes):
+        try:
+            return message.decode("utf-8")
+        except UnicodeDecodeError as e:
+            _LOGGER.info(
+                f"Decoding problem for message {message} (Type: {type(message)}) Try to get the encoding..."
+            )
+            encoding = detect_encoding(message)
+            if encoding:
+                return message.decode(encoding)
+            _LOGGER.info(
+                f"No vaild encoding found for {message} (Type: {type(message)}). Replaced all invaild characters."
+            )
+            return message.decode("utf-8", errors="replace")
+    return message
 
 
 class MessageType(IntEnum):
@@ -109,6 +153,7 @@ class TextMessage(BaseMessage):
 
     def __init__(self, message: bytes | str):
         super().__init__(message)
+        message = check_and_decode_if_needed(message)
         ll_message = LLResponse(message)
         self.code = ll_message.code
         self.control = ll_message.control
@@ -193,7 +238,7 @@ class TextStatesTable(BaseMessage):
             second = first + text_length
             message_str = struct.unpack(f"{text_length}s", message[first:second])[0]
             start += (math.floor((4 + text_length + 16 + 16 - 1) / 4) + 1) * 4
-            event_dict[uuidstr] = message_str.decode("utf-8")
+            event_dict[uuidstr] = check_and_decode_if_needed(message_str)
             return start
 
         if not isinstance(self.message, bytes):
