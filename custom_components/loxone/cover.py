@@ -50,7 +50,7 @@ async def async_setup_entry(
 ) -> None:
     """Set Loxone covers."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config
+    loxconfig = miniserver.lox_config.json
     entities = []
 
     for cover in get_all(loxconfig, ["Jalousie", "Gate", "Window"]):

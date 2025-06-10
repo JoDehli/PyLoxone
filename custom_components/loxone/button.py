@@ -42,7 +42,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
-    loxconfig = miniserver.lox_config
+    loxconfig = miniserver.lox_config.json
     entities = []
 
     for button_entity in get_all(loxconfig, ["Pushbutton"]):

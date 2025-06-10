@@ -304,6 +304,7 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
 
         if entity_description := self._get_entity_description():
             self.entity_description = entity_description
+
         else:
             precision = self._parse_digits_after_decimal(self.details["format"])
             if precision:

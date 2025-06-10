@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import traceback
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME)
@@ -33,11 +35,29 @@ def get_miniserver_from_config(hass, config):
         return None
     return config[next(iter(config))]
 
+@dataclass
+class ConfigDataClass:
+    json: Optional[Dict[str, Any]] = None
+
+    def get(self, key, default=None):
+        if self.json is not None:
+            return self.json.get(key, default)
+        return default
+
+    def __contains__(self, key):
+        if self.json is not None:
+            return key in self.json
+        return False
+
+    def __getitem__(self, key):
+        if self.json is not None:
+            return self.json[key]
+        raise KeyError(key)
 
 class MiniServer:
     def __init__(self, hass, lox_config, config_entry):
         self.hass = hass
-        self.lox_config: dict = lox_config
+        self.lox_config: ConfigDataClass = ConfigDataClass(lox_config)
         self.config_entry = config_entry
 
     @property
