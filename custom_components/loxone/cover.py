@@ -74,11 +74,11 @@ async def async_setup_entry(
     def async_add_covers(_):
         async_add_entities(_)
 
-    # miniserver.listeners.append(
-    #     async_dispatcher_connect(
-    #         hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_entities
-    #     )
-    # )
+    miniserver.listeners.append(
+        async_dispatcher_connect(
+            hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_entities
+        )
+    )
     async_add_entities(entities)
 
     platform = entity_platform.async_get_current_platform()

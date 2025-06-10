@@ -129,11 +129,10 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="humidity_or_battery",
         name="Humidity or Battery",
-        loxone_format_string=PERCENTAGE,
         suggested_display_precision=1,
+        loxone_format_string=PERCENTAGE,
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        # device_class is missing because it is not clear if hum or bat
     ),
 )
 
@@ -166,7 +165,7 @@ async def async_setup_entry(
     """Set up entry."""
     miniserver = get_miniserver_from_hass(hass)
 
-    loxconfig = miniserver.lox_config
+    loxconfig = miniserver.lox_config.json
     entities = []
     if "softwareVersion" in loxconfig:
         entities.append(LoxoneVersionSensor(loxconfig["softwareVersion"]))
@@ -184,11 +183,11 @@ async def async_setup_entry(
     def async_add_sensors(_):
         async_add_entities(_, True)
 
-    # miniserver.listeners.append(
-    #     async_dispatcher_connect(
-    #         hass, miniserver.async_signal_new_device(NEW_SENSOR), async_add_sensors
-    #     )
-    # )
+    miniserver.listeners.append(
+        async_dispatcher_connect(
+            hass, miniserver.async_signal_new_device(NEW_SENSOR), async_add_sensors
+        )
+    )
 
     async_add_entities(entities, update_before_add=True)
 

@@ -88,13 +88,13 @@ async def async_setup_entry(
     def async_add_binary_sensors(_):
         async_add_entities(_, True)
 
-    # miniserver.listeners.append(
-    #     async_dispatcher_connect(
-    #         hass,
-    #         miniserver.async_signal_new_device("sensors"),
-    #         async_add_binary_sensors,
-    #     )
-    # )
+    miniserver.listeners.append(
+        async_dispatcher_connect(
+            hass,
+            miniserver.async_signal_new_device("sensors"),
+            async_add_binary_sensors,
+        )
+    )
     async_add_entities(entities)
 
 

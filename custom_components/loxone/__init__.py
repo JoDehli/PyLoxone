@@ -12,7 +12,7 @@ import sys
 import traceback
 from functools import cached_property
 
-import homeassistant
+<import homeassistant
 import homeassistant.components.group as group
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry

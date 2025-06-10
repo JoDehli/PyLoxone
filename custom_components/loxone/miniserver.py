@@ -59,6 +59,7 @@ class MiniServer:
         self.hass = hass
         self.lox_config: ConfigDataClass = ConfigDataClass(lox_config)
         self.config_entry = config_entry
+        self.listeners = []
 
     @property
     def serial(self):
@@ -75,6 +76,24 @@ class MiniServer:
     @property
     def software_version(self):
         return ".".join([str(x) for x in self.lox_config.get("softwareVersion", "")])
+
+    @property
+    def miniserver_id(self) -> str:
+        """Return the unique identifier of the Miniserver."""
+        return self.config_entry.unique_id
+
+    @callback
+    def async_signal_new_device(self, device_type) -> str:
+        """Gateway specific event to signal new device."""
+        new_device = {
+            NEW_GROUP: f"loxone_new_group_{self.miniserver_id}",
+            NEW_LIGHT: f"loxone_new_light_{self.miniserver_id}",
+            NEW_SCENE: f"loxone_new_scene_{self.miniserver_id}",
+            NEW_SENSOR: f"loxone_new_sensor_{self.miniserver_id}",
+            NEW_COVERS: f"loxone_new_cover_{self.miniserver_id}",
+        }
+        return new_device[device_type]
+
 
     async def async_update_device_registry(self) -> None:
         device_registry = dr.async_get(self.hass)
