@@ -14,17 +14,16 @@ import urllib
 from base64 import b64decode, b64encode
 from queue import Queue
 from types import TracebackType
-from typing import (Any, Awaitable, Callable, Dict, List, NoReturn, Optional,
-                    )
+from typing import Any, Awaitable, Callable, Dict, List, NoReturn, Optional
 
 import websockets as wslib
 import websockets.exceptions
+from async_upnp_client import aiohttp
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Util import Padding
-from async_upnp_client import aiohttp
 
 from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_GET_API_KEY, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
@@ -403,7 +402,9 @@ class LoxoneConnection(LoxoneBaseConnection):
             except Exception as e:
                 raise e
 
-    async def open(self, session: aiohttp.ClientSession | None = None) -> Optional[LoxoneClientConnection]:
+    async def open(
+        self, session: aiohttp.ClientSession | None = None
+    ) -> Optional[LoxoneClientConnection]:
         if self.connection:
             # someone else already created a new connection
             return self.connection

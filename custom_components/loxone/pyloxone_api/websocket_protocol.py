@@ -14,7 +14,8 @@ from typing import AsyncIterable, Iterable, Union
 from websockets import ClientConnection
 
 from .exceptions import LoxoneException
-from .message import BaseMessage, MessageType, parse_header, parse_message, check_and_decode_if_needed
+from .message import (BaseMessage, MessageType, check_and_decode_if_needed,
+                      parse_header, parse_message)
 
 _LOGGER = logging.getLogger(__name__)
 

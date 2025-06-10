@@ -2,7 +2,7 @@ import asyncio
 import logging
 import traceback
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME)
@@ -35,6 +35,7 @@ def get_miniserver_from_config(hass, config):
         return None
     return config[next(iter(config))]
 
+
 @dataclass
 class ConfigDataClass:
     json: Optional[Dict[str, Any]] = None
@@ -53,6 +54,7 @@ class ConfigDataClass:
         if self.json is not None:
             return self.json[key]
         raise KeyError(key)
+
 
 class MiniServer:
     def __init__(self, hass, lox_config, config_entry):
@@ -93,7 +95,6 @@ class MiniServer:
             NEW_COVERS: f"loxone_new_cover_{self.miniserver_id}",
         }
         return new_device[device_type]
-
 
     async def async_update_device_registry(self) -> None:
         device_registry = dr.async_get(self.hass)

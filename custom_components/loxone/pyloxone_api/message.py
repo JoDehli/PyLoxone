@@ -16,6 +16,7 @@ from .exceptions import LoxoneException
 
 _LOGGER = logging.getLogger(__name__)
 
+
 def detect_encoding(byte_string):
     encodings = [
         "utf-8",
@@ -39,6 +40,7 @@ def detect_encoding(byte_string):
         except (UnicodeDecodeError, AttributeError):
             continue
     return None
+
 
 def check_and_decode_if_needed(message):
     if isinstance(message, bytes):
