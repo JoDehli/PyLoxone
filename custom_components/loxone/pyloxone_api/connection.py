@@ -32,7 +32,7 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN_JSON_WEB,
                     IV_BYTES, KEEP_ALIVE_PERIOD, LOXAPPPATH, MAX_REFRESH_DELAY,
                     SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
-                    TIMEOUT, TOKEN_PERMISSION)
+                    TIMEOUT, TOKEN_PERMISSION, CMD_REQUEST_TOKEN)
 from .exceptions import LoxoneException, LoxoneTokenError
 from .loxone_http_client import LoxoneAsyncHttpClient
 from .loxone_token import LoxoneToken, LxJsonKeySalt
@@ -144,7 +144,7 @@ class LoxoneBaseConnection:
         some commands (to do with tokens) still seem to need it.
 
         """
-        print("_send_text_command", command)
+        _LOGGER.debug(f"Send text command: {command}")
         if encrypted:
             if self._new_salt_needed():
                 old_salt = self._salt
@@ -315,10 +315,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                     self._token.seconds_to_expire() * 0.9, MAX_REFRESH_DELAY
                 )
                 if seconds_to_refresh < 0:
-                    await asyncio.sleep(60 * 60)
+                    seconds_to_refresh = 1
+
                 await asyncio.sleep(seconds_to_refresh)
                 command = f"{CMD_GET_KEY}"
-                _LOGGER.debug(f"COMMAND {command}")
                 # gets a new key for the token refresh
                 old_key = self._key
                 await self._send_text_command(command, encrypted=False)
@@ -328,14 +328,12 @@ class LoxoneConnection(LoxoneBaseConnection):
                     if self._key != old_key:
                         break
                     count += 1
-                    num_of_wait_iterations = 50  # 0.1 * 50 = 5 seconds
+                    num_of_wait_iterations = 100  # 0.1 * 100 = 10 seconds
                     if count >= num_of_wait_iterations:
                         break
 
                 if self._key != old_key:
-                    new_hash = self._hash_token()
-                    command = f"{CMD_REFRESH_TOKEN}/{new_hash}/{self.username}"
-                    await self._send_text_command(command, encrypted=True)
+                    await self._refresh_token()
 
         await self.connection.send(f"{CMD_KEY_EXCHANGE}{self._session_key.decode()}")
 
@@ -519,33 +517,6 @@ class LoxoneConnection(LoxoneBaseConnection):
         for task in self._pending_task:
             task.cancel()
 
-        # for task in list(self._pending_task):
-        #     async with asyncio.timeout(1.1):
-        #         if task.done():
-        #             # Since we made a copy we need to check
-        #             # to see if the task finished while we
-        #             # were awaiting another task
-        #             continue
-        #         _LOGGER.warning(
-        #             "Task %s was still running after final writes shutdown stage; "
-        #             "Integrations should cancel non-critical tasks when receiving "
-        #             "the stop event to prevent delaying shutdown",
-        #             task,
-        #         )
-        #         task.cancel("Home Assistant final writes shutdown stage")
-        #         try:
-        #             async with asyncio.timeout(0.1):
-        #                 await task
-        #         except asyncio.CancelledError:
-        #             pass
-        #         except TimeoutError:
-        #             # Task may be shielded from cancellation.
-        #             _LOGGER.exception(
-        #                 "Task %s could not be canceled during final shutdown stage", task
-        #             )
-        #         except Exception:  # pylint: disable=broad-except
-        #             _LOGGER.exception("Task %s error during final shutdown stage", task)
-
         if self.connection:
             await self.connection.close()
             if self._recv_loop:
@@ -595,17 +566,20 @@ class LoxoneConnection(LoxoneBaseConnection):
             self._hash_alg = mess_obj.value_as_dict.get("hashAlg", None)
 
             if self._token.seconds_to_expire() > 100:
-                _LOGGER.debug("use old token...")
+                _LOGGER.debug("Use old token...")
                 token_hash = self._hash_token()
                 command = "{}{}/{}".format(
                     CMD_AUTH_WITH_TOKEN, token_hash, self.username
                 )
                 await self._send_text_command(command, encrypted=True)
             else:
-                _LOGGER.debug("aquire new token...")
+                _LOGGER.debug("Aquire new token...")
                 new_hash = self._hash_credentials()
                 # Request new Token
-                command = f"{CMD_REQUEST_TOKEN_JSON_WEB}/{new_hash}/{self.username}/{TOKEN_PERMISSION}/edfc5f9a-df3f-4cad-9dddcdc42c732b82/pyloxone_api"
+                if self.miniserver_version < [10, 2]:
+                    command = f"{CMD_REQUEST_TOKEN}/{new_hash}/{self.username}/{TOKEN_PERMISSION}/edfc5f9a-df3f-4cad-9dddcdc42c732b82/pyloxone_api"
+                else:
+                    command = f"{CMD_REQUEST_TOKEN_JSON_WEB}/{new_hash}/{self.username}/{TOKEN_PERMISSION}/edfc5f9a-df3f-4cad-9dddcdc42c732b82/pyloxone_api"
                 await self._send_text_command(command, encrypted=True)
 
         elif isinstance(mess_obj, TextMessage) and "getkey" in mess_obj.message:
