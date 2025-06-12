@@ -14,15 +14,17 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class LoxoneCoordinator(DataUpdateCoordinator):
-    config_entry: ConfigEntry
+    """Class to manage fetching data from the Loxone Miniserver."""
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+        """Initialize the coordinator."""
         super().__init__(
             hass,
             logger=_LOGGER,
             name="PyLoxone Coordinator",
             update_method=None,  # Not polling!
         )
+        self.config_entry = config_entry
         self._username = config_entry.options[CONF_USERNAME]
         self._password = config_entry.options[CONF_PASSWORD]
         self._host = config_entry.options[CONF_HOST]
@@ -30,6 +32,7 @@ class LoxoneCoordinator(DataUpdateCoordinator):
 
         self.api: LoxoneConnection | None = None
         self.miniserver: MiniServer | None = None
+        self.listeners = []
 
     async def async_config_entry_first_refresh(self) -> None:
         _LOGGER.debug("async_config_entry_first_refresh")
@@ -66,12 +69,23 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         return None
 
     async def _async_update_data(self) -> None:
+        """Fetch data from API endpoint.
+
+        This is the place to pre-process the data to lookup tables
+        so entities can quickly look up their data.
+        """
         print("_async_update_data")
         return None
 
     async def async_cleanup(self):
-        """Gibt alle Ressourcen frei und schließt die API-Verbindung."""
-        if self.api:
+        """Clean up resources."""
+        if hasattr(self, "listeners"):
+            # Clean up all event listeners
+            for listener in self.listeners:
+                if listener is not None:
+                    listener()
+            self.listeners = []
+
+        # Close API connection
+        if hasattr(self, "api"):
             await self.api.close()
-            self.api = None
-        self.miniserver = None

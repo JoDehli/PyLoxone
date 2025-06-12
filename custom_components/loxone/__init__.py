@@ -75,8 +75,8 @@ async def async_unload_entry(hass, config_entry):
     coordinator = None
     for co in getattr(hass.data.get(DOMAIN, {}), "values", lambda: [])():
         if (
-                hasattr(co, "config_entry")
-                and co.config_entry.entry_id == config_entry.entry_id
+            hasattr(co, "config_entry")
+            and co.config_entry.entry_id == config_entry.entry_id
         ):
             coordinator = co
             break
@@ -87,13 +87,12 @@ async def async_unload_entry(hass, config_entry):
             await coordinator.async_cleanup()
         except Exception as e:
             _LOGGER.warning(f"Fehler beim Schließen der Verbindung: {e}")
+
         try:
-            # # Unload
-            # coordinator = hass.data[DOMAIN].get(config_entry.entry_id)
-            # if coordinator and hasattr(coordinator, "listeners"):
-            #     for remove_listener in coordinator.listeners:
-            #         remove_listener()
-            #     coordinator.listeners = []
+            # Remove event listeners
+            if hasattr(coordinator, "listeners") and coordinator.listeners:
+                for listener in coordinator.listeners:
+                    listener()  # Unsubscribe the listener
 
             del hass.data[DOMAIN][config_entry.entry_id]
         except Exception as e:
@@ -261,7 +260,10 @@ async def async_setup_entry(hass, config_entry):
             entity_id = call.data.get(ATTR_DEVICE)
             entity = entity_registry.async_get(entity_id)
             entity_uuid = entity.unique_id
-        await coordinator.api.send_websocket_command(entity_uuid, value)
+        try:
+            await coordinator.api.send_websocket_command(entity_uuid, value)
+        except:
+            raise AttributeError("send_websocket_command atrribute not found")
 
     async def handle_secured_websocket_command(call):
         """Handle websocket command services."""
@@ -466,7 +468,10 @@ async def async_setup_entry(hass, config_entry):
                     value = DEFAULT
                 if device_uuid is None:
                     device_uuid = DEFAULT
-                await coordinator.api.send_websocket_command(device_uuid, value)
+                try:
+                    await coordinator.api.send_websocket_command(device_uuid, value)
+                except:
+                    raise AttributeError("send_websocket_command atrribute not found")
 
             elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data, dict):
                 value = event.data.get(ATTR_VALUE, DEFAULT)
@@ -485,22 +490,23 @@ async def async_setup_entry(hass, config_entry):
         except Exception as e:
             _LOGGER.error(e)
 
-    # listeners = []
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event)
-    hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
-    hass.bus.async_listen(SENDDOMAIN, loxone_send)
-    hass.bus.async_listen(SECUREDSENDDOMAIN, loxone_send)
-    # hass.data[DOMAIN][config_entry.entry_id].listeners = listeners
+    hass.services.async_register(
+        DOMAIN, "event_websocket_command", handle_websocket_command
+    )
 
-    # hass.services.async_register(
-    #     DOMAIN, "event_websocket_command", handle_websocket_command
-    # )
-    #
-    # hass.services.async_register(
-    #     DOMAIN, "event_secured_websocket_command", handle_secured_websocket_command
-    # )
+    hass.services.async_register(
+        DOMAIN, "event_secured_websocket_command", handle_secured_websocket_command
+    )
+    hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
 
-    # hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event),
+    hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered),
+
+    # Store listeners for cleanup
+    coordinator.listeners = [
+        hass.bus.async_listen(SENDDOMAIN, loxone_send),
+        hass.bus.async_listen(SECUREDSENDDOMAIN, loxone_send),
+    ]
 
     await start_event()
 
