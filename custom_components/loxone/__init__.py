@@ -35,15 +35,11 @@ from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     CONF_SCENE_GEN_DELAY, DEFAULT, DEFAULT_DELAY_SCENE,
                     DEFAULT_PORT, DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT,
                     LOXONE_PLATFORMS, SECUREDSENDDOMAIN, SENDDOMAIN, cfmt)
+from .coordinator import LoxoneCoordinator
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
 from .pyloxone_api.connection import LoxoneConnection
 from .pyloxone_api.exceptions import LoxoneException, LoxoneTokenError
-
-# from .miniserver import (MiniServer, get_miniserver_from_config,
-#                          get_miniserver_from_hass)
-
-# from .api import LoxApp, LoxWs
 
 REQUIREMENTS = ["websockets", "pycryptodome", "numpy"]
 
@@ -70,15 +66,50 @@ CONFIG_SCHEMA = vol.Schema(
 
 _UNDEF: dict = {}
 
-
-# TODO: Implement a complete restart of the loxone component without restart HomeAssistant
-# TODO: Unload device
 # TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
 
 
 async def async_unload_entry(hass, config_entry):
-    """Restart of Home Assistant needed."""
-    return False
+    async def async_unload_entry(hass, config_entry):
+        """Completely unloads the Loxone integration and closes all connections."""
+        # Get the Miniserver instance from hass.data
+        coordinator = None
+        for co in getattr(hass.data.get(DOMAIN, {}), "values", lambda: [])():
+            if (
+                    hasattr(co, "config_entry")
+                    and co.config_entry.entry_id == config_entry.entry_id
+            ):
+                coordinator = co
+                break
+
+        # Connection close
+        if coordinator is not None:
+            try:
+                await coordinator.async_cleanup()
+            except Exception as e:
+                _LOGGER.warning(f"Fehler beim Schließen der Verbindung: {e}")
+            try:
+                # # Unload
+                # coordinator = hass.data[DOMAIN].get(config_entry.entry_id)
+                # if coordinator and hasattr(coordinator, "listeners"):
+                #     for remove_listener in coordinator.listeners:
+                #         remove_listener()
+                #     coordinator.listeners = []
+
+                del hass.data[DOMAIN][config_entry.entry_id]
+            except Exception as e:
+                raise e
+
+        # Services deregistrieren beim Entladen
+        hass.services.async_remove(DOMAIN, "event_websocket_command")
+        hass.services.async_remove(DOMAIN, "event_secured_websocket_command")
+        hass.services.async_remove(DOMAIN, "sync_areas")
+
+        # Unload
+        unload_ok = await hass.config_entries.async_unload_platforms(
+            config_entry, LOXONE_PLATFORMS
+        )
+        return unload_ok
 
 
 async def async_setup(hass, config):
@@ -90,12 +121,19 @@ async def async_setup(hass, config):
             )
         )
 
-    # async def handle_reload(call):
-    #     """Handle the service call to reload the integration."""
-    #     _LOGGER.info("Reloading custom integration")
-    #     await async_setup(hass, config)
-    #
-    # hass.services.async_register(DOMAIN, "reload", handle_reload)
+    async def handle_reload(call):
+        """Handle the service call to reload the integration."""
+        _LOGGER.info("Reloading Loxone integration via service call")
+        entries = hass.config_entries.async_entries(DOMAIN)
+        unloads = [
+            hass.config_entries.async_unload(entry.entry_id) for entry in entries
+        ]
+        await asyncio.gather(*unloads)
+        loads = [hass.config_entries.async_reload(entry.entry_id) for entry in entries]
+        await asyncio.gather(*loads)
+        _LOGGER.info("Loxone integration reload complete")
+
+    hass.services.async_register(DOMAIN, "reload", handle_reload)
     return True
 
 
@@ -181,36 +219,9 @@ async def async_setup_entry(hass, config_entry):
     if not config_entry.options:
         await async_set_options(hass, config_entry)
 
-    username = config_entry.options[CONF_USERNAME]
-    password = config_entry.options[CONF_PASSWORD]
-    host = config_entry.options[CONF_HOST]
-    port = config_entry.options[CONF_PORT]
-
-    if "token" in config_entry.data:
-        api = LoxoneConnection(
-            host=host,
-            port=port,
-            username=username,
-            password=password,
-            token=config_entry.data,
-        )
-    else:
-        api = LoxoneConnection(
-            host=host, port=port, username=username, password=password
-        )
-
-    try:
-        from homeassistant.helpers.aiohttp_client import \
-            async_get_clientsession
-
-        session = async_get_clientsession(hass)
-        open_connection = await api.open(session)
-    except LoxoneException:
-        _LOGGER.error("Could not connect to Loxone Miniserver")
-        return False
-
-    miniserver = MiniServer(hass, api.structure_file, config_entry)
-    hass.data[DOMAIN][api.miniserver_serial] = miniserver
+    coordinator = LoxoneCoordinator(hass, config_entry)
+    await coordinator.async_config_entry_first_refresh()
+    hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
 
     setup_tasks = []
     await hass.config_entries.async_forward_entry_setups(config_entry, LOXONE_PLATFORMS)
@@ -251,7 +262,7 @@ async def async_setup_entry(hass, config_entry):
             entity_id = call.data.get(ATTR_DEVICE)
             entity = entity_registry.async_get(entity_id)
             entity_uuid = entity.unique_id
-        await api.send_websocket_command(entity_uuid, value)
+        await coordinator.api.send_websocket_command(entity_uuid, value)
 
     async def handle_secured_websocket_command(call):
         """Handle websocket command services."""
@@ -264,7 +275,7 @@ async def async_setup_entry(hass, config_entry):
             entity_id = call.data.get(ATTR_DEVICE)
             entity = entity_registry.async_get(entity_id)
             entity_uuid = entity.unique_id
-        await api.send_secured__websocket_command(entity_uuid, value, code)
+        await coordinator.api.send_secured__websocket_command(entity_uuid, value, code)
 
     async def sync_areas_with_loxone(data={}):
         create_areas = data.get(ATTR_AREA_CREATE, DEFAULT)
@@ -423,11 +434,11 @@ async def async_setup_entry(hass, config_entry):
                         err,
                     )
 
-    async def start_event(_):
+    async def start_event():
         try:
             # noinspection PyTypeChecker
             listening_task = asyncio.create_task(
-                api.start_listening(callback=message_callback)
+                coordinator.api.start_listening(callback=message_callback)
             )
             listening_task.add_done_callback(handle_task_result)
 
@@ -435,7 +446,7 @@ async def async_setup_entry(hass, config_entry):
             raise e
 
     async def stop_event(_):
-        token = api.get_token_dict()
+        token = coordinator.api.get_token_dict()
         hass.config_entries.async_update_entry(
             config_entry,
             data={
@@ -444,7 +455,7 @@ async def async_setup_entry(hass, config_entry):
                 "valid_until": token["valid_until"],
             },
         )
-        await api.close()
+        await coordinator.api.close()
 
     async def loxone_send(event):
         """Listen for change Events from Loxone Components"""
@@ -456,7 +467,7 @@ async def async_setup_entry(hass, config_entry):
                     value = DEFAULT
                 if device_uuid is None:
                     device_uuid = DEFAULT
-                await api.send_websocket_command(device_uuid, value)
+                await coordinator.api.send_websocket_command(device_uuid, value)
 
             elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data, dict):
                 value = event.data.get(ATTR_VALUE, DEFAULT)
@@ -468,34 +479,31 @@ async def async_setup_entry(hass, config_entry):
                     value = DEFAULT
                 if device_uuid is None:
                     device_uuid = DEFAULT
-                await api.send_secured__websocket_command(device_uuid, value, code)
+                await coordinator.api.send_secured__websocket_command(
+                    device_uuid, value, code
+                )
 
         except Exception as e:
             _LOGGER.error(e)
 
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, start_event)
+    # listeners = []
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event)
     hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
-
     hass.bus.async_listen(SENDDOMAIN, loxone_send)
     hass.bus.async_listen(SECUREDSENDDOMAIN, loxone_send)
+    # hass.data[DOMAIN][config_entry.entry_id].listeners = listeners
 
-    hass.services.async_register(
-        DOMAIN, "event_websocket_command", handle_websocket_command
-    )
+    # hass.services.async_register(
+    #     DOMAIN, "event_websocket_command", handle_websocket_command
+    # )
+    #
+    # hass.services.async_register(
+    #     DOMAIN, "event_secured_websocket_command", handle_secured_websocket_command
+    # )
 
-    hass.services.async_register(
-        DOMAIN, "event_secured_websocket_command", handle_secured_websocket_command
-    )
+    # hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
 
-    hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
-
-    # if config_entry.unique_id is None:
-    #     hass.config_entries.async_update_entry(
-    #         config_entry, unique_id=miniserver.serial, data=new_data
-    #     )
-    #     # Workaround
-    #     await asyncio.sleep(5)
+    await start_event()
 
     return True
 

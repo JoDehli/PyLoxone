@@ -29,10 +29,11 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_GET_API_KEY, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
                     CMD_GET_PUBLIC_KEY, CMD_GET_VISUAL_PASSWD, CMD_KEEP_ALIVE,
                     CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
-                    CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN_JSON_WEB,
-                    IV_BYTES, KEEP_ALIVE_PERIOD, LOXAPPPATH, MAX_REFRESH_DELAY,
-                    SALT_BYTES, SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
-                    TIMEOUT, TOKEN_PERMISSION, CMD_REQUEST_TOKEN)
+                    CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
+                    CMD_REQUEST_TOKEN_JSON_WEB, IV_BYTES, KEEP_ALIVE_PERIOD,
+                    LOXAPPPATH, MAX_REFRESH_DELAY, SALT_BYTES,
+                    SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT, TIMEOUT,
+                    TOKEN_PERMISSION)
 from .exceptions import LoxoneException, LoxoneTokenError
 from .loxone_http_client import LoxoneAsyncHttpClient
 from .loxone_token import LoxoneToken, LxJsonKeySalt
@@ -159,8 +160,11 @@ class LoxoneBaseConnection:
             cipher = b64encode(aes_cipher.encrypt(padded_bytes))
             enc_cipher = urllib.parse.quote(cipher.decode())
             command = f"jdev/sys/enc/{enc_cipher}"
-
-        await self.connection.send(command)
+        try:
+            await self.connection.send(command)
+        except Exception as e:
+            _LOGGER.error("HIER ERROR!!!")
+            raise e
 
     def _decrypt(self, command: str) -> bytes:
         """AES decrypt a command returned by the miniserver."""
@@ -290,7 +294,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         self, callback: Optional[Callable[[str, Any], Optional[Awaitable[None]]]] = None
     ) -> None:
         """Open, and start listening."""
-        self.connection = None
+
         if not self.connection:
             _LOGGER.debug("No existing connection found. Opening a new connection.")
             self.connection = await self.open()
@@ -340,22 +344,17 @@ class LoxoneConnection(LoxoneBaseConnection):
         self._recv_loop = asyncio.ensure_future(
             self._do_start_listening(callback, self.connection)
         )
-        # noinspection PyUnreachableCode
-        keep_alive_task = asyncio.ensure_future(keep_alive())
-        # noinspection PyUnreachableCode
-        token_refresh = asyncio.ensure_future(check_refresh_token())
 
-        # self._pending_task.append(self._recv_loop)
-        # self._pending_task.append(keep_alive_task)
-        # self._pending_task.append(token_refresh)
+        # noinspection PyUnreachableCode
+        self._pending_task = [
+            self._recv_loop,
+            asyncio.create_task(keep_alive()),
+            asyncio.create_task(check_refresh_token()),
+        ]
+
         try:
             done, pending = await asyncio.wait(
-                [
-                    self._recv_loop,
-                    keep_alive_task,
-                    token_refresh,
-                ],
-                return_when=asyncio.FIRST_EXCEPTION,
+                self._pending_task, return_when=asyncio.FIRST_EXCEPTION
             )
             for task in done:
                 try:
@@ -370,8 +369,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                     raise e
         finally:
             # Cancel pending tasks
-            for task in pending:
-                task.cancel()
+            for task in self._pending_task:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*self._pending_task, return_exceptions=True)
 
     async def _do_start_listening(
         self,
@@ -395,7 +396,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                     _LOGGER.debug(
                         f"Message type {list(MessageType)[message.message_type].name} not handled yet ..."
                     )
-                    _LOGGER.debug(f"Message {message.as_dict()}")
+                    _ = message.as_dict()
+                    if _ != {}:
+                        _LOGGER.debug(f"Message {message.as_dict()}")
 
             except Exception as e:
                 raise e
@@ -403,9 +406,9 @@ class LoxoneConnection(LoxoneBaseConnection):
     async def open(
         self, session: aiohttp.ClientSession | None = None
     ) -> Optional[LoxoneClientConnection]:
-        if self.connection:
-            # someone else already created a new connection
-            return self.connection
+        # if self.connection:
+        #     # someone else already created a new connection
+        #     return self.connection
 
         connector = None
         try:
@@ -519,26 +522,20 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         if self.connection:
             await self.connection.close()
-            if self._recv_loop:
-                try:
-                    await self._recv_loop
-                except:
-                    pass
 
-        self.connection = None
         _LOGGER.debug("Connection closed.")
 
     async def send_websocket_command(self, device_uuid: str, value: str):
         """Send a websocket command to the Miniserver."""
         command = "jdev/sps/io/{}/{}".format(device_uuid, value)
-        _LOGGER.debug("send command: {}".format(command))
+        _LOGGER.debug("Call send_websocket_command: {}".format(command))
         await self._send_text_command(command, encrypted=True)
 
     async def send_secured__websocket_command(
         self, device_uuid: str, value: str, code: str
     ):
         command = f"{CMD_GET_VISUAL_PASSWD}{self.username}"
-        _LOGGER.debug(f"send command: {command}")
+        _LOGGER.debug(f"Call send_secured__websocket_command: {command}")
         self._secured_queue.put(self._send_secure(device_uuid, value, code))
         await self._send_text_command(command, encrypted=True)
 
@@ -556,7 +553,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             mess_obj.control = self._decrypt(mess_obj.control)
 
         if isinstance(mess_obj, TextMessage) and "keyexchange" in mess_obj.message:
-            _LOGGER.debug("keyexchange with miniserver")
+            _LOGGER.debug("Key exchange with miniserver...")
             command = f"{CMD_GET_KEY_AND_SALT}/{self.username}"
             await self._send_text_command(command, encrypted=True)
 
@@ -573,7 +570,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 )
                 await self._send_text_command(command, encrypted=True)
             else:
-                _LOGGER.debug("Aquire new token...")
+                _LOGGER.debug("Acquire new token...")
                 new_hash = self._hash_credentials()
                 # Request new Token
                 if self.miniserver_version < [10, 2]:
