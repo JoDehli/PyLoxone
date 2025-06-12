@@ -70,46 +70,45 @@ _UNDEF: dict = {}
 
 
 async def async_unload_entry(hass, config_entry):
-    async def async_unload_entry(hass, config_entry):
-        """Completely unloads the Loxone integration and closes all connections."""
-        # Get the Miniserver instance from hass.data
-        coordinator = None
-        for co in getattr(hass.data.get(DOMAIN, {}), "values", lambda: [])():
-            if (
-                    hasattr(co, "config_entry")
-                    and co.config_entry.entry_id == config_entry.entry_id
-            ):
-                coordinator = co
-                break
+    """Completely unloads the Loxone integration and closes all connections."""
+    # Get the Miniserver instance from hass.data
+    coordinator = None
+    for co in getattr(hass.data.get(DOMAIN, {}), "values", lambda: [])():
+        if (
+                hasattr(co, "config_entry")
+                and co.config_entry.entry_id == config_entry.entry_id
+        ):
+            coordinator = co
+            break
 
-        # Connection close
-        if coordinator is not None:
-            try:
-                await coordinator.async_cleanup()
-            except Exception as e:
-                _LOGGER.warning(f"Fehler beim Schließen der Verbindung: {e}")
-            try:
-                # # Unload
-                # coordinator = hass.data[DOMAIN].get(config_entry.entry_id)
-                # if coordinator and hasattr(coordinator, "listeners"):
-                #     for remove_listener in coordinator.listeners:
-                #         remove_listener()
-                #     coordinator.listeners = []
+    # Connection close
+    if coordinator is not None:
+        try:
+            await coordinator.async_cleanup()
+        except Exception as e:
+            _LOGGER.warning(f"Fehler beim Schließen der Verbindung: {e}")
+        try:
+            # # Unload
+            # coordinator = hass.data[DOMAIN].get(config_entry.entry_id)
+            # if coordinator and hasattr(coordinator, "listeners"):
+            #     for remove_listener in coordinator.listeners:
+            #         remove_listener()
+            #     coordinator.listeners = []
 
-                del hass.data[DOMAIN][config_entry.entry_id]
-            except Exception as e:
-                raise e
+            del hass.data[DOMAIN][config_entry.entry_id]
+        except Exception as e:
+            raise e
 
-        # Services deregistrieren beim Entladen
-        hass.services.async_remove(DOMAIN, "event_websocket_command")
-        hass.services.async_remove(DOMAIN, "event_secured_websocket_command")
-        hass.services.async_remove(DOMAIN, "sync_areas")
+    # Services deregistrieren beim Entladen
+    hass.services.async_remove(DOMAIN, "event_websocket_command")
+    hass.services.async_remove(DOMAIN, "event_secured_websocket_command")
+    hass.services.async_remove(DOMAIN, "sync_areas")
 
-        # Unload
-        unload_ok = await hass.config_entries.async_unload_platforms(
-            config_entry, LOXONE_PLATFORMS
-        )
-        return unload_ok
+    # Unload
+    unload_ok = await hass.config_entries.async_unload_platforms(
+        config_entry, LOXONE_PLATFORMS
+    )
+    return unload_ok
 
 
 async def async_setup(hass, config):
