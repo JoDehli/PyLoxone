@@ -260,10 +260,7 @@ async def async_setup_entry(hass, config_entry):
             entity_id = call.data.get(ATTR_DEVICE)
             entity = entity_registry.async_get(entity_id)
             entity_uuid = entity.unique_id
-        try:
-            await coordinator.api.send_websocket_command(entity_uuid, value)
-        except:
-            raise AttributeError("send_websocket_command atrribute not found")
+        await coordinator.api.send_websocket_command(entity_uuid, value)
 
     async def handle_secured_websocket_command(call):
         """Handle websocket command services."""
@@ -468,10 +465,7 @@ async def async_setup_entry(hass, config_entry):
                     value = DEFAULT
                 if device_uuid is None:
                     device_uuid = DEFAULT
-                try:
-                    await coordinator.api.send_websocket_command(device_uuid, value)
-                except:
-                    raise AttributeError("send_websocket_command atrribute not found")
+                await coordinator.api.send_websocket_command(device_uuid, value)
 
             elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data, dict):
                 value = event.data.get(ATTR_VALUE, DEFAULT)
