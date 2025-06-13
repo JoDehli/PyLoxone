@@ -254,7 +254,8 @@ class LoxoneBaseConnection:
         )
         new_hash = digester.hexdigest()
         command = "jdev/sps/ios/{}/{}/{}".format(new_hash, device_uuid, value)
-        await self._send_text_command(command, encrypted=True)
+        self._message_queue.put(MessageForQueue(command, True))
+        return None
 
     def _hash_credentials(self):
         try:
@@ -594,7 +595,6 @@ class LoxoneConnection(LoxoneBaseConnection):
             _LOGGER.debug("Key exchange with miniserver...")
             command = f"{CMD_GET_KEY_AND_SALT}/{self.username}"
             self._message_queue.put(MessageForQueue(command, True))
-            # await self._send_text_command(command, encrypted=True)
 
         elif isinstance(mess_obj, TextMessage) and "getkey2" in mess_obj.message:
             self._key = mess_obj.value_as_dict["key"]
@@ -608,7 +608,6 @@ class LoxoneConnection(LoxoneBaseConnection):
                     CMD_AUTH_WITH_TOKEN, token_hash, self.username
                 )
                 self._message_queue.put(MessageForQueue(command, True))
-                # await self._send_text_command(command, encrypted=True)
             else:
                 _LOGGER.debug("Acquire new token...")
                 new_hash = self._hash_credentials()
@@ -618,7 +617,6 @@ class LoxoneConnection(LoxoneBaseConnection):
                 else:
                     command = f"{CMD_REQUEST_TOKEN_JSON_WEB}/{new_hash}/{self.username}/{TOKEN_PERMISSION}/edfc5f9a-df3f-4cad-9dddcdc42c732b82/pyloxone_api"
                 self._message_queue.put(MessageForQueue(command, True))
-                # await self._send_text_command(command, encrypted=True)
 
         elif isinstance(mess_obj, TextMessage) and "getkey" in mess_obj.message:
             self._key = mess_obj.value_as_dict["value"]
