@@ -575,7 +575,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         command = f"{CMD_GET_VISUAL_PASSWD}{self.username}"
         _LOGGER.debug(f"Call send_secured__websocket_command: {command}")
         self._secured_queue.put(self._send_secure(device_uuid, value, code))
-        await self._send_text_command(command, encrypted=True)
+        self._message_queue.put(MessageForQueue(command=command, flag=True))
 
     async def _websocket_event(self, message: Dict[str, Any] | BaseMessage) -> None:
         """Handle websocket event."""
@@ -635,10 +635,10 @@ class LoxoneConnection(LoxoneBaseConnection):
             key_and_salt.time_elapsed_in_seconds = time_elapsed_in_seconds()
             self._visual_hash = key_and_salt
 
-            # while not self._secured_queue.empty():
-            #     awaitable = self._secured_queue.get()
-            #     if awaitable:
-            #         await awaitable
+            while not self._secured_queue.empty():
+                awaitable = self._secured_queue.get()
+                if awaitable:
+                    await awaitable
 
         elif isinstance(mess_obj, TextMessage) and (
             "gettoken" in mess_obj.message or "getjwt" in mess_obj.message
