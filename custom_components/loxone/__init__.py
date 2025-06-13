@@ -240,7 +240,7 @@ async def async_setup_entry(hass, config_entry):
             task.result()
         except LoxoneTokenError as e:
             _LOGGER.debug(
-                "Token is not valid anymore. Please restart Homeassistant to aquire new token."
+                "Token is not valid anymore. Please restart Homeassistant to acquire new token."
             )
             hass.async_create_task(hass.services.async_call("loxone", "reload"))
         except LoxoneOutOfServiceException as e:
