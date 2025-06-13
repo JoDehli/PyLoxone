@@ -39,7 +39,9 @@ from .coordinator import LoxoneCoordinator
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
 from .pyloxone_api.connection import LoxoneConnection
-from .pyloxone_api.exceptions import LoxoneException, LoxoneTokenError
+from .pyloxone_api.exceptions import (LoxoneException,
+                                      LoxoneOutOfServiceException,
+                                      LoxoneTokenError)
 
 REQUIREMENTS = ["websockets", "pycryptodome", "numpy"]
 
@@ -240,6 +242,13 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.debug(
                 "Token is not valid anymore. Please restart Homeassistant to aquire new token."
             )
+            hass.async_create_task(hass.services.async_call("loxone", "reload"))
+        except LoxoneOutOfServiceException as e:
+            _LOGGER.debug(
+                "Loxone LoxoneOutOfServiceException received. Reloading Loxone integration."
+            )
+            # Loxone-Integration neu laden
+            hass.async_create_task(hass.services.async_call("loxone", "reload"))
         except asyncio.exceptions.CancelledError as e:
             _LOGGER.error(e)
         except Exception as e:

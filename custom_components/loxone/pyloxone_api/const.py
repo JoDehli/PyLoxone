@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from typing import Final
 
+RECONNECT_DELAY = 5  # maximum delay in seconds
+RECONNECT_TRIES = 20  # number of tries to reconnect before giving up
+
 # Loxone constants
 TIMEOUT: Final = 30
 KEEP_ALIVE_PERIOD: Final = 120

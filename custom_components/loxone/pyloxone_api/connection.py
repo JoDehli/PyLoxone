@@ -32,10 +32,11 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
                     CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
                     CMD_REQUEST_TOKEN_JSON_WEB, IV_BYTES, KEEP_ALIVE_PERIOD,
-                    LOXAPPPATH, MAX_REFRESH_DELAY, SALT_BYTES,
-                    SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT, TIMEOUT,
-                    TOKEN_PERMISSION)
-from .exceptions import LoxoneException, LoxoneTokenError
+                    LOXAPPPATH, MAX_REFRESH_DELAY, RECONNECT_DELAY,
+                    RECONNECT_TRIES, SALT_BYTES, SALT_MAX_AGE_SECONDS,
+                    SALT_MAX_USE_COUNT, TIMEOUT, TOKEN_PERMISSION)
+from .exceptions import (LoxoneException, LoxoneOutOfServiceException,
+                         LoxoneServiceUnAvailableError, LoxoneTokenError)
 from .loxone_http_client import LoxoneAsyncHttpClient
 from .loxone_token import LoxoneToken, LxJsonKeySalt
 from .message import (BaseMessage, BinaryFile, LLResponse, MessageType,
@@ -56,10 +57,12 @@ warnings.filterwarnings(
 def time_elapsed_in_seconds():
     return int(round(time.time()))
 
+
 @dataclass
 class MessageForQueue:
     command: str
     flag: bool
+
 
 class LoxoneBaseConnection:
     _URL_FORMAT = "ws://{host}:{port}/ws/rfc6455"
@@ -345,9 +348,6 @@ class LoxoneConnection(LoxoneBaseConnection):
                     await self._refresh_token()
 
         await self.connection.send(f"{CMD_KEY_EXCHANGE}{self._session_key.decode()}")
-       # p = asyncio.create_task(self._process_message())
-        #await asyncio.sleep(0.1)
-
         self._recv_loop = asyncio.ensure_future(
             self._do_start_listening(callback, self.connection)
         )
@@ -371,6 +371,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                     _LOGGER.debug("Task ConnectionClosedOK received")
                     # Cancel pending tasks
                 except LoxoneTokenError as e:
+                    raise e
+                except LoxoneOutOfServiceException as e:
+                    _LOGGER.debug(f"Task {task} raised an exception: {e}")
                     raise e
                 except Exception as e:
                     _LOGGER.debug(f"Task {task} raised an exception: {e}")
@@ -436,7 +439,21 @@ class LoxoneConnection(LoxoneBaseConnection):
                 port=self.port,
                 session=session,
             )
-            api_resp = await connector.get(CMD_GET_API_KEY)
+
+            for attempt in range(RECONNECT_TRIES):
+                try:
+                    api_resp = await connector.get(CMD_GET_API_KEY)
+                    break  # connection successful
+                except LoxoneServiceUnAvailableError as e:
+                    if attempt < RECONNECT_TRIES - 1:
+                        _LOGGER.debug(
+                            f"LoxoneServiceUnAvailableError, try again in {RECONNECT_DELAY} seconds..."
+                        )
+                        await asyncio.sleep(RECONNECT_DELAY)
+                    else:
+                        _LOGGER.error("Max tries exceeded. Stopping.")
+                        raise
+
             data = await api_resp.content.read()
             _value = LLResponse(data).value
             # The json returned by the miniserver is invalid. It contains " and '.
@@ -531,8 +548,8 @@ class LoxoneConnection(LoxoneBaseConnection):
             create_connection=LoxoneClientConnection,
             compression=None,
             max_queue=128,
-            max_size=2**20, # 1048576
-            write_limit=2**1 # 32768
+            max_size=2**20,  # 1048576
+            write_limit=2**1,  # 32768
         )
 
         return self.connection
