@@ -21,7 +21,7 @@ AES_KEY_SIZE: Final = 32
 
 SALT_BYTES: Final = 16
 SALT_MAX_AGE_SECONDS: Final = 60 * 60
-SALT_MAX_USE_COUNT: Final = 30
+SALT_MAX_USE_COUNT: Final = 100
 
 
 # TOKEN_PERMISSION can be 2 for a 'short' lifespan token (days), or 4 for

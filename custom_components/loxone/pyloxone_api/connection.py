@@ -12,6 +12,7 @@ import logging
 import time
 import urllib
 from base64 import b64decode, b64encode
+from dataclasses import dataclass
 from queue import Queue
 from types import TracebackType
 from typing import Any, Awaitable, Callable, Dict, List, NoReturn, Optional
@@ -55,6 +56,10 @@ warnings.filterwarnings(
 def time_elapsed_in_seconds():
     return int(round(time.time()))
 
+@dataclass
+class MessageForQueue:
+    command: str
+    flag: bool
 
 class LoxoneBaseConnection:
     _URL_FORMAT = "ws://{host}:{port}/ws/rfc6455"
@@ -116,9 +121,8 @@ class LoxoneBaseConnection:
 
         self._salt_has_expired: bool = False
         self._salt_time_stamp: int = 0
-
         self._visual_hash = None
-        self._message_queue = Queue(maxsize=1)
+        self._message_queue: Queue[MessageForQueue] = Queue()
         self._secured_queue = Queue(maxsize=1)
 
     def get_token_dict(self) -> dict:
@@ -152,7 +156,7 @@ class LoxoneBaseConnection:
                 self._generate_salt()
                 # The miniserver needs the text terminated with a zero byte,
                 # though this is not documented
-                command_string = f"nextsalt/{old_salt}/{self._salt}/{command}\x00"
+                command_string = f"nextSalt/{old_salt}/{self._salt}/{command}\x00"
             else:
                 command_string = f"salt/{self._salt}/{command}\x00"
             padded_bytes = Padding.pad(bytes(command_string, "utf-8"), 16)
@@ -161,9 +165,9 @@ class LoxoneBaseConnection:
             enc_cipher = urllib.parse.quote(cipher.decode())
             command = f"jdev/sys/enc/{enc_cipher}"
         try:
-            await self.connection.send(command)
+            await self.connection.send([command])
         except Exception as e:
-            _LOGGER.error("HIER ERROR!!!")
+            _LOGGER.error("Error while sending...")
             raise e
 
     def _decrypt(self, command: str) -> bytes:
@@ -205,7 +209,8 @@ class LoxoneBaseConnection:
             command = f"{CMD_REFRESH_TOKEN}{token_hash}/{self.username}"
         else:
             command = f"{CMD_REFRESH_TOKEN_JSON_WEB}{token_hash}/{self.username}"
-        await self._send_text_command(command, encrypted=True)
+        self._message_queue.put(MessageForQueue(command, True))
+        # await self._send_text_command(command, encrypted=True)
 
     def _hash_token(self):
         token_hash_str = f"{self._token.token}"
@@ -340,6 +345,8 @@ class LoxoneConnection(LoxoneBaseConnection):
                     await self._refresh_token()
 
         await self.connection.send(f"{CMD_KEY_EXCHANGE}{self._session_key.decode()}")
+       # p = asyncio.create_task(self._process_message())
+        #await asyncio.sleep(0.1)
 
         self._recv_loop = asyncio.ensure_future(
             self._do_start_listening(callback, self.connection)
@@ -348,6 +355,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         # noinspection PyUnreachableCode
         self._pending_task = [
             self._recv_loop,
+            asyncio.create_task(self._process_message()),
             asyncio.create_task(keep_alive()),
             asyncio.create_task(check_refresh_token()),
         ]
@@ -374,13 +382,20 @@ class LoxoneConnection(LoxoneBaseConnection):
                     task.cancel()
             await asyncio.gather(*self._pending_task, return_exceptions=True)
 
+    async def _process_message(self) -> NoReturn:
+        while True:
+            if not self._message_queue.empty():
+                while not self._message_queue.empty():
+                    m = self._message_queue.get()
+                    await self._send_text_command(m.command, encrypted=m.flag)
+                    await asyncio.sleep(0)
+            await asyncio.sleep(0)
+
     async def _do_start_listening(
         self,
         callback: Optional[Callable[[Any], Optional[Awaitable[None]]]],
         connection: LoxoneClientConnection,
     ) -> None:
-        # with contextlib.suppress(ConnectionClosed):
-
         while True:
             try:
                 message = await connection.recv_message()
@@ -401,7 +416,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                         _LOGGER.debug(f"Message {message.as_dict()}")
 
             except Exception as e:
-                raise e
+                _LOGGER.error(f"Error in listening loop: {e}")
+                raise
+            await asyncio.sleep(0)
 
     async def open(
         self, session: aiohttp.ClientSession | None = None
@@ -512,6 +529,10 @@ class LoxoneConnection(LoxoneBaseConnection):
             url,
             open_timeout=TIMEOUT,
             create_connection=LoxoneClientConnection,
+            compression=None,
+            max_queue=128,
+            max_size=2**20, # 1048576
+            write_limit=2**1 # 32768
         )
 
         return self.connection
@@ -529,7 +550,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         """Send a websocket command to the Miniserver."""
         command = "jdev/sps/io/{}/{}".format(device_uuid, value)
         _LOGGER.debug("Call send_websocket_command: {}".format(command))
-        await self._send_text_command(command, encrypted=True)
+        self._message_queue.put(MessageForQueue(command=command, flag=True))
 
     async def send_secured__websocket_command(
         self, device_uuid: str, value: str, code: str
@@ -555,7 +576,8 @@ class LoxoneConnection(LoxoneBaseConnection):
         if isinstance(mess_obj, TextMessage) and "keyexchange" in mess_obj.message:
             _LOGGER.debug("Key exchange with miniserver...")
             command = f"{CMD_GET_KEY_AND_SALT}/{self.username}"
-            await self._send_text_command(command, encrypted=True)
+            self._message_queue.put(MessageForQueue(command, True))
+            # await self._send_text_command(command, encrypted=True)
 
         elif isinstance(mess_obj, TextMessage) and "getkey2" in mess_obj.message:
             self._key = mess_obj.value_as_dict["key"]
@@ -568,7 +590,8 @@ class LoxoneConnection(LoxoneBaseConnection):
                 command = "{}{}/{}".format(
                     CMD_AUTH_WITH_TOKEN, token_hash, self.username
                 )
-                await self._send_text_command(command, encrypted=True)
+                self._message_queue.put(MessageForQueue(command, True))
+                # await self._send_text_command(command, encrypted=True)
             else:
                 _LOGGER.debug("Acquire new token...")
                 new_hash = self._hash_credentials()
@@ -577,14 +600,15 @@ class LoxoneConnection(LoxoneBaseConnection):
                     command = f"{CMD_REQUEST_TOKEN}/{new_hash}/{self.username}/{TOKEN_PERMISSION}/edfc5f9a-df3f-4cad-9dddcdc42c732b82/pyloxone_api"
                 else:
                     command = f"{CMD_REQUEST_TOKEN_JSON_WEB}/{new_hash}/{self.username}/{TOKEN_PERMISSION}/edfc5f9a-df3f-4cad-9dddcdc42c732b82/pyloxone_api"
-                await self._send_text_command(command, encrypted=True)
+                self._message_queue.put(MessageForQueue(command, True))
+                # await self._send_text_command(command, encrypted=True)
 
         elif isinstance(mess_obj, TextMessage) and "getkey" in mess_obj.message:
             self._key = mess_obj.value_as_dict["value"]
-            while not self._message_queue.empty():
-                awaitable = self._message_queue.get()
-                if awaitable:
-                    await awaitable()
+            # while not self._message_queue.empty():
+            #     awaitable = self._message_queue.get()
+            #     if awaitable:
+            #         await awaitable()
 
         elif isinstance(mess_obj, TextMessage) and "getvisusalt" in mess_obj.message:
             self._key = mess_obj.value_as_dict["value"]
@@ -594,10 +618,10 @@ class LoxoneConnection(LoxoneBaseConnection):
             key_and_salt.time_elapsed_in_seconds = time_elapsed_in_seconds()
             self._visual_hash = key_and_salt
 
-            while not self._secured_queue.empty():
-                awaitable = self._secured_queue.get()
-                if awaitable:
-                    await awaitable
+            # while not self._secured_queue.empty():
+            #     awaitable = self._secured_queue.get()
+            #     if awaitable:
+            #         await awaitable
 
         elif isinstance(mess_obj, TextMessage) and (
             "gettoken" in mess_obj.message or "getjwt" in mess_obj.message
@@ -608,7 +632,8 @@ class LoxoneConnection(LoxoneBaseConnection):
             self._token.hash_alg = self._hash_alg
             if "unsecurePass" in mess_obj.value_as_dict:
                 self._token.unsecure_password = mess_obj.value_as_dict["unsecurePass"]
-            await self._send_text_command(f"{CMD_ENABLE_UPDATES}", encrypted=True)
+            # await self._send_text_command(f"{CMD_ENABLE_UPDATES}", encrypted=True)
+            self._message_queue.put(MessageForQueue(f"{CMD_ENABLE_UPDATES}", True))
 
         elif isinstance(mess_obj, TextMessage) and (
             "authwithtoken" in mess_obj.message
@@ -618,7 +643,8 @@ class LoxoneConnection(LoxoneBaseConnection):
                 raise LoxoneTokenError("Token not vaild anymore")
             else:
                 _LOGGER.debug("Got message authwithtoken")
-                await self._send_text_command(f"{CMD_ENABLE_UPDATES}", encrypted=True)
+                # await self._send_text_command(f"{CMD_ENABLE_UPDATES}", encrypted=True)
+                self._message_queue.put(MessageForQueue(f"{CMD_ENABLE_UPDATES}", True))
 
         elif isinstance(mess_obj, TextMessage) and ("refreshjwt" in mess_obj.message):
             _LOGGER.debug(f"Got {type(mess_obj)}")

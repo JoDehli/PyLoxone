@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import AsyncIterable, Iterable, Union
+from typing import AsyncIterable, Iterable, Union, NoReturn
 
 from websockets import ClientConnection
 
@@ -33,6 +33,10 @@ class LoxoneClientConnection(ClientConnection):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._last_header = None
+        from queue import Queue
+        self._message_queue = Queue(maxsize=1000)
+
+
 
     async def recv(self, decode: bool | None = False) -> str | bytes:
         result = await super().recv(decode)
@@ -44,9 +48,8 @@ class LoxoneClientConnection(ClientConnection):
         message: Data | Iterable[Data] | AsyncIterable[Data],
         text: bool | None = None,
     ) -> None:
-        async with asyncio.Lock():
-            _LOGGER.debug(f"Sent:{message}")
-            result = await super().send(message, text)
+        _LOGGER.debug(f"Sent:{message}")
+        result = await super().send(message, text)
         return result
 
     async def recv_message(self) -> BaseMessage:
