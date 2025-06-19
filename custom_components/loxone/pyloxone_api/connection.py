@@ -35,7 +35,8 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     LOXAPPPATH, MAX_REFRESH_DELAY, RECONNECT_DELAY,
                     RECONNECT_TRIES, SALT_BYTES, SALT_MAX_AGE_SECONDS,
                     SALT_MAX_USE_COUNT, TIMEOUT, TOKEN_PERMISSION)
-from .exceptions import (LoxoneException, LoxoneOutOfServiceException,
+from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
+                         LoxoneException, LoxoneOutOfServiceException,
                          LoxoneServiceUnAvailableError, LoxoneTokenError)
 from .loxone_http_client import LoxoneAsyncHttpClient
 from .loxone_token import LoxoneToken, LxJsonKeySalt
@@ -370,10 +371,21 @@ class LoxoneConnection(LoxoneBaseConnection):
                     await task
                 except websockets.exceptions.ConnectionClosedOK as e:
                     _LOGGER.debug("Task ConnectionClosedOK received")
+                    raise LoxoneConnectionClosedOk(
+                        "Connection Closed. Try reconnecting..."
+                    )
                     # Cancel pending tasks
                 except LoxoneTokenError as e:
                     raise e
                 except LoxoneOutOfServiceException as e:
+                    _LOGGER.debug(f"Task {task} raised an exception: {e}")
+                    raise e
+                except websockets.exceptions.ConnectionClosed as e:
+                    _LOGGER.debug(f"Task {task} raised an exception: {e}")
+                    raise LoxoneConnectionError(
+                        "Connection Closed. Try reconnecting..."
+                    )
+                except websockets.exceptions.ConnectionClosedError as e:
                     _LOGGER.debug(f"Task {task} raised an exception: {e}")
                     raise e
                 except Exception as e:
@@ -421,7 +433,7 @@ class LoxoneConnection(LoxoneBaseConnection):
 
             except Exception as e:
                 _LOGGER.error(f"Error in listening loop: {e}")
-                raise
+                raise e
             await asyncio.sleep(0)
 
     async def open(

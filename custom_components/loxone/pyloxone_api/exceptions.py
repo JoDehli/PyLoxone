@@ -16,6 +16,14 @@ class LoxoneOutOfServiceException(Exception):
     """Raised when the Miniserver goes down for a reboot"""
 
 
+class LoxoneConnectionClosedOk(Exception):
+    """Raised when websocket ClosedOk received. Should we reconnect?"""
+
+
+class LoxoneConnectionError(Exception):
+    """Raised the network connection is interrupted"""
+
+
 class LoxoneHTTPStatusError(LoxoneException):
     """An exception indicating an unusual http response from the miniserver"""
 

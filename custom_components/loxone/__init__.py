@@ -17,10 +17,9 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
-                                 EVENT_HOMEASSISTANT_START,
                                  EVENT_HOMEASSISTANT_STOP)
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
@@ -39,7 +38,8 @@ from .coordinator import LoxoneCoordinator
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
 from .pyloxone_api.connection import LoxoneConnection
-from .pyloxone_api.exceptions import (LoxoneException,
+from .pyloxone_api.exceptions import (LoxoneConnectionClosedOk,
+                                      LoxoneConnectionError, LoxoneException,
                                       LoxoneOutOfServiceException,
                                       LoxoneTokenError)
 
@@ -220,7 +220,11 @@ async def async_setup_entry(hass, config_entry):
         await async_set_options(hass, config_entry)
 
     coordinator = LoxoneCoordinator(hass, config_entry)
-    await coordinator.async_config_entry_first_refresh()
+
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except OSError as err:
+        raise err
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
 
     setup_tasks = []
@@ -249,6 +253,16 @@ async def async_setup_entry(hass, config_entry):
             )
             # Loxone-Integration neu laden
             hass.async_create_task(hass.services.async_call("loxone", "reload"))
+        except LoxoneConnectionError as e:
+            _LOGGER.debug(
+                "Loxone LoxoneConnectionError received. Reloading Loxone integration."
+            )
+            # Loxone-Integration neu laden
+            hass.async_create_task(hass.services.async_call("loxone", "reload"))
+        except LoxoneConnectionClosedOk as e:
+            _LOGGER.debug(
+                "Loxone LoxoneConnectionClosedOk received. Reloading Loxone integration."
+            )
         except asyncio.exceptions.CancelledError as e:
             _LOGGER.error(e)
         except Exception as e:
