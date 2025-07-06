@@ -14,7 +14,7 @@ RECONNECT_TRIES = 100  # number of tries to reconnect before giving up
 
 # Loxone constants
 TIMEOUT: Final = 30
-KEEP_ALIVE_PERIOD: Final = 120
+KEEP_ALIVE_PERIOD: Final = 60
 THROTTLE_CHECK_TOKEN_STILL_VALID: Final = (
     90  # 90 * KEEP_ALIVE_PERIOD -> 43200 sek -> 6 h
 )
