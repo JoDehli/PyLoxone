@@ -457,7 +457,6 @@ async def async_setup_entry(hass, config_entry):
 
     async def start_event():
         try:
-            # noinspection PyTypeChecker
             listening_task = asyncio.create_task(
                 coordinator.api.start_listening(callback=message_callback)
             )
@@ -524,6 +523,13 @@ async def async_setup_entry(hass, config_entry):
         hass.bus.async_listen(SENDDOMAIN, loxone_send),
         hass.bus.async_listen(SECUREDSENDDOMAIN, loxone_send),
     ]
+
+    # do not know if there is a better place to execute the scene generation.
+    # noinspection PyTypeChecker
+    _LOGGER.debug("starting loxone {}...".format("scene"))
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setups(config_entry, ["scene"])
+    )
 
     await start_event()
 
