@@ -51,14 +51,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-@dataclass
-class LoxoneRequiredKeysMixin:
+@dataclass(frozen=True)
+class LoxoneRequiredKeysMixin():
     """Mixin for required keys."""
 
     loxone_format_string: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class LoxoneEntityDescription(SensorEntityDescription, LoxoneRequiredKeysMixin):
     """Describes Loxone sensor entity."""
 
@@ -201,6 +201,11 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
         self._attr_native_value = None  # Initialize state
         # Must be after the kwargs.pop functions!
         super().__init__(**kwargs)
+
+    @cached_property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return self.uuidAction + self._attr_name
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
