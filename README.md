@@ -15,7 +15,16 @@ He really helped me a lot to with the new token based authentification. Thanks P
 
 
 ## Config for the gen2 miniserver
-If you have the gen2 miniserver you must connect via local access. All cloud connections are not working at the moment.
+If you have the gen2 miniserver you should connect via local access. It is more reliable and faster than a cloud connection.
+
+### Config for cloud connection
+Please use this only in case local access is not possible.
+
+Example:
+- Miniserver Ip: https://dns.loxonecloud.com/123456789ABC
+- Port: 443
+
+Change 123456789ABC to your miniserver Serial Number.
 
 ## Manual installation
 1. Download the zip file and extract all files.
