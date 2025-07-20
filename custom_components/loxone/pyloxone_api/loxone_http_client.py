@@ -22,8 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 class LoxoneAsyncHttpClient:
     def __init__(
         self,
-        host: str,
-        port: int,
+        url: str,
         username: str,
         password: str,
         scheme: str = "http",
@@ -37,7 +36,7 @@ class LoxoneAsyncHttpClient:
             self.session = session
 
         self.timeout = TIMEOUT
-        self.base_url = f"{scheme}://{host}:{port}"
+        self.base_url = f"{scheme}://{url}"
         self.username = username
         self.password = password
 
