@@ -52,7 +52,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 
 @dataclass(frozen=True)
-class LoxoneRequiredKeysMixin():
+class LoxoneRequiredKeysMixin:
     """Mixin for required keys."""
 
     loxone_format_string: str
