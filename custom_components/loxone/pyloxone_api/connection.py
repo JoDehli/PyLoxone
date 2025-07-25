@@ -404,8 +404,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 while not self._message_queue.empty():
                     m = self._message_queue.get()
                     await self._send_text_command(m.command, encrypted=m.flag)
-                    await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await asyncio.sleep(0.1)
 
     async def _do_start_listening(
         self,
@@ -434,7 +433,6 @@ class LoxoneConnection(LoxoneBaseConnection):
             except Exception as e:
                 _LOGGER.error(f"Error in listening loop: {e}")
                 raise e
-            await asyncio.sleep(0)
 
     async def open(
         self, session: aiohttp.ClientSession | None = None
