@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from queue import Queue
 from types import TracebackType
 from typing import Any, Awaitable, Callable, Dict, List, NoReturn, Optional
+from urllib.parse import urlparse
 
 import websockets as wslib
 import websockets.exceptions
@@ -66,8 +67,8 @@ class MessageForQueue:
 
 
 class LoxoneBaseConnection:
-    _URL_FORMAT = "ws://{host}:{port}/ws/rfc6455"
-    _SSL_URL_FORMAT = "wss://{host}:{port}/ws/rfc6455"
+    _URL_FORMAT = "ws://{url}/ws/rfc6455"
+    _SSL_URL_FORMAT = "wss://{url}/ws/rfc6455"
 
     def __init__(
         self,
@@ -88,6 +89,21 @@ class LoxoneBaseConnection:
         self.connection: wslib.ClientConnection | None = None
         self._recv_loop: Optional[Any] = None
         self._pending_task = []
+
+        # Parse the server input to extract scheme if present
+        parsed = urlparse(host if "://" in host else f"//{host}", scheme="")
+        self.scheme = parsed.scheme or ("https" if port == 443 else "http")
+        netloc = parsed.hostname or parsed.path
+
+        # do not use port 80 or 443 if the scheme is http/ws or https/wss
+        default_port = 80 if self.scheme == "http" else 443
+        used_port = port if port and port != default_port else None
+
+        # Build the full address but without the scheme
+        if used_port:
+            self.url = f"{netloc}:{used_port}{parsed.path}"
+        else:
+            self.url = f"{netloc}{parsed.path}"
 
         # Generate random 16 byte AES initialisation vector (iv)
         self._iv: bytes = get_random_bytes(IV_BYTES)
@@ -444,11 +460,11 @@ class LoxoneConnection(LoxoneBaseConnection):
         connector = None
         try:
             connector = LoxoneAsyncHttpClient(
-                host=self.host,
+                url=self.url,
                 username=self.username,
                 password=self.password,
-                port=self.port,
-                session=session,
+                scheme=self.scheme,
+                session=session
             )
 
             for attempt in range(RECONNECT_TRIES):
@@ -480,8 +496,8 @@ class LoxoneConnection(LoxoneBaseConnection):
             self.miniserver_serial = value.get("snr")
             local = value.get("local", True)
             if not local:
-                base_url = str(api_resp.url).replace(CMD_GET_API_KEY, "")
-                connector.base_url = base_url
+                connector.base_url = str(api_resp.url).replace(CMD_GET_API_KEY, "")
+                self.url = connector.base_url.replace("https://", "").replace("http://", "")
 
             # Get the structure file
             try:
@@ -539,22 +555,15 @@ class LoxoneConnection(LoxoneBaseConnection):
         self._generate_salt()
 
         params = {
-            "host": self.host,
-            "port": self.port,
+            "url": self.url
         }
-        url = self._URL_FORMAT.format(**params)
-        # @TODO: SSL
-        # if self._is_ssl_connection():
-        #     return self._SSL_URL_FORMAT.format(**params)
-        # else:
-        #     return self._URL_FORMAT.format(**params)
-        #
-        # self._
-        # # Open a websocket connection
-        # scheme = "wss" if self._use_tls else "ws"
-        # url = f"{scheme}://{self._host}:{self._port}/ws/rfc6455"
+        if self.scheme == "https":
+            base_url = self._SSL_URL_FORMAT.format(**params)
+        else:
+            base_url = self._URL_FORMAT.format(**params)
+
         self.connection = await wslib.connect(
-            url,
+            base_url,
             open_timeout=TIMEOUT,
             create_connection=LoxoneClientConnection,
             compression=None,
