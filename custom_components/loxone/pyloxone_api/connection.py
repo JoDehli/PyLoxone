@@ -464,7 +464,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 username=self.username,
                 password=self.password,
                 scheme=self.scheme,
-                session=session
+                session=session,
             )
 
             for attempt in range(RECONNECT_TRIES):
@@ -497,7 +497,9 @@ class LoxoneConnection(LoxoneBaseConnection):
             local = value.get("local", True)
             if not local:
                 connector.base_url = str(api_resp.url).replace(CMD_GET_API_KEY, "")
-                self.url = connector.base_url.replace("https://", "").replace("http://", "")
+                self.url = connector.base_url.replace("https://", "").replace(
+                    "http://", ""
+                )
 
             # Get the structure file
             try:
@@ -554,9 +556,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         # generate first salt
         self._generate_salt()
 
-        params = {
-            "url": self.url
-        }
+        params = {"url": self.url}
         if self.scheme == "https":
             base_url = self._SSL_URL_FORMAT.format(**params)
         else:
