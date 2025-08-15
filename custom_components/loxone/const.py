@@ -22,6 +22,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.MEDIA_PLAYER,
     Platform.NUMBER,
     Platform.BUTTON,
+    Platform.SCENE,
 ]
 
 LOXONE_DEFAULT_PORT = 8080
@@ -68,7 +69,7 @@ STATE_OFF = "off"
 
 DEFAULT_AUDIO_ZONE_V2_PLAY_STATE = -1
 
-"""\
+r"""\
 cfmt description
 (                                  # start of capture group 1
 %                                  # literal "%"
@@ -82,4 +83,4 @@ cfmt description
 %%) 
 """
 
-cfmt = "(%(?:(?:[-+0 #]{0,5})(?:\d+|\*)?(?:\.(?:\d+|\*))?(?:h|l|ll|w|I|I32|I64)?[cCdiouxXeEfgGaAnpsSZ])|%%)"
+cfmt = r"(%(?:(?:[-+0 #]{0,5})(?:\d+|\*)?(?:\.(?:\d+|\*))?(?:h|l|ll|w|I|I32|I64)?[cCdiouxXeEfgGaAnpsSZ])|%%)"

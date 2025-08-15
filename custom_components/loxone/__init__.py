@@ -17,7 +17,7 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
-                                 EVENT_HOMEASSISTANT_STOP)
+                                 EVENT_HOMEASSISTANT_STOP, Platform)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import area_registry as ar
@@ -523,13 +523,6 @@ async def async_setup_entry(hass, config_entry):
         hass.bus.async_listen(SENDDOMAIN, loxone_send),
         hass.bus.async_listen(SECUREDSENDDOMAIN, loxone_send),
     ]
-
-    # do not know if there is a better place to execute the scene generation.
-    # noinspection PyTypeChecker
-    _LOGGER.debug("starting loxone {}...".format("scene"))
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setups(config_entry, ["scene"])
-    )
 
     await start_event()
 

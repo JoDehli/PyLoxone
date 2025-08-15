@@ -40,6 +40,7 @@ async def async_setup_entry(
     create_scene = config_entry.options.get(CONF_SCENE_GEN, False)
 
     async def gen_scenes(_):
+        _LOGGER.debug(f"Loading scenes...")
         scenes = []
         entity_ids = hass.states.async_entity_ids("LIGHT")
         for _ in entity_ids:
