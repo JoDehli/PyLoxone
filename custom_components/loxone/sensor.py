@@ -119,6 +119,15 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
     ),
     LoxoneEntityDescription(
+        key="power",
+        name="Kilowatt",
+        suggested_display_precision=3,
+        loxone_format_string=UnitOfPower.KILO_WATT,
+        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.POWER,
+    ),
+    LoxoneEntityDescription(
         key="light_level",
         name="Light Level",
         loxone_format_string=LIGHT_LUX,
