@@ -188,6 +188,37 @@ async def async_setup_entry(
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         entities.append(LoxoneTextSensor(**sensor))
 
+    for sensor in get_all(loxconfig, "Meter"):
+        _LOGGER.info("Found Meter: %s", sensor)
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        entities.append(LoxoneMeterSensor(**sensor))
+        if "actual" in sensor["states"]:
+            subsensor = {
+                "parent_id": sensor["uuidAction"],
+                "uuidAction": sensor["states"]["actual"],
+                "type": "analog",
+                "room": sensor.get("room", ""),
+                "cat": sensor.get("cat", ""),
+                "name": sensor["name"] + " - Actual",
+                "details": {"format": sensor["details"]["actualFormat"]},
+                "async_add_devices": async_add_entities,
+                "config_entry": config_entry,
+            }
+            entities.append(LoxoneSensor(**subsensor))
+        if "total" in sensor["states"]:
+            subsensor = {
+                "parent_id": sensor["uuidAction"],
+                "uuidAction": sensor["states"]["total"],
+                "type": "analog",
+                "room": sensor.get("room", ""),
+                "cat": sensor.get("cat", ""),
+                "name": sensor["name"] + " - Total",
+                "details": {"format": sensor["details"]["totalFormat"]},
+                "async_add_devices": async_add_entities,
+                "config_entry": config_entry,
+            }
+            entities.append(LoxoneSensor(**subsensor))
+
     @callback
     def async_add_sensors(_):
         async_add_entities(_, True)
@@ -374,3 +405,13 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
             "platform": "loxone",
             "category": self.cat,
         }
+
+
+class LoxoneMeterSensor(LoxoneEntity, SensorEntity):
+    _attr_should_poll = False
+    _attr_name = "Loxone Meter"
+    _attr_icon = "mdi:counter"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._state = STATE_UNKNOWN
