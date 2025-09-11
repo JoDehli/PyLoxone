@@ -191,9 +191,18 @@ async def async_setup_entry(
     for sensor in get_all(loxconfig, "Meter"):
         _LOGGER.info("Found Meter: %s", sensor)
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-        entities.append(LoxoneMeterSensor(**sensor))
+
+        device_info = DeviceInfo(
+            identifiers={(DOMAIN, sensor["uuidAction"])},
+            name=sensor["name"],
+            manufacturer="Loxone",
+            model="Meter",
+        )
+
+
         if "actual" in sensor["states"]:
             subsensor = {
+                "device_info": device_info,
                 "parent_id": sensor["uuidAction"],
                 "uuidAction": sensor["states"]["actual"],
                 "type": "analog",
@@ -204,9 +213,10 @@ async def async_setup_entry(
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
             }
-            entities.append(LoxoneSensor(**subsensor))
+            entities.append(LoxoneMeterSensor(**subsensor))
         if "total" in sensor["states"]:
             subsensor = {
+                "device_info": device_info,
                 "parent_id": sensor["uuidAction"],
                 "uuidAction": sensor["states"]["total"],
                 "type": "analog",
@@ -217,7 +227,7 @@ async def async_setup_entry(
                 "async_add_devices": async_add_entities,
                 "config_entry": config_entry,
             }
-            entities.append(LoxoneSensor(**subsensor))
+            entities.append(LoxoneMeterSensor(**subsensor))
 
     @callback
     def async_add_sensors(_):
@@ -407,11 +417,9 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
         }
 
 
-class LoxoneMeterSensor(LoxoneEntity, SensorEntity):
-    _attr_should_poll = False
-    _attr_name = "Loxone Meter"
-    _attr_icon = "mdi:counter"
-
+class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._state = STATE_UNKNOWN
+        device_info = kwargs.get("device_info", None)
+        if device_info:
+            self._attr_device_info = device_info
