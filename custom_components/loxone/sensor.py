@@ -191,14 +191,7 @@ async def async_setup_entry(
     for sensor in get_all(loxconfig, "Meter"):
         _LOGGER.info("Found Meter: %s", sensor)
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-
-        device_info = DeviceInfo(
-            identifiers={(DOMAIN, sensor["uuidAction"])},
-            name=sensor["name"],
-            manufacturer="Loxone",
-            model="Meter",
-        )
-
+        device_info = LoxoneMeterSensor.create_DeviceInfo_from_sensor(sensor)
 
         if "actual" in sensor["states"]:
             subsensor = {
@@ -423,3 +416,11 @@ class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
         device_info = kwargs.get("device_info", None)
         if device_info:
             self._attr_device_info = device_info
+    @staticmethod
+    def create_DeviceInfo_from_sensor(sensor) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, sensor["uuidAction"])},
+            name=sensor["name"],
+            manufacturer="Loxone",
+            model=sensor["details"]["type"].capitalize() + " Meter",
+        )
