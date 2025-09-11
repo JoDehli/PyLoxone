@@ -193,34 +193,26 @@ async def async_setup_entry(
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         device_info = LoxoneMeterSensor.create_DeviceInfo_from_sensor(sensor)
 
-        if "actual" in sensor["states"]:
-            subsensor = {
-                "device_info": device_info,
-                "parent_id": sensor["uuidAction"],
-                "uuidAction": sensor["states"]["actual"],
-                "type": "analog",
-                "room": sensor.get("room", ""),
-                "cat": sensor.get("cat", ""),
-                "name": sensor["name"] + " - Actual",
-                "details": {"format": sensor["details"]["actualFormat"]},
-                "async_add_devices": async_add_entities,
-                "config_entry": config_entry,
-            }
-            entities.append(LoxoneMeterSensor(**subsensor))
-        if "total" in sensor["states"]:
-            subsensor = {
-                "device_info": device_info,
-                "parent_id": sensor["uuidAction"],
-                "uuidAction": sensor["states"]["total"],
-                "type": "analog",
-                "room": sensor.get("room", ""),
-                "cat": sensor.get("cat", ""),
-                "name": sensor["name"] + " - Total",
-                "details": {"format": sensor["details"]["totalFormat"]},
-                "async_add_devices": async_add_entities,
-                "config_entry": config_entry,
-            }
-            entities.append(LoxoneMeterSensor(**subsensor))
+        for state_key, name_suffix, format_key in [
+            ("actual", "Actual", "actualFormat"),
+            ("total", "Total", "totalFormat"),
+            ("totalNeg", "Total Neg", "totalFormat"),
+            ("storage", "Level", "storageFormat"),
+        ]:
+            if state_key in sensor["states"]:
+                subsensor = {
+                    "device_info": device_info,
+                    "parent_id": sensor["uuidAction"],
+                    "uuidAction": sensor["states"][state_key],
+                    "type": "analog",
+                    "room": sensor.get("room", ""),
+                    "cat": sensor.get("cat", ""),
+                    "name": f"{sensor['name']} {name_suffix}",
+                    "details": {"format": sensor["details"][format_key]},
+                    "async_add_devices": async_add_entities,
+                    "config_entry": config_entry,
+                }
+                entities.append(LoxoneMeterSensor(**subsensor))
 
     @callback
     def async_add_sensors(_):
