@@ -35,7 +35,7 @@ Change 123456789ABC to your miniserver Serial Number.
 6. Restart Home-Assitant
 
 ## Hacs installation
-1. Install hacs to your homeassistant installation. See https://hacs.xyz/docs/installation/manual
+1. Install hacs to your homeassistant installation. See https://hacs.xyz/docs/use/download/download/
 2. Add this repository to hacs: https://github.com/JoDehli/PyLoxone
 3. Install the PyLoxone binding 
 4. Restart Home-Assitant
