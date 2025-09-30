@@ -348,7 +348,7 @@ async def async_setup_entry(hass, config_entry):
                         attr = s_dict["attributes"]
                         if "platform" in attr and attr["platform"] == DOMAIN:
                             device_type = attr.get("device_type", "")
-                            if device_type == "analog_sensor":
+                            if device_type in ["analog_sensor", "Meter"]:
                                 sensors_analog.append(s_dict["entity_id"])
                             elif device_type == "digital_sensor":
                                 sensors_digital.append(s_dict["entity_id"])
