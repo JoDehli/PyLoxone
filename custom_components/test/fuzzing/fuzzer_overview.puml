@@ -1,0 +1,304 @@
+@startuml fuzzer_overview
+allow_mixing
+
+'Web server to creat UML:
+' https://www.plantuml.com/plantuml/uml/SyfFKj2rKt3CoKnELR1Io4ZDoSa70000
+' copy the UML and generate SVG
+
+'''''''''''''''''''''''''''''''''''''''
+'Fuzzer''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+abstract class "Fuzzer" as fuzzer << abstract class >> #LightSkyBlue {
+    --
+    - __init__(self): void
+    + fuzz(): list
+}
+'''''''''''''''''''''''''''''''''''''''
+class "ValuePoolFuzzer" as VPFuzzer << class >> #LightSkyBlue {
+    - __logger 
+    - __value_pool: ValuePool
+    - __grammar_fuzzer: GrammarFuzzer
+    --
+    - __init__(self): void
+    - __get_fuzzing_pool(self, value_pools: list[list], param_combi: int): list[list]
+    + fuzz(self, types: list, param_combi: int): list[list]
+}
+class "ValuePool" as VPool << class >> {
+    - __UINT_POOL: list
+    - __INT_POOL: list
+    - __FLOAT_POOL: list
+    - __STRING_POOL: list
+    - __BOOL_POOL: list
+    - __BYTE_POOL: list
+    - __LIST_POOL: list
+    - __DICT_POOL: list
+    - __DATE_POOL: list
+    - __ALL_VALUES_POOL: list
+    --
+    - __init__(self): void
+    + get_uint(self): list
+    + get_int(self): list
+    + get_float(self): list
+    + get_int(self): list
+    + get_uint(self): list
+    + get_float(self): list
+    + get_string(self): list
+    + get_bool(self): list
+    + get_byte(self): list
+    + get_list(self): list
+    + get_dict(self): list
+    + get_date(self): list
+    + get_all_values(self): list
+}
+'''''''''''''''''''''''''''''''''''''''
+class "GeneratorFuzzer" as GFuzzer << class >> #LightSkyBlue {
+    - _value_pool_fuzzer: ValuePoolFuzzer
+    - _param_types: defaultdict
+    - _param_types_file: str
+    - _mode: int
+    --
+    - __init__(self, value_pool_fuzzer: ValuePoolFuzzer, mode: int = 1): None
+    - _load_param_types(self): None
+    - _save_param_types(self): None
+    - _assign_param_types(self, class_name: str, method: Callable): Dict[int, str]
+    - _get_param_types(self, class_name: str, method: Callable): Dict[int, str]
+    - _generate_method_sequence(self, cls: Type, start_methods: List[str], max_sequence_length: int): List[str]
+    - _to_hashable_with_marker(self, data: Any): Union[Tuple[str, frozenset], Any]
+    - _to_original_from_marker(self, data_with_marker: Union[Tuple[str, frozenset], Any]): Any
+    + fuzz(self, cls: Type, start_methods: List[str], max_sequence_length: int, num_sequences: int, max_param_combi: int = 2): List[List[Tuple[str, Tuple[Any]]]]
+}
+'''''''''''''''''''''''''''''''''''''''
+class "CostGrammarType" as CGType << class >> {
+    + MIN: int
+    + MAX: int
+    --
+}
+class "GrammarFuzzer" as GrFuzzer << class >> #LightSkyBlue {
+    - _NON_TERMINAL_REGEX: str
+    --
+    - __init__(self): void
+    - __convert_to_cost_grammar(self, grammar: Grammar, conversion_type: CostGrammarType): tuple
+    - __convert_to_trackable_grammar(self, grammar: Grammar): tuple
+    - __compose_min_cost(self, head: Element, given_cost_grammar: Annotated_Grammar): str
+    - __compose_max_cost(self, head: Element, given_cost_grammar: Annotated_Grammar, applications: int, max_applications: int): str
+    - __is_grammar_covered(self, trackable_grammar: Annotated_Grammar, trackable_non_terminals: Annotated_Non_Terminals): bool
+    + fuzz_min_cost(self, grammar: Grammar, start_symbol: Element): str
+    + fuzz_max_cost( self, grammar: Grammar, start_symbol: Element, max_rule_applications: int): str
+    + fuzz_grammar_coverage(self, grammar: Grammar, start_symbol: Element): list
+}
+entity "grammar_pool" as gr_pool << grammars >> {
+    grammar_ipv4: Grammar
+    grammar_controls_json: Grammar
+    grammar_loxconfig_rooms_cats_json: Grammar
+}
+'''''''''''''''''''''''''''''''''''''''
+class "MutationalFuzzer" as MFuzzer << class >> #LightSkyBlue {
+    - __logger
+    - __multiplier: list[int]
+    --
+    - __init__(self): void
+    - __delete_random_char(self, s: str): str
+    - __insert_random_char(self, s: str): str
+    - __flip_random_char(self, s: str): str
+    - __get_random_float(self): float
+    - __check_inf(self, number: float): float
+    - __add_random_number(self, number: float): float
+    - __sub_random_number(self, number: float): float
+    - __mult_random_number(self, number: float): float
+    - __div_random_number(self, number: float): float
+    + fuzz(self, seed: list, rounds: int = 1): list[list]
+    + fuzz_failed(self, seed: dict, rounds: int = 1): list[list]
+}
+'''''''''''''''''''''''''''''''''''''''
+'Runner''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+class "GreyBoxFuzzer" as GBFuzzer << class >> #LightSkyBlue {
+    - __RANGE_RANDOM_INT: int = 9
+    - __RANGE_RANDOM_STRING: int = 100
+    - __data_type_creator: DataTypeCreator
+    --
+    - __init__(self): void
+    + fuzz(self, seed_template: list, seed_specification: list = None, amount_seeds: int = 100): list[Seed]
+}
+'''''''''''''''''''''''''''''''''''''''
+class "GreyBoxRunner" as GBRunner << class >> #LightGreen {
+    - __seed_manager = SeedManager()
+    - __mutator = Mutator()
+    --
+    - __init__(self): void
+    + run(self, function: Callable, seed_population: List[Seed], amount_runs: int = 10000): list
+    - __hash_md5(self, branch_covered: str): str
+    - __store_hashed_branch(self, hashed_branch: str): void
+    - __mutate(self, seed: Seed): void
+}
+'''''''''''''''''''''''''''''''''''''''
+class "SeedManager" as SeedManager << class >> {
+    - __power_energy: int = 2
+    --
+    - __init__(self): void
+    + select_seed(self, seed_population: List[Seed]): Seed
+    + adjust_energy(self, seed: Seed, branch_dict: dict, hashed_branch: str): void
+    + get_normalized_energy(self, seed_population: List[Seed]): list
+}
+'''''''''''''''''''''''''''''''''''''''
+class "Seed" as Seed << class >> {
+    - energy: int = 0
+    - seed_values: list = []
+    --
+    - __init__(self, energy: int = 0, seed_values: list = []): void
+}
+'''''''''''''''''''''''''''''''''''''''
+class "DataTypeCreator" as DataTypeCreator << class >> {
+    - __MAX_INT: int = (1 << 31) - 1
+    - __MAX_UINT: uint = (1 << 32) - 1
+    --
+    - __init__(self): void
+    - create_int(self, amount_digits: int = 10, random_creation: bool = True): int
+    - create_float(self, amount_digits: int = 10, random_creation: bool = True): float
+    - create_string_only_letters(self, amount_chars: int): int
+    - create_string_special_characters(self, amount_chars: int): str
+}
+'''''''''''''''''''''''''''''''''''''''
+abstract class "Runner" as runner << abstract class >> #LightGreen {
+    --
+    - __init__(self): void
+    + run(): int
+}
+'''''''''''''''''''''''''''''''''''''''
+class "ParamRunner" as PRunner << class >> #LightGreen {
+    - __logger
+    --
+    - __init__(self): void
+    + run(self, function: function, param_set: list): dict
+    + limit_param_set(self, param_set: list, runs: int): list
+}
+'''''''''''''''''''''''''''''''''''''''
+class "GeneratorRunner" as GRunner << class >> #LightGreen {
+    - _logger: logging.logger
+    --
+    - __init__(self): None
+    + run(self, cls: Type, sequences: List[List[Tuple[str, Tuple[Any]]]]): List[int]
+}
+'''''''''''''''''''''''''''''''''''''''
+'Testcases'''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_vp_on_helpers.py" as test_VP_H << test cases >> #LightGray {
+    logger
+    value_pool_fuzzer: ValuePoolFuzzer
+    value_pool_fuzzer: ValuePoolFuzzer
+    param_runner: ParamRunner
+    --
+    test_map_range(): None
+    test_hass_to_lox(): None
+    test_lox_to_hass(): None
+    test_lox2lox_mapped(): None
+    test_lox2hass_mapped(): None
+    test_to_hass_color_temp(): None
+    test_to_loxone_color_temp(): None
+    test_get_room_name_from_room_uuid(): None
+    test_get_cat_name_from_cat_uuid(): None
+    test_add_room_and_cat_to_value_values(): None
+    test_get_miniserver_type(): None
+    test_get_all(): None
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_gen_on_pyLoxone.py" as test_GEN_pyLoxone << test cases >> #LightGray {
+    logger
+    value_pool_fuzzer: ValuePoolFuzzer
+    generator_fuzzer: GeneratorFuzzer
+    generator_runner: GeneratorRunner
+    --
+    test_api_LxToken(): None
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_gen_on_dummy.py" as test_GEN_dummy << test cases >> #LightGray {
+    logger
+    value_pool_fuzzer: ValuePoolFuzzer
+    generator_fuzzer: GeneratorFuzzer
+    generator_runner: GeneratorRunner
+    --
+    test_DummyClass(): None
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_mut_on_helpers.py" as test_MUT << test cases >> #LightGray {
+    logger
+    mutational_fuzzer: MutationalFuzzer
+    grammar_fuzzer: GrammarFuzzer
+    param_runner: ParamRunner
+    --
+    test_map_range(): None
+    test_hass_to_lox(): None
+    test_lox_to_hass(): None
+    test_lox2lox_mapped(): None
+    test_lox2hass_mapped(): None
+    test_to_hass_color_temp(): None
+    test_to_loxone_color_temp(): None
+    test_get_room_name_from_room_uuid(): None
+    test_get_cat_name_from_cat_uuid(): None
+    test_add_room_and_cat_to_value_values(): None
+    test_get_miniserver_type(): None
+    test_get_all(): None
+}
+'''''''''''''''''''''''''''''''''''''''
+entity  "test_grey_box_on_helpers.py" as test_GBox << test case >>  #LightGray {
+    logger
+    grey_box_fuzzer = GreyBoxFuzzer
+    grey_box_runner = GreyBoxRunner
+    --
+    test_map_range(): None
+    test_hass_to_lox(): None
+    test_lox_to_hass(): None
+    test_lox2lox_mapped(): None
+    test_lox2hass_mapped(): None
+    test_to_hass_color_temp(): None
+    test_to_loxone_color_temp(): None
+    test_get_miniserver_type(): None
+}
+'''''''''''''''''''''''''''''''''''''''
+'Fuzzer''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+fuzzer <|-- VPFuzzer: inherits from <
+VPool "1"<--* VPFuzzer: has access to <
+GrFuzzer "1"<--* VPFuzzer: has access to <
+gr_pool "1"<-- VPFuzzer: imports <
+fuzzer <|-- GFuzzer: inherits from <
+fuzzer <|-- MFuzzer: inherits from <
+fuzzer <|-- GBFuzzer: inherits from <
+GBFuzzer o-- DataTypeCreator: aggregates >
+GBFuzzer --> Seed: uses >
+'''''''''''''''''''''''''''''''''''''''
+'Runner''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+runner <|-- PRunner: inherits from <
+runner <|-- GBRunner: inherits from <
+runner <|-- GRunner: inherits from <
+GBRunner o-- SeedManager: aggregates >
+GBRunner --> Seed: uses >
+'''''''''''''''''''''''''''''''''''''''
+'Other classes'''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+SeedManager --> Seed: uses >
+DataTypeCreator --> Seed: uses >
+'''''''''''''''''''''''''''''''''''''''
+'Testcases'''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''
+VPFuzzer "1"<-- test_VP_H: imports <
+PRunner "1"<-- test_VP_H: imports <
+'''''''''''''''''''''''''''''''''''''''
+CGType "1"<--* GrFuzzer: needs a <
+'''''''''''''''''''''''''''''''''''''''
+GFuzzer "1"<--* test_GEN_dummy: needs a <
+GRunner "1"<--* test_GEN_dummy: needs a <
+VPFuzzer "1"<--* test_GEN_dummy: needs a <
+GFuzzer "1"<--* test_GEN_pyLoxone: needs a <
+GRunner "1"<--* test_GEN_pyLoxone: needs a <
+VPFuzzer "1"<--* test_GEN_pyLoxone: needs a <
+'''''''''''''''''''''''''''''''''''''''
+VPFuzzer "1"<-- test_MUT: imports <
+MFuzzer "1"<-- test_MUT: imports <
+GrFuzzer "1"<-- test_MUT: imports <
+PRunner "1"<-- test_MUT: imports <
+GBFuzzer "1"<--* test_GBox: needs a <
+GBRunner "1"<--* test_GBox: needs a <
+@enduml
