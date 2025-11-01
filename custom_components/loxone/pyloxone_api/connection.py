@@ -230,7 +230,6 @@ class LoxoneBaseConnection:
         else:
             command = f"{CMD_REFRESH_TOKEN_JSON_WEB}{token_hash}/{self.username}"
         self._message_queue.put(MessageForQueue(command, True))
-        # await self._send_text_command(command, encrypted=True)
 
     def _hash_token(self):
         token_hash_str = f"{self._token.token}"
@@ -341,28 +340,33 @@ class LoxoneConnection(LoxoneBaseConnection):
         async def check_refresh_token() -> NoReturn:
             """Check if the token needs to be refreshed."""
             while True:
-                seconds_to_refresh = min(
-                    self._token.seconds_to_expire() * 0.9, MAX_REFRESH_DELAY
-                )
-                if seconds_to_refresh < 0:
-                    seconds_to_refresh = 1
-
+                # Calculate 90% of the token lifetime as an integer and limit it to MAX_REFRESH_DELAY
+                candidate = int(self._token.seconds_to_expire() * 0.9)
+                seconds_to_refresh = max(1, min(candidate, MAX_REFRESH_DELAY))
                 await asyncio.sleep(seconds_to_refresh)
+
                 command = f"{CMD_GET_KEY}"
                 # gets a new key for the token refresh
                 old_key = self._key
-                await self._send_text_command(command, encrypted=False)
-                count = 0
-                while True:
-                    await asyncio.sleep(0.1)
-                    if self._key != old_key:
-                        break
-                    count += 1
-                    num_of_wait_iterations = 100  # 0.1 * 100 = 10 seconds
-                    if count >= num_of_wait_iterations:
-                        break
+                try:
+                    await self._send_text_command(command, encrypted=False)
+                except Exception as exc:
+                    _LOGGER.debug(f"Error requesting new key: {exc}")
+                    # Wait briefly and then try again to avoid a tight loop in case of errors.
+                    await asyncio.sleep(1)
+                    continue
 
-                if self._key != old_key:
+                async def _wait_for_key_change(old_key_in: str, timeout: float = 10.0):
+                    end = asyncio.get_event_loop().time() + timeout
+                    while self._key == old_key_in and asyncio.get_event_loop().time() < end:
+                        await asyncio.sleep(0.1)
+
+                try:
+                    await asyncio.wait_for(_wait_for_key_change(old_key), timeout=10.0)
+                except asyncio.TimeoutError:
+                    _LOGGER.debug("Timed out waiting for new key (10s). Will retry on next cycle.")
+                else:
+                    _LOGGER.debug("Key changed successfully.")
                     await self._refresh_token()
 
         await self.connection.send(f"{CMD_KEY_EXCHANGE}{self._session_key.decode()}")
@@ -660,13 +664,12 @@ class LoxoneConnection(LoxoneBaseConnection):
         elif isinstance(mess_obj, TextMessage) and (
             "gettoken" in mess_obj.message or "getjwt" in mess_obj.message
         ):
-            self._token.token = mess_obj.value_as_dict["token"]
-            self._token.valid_until = mess_obj.value_as_dict["validUntil"]
-            self._token.key = mess_obj.value_as_dict["key"]
+            self._token.token = mess_obj.value_as_dict.get("token")
+            self._token.valid_until = mess_obj.value_as_dict.get("validUntil")
+            self._token.key = mess_obj.value_as_dict.get("key")
             self._token.hash_alg = self._hash_alg
             if "unsecurePass" in mess_obj.value_as_dict:
-                self._token.unsecure_password = mess_obj.value_as_dict["unsecurePass"]
-            # await self._send_text_command(f"{CMD_ENABLE_UPDATES}", encrypted=True)
+                self._token.unsecure_password = mess_obj.value_as_dict.get("key")
             self._message_queue.put(MessageForQueue(f"{CMD_ENABLE_UPDATES}", True))
 
         elif isinstance(mess_obj, TextMessage) and (

@@ -39,7 +39,7 @@ TOKEN_REFRESH_RETRY_COUNT: Final = 5
 TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY: Final = (
     24 * 60 * 60
 )  # 1 day --> Old. delete if new way is successful
-MAX_REFRESH_DELAY: Final = 60 * 60 * 24  # 1 day
+MAX_REFRESH_DELAY: Final = 86400 # 60 * 60 * 24  # 1 day
 
 
 LOXAPPPATH: Final = "/data/LoxAPP3.json"
