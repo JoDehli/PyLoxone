@@ -188,6 +188,32 @@ async def async_setup_entry(
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         entities.append(LoxoneTextSensor(**sensor))
 
+    for sensor in get_all(loxconfig, "Meter"):
+        _LOGGER.info("Found Meter: %s", sensor)
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        device_info = LoxoneMeterSensor.create_DeviceInfo_from_sensor(sensor)
+
+        for state_key, name_suffix, format_key in [
+            ("actual", "Actual", "actualFormat"),
+            ("total", "Total", "totalFormat"),
+            ("totalNeg", "Total Neg", "totalFormat"),
+            ("storage", "Level", "storageFormat"),
+        ]:
+            if state_key in sensor["states"]:
+                subsensor = {
+                    "device_info": device_info,
+                    "parent_id": sensor["uuidAction"],
+                    "uuidAction": sensor["states"][state_key],
+                    "type": "analog",
+                    "room": sensor.get("room", ""),
+                    "cat": sensor.get("cat", ""),
+                    "name": f"{sensor['name']} {name_suffix}",
+                    "details": {"format": sensor["details"][format_key]},
+                    "async_add_devices": async_add_entities,
+                    "config_entry": config_entry,
+                }
+                entities.append(LoxoneMeterSensor(**subsensor))
+
     @callback
     def async_add_sensors(_):
         async_add_entities(_, True)
@@ -374,3 +400,19 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
             "platform": "loxone",
             "category": self.cat,
         }
+
+
+class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        device_info = kwargs.get("device_info", None)
+        if device_info:
+            self._attr_device_info = device_info
+    @staticmethod
+    def create_DeviceInfo_from_sensor(sensor) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, sensor["uuidAction"])},
+            name=sensor["name"],
+            manufacturer="Loxone",
+            model=sensor["details"]["type"].capitalize() + " Meter",
+        )
