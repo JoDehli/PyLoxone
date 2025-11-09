@@ -32,10 +32,11 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_GET_PUBLIC_KEY, CMD_GET_VISUAL_PASSWD, CMD_KEEP_ALIVE,
                     CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
                     CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
-                    CMD_REQUEST_TOKEN_JSON_WEB, IV_BYTES, KEEP_ALIVE_PERIOD,
-                    LOXAPPPATH, MAX_REFRESH_DELAY, RECONNECT_DELAY,
-                    RECONNECT_TRIES, SALT_BYTES, SALT_MAX_AGE_SECONDS,
-                    SALT_MAX_USE_COUNT, TIMEOUT, TOKEN_PERMISSION)
+                    CMD_REQUEST_TOKEN_JSON_WEB, DELAY_CHECK_TOKEN_REFRESH,
+                    IV_BYTES, KEEP_ALIVE_PERIOD, LOXAPPPATH, MAX_REFRESH_DELAY,
+                    RECONNECT_DELAY, RECONNECT_TRIES, SALT_BYTES,
+                    SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT, TIMEOUT,
+                    TOKEN_PERMISSION)
 from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
                          LoxoneException, LoxoneOutOfServiceException,
                          LoxoneServiceUnAvailableError, LoxoneTokenError)
@@ -144,6 +145,7 @@ class LoxoneBaseConnection:
         self._visual_hash = None
         self._message_queue: Queue[MessageForQueue] = Queue()
         self._secured_queue = Queue(maxsize=1)
+        self.message_header = None
 
     def get_token_dict(self) -> dict:
         return {
@@ -339,12 +341,23 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         async def check_refresh_token() -> NoReturn:
             """Check if the token needs to be refreshed."""
+            _LOGGER.debug(f"Start check refresh token task...")
             while True:
-                # Calculate 90% of the token lifetime as an integer and limit it to MAX_REFRESH_DELAY
-                candidate = int(self._token.seconds_to_expire() * 0.9)
-                seconds_to_refresh = max(1, min(candidate, MAX_REFRESH_DELAY))
-                await asyncio.sleep(seconds_to_refresh)
+                # Calculate 50% of the token lifetime as an integer and limit it to MAX_REFRESH_DELAY
+                candidate = int(self._token.seconds_to_expire() * 0.5)
 
+                def generate_refresh_time_log(_seconds_to_refresh: int) -> str:
+                    days, remainder = divmod(_seconds_to_refresh, 86400)
+                    hours, seconds = divmod(remainder, 3600)
+                    minutes, seconds = divmod(seconds, 60)
+                    return f"{days}d {hours}h {minutes}m {seconds}s"
+
+                seconds_to_refresh = max(1, min(candidate, MAX_REFRESH_DELAY))
+                _LOGGER.debug(
+                    f"Seconds to refresh token: {generate_refresh_time_log(seconds_to_refresh)}"
+                )
+
+                await asyncio.sleep(seconds_to_refresh)
                 command = f"{CMD_GET_KEY}"
                 # gets a new key for the token refresh
                 old_key = self._key
@@ -356,15 +369,20 @@ class LoxoneConnection(LoxoneBaseConnection):
                     await asyncio.sleep(1)
                     continue
 
-                async def _wait_for_key_change(old_key_in: str, timeout: float = 10.0):
+                async def _wait_for_key_change(old_key_in: str, timeout: float = 15.0):
                     end = asyncio.get_event_loop().time() + timeout
-                    while self._key == old_key_in and asyncio.get_event_loop().time() < end:
+                    while (
+                        self._key == old_key_in
+                        and asyncio.get_event_loop().time() < end
+                    ):
                         await asyncio.sleep(0.1)
 
                 try:
-                    await asyncio.wait_for(_wait_for_key_change(old_key), timeout=10.0)
+                    await asyncio.wait_for(_wait_for_key_change(old_key), timeout=15.0)
                 except asyncio.TimeoutError:
-                    _LOGGER.debug("Timed out waiting for new key (10s). Will retry on next cycle.")
+                    _LOGGER.debug(
+                        "Timed out waiting for new key (15s). Will retry on next cycle."
+                    )
                 else:
                     _LOGGER.debug("Key changed successfully.")
                     await self._refresh_token()
@@ -374,12 +392,16 @@ class LoxoneConnection(LoxoneBaseConnection):
             self._do_start_listening(callback, self.connection)
         )
 
+        async def delayed_check_refresh_token():
+            await asyncio.sleep(DELAY_CHECK_TOKEN_REFRESH)
+            await check_refresh_token()
+
         # noinspection PyUnreachableCode
         self._pending_task = [
             self._recv_loop,
             asyncio.create_task(self._process_message()),
             asyncio.create_task(keep_alive()),
-            asyncio.create_task(check_refresh_token()),
+            asyncio.create_task(delayed_check_refresh_token()),
         ]
 
         try:
@@ -400,14 +422,14 @@ class LoxoneConnection(LoxoneBaseConnection):
                 except LoxoneOutOfServiceException as e:
                     _LOGGER.debug(f"Task {task} raised an exception: {e}")
                     raise e
+                except websockets.exceptions.ConnectionClosedError as e:
+                    _LOGGER.debug(f"Task {task} raised an exception: {e}")
+                    raise e
                 except websockets.exceptions.ConnectionClosed as e:
                     _LOGGER.debug(f"Task {task} raised an exception: {e}")
                     raise LoxoneConnectionError(
                         "Connection Closed. Try reconnecting..."
                     )
-                except websockets.exceptions.ConnectionClosedError as e:
-                    _LOGGER.debug(f"Task {task} raised an exception: {e}")
-                    raise e
                 except Exception as e:
                     _LOGGER.debug(f"Task {task} raised an exception: {e}")
                     raise e
@@ -435,9 +457,13 @@ class LoxoneConnection(LoxoneBaseConnection):
             try:
                 message = await connection.recv_message()
                 await self._websocket_event(message)
+                # if  callback and message.message_type == MessageType.TEXT:
+                #    print(message)
                 if callback and message.message_type in [
                     MessageType.VALUE_STATES,
                     MessageType.TEXT_STATES,
+                    MessageType.TEXT,
+                    MessageType.KEEPALIVE,
                 ]:
                     awaitable = callback(message.as_dict())
                     if awaitable:
@@ -603,13 +629,16 @@ class LoxoneConnection(LoxoneBaseConnection):
 
     async def _websocket_event(self, message: Dict[str, Any] | BaseMessage) -> None:
         """Handle websocket event."""
-
+        mess_obj = None
         if isinstance(message, str) and message.startswith("{"):
             mess_obj = parse_message(message, self.message_header.message_type)
         elif isinstance(message, bytes):
             mess_obj = parse_message(message, self.message_header.message_type)
         elif isinstance(message, BaseMessage):
             mess_obj = message
+
+        if mess_obj is None:
+            return
 
         if hasattr(mess_obj, "control") and mess_obj.control.find("/enc/") > -1:
             mess_obj.control = self._decrypt(mess_obj.control)
@@ -620,6 +649,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             self._message_queue.put(MessageForQueue(command, True))
 
         elif isinstance(mess_obj, TextMessage) and "getkey2" in mess_obj.message:
+            _LOGGER.debug("Got get key2")
             self._key = mess_obj.value_as_dict["key"]
             self._user_salt = mess_obj.value_as_dict["salt"]
             self._hash_alg = mess_obj.value_as_dict.get("hashAlg", None)
@@ -642,15 +672,11 @@ class LoxoneConnection(LoxoneBaseConnection):
                 self._message_queue.put(MessageForQueue(command, True))
 
         elif isinstance(mess_obj, TextMessage) and "getkey" in mess_obj.message:
+            _LOGGER.debug("Got get getkey")
             self._key = mess_obj.value_as_dict["value"]
-            # while not self._message_queue.empty():
-            #     awaitable = self._message_queue.get()
-            #     if awaitable:
-            #         await awaitable()
 
         elif isinstance(mess_obj, TextMessage) and "getvisusalt" in mess_obj.message:
             self._key = mess_obj.value_as_dict["value"]
-
             key_and_salt = LxJsonKeySalt()
             key_and_salt.read_user_salt_response(mess_obj.message)
             key_and_salt.time_elapsed_in_seconds = time_elapsed_in_seconds()
@@ -675,7 +701,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         elif isinstance(mess_obj, TextMessage) and (
             "authwithtoken" in mess_obj.message
         ):
-            if message.code == 401:
+            if mess_obj.code == 401:
                 self.reset_token()
                 raise LoxoneTokenError("Token not vaild anymore")
             else:

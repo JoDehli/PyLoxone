@@ -246,6 +246,15 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.debug(
                 "Token is not valid anymore. Please restart Homeassistant to acquire new token."
             )
+            # First we delete the invalid token then try to reload
+            hass.config_entries.async_update_entry(
+                config_entry,
+                data={
+                    "token": "",
+                    "hash_alg": "",
+                    "valid_until": "",
+                },
+            )
             hass.async_create_task(hass.services.async_call("loxone", "reload"))
         except LoxoneOutOfServiceException as e:
             _LOGGER.debug(

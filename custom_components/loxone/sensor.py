@@ -408,6 +408,7 @@ class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
         device_info = kwargs.get("device_info", None)
         if device_info:
             self._attr_device_info = device_info
+
     @staticmethod
     def create_DeviceInfo_from_sensor(sensor) -> DeviceInfo:
         return DeviceInfo(

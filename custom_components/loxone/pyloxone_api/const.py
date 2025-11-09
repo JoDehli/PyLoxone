@@ -13,6 +13,7 @@ RECONNECT_DELAY = 5  # maximum delay in seconds
 RECONNECT_TRIES = 100  # number of tries to reconnect before giving up
 
 # Loxone constants
+DELAY_CHECK_TOKEN_REFRESH: Final = 20
 TIMEOUT: Final = 30
 KEEP_ALIVE_PERIOD: Final = 60
 THROTTLE_CHECK_TOKEN_STILL_VALID: Final = (
@@ -39,7 +40,7 @@ TOKEN_REFRESH_RETRY_COUNT: Final = 5
 TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY: Final = (
     24 * 60 * 60
 )  # 1 day --> Old. delete if new way is successful
-MAX_REFRESH_DELAY: Final = 86400 # 60 * 60 * 24  # 1 day
+MAX_REFRESH_DELAY: Final = 86400  # 60 * 60 * 24  # 1 day
 
 
 LOXAPPPATH: Final = "/data/LoxAPP3.json"
@@ -48,10 +49,10 @@ CMD_KEEP_ALIVE: Final = "keepalive"
 CMD_GET_API_KEY: Final = "/jdev/cfg/apiKey"
 CMD_GET_PUBLIC_KEY: Final = "/jdev/sys/getPublicKey"
 CMD_KEY_EXCHANGE: Final = "jdev/sys/keyexchange/"
+CMD_GET_KEY: Final = "jdev/sys/getkey"
 CMD_GET_KEY_AND_SALT: Final = "jdev/sys/getkey2"
 CMD_REQUEST_TOKEN: Final = "jdev/sys/gettoken"
 CMD_REQUEST_TOKEN_JSON_WEB: Final = "jdev/sys/getjwt"
-CMD_GET_KEY: Final = "jdev/sys/getkey"
 CMD_AUTH_WITH_TOKEN: Final = "authwithtoken/"
 CMD_REFRESH_TOKEN: Final = "jdev/sys/refreshtoken"
 CMD_REFRESH_TOKEN_JSON_WEB: Final = "jdev/sys/refreshjwt/"

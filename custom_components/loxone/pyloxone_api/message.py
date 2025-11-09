@@ -8,6 +8,7 @@ https://github.com/JoDehli/pyloxone-api
 import json
 import logging
 import math
+import re
 import struct
 import uuid
 from enum import IntEnum
@@ -150,6 +151,14 @@ class BaseMessage:
         return {}
 
 
+def clean_up_control(control):
+    control = check_and_decode_if_needed(control)
+    try:
+        return re.sub(r"^salt/[0-9a-fA-F]+", "", control)
+    except:
+        return control
+
+
 class TextMessage(BaseMessage):
     message_type = MessageType.TEXT
 
@@ -161,6 +170,11 @@ class TextMessage(BaseMessage):
         self.control = ll_message.control
         self.value = ll_message.value
         self.value_as_dict = ll_message.value_as_dict
+
+    def as_dict(self) -> dict:
+        """Return the contents of the message as a dict"""
+        cleaned_control = clean_up_control(self.control)
+        return {"control": cleaned_control, "value": self.value, "Code": self.code}
 
 
 class BinaryFile(BaseMessage):
