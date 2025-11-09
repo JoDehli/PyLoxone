@@ -245,7 +245,7 @@ async def async_setup_entry(hass, config_entry):
             task.result()
         except LoxoneTokenError as e:
             _LOGGER.debug(
-                "Token is not valid anymore. Please restart Homeassistant to acquire new token."
+                "Token is not valid anymore. Delete token and try to reloading Loxone integration."
             )
             # First we delete the invalid token then try to reload
             hass.config_entries.async_update_entry(
@@ -256,23 +256,28 @@ async def async_setup_entry(hass, config_entry):
                     "valid_until": "",
                 },
             )
+            # Loxone-Integration neu laden
             hass.async_create_task(hass.services.async_call("loxone", "reload"))
         except LoxoneOutOfServiceException as e:
             _LOGGER.debug(
-                "Loxone LoxoneOutOfServiceException received. Reloading Loxone integration."
+                "Loxone LoxoneOutOfServiceException received. Try to reloading Loxone integration."
             )
             # Loxone-Integration neu laden
             hass.async_create_task(hass.services.async_call("loxone", "reload"))
         except LoxoneConnectionError as e:
             _LOGGER.debug(
-                "Loxone LoxoneConnectionError received. Reloading Loxone integration."
+                "Loxone LoxoneConnectionError received. Try to reloading Loxone integration."
             )
             # Loxone-Integration neu laden
             hass.async_create_task(hass.services.async_call("loxone", "reload"))
-        except (LoxoneConnectionClosedOk, websockets.exceptions.ConnectionClosedOK) as e:
+        except (
+            LoxoneConnectionClosedOk,
+            websockets.exceptions.ConnectionClosedOK,
+        ) as e:
             _LOGGER.debug(
                 "Loxone LoxoneConnectionClosedOk received. Mostly a timeout Problem. Try to reloading Loxone integration."
             )
+            # Loxone-Integration neu laden
             hass.async_create_task(hass.services.async_call("loxone", "reload"))
         except asyncio.exceptions.CancelledError as e:
             _LOGGER.error(e)
