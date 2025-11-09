@@ -14,6 +14,7 @@ from functools import cached_property
 
 import homeassistant.components.group as group
 import voluptuous as vol
+import websockets
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
@@ -268,10 +269,11 @@ async def async_setup_entry(hass, config_entry):
             )
             # Loxone-Integration neu laden
             hass.async_create_task(hass.services.async_call("loxone", "reload"))
-        except LoxoneConnectionClosedOk as e:
+        except (LoxoneConnectionClosedOk, websockets.exceptions.ConnectionClosedOK) as e:
             _LOGGER.debug(
-                "Loxone LoxoneConnectionClosedOk received. Reloading Loxone integration."
+                "Loxone LoxoneConnectionClosedOk received. Mostly a timeout Problem. Try to reloading Loxone integration."
             )
+            hass.async_create_task(hass.services.async_call("loxone", "reload"))
         except asyncio.exceptions.CancelledError as e:
             _LOGGER.error(e)
         except Exception as e:
