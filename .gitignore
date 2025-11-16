@@ -25,3 +25,8 @@ hass.py
 __pycache__
 custom_components/loxone/homeassistant
 .vscode
+ha_data_folder/
+*.py_tmp
+
+# Env file for tests
+.env
