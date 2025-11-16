@@ -165,11 +165,6 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
         self.async_schedule_update_ha_state()
 
     async def async_turn_on(self, **kwargs) -> None:
-        if ATTR_BRIGHTNESS in kwargs:
-            self._attr_brightness = kwargs[ATTR_BRIGHTNESS]
-        else:
-            self._attr_brightness = 255
-
         if ATTR_HS_COLOR in kwargs:
             r, g, b = color_util.color_hs_to_RGB(
                 kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1]
@@ -195,29 +190,32 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
                     ),
                 ),
             )
-        elif self._attr_color_mode == ColorMode.HS:
-            self.hass.bus.async_fire(
-                SENDDOMAIN,
-                dict(
-                    uuid=self.uuidAction,
-                    value="hsv({},{},{})".format(
-                        self.hs_color[0],
-                        self.hs_color[1],
-                        hass_to_lox(self._attr_brightness),
+
+        elif ATTR_BRIGHTNESS in kwargs:
+            self._attr_brightness = kwargs[ATTR_BRIGHTNESS]
+            if self._attr_color_mode == ColorMode.HS:
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self.uuidAction,
+                        value="hsv({},{},{})".format(
+                            self.hs_color[0],
+                            self.hs_color[1],
+                            hass_to_lox(self._attr_brightness),
+                        ),
                     ),
-                ),
-            )
-        elif self._attr_color_mode == ColorMode.COLOR_TEMP:
-            self.hass.bus.async_fire(
-                SENDDOMAIN,
-                dict(
-                    uuid=self.uuidAction,
-                    value="temp({},{})".format(
-                        hass_to_lox(self._attr_brightness),
-                        self._attr_color_temp_kelvin,
+                )
+            elif self._attr_color_mode == ColorMode.COLOR_TEMP:
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self.uuidAction,
+                        value="temp({},{})".format(
+                            hass_to_lox(self._attr_brightness),
+                            self._attr_color_temp_kelvin,
+                        ),
                     ),
-                ),
-            )
+                )
         else:
             self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
 
