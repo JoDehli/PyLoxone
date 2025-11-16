@@ -145,6 +145,7 @@ class LoxoneBaseConnection:
         self._salt_time_stamp: int = 0
         self._visual_hash = None
         self._message_queue: Queue[MessageForQueue] = Queue()
+        self._mesage_queue_delayed: Queue[MessageForQueue] = Queue()
         self._secured_queue = Queue(maxsize=1)
         self.message_header = None
 
@@ -447,6 +448,13 @@ class LoxoneConnection(LoxoneBaseConnection):
                 while not self._message_queue.empty():
                     m = self._message_queue.get()
                     await self._send_text_command(m.command, encrypted=m.flag)
+
+            if not self._mesage_queue_delayed.empty():
+                while not self._mesage_queue_delayed.empty():
+                    m = self._mesage_queue_delayed.get()
+                    await asyncio.sleep(0.1)
+                    await self._send_text_command(m.command, encrypted=m.flag)
+
             await asyncio.sleep(0.1)
 
     async def _do_start_listening(
@@ -639,6 +647,12 @@ class LoxoneConnection(LoxoneBaseConnection):
         command = "jdev/sps/io/{}/{}".format(device_uuid, value)
         _LOGGER.debug("Call send_websocket_command: {}".format(command))
         self._message_queue.put(MessageForQueue(command=command, flag=True))
+
+    async def send_websocket_command_delayed(self, device_uuid: str, value: str):
+        """Send a websocket command to the Miniserver."""
+        command = "jdev/sps/io/{}/{}".format(device_uuid, value)
+        _LOGGER.debug("Call send_websocket_command_delayed: {}".format(command))
+        self._mesage_queue_delayed.put(MessageForQueue(command=command, flag=True))
 
     async def send_secured__websocket_command(
         self, device_uuid: str, value: str, code: str
