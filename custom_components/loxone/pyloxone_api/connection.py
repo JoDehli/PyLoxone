@@ -33,10 +33,10 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
                     CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
                     CMD_REQUEST_TOKEN_JSON_WEB, DELAY_CHECK_TOKEN_REFRESH,
-                    IV_BYTES, KEEP_ALIVE_PERIOD, LOXAPPPATH, MAX_REFRESH_DELAY,
-                    RECONNECT_DELAY, RECONNECT_TRIES, SALT_BYTES,
-                    SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT, TIMEOUT,
-                    TOKEN_PERMISSION)
+                    DELAY_FOR_DELAYED_MESSAGE, IV_BYTES, KEEP_ALIVE_PERIOD,
+                    LOXAPPPATH, MAX_REFRESH_DELAY, RECONNECT_DELAY,
+                    RECONNECT_TRIES, SALT_BYTES, SALT_MAX_AGE_SECONDS,
+                    SALT_MAX_USE_COUNT, TIMEOUT, TOKEN_PERMISSION)
 from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
                          LoxoneException, LoxoneOutOfServiceException,
                          LoxoneServiceUnAvailableError, LoxoneTokenError)
@@ -452,7 +452,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             if not self._mesage_queue_delayed.empty():
                 while not self._mesage_queue_delayed.empty():
                     m = self._mesage_queue_delayed.get()
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(DELAY_FOR_DELAYED_MESSAGE)
                     await self._send_text_command(m.command, encrypted=m.flag)
 
             await asyncio.sleep(0.1)

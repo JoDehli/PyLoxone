@@ -53,7 +53,7 @@ event_secured_websocket_command:
         text:
 
 event_websocket_delayed_command:
-  description: Send websocket commands to the loxone server with delay of 200mxs. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/
+  description: Send websocket commands to the loxone server with delay of 200ms. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/
   fields:
     uuid:
       name: UUID
