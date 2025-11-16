@@ -91,13 +91,28 @@ async def async_unload_entry(hass, config_entry):
         except Exception as e:
             _LOGGER.warning(f"Fehler beim Schließen der Verbindung: {e}")
 
+            # Cancel and await the stored listening task (if any)
         try:
-            # Remove event listeners
+            task = getattr(coordinator, "_listening_task", None)
+            if task is not None and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    _LOGGER.debug(f"Error waiting for listening task to finish: {e}")
+
+            # Remove event listeners (if any still present)
             if hasattr(coordinator, "listeners") and coordinator.listeners:
                 for listener in coordinator.listeners:
-                    listener()  # Unsubscribe the listener
+                    try:
+                        listener()  # Unsubscribe the listener
+                    except Exception:
+                        pass
+                coordinator.listeners = []
 
-            del hass.data[DOMAIN][config_entry.entry_id]
+            hass.data[DOMAIN].pop(config_entry.entry_id, None)
         except Exception as e:
             raise e
 
@@ -105,6 +120,10 @@ async def async_unload_entry(hass, config_entry):
     hass.services.async_remove(DOMAIN, "event_websocket_command")
     hass.services.async_remove(DOMAIN, "event_secured_websocket_command")
     hass.services.async_remove(DOMAIN, "sync_areas")
+    hass.services.async_remove(DOMAIN, "quick_shade")
+    hass.services.async_remove(DOMAIN, "enable_sun_automation")
+    hass.services.async_remove(DOMAIN, "disable_sun_automation")
+    hass.services.async_remove(DOMAIN, "reload")
 
     # Unload
     unload_ok = await hass.config_entries.async_unload_platforms(

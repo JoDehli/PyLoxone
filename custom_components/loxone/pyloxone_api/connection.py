@@ -90,6 +90,7 @@ class LoxoneBaseConnection:
         self.connection: wslib.ClientConnection | None = None
         self._recv_loop: Optional[Any] = None
         self._pending_task = []
+        self._closed = False
 
         # Parse the server input to extract scheme if present
         parsed = urlparse(host if "://" in host else f"//{host}", scheme="")
@@ -605,11 +606,31 @@ class LoxoneConnection(LoxoneBaseConnection):
         return self.connection
 
     async def close(self) -> None:
-        for task in self._pending_task:
-            task.cancel()
+        if self._closed:
+            return
+        self._closed = True
 
+        if self._pending_task:
+            for task in self._pending_task:
+                try:
+                    if task and not task.done():
+                        task.cancel()
+                except Exception:
+                    pass
+            # Wait for tasks to finish or cancel
+            if self._pending_task:
+                await asyncio.gather(*self._pending_task, return_exceptions=True)
+            # clear pending tasks
+            self._pending_task = []
+
+        # Close websocket connection if present
         if self.connection:
-            await self.connection.close()
+            try:
+                await self.connection.close()
+            except Exception:
+                pass
+            finally:
+                self.connection = None
 
         _LOGGER.debug("Connection closed.")
 
