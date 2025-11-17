@@ -168,8 +168,6 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
             "open_window": self.get_state_value("openWindow"),
             "curr_heat_temp_ix": self.get_state_value("currHeatTempIx"),
             "curr_cool_temp_ix": self.get_state_value("currCoolTempIx"),
-            "temp_target_raw": self.get_state_value("tempTarget"),
-            "state_values_keys": list(self._stateAttribValues.keys())[:10],  # Debug: first 10 keys
         }
 
     @property
