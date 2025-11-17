@@ -110,12 +110,6 @@ async def async_setup_entry(
 class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller (legacy, non-V2)"""
 
-    attr_supported_features = (
-        ClimateEntityFeature.TARGET_TEMPERATURE
-        | ClimateEntityFeature.TURN_OFF
-        | ClimateEntityFeature.TURN_ON
-    )
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.hass = kwargs["hass"]
@@ -123,6 +117,13 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
         self._stateAttribUuids = kwargs["states"]
         self._stateAttribValues = {}
         self.type = "RoomController"
+
+        # Set supported features
+        self._attr_supported_features = (
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.TURN_OFF
+            | ClimateEntityFeature.TURN_ON
+        )
 
         # Flatten UUID values - some might be lists (e.g., "temperatures")
         self._all_uuids = set()
@@ -165,12 +166,21 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
             "mode": self.get_state_value("mode"),
             "override": self.get_state_value("override"),
             "open_window": self.get_state_value("openWindow"),
+            "curr_heat_temp_ix": self.get_state_value("currHeatTempIx"),
+            "curr_cool_temp_ix": self.get_state_value("currCoolTempIx"),
+            "temp_target_raw": self.get_state_value("tempTarget"),
+            "state_values_keys": list(self._stateAttribValues.keys())[:10],  # Debug: first 10 keys
         }
 
     @property
     def current_temperature(self):
         """Return the current temperature."""
         return self.get_state_value("tempActual")
+
+    @property
+    def target_temperature(self) -> float | None:
+        """Return the temperature we try to reach."""
+        return self.get_state_value("tempTarget")
 
     def set_temperature(self, **kwargs):
         """Set new target temperature"""
@@ -253,11 +263,6 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
             return UnitOfTemperature.CELSIUS
 
         return UnitOfTemperature.CELSIUS
-
-    @property
-    def target_temperature(self) -> float | None:
-        """Return the temperature we try to reach."""
-        return self.get_state_value("tempTarget")
 
     @property
     def target_temperature_step(self) -> float | None:
