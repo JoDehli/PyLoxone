@@ -139,12 +139,19 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
 
     async def event_handler(self, event):
         update = False
+        
+        _LOGGER.debug(f"IRoomController {self.name}: event received with {len(event.data)} keys")
 
         for key in self._all_uuids & event.data.keys():
-            self._stateAttribValues[key] = event.data[key]
+            old_value = self._stateAttribValues.get(key)
+            new_value = event.data[key]
+            if old_value != new_value:
+                _LOGGER.debug(f"IRoomController {self.name}: {key} changed from {old_value} to {new_value}")
+            self._stateAttribValues[key] = new_value
             update = True
 
         if update:
+            _LOGGER.debug(f"IRoomController {self.name}: scheduling update")
             self.schedule_update_ha_state()
 
     def get_state_value(self, name):
