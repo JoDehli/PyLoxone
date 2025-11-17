@@ -111,6 +111,11 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller (legacy, non-V2)"""
 
     def __init__(self, **kwargs):
+        # Add room name to entity name for better identification in HomeKit
+        if "room" in kwargs and kwargs["room"]:
+            original_name = kwargs.get("name", "Raumregelung")
+            kwargs["name"] = f"{kwargs['room']} {original_name}"
+        
         super().__init__(**kwargs)
         self.hass = kwargs["hass"]
         self._autoMode = kwargs[CONF_HVAC_AUTO_MODE]
