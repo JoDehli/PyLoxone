@@ -151,8 +151,8 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
             update = True
 
         if update:
-            _LOGGER.debug(f"IRoomController {self.name}: scheduling update")
-            self.schedule_update_ha_state()
+            _LOGGER.debug(f"IRoomController {self.name}: writing state update")
+            self.async_write_ha_state()
 
     def get_state_value(self, name):
         uuid = self._stateAttribUuids.get(name)
