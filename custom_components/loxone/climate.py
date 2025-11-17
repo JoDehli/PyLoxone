@@ -178,20 +178,27 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
         if temp is None:
             return
         
-        # Get current mode to determine which temperature index to use
+        # IRoomController uses setTemp with current temperature index
+        # Get the current active temperature index based on mode
         mode = self.get_state_value("mode")
-        if mode is not None and mode > 0:
-            # In heating/cooling mode, set the corresponding temperature
-            curr_heat_idx = self.get_state_value("currHeatTempIx")
-            
-            if curr_heat_idx is not None:
-                self.hass.bus.fire(
-                    SENDDOMAIN,
-                    dict(
-                        uuid=self.uuidAction,
-                        value=f"setTemp/{int(curr_heat_idx)}/{temp}",
-                    ),
-                )
+        
+        # Determine which temperature index to use
+        temp_idx = self.get_state_value("currHeatTempIx")
+        if mode == 2:  # Cooling mode
+            cool_idx = self.get_state_value("currCoolTempIx")
+            if cool_idx is not None:
+                temp_idx = cool_idx
+        
+        if temp_idx is not None:
+            # Command format: setTemp/<index>/<value>
+            self.hass.bus.fire(
+                SENDDOMAIN,
+                dict(
+                    uuid=self.uuidAction,
+                    value=f"setTemp/{int(temp_idx)}/{temp}",
+                ),
+            )
+            self.schedule_update_ha_state()
 
     @property
     def hvac_action(self) -> HVACAction | None:
