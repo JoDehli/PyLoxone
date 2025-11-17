@@ -124,6 +124,14 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
         self._stateAttribValues = {}
         self.type = "RoomController"
 
+        # Flatten UUID values - some might be lists (e.g., "temperatures")
+        self._all_uuids = set()
+        for value in self._stateAttribUuids.values():
+            if isinstance(value, list):
+                self._all_uuids.update(value)
+            else:
+                self._all_uuids.add(value)
+
         self._attr_device_info = get_or_create_device(
             self.unique_id, self.name, self.type, self.room
         )
@@ -131,7 +139,7 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
     async def event_handler(self, event):
         update = False
 
-        for key in set(self._stateAttribUuids.values()) & event.data.keys():
+        for key in self._all_uuids & event.data.keys():
             self._stateAttribValues[key] = event.data[key]
             update = True
 
