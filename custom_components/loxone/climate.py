@@ -139,19 +139,12 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
 
     async def event_handler(self, event):
         update = False
-        
-        _LOGGER.debug(f"IRoomController {self.name}: event received with {len(event.data)} keys")
 
         for key in self._all_uuids & event.data.keys():
-            old_value = self._stateAttribValues.get(key)
-            new_value = event.data[key]
-            if old_value != new_value:
-                _LOGGER.debug(f"IRoomController {self.name}: {key} changed from {old_value} to {new_value}")
-            self._stateAttribValues[key] = new_value
+            self._stateAttribValues[key] = event.data[key]
             update = True
 
         if update:
-            _LOGGER.debug(f"IRoomController {self.name}: writing state update")
             self.async_write_ha_state()
 
     def get_state_value(self, name):
@@ -273,6 +266,16 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
     def target_temperature_step(self) -> float | None:
         """Return the supported step of target temperature."""
         return 0.5
+
+    @property
+    def min_temp(self) -> float:
+        """Return the minimum temperature."""
+        return 7.0
+
+    @property
+    def max_temp(self) -> float:
+        """Return the maximum temperature."""
+        return 35.0
 
     def set_hvac_mode(self, hvac_mode: str):
         """Set new target hvac mode."""
