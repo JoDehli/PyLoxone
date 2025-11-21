@@ -36,7 +36,7 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     IV_BYTES, KEEP_ALIVE_PERIOD, LOXAPPPATH, MAX_REFRESH_DELAY,
                     RECONNECT_DELAY, RECONNECT_TRIES, SALT_BYTES,
                     SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT, TIMEOUT,
-                    TOKEN_PERMISSION)
+                    TOKEN_PERMISSION, MAX_WEBSOCKET_MESSAGE_SIZE)
 from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
                          LoxoneException, LoxoneOutOfServiceException,
                          LoxoneServiceUnAvailableError, LoxoneTokenError)
@@ -598,9 +598,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             open_timeout=TIMEOUT,
             create_connection=LoxoneClientConnection,
             compression=None,
-            max_queue=128,
-            max_size=2**20,  # 1048576
-            write_limit=2**1,  # 32768
+            max_size=MAX_WEBSOCKET_MESSAGE_SIZE,  # 5 megabytes = 5,242,880 bytes
         )
 
         return self.connection
