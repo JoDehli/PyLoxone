@@ -34,9 +34,9 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
                     CMD_REQUEST_TOKEN_JSON_WEB, DELAY_CHECK_TOKEN_REFRESH,
                     IV_BYTES, KEEP_ALIVE_PERIOD, LOXAPPPATH, MAX_REFRESH_DELAY,
-                    RECONNECT_DELAY, RECONNECT_TRIES, SALT_BYTES,
-                    SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT, TIMEOUT,
-                    TOKEN_PERMISSION, MAX_WEBSOCKET_MESSAGE_SIZE)
+                    MAX_WEBSOCKET_MESSAGE_SIZE, RECONNECT_DELAY,
+                    RECONNECT_TRIES, SALT_BYTES, SALT_MAX_AGE_SECONDS,
+                    SALT_MAX_USE_COUNT, TIMEOUT, TOKEN_PERMISSION)
 from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
                          LoxoneException, LoxoneOutOfServiceException,
                          LoxoneServiceUnAvailableError, LoxoneTokenError)

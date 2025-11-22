@@ -13,7 +13,7 @@ RECONNECT_DELAY = 5  # maximum delay in seconds
 RECONNECT_TRIES = 100  # number of tries to reconnect before giving up
 
 # Loxone constants
-MAX_WEBSOCKET_MESSAGE_SIZE: Final = 5 * 1024 * 1024 # 5 megabytes = 5,242,880 bytes
+MAX_WEBSOCKET_MESSAGE_SIZE: Final = 5 * 1024 * 1024  # 5 megabytes = 5,242,880 bytes
 DELAY_CHECK_TOKEN_REFRESH: Final = 20
 TIMEOUT: Final = 30
 KEEP_ALIVE_PERIOD: Final = 60
