@@ -54,7 +54,7 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - LightControllerV2
 - Alarm
 - Fan
-- RoomControllerV2
+- RoomController and RoomControllerV2
 - AudioZoneV2
 - Slider
 - TextInput
