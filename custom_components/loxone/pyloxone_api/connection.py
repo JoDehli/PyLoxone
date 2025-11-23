@@ -728,19 +728,25 @@ class LoxoneConnection(LoxoneBaseConnection):
                 # await self._send_text_command(f"{CMD_ENABLE_UPDATES}", encrypted=True)
                 self._message_queue.put(MessageForQueue(f"{CMD_ENABLE_UPDATES}", True))
 
-        elif isinstance(mess_obj, TextMessage) and ("refreshjwt" in mess_obj.message):
+        elif isinstance(mess_obj, TextMessage) and ("refreshjwt" in mess_obj.message or "refresh" in mess_obj.message):
             _LOGGER.debug(f"Got {type(mess_obj)}")
-            self._token.token = mess_obj.value_as_dict["token"]
-            self._token.valid_until = mess_obj.value_as_dict["validUntil"]
-            if "unsecurePass" in mess_obj.value_as_dict:
-                self._token.unsecure_password = mess_obj.value_as_dict["unsecurePass"]
-
-        elif isinstance(mess_obj, TextMessage) and ("refresh" in mess_obj.message):
-            _LOGGER.debug(f"Got {type(mess_obj)}")
-            self._token.token = mess_obj.value_as_dict["token"]
-            self._token.valid_until = mess_obj.value_as_dict["validUntil"]
-            if "unsecurePass" in mess_obj.value_as_dict:
-                self._token.unsecure_password = mess_obj.value_as_dict["unsecurePass"]
+            try:
+                self._token.token = mess_obj.value_as_dict["token"]
+                self._token.valid_until = mess_obj.value_as_dict["validUntil"]
+                if "unsecurePass" in mess_obj.value_as_dict:
+                    self._token.unsecure_password = mess_obj.value_as_dict["unsecurePass"]
+            except KeyError as e:
+                _LOGGER.error(
+                    f"Missing key in token refresh response: {e}. "
+                    f"Response: {mess_obj.value_as_dict}, "
+                    f"Message type: {type(mess_obj)}, "
+                    f"Message: {getattr(mess_obj, 'message', 'N/A')}"
+                )
+            except Exception as e:
+                _LOGGER.error(
+                    f"Unexpected error processing token refresh: {e}. "
+                    f"Response: {mess_obj.value_as_dict}"
+                )
 
         elif isinstance(mess_obj, BinaryFile):
             _LOGGER.debug(f"Got {type(mess_obj)}")
