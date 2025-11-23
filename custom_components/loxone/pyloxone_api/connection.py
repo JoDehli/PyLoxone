@@ -335,7 +335,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             try:
                 while True:
                     await asyncio.sleep(KEEP_ALIVE_PERIOD)
-                    await self._send_text_command(CMD_KEEP_ALIVE, encrypted=False)
+                    self._message_queue.put(MessageForQueue(CMD_KEEP_ALIVE, False))
             except Exception as exc:
                 _LOGGER.error(f"Keep-alive task encountered an error: {exc}")
                 raise
@@ -363,7 +363,8 @@ class LoxoneConnection(LoxoneBaseConnection):
                 # gets a new key for the token refresh
                 old_key = self._key
                 try:
-                    await self._send_text_command(command, encrypted=False)
+                    self._message_queue.put(MessageForQueue(command, False))
+                    await asyncio.sleep(1)
                 except Exception as exc:
                     _LOGGER.debug(f"Error requesting new key: {exc}")
                     # Wait briefly and then try again to avoid a tight loop in case of errors.
@@ -447,6 +448,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 while not self._message_queue.empty():
                     m = self._message_queue.get()
                     await self._send_text_command(m.command, encrypted=m.flag)
+                    await asyncio.sleep(0.05)
             await asyncio.sleep(0.1)
 
     async def _do_start_listening(
