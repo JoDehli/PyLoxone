@@ -27,10 +27,12 @@ class LoxoneAsyncHttpClient:
         password: str,
         scheme: str = "http",
         session: aiohttp.ClientSession = None,
+        verify_ssl: bool = True,
     ):
         # super().__init__()
         if session is None:
-            self.session = aiohttp.ClientSession()
+            connector = aiohttp.TCPConnector(ssl=verify_ssl)
+            self.session = aiohttp.ClientSession(connector=connector)
         # session.auth = aiohttp.BasicAuth(username, password)
         else:
             self.session = session
@@ -43,7 +45,9 @@ class LoxoneAsyncHttpClient:
     async def get(self, endpoint):
         url = f"{self.base_url}{endpoint}"
         response = await self.session.get(
-            url, auth=aiohttp.BasicAuth(self.username, self.password)
+            url,
+            auth=aiohttp.BasicAuth(self.username, self.password),
+            allow_redirects=True,
         )
         if response.status != 200:
             await self._handle_error(response)

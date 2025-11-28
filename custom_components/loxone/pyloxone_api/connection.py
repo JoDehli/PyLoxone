@@ -80,6 +80,7 @@ class LoxoneBaseConnection:
         token: Optional[dict] = None,
         port: int = 8080,
         timeout: Optional[float] = None,
+        verify_ssl: bool = True,
     ):
         self.host = host
         self.username = username
@@ -91,6 +92,7 @@ class LoxoneBaseConnection:
         self._recv_loop: Optional[Any] = None
         self._pending_task = []
         self._closed = False
+        self.verify_ssl = verify_ssl
 
         # Parse the server input to extract scheme if present
         parsed = urlparse(host if "://" in host else f"//{host}", scheme="")
@@ -496,6 +498,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 password=self.password,
                 scheme=self.scheme,
                 session=session,
+                verify_ssl=self.verify_ssl,
             )
 
             for attempt in range(RECONNECT_TRIES):

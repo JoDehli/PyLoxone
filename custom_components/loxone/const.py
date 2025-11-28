@@ -52,6 +52,7 @@ DOMAIN_DEVICES = "devices"
 CONF_ACTIONID = "uuidAction"
 CONF_SCENE_GEN = "generate_scenes"
 CONF_SCENE_GEN_DELAY = "generate_scenes_delay"
+CONF_VERIFY_SSL = "verify_ssl"
 CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN = "generate_lightcontroller_subcontrols"
 DEFAULT_FORCE_UPDATE = False
 
