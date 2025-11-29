@@ -43,7 +43,9 @@ from .pyloxone_api.connection import LoxoneConnection
 from .pyloxone_api.exceptions import (LoxoneConnectionClosedOk,
                                       LoxoneConnectionError, LoxoneException,
                                       LoxoneOutOfServiceException,
-                                      LoxoneTokenError, LoxoneUnauthorisedError, LoxoneServiceUnAvailableError)
+                                      LoxoneServiceUnAvailableError,
+                                      LoxoneTokenError,
+                                      LoxoneUnauthorisedError)
 
 REQUIREMENTS = ["websockets", "pycryptodome", "numpy"]
 
@@ -245,17 +247,23 @@ async def async_setup_entry(hass, config_entry):
     try:
         await coordinator.async_config_entry_first_refresh()
     except LoxoneServiceUnAvailableError:
-        _LOGGER.error("Loxone service unavailble. Tried many times. Look what happend to your Loxone!")
+        _LOGGER.error(
+            "Loxone service unavailble. Tried many times. Look what happend to your Loxone!"
+        )
         return False
     except LoxoneUnauthorisedError:
-        _LOGGER.error("Could not connect to Loxone Miniserver. Unauthorised. Please check username and password.")
+        _LOGGER.error(
+            "Could not connect to Loxone Miniserver. Unauthorised. Please check username and password."
+        )
         return False
     except OSError as e:
         await coordinator.api.close()
         _LOGGER.exception("Could not connect to Loxone Miniserver %s", e)
         return False
     except Exception as e:
-        _LOGGER.exception("Could not connect to Loxone Miniserver. Unexpected error occurred: %s", e)
+        _LOGGER.exception(
+            "Could not connect to Loxone Miniserver. Unexpected error occurred: %s", e
+        )
         return False
 
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator

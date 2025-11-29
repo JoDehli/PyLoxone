@@ -4,6 +4,7 @@ Component to create an interface to the Loxone Miniserver.
 For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/pyloxone-api
 """
+
 import asyncio
 import logging
 import warnings
@@ -74,7 +75,7 @@ class LoxoneAsyncHttpClient:
             response = await self.session.get(
                 url,
                 auth=aiohttp.BasicAuth(self.username, self.password),
-                timeout=aiohttp.ClientTimeout(total=self.timeout)
+                timeout=aiohttp.ClientTimeout(total=self.timeout),
             )
 
             if response.status != 200:
@@ -84,7 +85,9 @@ class LoxoneAsyncHttpClient:
 
         except aiohttp.ClientConnectionError as err:
             _LOGGER.error(f"Connection error to {url}: {err}")
-            raise ConnectionError(f"Failed to connect to Loxone Miniserver at {url}: {err}") from err
+            raise ConnectionError(
+                f"Failed to connect to Loxone Miniserver at {url}: {err}"
+            ) from err
 
         except aiohttp.ClientConnectorError as err:
             _LOGGER.error(f"Connector error to {url}: {err}")
@@ -92,7 +95,9 @@ class LoxoneAsyncHttpClient:
 
         except asyncio.TimeoutError as err:
             _LOGGER.error(f"Timeout error for {url}")
-            raise TimeoutError(f"Request to {url} timed out after {self.timeout} seconds") from err
+            raise TimeoutError(
+                f"Request to {url} timed out after {self.timeout} seconds"
+            ) from err
 
         except aiohttp.ClientSSLError as err:
             _LOGGER.error(f"SSL error for {url}: {err}")
@@ -118,8 +123,12 @@ class LoxoneAsyncHttpClient:
             _LOGGER.error(f"Client error for {url}: {err}")
             raise RuntimeError(f"HTTP client error: {err}") from err
 
-        except (LoxoneUnauthorisedError, LoxoneUnrecognizedCommandError,
-                LoxoneServiceUnAvailableError, LoxoneMaxNumOfConnectionsError):
+        except (
+            LoxoneUnauthorisedError,
+            LoxoneUnrecognizedCommandError,
+            LoxoneServiceUnAvailableError,
+            LoxoneMaxNumOfConnectionsError,
+        ):
             # Re-raise Loxone-specific errors without wrapping
             raise
 
@@ -149,11 +158,8 @@ class LoxoneAsyncHttpClient:
         try:
             # Try to read content with timeout protection
             try:
-                content = await asyncio.wait_for(
-                    response.content.read(),
-                    timeout=5.0
-                )
-                content = content.decode('utf-8', errors='replace')
+                content = await asyncio.wait_for(response.content.read(), timeout=5.0)
+                content = content.decode("utf-8", errors="replace")
             except asyncio.TimeoutError:
                 _LOGGER.warning("Timeout reading error response content")
                 content = "<timeout reading response>"
@@ -228,9 +234,7 @@ class LoxoneAsyncHttpClient:
         else:
             # Generic error for any other status code
             _LOGGER.error(f"HTTP Error {response.status}: {content}")
-            raise RuntimeError(
-                f"HTTP error {response.status}: {content}"
-            )
+            raise RuntimeError(f"HTTP error {response.status}: {content}")
 
     # def __enter__(self):
     #     raise RuntimeError("Use 'async with' to create an AsyncHttpClient instance")
