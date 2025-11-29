@@ -57,13 +57,11 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             )
         try:
             session = async_get_clientsession(self.hass)
-        except OSError as e:
+            await self.api.open(session)
+        except LoxoneException as e:
             _LOGGER.error("Could not connect to Loxone Miniserver")
             raise e
-
-        try:
-            open_connection = await self.api.open(session)
-        except LoxoneException as e:
+        except Exception as e:
             _LOGGER.error("Could not connect to Loxone Miniserver")
             raise e
 

@@ -28,6 +28,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 from homeassistant.setup import async_setup_component
+from pyroute2.ethtool.ioctl import NoSuchDevice
 
 from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     ATTR_UUID, ATTR_VALUE,
@@ -42,7 +43,7 @@ from .pyloxone_api.connection import LoxoneConnection
 from .pyloxone_api.exceptions import (LoxoneConnectionClosedOk,
                                       LoxoneConnectionError, LoxoneException,
                                       LoxoneOutOfServiceException,
-                                      LoxoneTokenError)
+                                      LoxoneTokenError, LoxoneUnauthorisedError, LoxoneServiceUnAvailableError)
 
 REQUIREMENTS = ["websockets", "pycryptodome", "numpy"]
 
@@ -243,8 +244,20 @@ async def async_setup_entry(hass, config_entry):
 
     try:
         await coordinator.async_config_entry_first_refresh()
-    except OSError as err:
-        raise err
+    except LoxoneServiceUnAvailableError:
+        _LOGGER.error("Loxone service unavailble. Tried many times. Look what happend to your Loxone!")
+        return False
+    except LoxoneUnauthorisedError:
+        _LOGGER.error("Could not connect to Loxone Miniserver. Unauthorised. Please check username and password.")
+        return False
+    except OSError as e:
+        await coordinator.api.close()
+        _LOGGER.exception("Could not connect to Loxone Miniserver %s", e)
+        return False
+    except Exception as e:
+        _LOGGER.exception("Could not connect to Loxone Miniserver. Unexpected error occurred: %s", e)
+        return False
+
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
 
     setup_tasks = []
@@ -489,6 +502,25 @@ async def async_setup_entry(hass, config_entry):
                         "https://www.home-assistant.io/integrations/group/)",
                         err,
                     )
+
+    # async def start_listening_with_retry():
+    #     """Start listening with automatic reconnection on unclean disconnects."""
+    #     retry_delay = 5  # Seconds to wait before retrying
+    #     while True:
+    #         try:
+    #             await coordinator.api.start_listening(callback=message_callback)
+    #             # If start_listening completes normally, exit loop (e.g., on shutdown)
+    #             break
+    #         except (LoxoneConnectionError, websockets.exceptions.ConnectionClosed) as e:
+    #             _LOGGER.warning("WebSocket connection lost (possible unclean disconnect, e.g., internet issue). Retrying in %d seconds: %s", retry_delay, e)
+    #             await asyncio.sleep(retry_delay)
+    #         except LoxoneConnectionClosedOk:
+    #             # Normal close, no need to retry
+    #             _LOGGER.info("WebSocket connection closed normally.")
+    #             break
+    #         except Exception as e:
+    #             _LOGGER.error("Unexpected error in listening loop, stopping retries: %s", e)
+    #             break
 
     async def start_event():
         try:

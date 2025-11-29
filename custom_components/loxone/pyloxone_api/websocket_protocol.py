@@ -93,7 +93,7 @@ class LoxoneClientConnection(ClientConnection):
         header = parse_header(header_data)
         self._last_header = header
         if header.message_type is MessageType.OUT_OF_SERVICE:
-            raise LoxoneOutOfServiceException("Miniserver is out of service")
+            raise LoxoneOutOfServiceException from None
         # get the message body
         message_data = await self.recv()
         if header.message_type == MessageType.TEXT:
