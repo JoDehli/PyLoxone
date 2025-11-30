@@ -280,6 +280,11 @@ async def async_setup_entry(hass, config_entry):
     if setup_tasks:
         await asyncio.wait(setup_tasks)
 
+    async def _reload_after_delay(delay: float = 1.0) -> None:
+        await coordinator.api.close()
+        await asyncio.sleep(delay)
+        await hass.services.async_call("loxone", "reload")
+
     def handle_task_result(task: asyncio.Task) -> None:
         try:
             task.result()
@@ -297,19 +302,19 @@ async def async_setup_entry(hass, config_entry):
                 },
             )
             # Loxone-Integration neu laden
-            hass.async_create_task(hass.services.async_call("loxone", "reload"))
+            hass.async_create_task(_reload_after_delay(1.0))
         except LoxoneOutOfServiceException as e:
             _LOGGER.debug(
                 "Loxone LoxoneOutOfServiceException received. Try to reloading Loxone integration."
             )
             # Loxone-Integration neu laden
-            hass.async_create_task(hass.services.async_call("loxone", "reload"))
+            hass.async_create_task(_reload_after_delay(1.0))
         except LoxoneConnectionError as e:
             _LOGGER.debug(
                 "Loxone LoxoneConnectionError received. Try to reloading Loxone integration."
             )
             # Loxone-Integration neu laden
-            hass.async_create_task(hass.services.async_call("loxone", "reload"))
+            hass.async_create_task(_reload_after_delay(1.0))
         except (
             LoxoneConnectionClosedOk,
             websockets.exceptions.ConnectionClosedOK,
@@ -318,7 +323,7 @@ async def async_setup_entry(hass, config_entry):
                 "Loxone LoxoneConnectionClosedOk received. Mostly a timeout Problem. Try to reloading Loxone integration."
             )
             # Loxone-Integration neu laden
-            hass.async_create_task(hass.services.async_call("loxone", "reload"))
+            hass.async_create_task(_reload_after_delay(1.0))
         except asyncio.exceptions.CancelledError as e:
             _LOGGER.error(e)
         except Exception as e:

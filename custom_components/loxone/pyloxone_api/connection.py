@@ -12,7 +12,8 @@ import logging
 import time
 import urllib
 from base64 import b64decode, b64encode
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from queue import Empty, Full, Queue
 from types import TracebackType
 from typing import Any, Awaitable, Callable, Dict, List, NoReturn, Optional
@@ -39,8 +40,7 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     SALT_MAX_USE_COUNT, TIMEOUT, TOKEN_PERMISSION)
 from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
                          LoxoneException, LoxoneOutOfServiceException,
-                         LoxoneServiceUnAvailableError, LoxoneTokenError,
-                         LoxoneUnauthorisedError)
+                         LoxoneServiceUnAvailableError, LoxoneTokenError)
 from .loxone_http_client import LoxoneAsyncHttpClient
 from .loxone_token import LoxoneToken, LxJsonKeySalt
 from .message import (BaseMessage, BinaryFile, Keepalive, LLResponse,
@@ -554,9 +554,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     await task
                 except websockets.exceptions.ConnectionClosedOK as e:
                     _LOGGER.debug("Task ConnectionClosedOK received")
-                    raise LoxoneConnectionClosedOk(
-                        "Connection Closed. Try reconnecting..."
-                    )
+                    raise LoxoneConnectionClosedOk
                 except LoxoneTokenError as e:
                     _LOGGER.error(f"Token error {e}")
                     raise
@@ -565,14 +563,14 @@ class LoxoneConnection(LoxoneBaseConnection):
                     raise
                 except websockets.exceptions.ConnectionClosedError as e:
                     _LOGGER.error(f"Connection closed with error: {e}")
-                    raise LoxoneConnectionError(f"Connection closed: {e}") from e
+                    raise LoxoneConnectionError
                 except websockets.exceptions.ConnectionClosed as e:
-                    _LOGGER.error(f"Connection closed: {e}")
-                    raise LoxoneConnectionError(
-                        "Connection Closed. Try reconnecting..."
+                    _LOGGER.error(
+                        "Connection closed by websocket, converting to LoxoneConnectionError"
                     )
+                    raise LoxoneConnectionError("Connection closed") from None
                 except asyncio.CancelledError:
-                    _LOGGER.debug("Task cancelled")
+                    pass
                     # Don't raise, this is expected during shutdown
                 except Exception as e:
                     _LOGGER.error(
@@ -581,6 +579,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                     raise
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
+            raise
+        except (LoxoneConnectionError, LoxoneTokenError, LoxoneConnectionClosedOk):
+            raise
+        except Exception as e:
             raise
         finally:
             # Cancel pending tasks
@@ -643,10 +645,22 @@ class LoxoneConnection(LoxoneBaseConnection):
                     except asyncio.TimeoutError:
                         _LOGGER.warning("Timeout receiving message")
                         continue
-                    except websockets.exceptions.ConnectionClosed as e:
-                        raise LoxoneConnectionError
-                    except Exception:
-                        return
+                    except websockets.exceptions.ConnectionClosedOK:
+                        _LOGGER.debug(
+                            "Task ConnectionClosedOK received — converting to LoxoneConnectionError"
+                        )
+                        raise LoxoneConnectionError(
+                            "Connection closed (normal)"
+                        ) from None
+                    except websockets.exceptions.ConnectionClosedError as e:
+                        _LOGGER.error(f"Connection closed with error: {e}")
+                        raise LoxoneConnectionError(f"Connection closed: {e}") from None
+                    except websockets.exceptions.ConnectionClosed:
+                        _LOGGER.error("Connection closed")
+                        raise LoxoneConnectionError("Connection closed") from None
+                    except Exception as e:
+                        _LOGGER.error(f"Connection closed with error: {e}")
+                        raise e from None
                     try:
                         await self._websocket_event(message)
                     except LoxoneTokenError:
