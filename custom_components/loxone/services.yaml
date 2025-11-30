@@ -65,6 +65,13 @@ sync_areas:
       selector:
         boolean:
 
+reload:
+  description: >
+    Reloads the Loxone integration by reconnecting to the Miniserver and 
+    refreshing all entities. This is useful after making configuration 
+    changes in Loxone Config or when connection issues occur. All current 
+    entity states will be re\-synchronized from the Miniserver.
+
 enable_sun_automation:
   description: Enable Sun automation for Loxone Jalousie
   target:

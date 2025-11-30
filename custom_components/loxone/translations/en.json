@@ -37,6 +37,10 @@
     }
   },
   "services": {
+    "reload": {
+       "name": "Pyloxone Reload",
+            "description": "Reloads the Loxone integration by reconnecting to the Miniserver and refreshing all entities. This is useful after making configuration changes in Loxone Config or when connection issues occur. All current entity states will be re\\-synchronized from the Miniserver."
+    },
     "event_websocket_command": {
       "name": "Send Websocket command",
       "description": "Send websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/",

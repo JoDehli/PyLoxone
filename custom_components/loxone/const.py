@@ -69,6 +69,8 @@ STATE_OFF = "off"
 
 DEFAULT_AUDIO_ZONE_V2_PLAY_STATE = -1
 
+THROTTLE_KEEP_ALIVE_TIME = 60
+
 r"""\
 cfmt description
 (                                  # start of capture group 1

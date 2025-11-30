@@ -143,20 +143,6 @@ async def async_setup(hass, config):
                 DOMAIN, context={"source": "import"}, data=config[DOMAIN]
             )
         )
-
-    async def handle_reload(call):
-        """Handle the service call to reload the integration."""
-        _LOGGER.info("Reloading Loxone integration via service call")
-        entries = hass.config_entries.async_entries(DOMAIN)
-        unloads = [
-            hass.config_entries.async_unload(entry.entry_id) for entry in entries
-        ]
-        await asyncio.gather(*unloads)
-        loads = [hass.config_entries.async_reload(entry.entry_id) for entry in entries]
-        await asyncio.gather(*loads)
-        _LOGGER.info("Loxone integration reload complete")
-
-    hass.services.async_register(DOMAIN, "reload", handle_reload)
     return True
 
 
@@ -382,6 +368,18 @@ async def async_setup_entry(hass, config_entry):
     async def handle_sync_areas_with_loxone(call):
         await sync_areas_with_loxone(call.data)
 
+    async def handle_reload(call):
+        """Handle the service call to reload the integration."""
+        _LOGGER.info("Reloading Loxone integration via service call")
+        entries = hass.config_entries.async_entries(DOMAIN)
+        unloads = [
+            hass.config_entries.async_unload(entry.entry_id) for entry in entries
+        ]
+        await asyncio.gather(*unloads)
+        loads = [hass.config_entries.async_reload(entry.entry_id) for entry in entries]
+        await asyncio.gather(*loads)
+        _LOGGER.info("Loxone integration reload complete")
+
     async def loxone_discovered(event):
         miniserver = get_miniserver_from_hass(hass)
         if miniserver.miniserver_type < 2 and "component" in event.data:
@@ -594,6 +592,7 @@ async def async_setup_entry(hass, config_entry):
         DOMAIN, "event_secured_websocket_command", handle_secured_websocket_command
     )
     hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
+    hass.services.async_register(DOMAIN, "reload", handle_reload)
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event),
     hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered),

@@ -9,6 +9,7 @@ import logging
 import re
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Any
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -27,9 +28,10 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.util import dt as dt_util
 
 from . import LoxoneEntity
-from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
+from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
@@ -175,7 +177,8 @@ async def async_setup_entry(
     miniserver = get_miniserver_from_hass(hass)
 
     loxconfig = miniserver.lox_config.json
-    entities = []
+    entities: list[Any] = [LoxoneKeepAliveSensor()]
+
     if "softwareVersion" in loxconfig:
         entities.append(LoxoneVersionSensor(loxconfig["softwareVersion"]))
 
@@ -270,6 +273,36 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
             "uuid": self.uuidAction,
             "platform": "loxone",
         }
+
+
+class LoxoneKeepAliveSensor(LoxoneEntity, SensorEntity):
+    _attr_name = "Loxone Last Keep Alive Message"
+    _attr_icon = "mdi:information-outline"
+    _attr_unique_id = "loxone_keep_alive_sensor_uuid"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP  # tell HA this is a timestamp
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._attr_native_value = None
+
+    @cached_property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return self._attr_unique_id
+
+    async def event_handler(self, e):
+        if "keep_alive" in e.data and e.data["keep_alive"] == "received":
+            now = dt_util.utcnow()
+            # only update if at least 60 seconds passed since last update
+            if self._attr_native_value is not None:
+                time_since_last = (now - self._attr_native_value).total_seconds()
+                if time_since_last < THROTTLE_KEEP_ALIVE_TIME:
+                    # too soon, skip this update
+                    return
+
+            # update the timestamp
+            self._attr_native_value = now
+            self.async_schedule_update_ha_state()
 
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
