@@ -304,6 +304,13 @@ class LoxoneKeepAliveSensor(LoxoneEntity, SensorEntity):
             self._attr_native_value = now
             self.async_schedule_update_ha_state()
 
+    @property
+    def extra_state_attributes(self):
+        """Return device specific state attributes."""
+        return {
+            "platform": "loxone",
+        }
+
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
     _attr_should_poll = False
