@@ -9,7 +9,7 @@ If you want to support my work on this binding you can buy me a coffee:
 Home Assistant binding for Loxone. 
 
 A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
-He really helped me a lot to with the new token based authentification. Thanks Pawel!!!
+He really helped me a lot to with the new token based authentication. Thanks Pawel!!!
 
 #### This release works for the version 2024.1.0 and newer!!
 
@@ -28,20 +28,20 @@ Change 123456789ABC to your miniserver Serial Number.
 
 ## Manual installation
 1. Download the zip file and extract all files.
-2. Copy the ***custom_components*** and ***www*** folder in the same folder where your configuration.yaml is located
-3. Restart Home-Assitant
+2. Copy the ***custom_components*** folder in the same folder where your configuration.yaml is located
+3. Restart Home-Assistant
 4. Go to Configuration -> Integrations and search for Pyloxone
-5. Add the Intgration and fill out all required fields
-6. Restart Home-Assitant
+5. Add the Integration and fill out all required fields
+6. Restart Home-Assistant
 
 ## Hacs installation
 1. Install hacs to your homeassistant installation. See https://hacs.xyz/docs/use/download/download/
 2. Add this repository to hacs: https://github.com/JoDehli/PyLoxone
 3. Install the PyLoxone binding 
-4. Restart Home-Assitant
+4. Restart Home-Assistant
 5. Go to Configuration -> Integrations and search for Pyloxone
-6. Add the Intgration and fill out all required fields
-7. Restart Home-Assitant
+6. Add the Integration and fill out all required fields
+7. Restart Home-Assistant
 
 ## Supported Loxone Entities
 Currently, this integration supports the following Loxone entities by mapping them to Home Assistant entities.
@@ -204,11 +204,11 @@ up:
     service: loxone.event_websocket_command
 ```
 
-The commands for each entity can be found in the structure file. You can download it from the [Loxone Hompage](https://www.loxone.com/dede/kb/api/).
+The commands for each entity can be found in the structure file. You can download it from the [Loxone Homepage](https://www.loxone.com/dede/kb/api/).
 
 ## How do you get the uuid?
 
-If you need the UUID of an entity to use it in a service call or to manually add it to Home Assistant, you can get it from your Loxone setup by visit the folowing site with your prefered browser:
+If you need the UUID of an entity to use it in a service call or to manually add it to Home Assistant, you can get it from your Loxone setup by visit the following site with your prefered browser:
 
 ```
 http://{ip-address-of-your-loxone}:{port}/data/LoxAPP3.json
