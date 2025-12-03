@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from queue import Empty, Full, Queue
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Dict, List, NoReturn, Optional
+from typing import Any, Awaitable, Callable, Dict, List, NoReturn, Optional, Union
 from urllib.parse import urlparse
 
 import websockets as wslib
@@ -368,7 +368,8 @@ class LoxoneBaseConnection:
             bytes.fromhex(self._visual_hash.key), pwd_hash.encode("utf-8"), hash_module
         )
         new_hash = digester.hexdigest()
-        command = "jdev/sps/ios/{}/{}/{}".format(new_hash, device_uuid, value)
+        # Ensure value is string when formatting command
+        command = "jdev/sps/ios/{}/{}/{}".format(new_hash, device_uuid, str(value))
         self._message_queue.put(MessageForQueue(command, True))
         return None
 
@@ -451,7 +452,6 @@ class LoxoneConnection(LoxoneBaseConnection):
                     try:
                         # Calculate 50% of the token lifetime as an integer and limit it to MAX_REFRESH_DELAY
                         candidate = int(self._token.seconds_to_expire() * 0.5)
-
                         def generate_refresh_time_log(_seconds_to_refresh: int) -> str:
                             days, remainder = divmod(_seconds_to_refresh, 86400)
                             hours, seconds = divmod(remainder, 3600)
@@ -464,37 +464,46 @@ class LoxoneConnection(LoxoneBaseConnection):
                         )
 
                         await asyncio.sleep(seconds_to_refresh)
-                        command = f"{CMD_GET_KEY}"
-                        # gets a new key for the token refresh
                         old_key = self._key
-
+                        connector = None
                         try:
-                            await self._send_text_command(command, encrypted=False)
+                            connector = LoxoneAsyncHttpClient(
+                                url=self.url,
+                                username=self.username,
+                                password=self.password,
+                                scheme=self.scheme,
+                            )
+                            api_resp = await connector.get(CMD_GET_KEY)
+                            data = await asyncio.wait_for(
+                                api_resp.content.read(), timeout=self.timeout or TIMEOUT
+                            )
+
+                            try:
+                                json_str = data.decode().strip()
+                                value_dict = json.loads(json_str)
+                                if not isinstance(value_dict, dict):
+                                    raise ValueError("value_as_dict is not a dictionary")
+                                _ll = value_dict.get("LL", None)
+                                if _ll and "value" in _ll:
+                                    self._key = _ll["value"]
+                            except Exception as e:
+                                _LOGGER.error(f"Error processing getkey: {e}")
+                                raise
+
                         except Exception as exc:
                             _LOGGER.error(f"Error requesting new key: {exc}")
                             # Wait briefly and then try again to avoid a tight loop in case of errors.
                             await asyncio.sleep(1)
                             continue
+                        finally:
+                            # Async httpx client must always be closed
+                            if connector:
+                                try:
+                                    await connector.session.close()
+                                except Exception as e:
+                                    _LOGGER.warning(f"Error closing HTTP session: {e}")
 
-                        async def _wait_for_key_change(
-                            old_key_in: str, timeout: float = 15.0
-                        ):
-                            end = asyncio.get_event_loop().time() + timeout
-                            while (
-                                self._key == old_key_in
-                                and asyncio.get_event_loop().time() < end
-                            ):
-                                await asyncio.sleep(0.1)
-
-                        try:
-                            await asyncio.wait_for(
-                                _wait_for_key_change(old_key), timeout=15.0
-                            )
-                        except asyncio.TimeoutError:
-                            _LOGGER.warning(
-                                "Timed out waiting for new key (15s). Will retry on next cycle."
-                            )
-                        else:
+                        if old_key != self._key:
                             _LOGGER.debug("Key changed successfully.")
                             await self._refresh_token()
 
@@ -989,17 +998,20 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         _LOGGER.debug("Connection closed successfully.")
 
-    async def send_websocket_command(self, device_uuid: str, value: str):
-        """Send a websocket command to the Miniserver."""
+    async def send_websocket_command(self, device_uuid: str, value: Union[str, int, float]):
+        """Send a websocket command to the Miniserver.
+
+        value may be a str, int or float — it will be converted to string when sent.
+        """
 
         if not device_uuid or not isinstance(device_uuid, str):
             raise ValueError("device_uuid must be a non-empty string")
 
-        if value is None or not isinstance(value, str):
-            raise ValueError("value must be a string")
+        if value is None or not isinstance(value, (str, int, float)):
+            raise ValueError("value must be a string, int, or float")
 
         try:
-            command = "jdev/sps/io/{}/{}".format(device_uuid, value)
+            command = "jdev/sps/io/{}/{}".format(device_uuid, str(value))
             _LOGGER.debug("Call send_websocket_command: {}".format(command))
 
             try:
@@ -1013,12 +1025,12 @@ class LoxoneConnection(LoxoneBaseConnection):
             raise
 
     async def send_secured__websocket_command(
-        self, device_uuid: str, value: str, code: str
+        self, device_uuid: str, value: Union[str, int, float], code: str
     ):
         if not device_uuid or not isinstance(device_uuid, str):
             raise ValueError("device_uuid must be a non-empty string")
-        if value is None or not isinstance(value, str):
-            raise ValueError("value must be a string")
+        if value is None or not isinstance(value, (str, int, float)):
+            raise ValueError("value must be a string, int, or float")
         if not code or not isinstance(code, str):
             raise ValueError("code must be a non-empty string")
 
@@ -1027,6 +1039,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             _LOGGER.debug(f"Call send_secured__websocket_command: {command}")
 
             try:
+                # ensure the awaited secure sender receives the original value (it will convert)
                 self._secured_queue.put(
                     self._send_secure(device_uuid, value, code), timeout=1.0
                 )
@@ -1158,6 +1171,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             # Handle getkey
             elif isinstance(mess_obj, TextMessage) and "getkey" in mess_obj.message:
                 _LOGGER.debug("Got get getkey")
+                print("Got get getkey")
                 try:
                     value_dict = mess_obj.value_as_dict
                     if not isinstance(value_dict, dict):
