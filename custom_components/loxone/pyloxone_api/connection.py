@@ -16,7 +16,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from queue import Empty, Full, Queue
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Dict, List, NoReturn, Optional, Union
+from typing import (Any, Awaitable, Callable, Dict, List, NoReturn, Optional,
+                    Union)
 from urllib.parse import urlparse
 
 import websockets as wslib
@@ -452,6 +453,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     try:
                         # Calculate 50% of the token lifetime as an integer and limit it to MAX_REFRESH_DELAY
                         candidate = int(self._token.seconds_to_expire() * 0.5)
+
                         def generate_refresh_time_log(_seconds_to_refresh: int) -> str:
                             days, remainder = divmod(_seconds_to_refresh, 86400)
                             hours, seconds = divmod(remainder, 3600)
@@ -482,7 +484,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                                 json_str = data.decode().strip()
                                 value_dict = json.loads(json_str)
                                 if not isinstance(value_dict, dict):
-                                    raise ValueError("value_as_dict is not a dictionary")
+                                    raise ValueError(
+                                        "get_key response is not a dictionary"
+                                    )
                                 _ll = value_dict.get("LL", None)
                                 if _ll and "value" in _ll:
                                     self._key = _ll["value"]
@@ -998,7 +1002,9 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         _LOGGER.debug("Connection closed successfully.")
 
-    async def send_websocket_command(self, device_uuid: str, value: Union[str, int, float]):
+    async def send_websocket_command(
+        self, device_uuid: str, value: Union[str, int, float]
+    ):
         """Send a websocket command to the Miniserver.
 
         value may be a str, int or float — it will be converted to string when sent.
