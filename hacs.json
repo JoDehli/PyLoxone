@@ -1,8 +1,8 @@
 {
     "name": "PyLoxone",
     "country": "DE",
-    "hacs": "1.0.0",
+    "hacs": "2.0.5",
     "render_readme": true,
-    "homeassistant": "0.109.0"
+    "homeassistant": "2025.2.4"
 }
 

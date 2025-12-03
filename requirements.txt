@@ -1,0 +1,10 @@
+colorlog==6.10.1
+homeassistant==2025.2.4
+pip>=21.3.1
+ruff==0.14.6
+websockets>=14
+pycryptodome
+pytest
+httpx
+debugpy
+pre-commit

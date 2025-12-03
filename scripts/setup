@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+python3 -m pip install --requirement requirements.txt
+
+if [[ ! -d "config" ]]; then
+    mkdir -p "config"
+    hass --config "config" --script ensure_config
+fi
