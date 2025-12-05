@@ -453,7 +453,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     try:
                         # Calculate 50% of the token lifetime as an integer and limit it to MAX_REFRESH_DELAY
                         candidate = int(self._token.seconds_to_expire() * 0.5)
-
+                        candidate = 10
                         def generate_refresh_time_log(_seconds_to_refresh: int) -> str:
                             days, remainder = divmod(_seconds_to_refresh, 86400)
                             hours, seconds = divmod(remainder, 3600)
@@ -466,48 +466,37 @@ class LoxoneConnection(LoxoneBaseConnection):
                         )
 
                         await asyncio.sleep(seconds_to_refresh)
+                        command = f"{CMD_GET_KEY}"
+                        # gets a new key for the token refresh
                         old_key = self._key
-                        connector = None
+
                         try:
-                            connector = LoxoneAsyncHttpClient(
-                                url=self.url,
-                                username=self.username,
-                                password=self.password,
-                                scheme=self.scheme,
-                            )
-                            api_resp = await connector.get(CMD_GET_KEY)
-                            data = await asyncio.wait_for(
-                                api_resp.content.read(), timeout=self.timeout or TIMEOUT
-                            )
-
-                            try:
-                                json_str = data.decode().strip()
-                                value_dict = json.loads(json_str)
-                                if not isinstance(value_dict, dict):
-                                    raise ValueError(
-                                        "get_key response is not a dictionary"
-                                    )
-                                _ll = value_dict.get("LL", None)
-                                if _ll and "value" in _ll:
-                                    self._key = _ll["value"]
-                            except Exception as e:
-                                _LOGGER.error(f"Error processing getkey: {e}")
-                                raise
-
+                            await self._send_text_command(command, encrypted=False)
                         except Exception as exc:
                             _LOGGER.error(f"Error requesting new key: {exc}")
                             # Wait briefly and then try again to avoid a tight loop in case of errors.
                             await asyncio.sleep(1)
                             continue
-                        finally:
-                            # Async httpx client must always be closed
-                            if connector:
-                                try:
-                                    await connector.session.close()
-                                except Exception as e:
-                                    _LOGGER.warning(f"Error closing HTTP session: {e}")
 
-                        if old_key != self._key:
+                        async def _wait_for_key_change(
+                            old_key_in: str, timeout: float = 15.0
+                        ):
+                            end = asyncio.get_event_loop().time() + timeout
+                            while (
+                                self._key == old_key_in
+                                and asyncio.get_event_loop().time() < end
+                            ):
+                                await asyncio.sleep(0.1)
+
+                        try:
+                            await asyncio.wait_for(
+                                _wait_for_key_change(old_key), timeout=15.0
+                            )
+                        except asyncio.TimeoutError:
+                            _LOGGER.warning(
+                                "Timed out waiting for new key (15s). Will retry on next cycle."
+                            )
+                        else:
                             _LOGGER.debug("Key changed successfully.")
                             await self._refresh_token()
 
