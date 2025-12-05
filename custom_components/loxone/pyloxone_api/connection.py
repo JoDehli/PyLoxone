@@ -109,6 +109,8 @@ class LoxoneBaseConnection:
         self._recv_loop: Optional[Any] = None
         self._pending_task = []
         self._closed = False
+        self._key_update_event: Optional[asyncio.Event] = None
+
 
         # Parse the server input to extract scheme if present
         try:
@@ -453,6 +455,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     try:
                         # Calculate 50% of the token lifetime as an integer and limit it to MAX_REFRESH_DELAY
                         candidate = int(self._token.seconds_to_expire() * 0.5)
+
                         def generate_refresh_time_log(_seconds_to_refresh: int) -> str:
                             days, remainder = divmod(_seconds_to_refresh, 86400)
                             hours, seconds = divmod(remainder, 3600)
@@ -467,37 +470,35 @@ class LoxoneConnection(LoxoneBaseConnection):
                         await asyncio.sleep(seconds_to_refresh)
                         command = f"{CMD_GET_KEY}"
                         # gets a new key for the token refresh
+                        # Store old key and create event to wait for update
                         old_key = self._key
+                        key_updated_event = asyncio.Event()
+                        self._key_update_event = key_updated_event  # Store for _websocket_event to signal
 
                         try:
                             await self._send_text_command(command, encrypted=False)
                         except Exception as exc:
                             _LOGGER.error(f"Error requesting new key: {exc}")
-                            # Wait briefly and then try again to avoid a tight loop in case of errors.
+                            self._key_update_event = None
                             await asyncio.sleep(1)
                             continue
 
-                        async def _wait_for_key_change(
-                            old_key_in: str, timeout: float = 15.0
-                        ):
-                            end = asyncio.get_event_loop().time() + timeout
-                            while (
-                                self._key == old_key_in
-                                and asyncio.get_event_loop().time() < end
-                            ):
-                                await asyncio.sleep(0.1)
-
                         try:
-                            await asyncio.wait_for(
-                                _wait_for_key_change(old_key), timeout=15.0
-                            )
+                            await asyncio.wait_for(key_updated_event.wait(), timeout=15.0)
+                            # Verify key actually changed
+                            if self._key == old_key:
+                                _LOGGER.warning("Key was not updated despite event being set")
+                                continue
+
+                            _LOGGER.debug("Key changed successfully.")
+                            await self._refresh_token()
+
                         except asyncio.TimeoutError:
                             _LOGGER.warning(
                                 "Timed out waiting for new key (15s). Will retry on next cycle."
                             )
-                        else:
-                            _LOGGER.debug("Key changed successfully.")
-                            await self._refresh_token()
+                        finally:
+                            self._key_update_event = None
 
                     except asyncio.CancelledError:
                         raise
@@ -1165,12 +1166,15 @@ class LoxoneConnection(LoxoneBaseConnection):
             # Handle getkey
             elif isinstance(mess_obj, TextMessage) and "getkey" in mess_obj.message:
                 _LOGGER.debug("Got get getkey")
-                print("Got get getkey")
                 try:
                     value_dict = mess_obj.value_as_dict
                     if not isinstance(value_dict, dict):
                         raise ValueError("value_as_dict is not a dictionary")
                     self._key = value_dict.get("value", "")
+                    # Signal that key has been updated
+                    if self._key_update_event is not None:
+                        self._key_update_event.set()
+
                 except Exception as e:
                     _LOGGER.error(f"Error processing getkey: {e}")
 
