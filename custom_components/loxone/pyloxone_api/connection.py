@@ -453,7 +453,6 @@ class LoxoneConnection(LoxoneBaseConnection):
                     try:
                         # Calculate 50% of the token lifetime as an integer and limit it to MAX_REFRESH_DELAY
                         candidate = int(self._token.seconds_to_expire() * 0.5)
-                        candidate = 10
                         def generate_refresh_time_log(_seconds_to_refresh: int) -> str:
                             days, remainder = divmod(_seconds_to_refresh, 86400)
                             hours, seconds = divmod(remainder, 3600)
