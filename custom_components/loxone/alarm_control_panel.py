@@ -109,11 +109,11 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             self._disabled_move = e.data[self.states["disabledMove"]]
             request_update = True
 
-        if self.states["armedAt"] in e.data:
+        if "armedAt" in self.states and self.states["armedAt"] in e.data:
             self._armed_at = e.data[self.states["armedAt"]]
             request_update = True
 
-        if self.states["nextLevelAt"] in e.data:
+        if "nextLevelAt" in self.states and self.states["nextLevelAt"] in e.data:
             self._next_level_at = e.data[self.states["nextLevelAt"]]
             request_update = True
 
