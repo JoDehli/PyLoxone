@@ -29,6 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 
 OPMODES = {
     None: HVACMode.OFF,
+    -1: HVACMode.OFF,
     0: HVACMode.AUTO,
     1: HVACMode.AUTO,
     2: HVACMode.AUTO,
@@ -37,7 +38,7 @@ OPMODES = {
     5: HVACMode.HEAT_COOL,
 }
 
-OPMODETOLOXONE = {HVACMode.HEAT_COOL: 3, HVACMode.HEAT: 4, HVACMode.COOL: 5}
+OPMODETOLOXONE = {HVACMode.HEAT_COOL: 3, HVACMode.HEAT: 4, HVACMode.COOL: 5, HVACMode.OFF: -1}
 
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -426,7 +427,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 
         Need to be a subset of HVAC_MODES.
         """
-        return [HVACMode.AUTO, HVACMode.HEAT, HVACMode.HEAT_COOL, HVACMode.COOL]
+        return [HVACMode.AUTO, HVACMode.HEAT, HVACMode.HEAT_COOL, HVACMode.COOL, HVACMode.OFF]
 
     @property
     def temperature_unit(self) -> str:
