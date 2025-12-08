@@ -692,82 +692,68 @@ class LoxoneConnection(LoxoneBaseConnection):
         callback: Optional[Callable[[Any], Optional[Awaitable[None]]]],
         connection: LoxoneClientConnection,
     ) -> None:
+        """Listen for messages from the Miniserver and process them."""
         try:
             while True:
+                # Check connection state once
+                if not connection or connection.state == connection.state.CLOSED:
+                    raise LoxoneConnectionError("Connection is closed")
+
+                # Receive message with unified error handling
                 try:
-                    if not connection or connection.state == connection.state.CLOSED:
-                        raise LoxoneConnectionError("Connection is closed")
+                    message = await connection.recv_message()
+                    await asyncio.sleep(0)
+                except websockets.exceptions.ConnectionClosedOK:
+                    _LOGGER.debug("Connection closed normally (OK)")
+                    raise LoxoneConnectionError("Connection closed (normal)") from None
+                except (
+                    websockets.exceptions.ConnectionClosedError,
+                    websockets.exceptions.ConnectionClosed,
+                ) as e:
+                    _LOGGER.error(f"Connection closed: {e}")
+                    raise LoxoneConnectionError(f"Connection closed: {e}") from None
 
-                    try:
-                        message = await asyncio.wait_for(
-                            connection.recv_message(),
-                            timeout=self.timeout or TIMEOUT * 2,
-                        )
-                    except asyncio.TimeoutError:
-                        _LOGGER.warning("Timeout receiving message")
-                        continue
-                    except websockets.exceptions.ConnectionClosedOK:
-                        _LOGGER.debug(
-                            "Task ConnectionClosedOK received — converting to LoxoneConnectionError"
-                        )
-                        raise LoxoneConnectionError(
-                            "Connection closed (normal)"
-                        ) from None
-                    except websockets.exceptions.ConnectionClosedError as e:
-                        _LOGGER.error(f"Connection closed with error: {e}")
-                        raise LoxoneConnectionError(f"Connection closed: {e}") from None
-                    except websockets.exceptions.ConnectionClosed:
-                        _LOGGER.error("Connection closed")
-                        raise LoxoneConnectionError("Connection closed") from None
-                    except Exception as e:
-                        _LOGGER.error(f"Connection closed with error: {e}")
-                        raise e from None
-                    try:
-                        await self._websocket_event(message)
-                    except LoxoneTokenError:
-                        raise
-                    except Exception as e:
-                        _LOGGER.error(
-                            f"Error processing websocket event: {e}", exc_info=True
-                        )
-                        # Continue listening despite processing errors
-                    if callback and message.message_type in [
-                        MessageType.VALUE_STATES,
-                        MessageType.TEXT_STATES,
-                        MessageType.TEXT,
-                        MessageType.KEEPALIVE,
-                    ]:
-                        try:
-                            awaitable = callback(message.as_dict())
-                            if awaitable:
-                                await awaitable
-                        except Exception as e:
-                            _LOGGER.error(f"Callback error: {e}", exc_info=True)
-                    else:
-                        _LOGGER.debug(
-                            f"Message type {list(MessageType)[message.message_type].name} not handled yet ..."
-                        )
-                        _ = message.as_dict()
-                        if _ != {}:
-                            _LOGGER.debug(f"Message {message.as_dict()}")
-
-                except asyncio.CancelledError:
-                    raise
-                except LoxoneConnectionError:
+                # Process websocket event
+                try:
+                    await self._websocket_event(message)
+                    await asyncio.sleep(0)
+                except LoxoneTokenError:
                     raise
                 except Exception as e:
-                    _LOGGER.error(f"Error in listening loop: {e}", exc_info=True)
-                    # Add a small delay to avoid tight loop on persistent errors
-                    raise
-        except LoxoneTokenError:
-            raise
-        except LoxoneOutOfServiceException:
-            raise
+                    _LOGGER.error(
+                        f"Error processing websocket event: {e}", exc_info=True
+                    )
+                    # Continue listening despite processing errors
+
+                # Execute callback if provided and message type matches
+                if callback and message.message_type in [
+                    MessageType.VALUE_STATES,
+                    MessageType.TEXT_STATES,
+                    MessageType.TEXT,
+                    MessageType.KEEPALIVE,
+                ]:
+                    try:
+                        awaitable = callback(message.as_dict())
+                        if awaitable:
+                            await awaitable
+                    except Exception as e:
+                        _LOGGER.error(f"Callback error: {e}", exc_info=True)
+                else:
+                    _LOGGER.debug(
+                        f"Message type {list(MessageType)[message.message_type].name} not handled yet ..."
+                    )
+                    _ = message.as_dict()
+                    if _ != {}:
+                        _LOGGER.debug(f"Message {message.as_dict()}")
+
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
             raise
+        except (LoxoneTokenError, LoxoneOutOfServiceException, LoxoneConnectionError):
+            # Re-raise expected Loxone exceptions
+            raise
         except Exception as e:
-            _LOGGER.error(f"Listening task failed: {e}")
+            _LOGGER.error(f"Unexpected error in listening loop: {e}", exc_info=True)
             raise
 
     async def open(
