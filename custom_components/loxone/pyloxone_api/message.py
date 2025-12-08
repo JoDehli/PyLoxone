@@ -10,12 +10,45 @@ import logging
 import math
 import re
 import struct
+import time
 import uuid
 from enum import IntEnum
-
+from typing import Optional, Union
+import hashlib
+from functools import lru_cache
 from .exceptions import LoxoneException
 
 _LOGGER = logging.getLogger(__name__)
+
+# small in-memory cache for expensive encoding detection results
+_encoding_cache: dict[str, Optional[str]] = {}
+_DETECT_SAMPLE_SIZE = 512  # sample length used for detection & caching
+_DETECT_MAX_BYTES = 4096  # only run heavy detection for messages <= this size
+
+
+class AsyncTimer:
+    def __init__(self, label: str, logger: logging.Logger = _LOGGER):
+        self.label = label
+        self.logger = logger
+    async def __aenter__(self):
+        self._start = time.perf_counter()
+        return self
+    async def __aexit__(self, exc_type, exc, tb):
+        elapsed = time.perf_counter() - self._start
+        self.logger.debug("%s took %.6f s", self.label, elapsed)
+
+class SyncTimer:
+    def __init__(self, label: str, logger: logging.Logger = _LOGGER):
+        self.label = label
+        self.logger = logger
+
+    def __enter__(self):
+        self._start = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        elapsed = time.perf_counter() - self._start
+        self.logger.debug("%s took %.6f s", self.label, elapsed)
 
 
 def detect_encoding(byte_string):
@@ -44,21 +77,56 @@ def detect_encoding(byte_string):
 
 
 def check_and_decode_if_needed(message):
-    if isinstance(message, bytes):
+    if isinstance(message, str):
+        return message
+
+    # ensure we handle bytearray too
+    b: bytes = bytes(message)
+
+    # fast happy-path: utf-8 works for most messages
+    try:
+        return b.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+
+    # if ascii, decode cheaply (shouldn't usually get here)
+    if getattr(b, "isascii", lambda: False)():
+        return b.decode("ascii", errors="replace")
+
+    # try a few common single-byte encodings (cheap)
+    for enc in ("latin-1", "cp1252", "iso-8859-15"):
         try:
-            return message.decode("utf-8")
-        except UnicodeDecodeError as e:
-            _LOGGER.info(
-                f"Decoding problem for message {message} (Type: {type(message)}) Try to get the encoding..."
-            )
-            encoding = detect_encoding(message)
-            if encoding:
-                return message.decode(encoding)
-            _LOGGER.info(
-                f"No vaild encoding found for {message} (Type: {type(message)}). Replaced all invaild characters."
-            )
-            return message.decode("utf-8", errors="replace")
-    return message
+            return b.decode(enc)
+        except UnicodeDecodeError:
+            continue
+        except Exception:
+            # defensive: skip any unexpected errors from decoder
+            continue
+
+    # heavy detection: only for small messages, with a cache keyed on sample hash
+    if len(b) <= _DETECT_MAX_BYTES:
+        sample = b[:_DETECT_SAMPLE_SIZE]
+        key = hashlib.sha256(sample).hexdigest()
+        enc = _encoding_cache.get(key)
+        if enc is None and "detect_encoding" in globals():
+            try:
+                enc = detect_encoding(sample)  # may be expensive
+            except Exception:
+                enc = None
+            _encoding_cache[key] = enc  # cache even None to avoid repeated work
+
+        if enc:
+            try:
+                return b.decode(enc)
+            except Exception:
+                pass
+
+    # last resort: replace invalid characters (fast and safe)
+    _LOGGER.info(
+        "Decoding problem for message (len=%d). Falling back to replace invalid chars.",
+        len(b),
+    )
+    return b.decode("utf-8", errors="replace")
 
 
 class MessageType(IntEnum):
