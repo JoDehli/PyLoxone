@@ -30,3 +30,6 @@ ha_data_folder/
 
 # Env file for tests
 .env
+
+PyLoxone*
+tmp*

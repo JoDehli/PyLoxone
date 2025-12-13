@@ -28,7 +28,6 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 from homeassistant.setup import async_setup_component
-from pyroute2.ethtool.ioctl import NoSuchDevice
 
 from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     ATTR_UUID, ATTR_VALUE,
@@ -565,7 +564,8 @@ async def async_setup_entry(hass, config_entry):
                     value = DEFAULT
                 if device_uuid is None:
                     device_uuid = DEFAULT
-                await coordinator.api.send_websocket_command(device_uuid, value)
+
+                _ = asyncio.create_task(coordinator.api.send_websocket_command(device_uuid, value))
 
             elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data, dict):
                 value = event.data.get(ATTR_VALUE, DEFAULT)
@@ -577,9 +577,9 @@ async def async_setup_entry(hass, config_entry):
                     value = DEFAULT
                 if device_uuid is None:
                     device_uuid = DEFAULT
-                await coordinator.api.send_secured__websocket_command(
+                _ = asyncio.create_task(coordinator.api.send_secured__websocket_command(
                     device_uuid, value, code
-                )
+                ))
 
         except Exception as e:
             _LOGGER.error(e)

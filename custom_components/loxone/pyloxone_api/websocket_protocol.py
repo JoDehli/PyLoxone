@@ -33,9 +33,6 @@ class LoxoneClientConnection(ClientConnection):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._last_header = None
-        from queue import Queue
-
-        self._message_queue = Queue(maxsize=1000)
 
     async def recv(self, decode: bool | None = False) -> str | bytes:
         result = await super().recv(decode)
@@ -81,6 +78,7 @@ class LoxoneClientConnection(ClientConnection):
         # handled in their own coroutine
 
         header_data = await self.recv()
+        await asyncio.sleep(0)
         if len(header_data) != 8:
             message = parse_message(header_data, self._last_header.message_type)
             return message
@@ -96,6 +94,7 @@ class LoxoneClientConnection(ClientConnection):
             raise LoxoneOutOfServiceException
         # get the message body
         message_data = await self.recv()
+        await asyncio.sleep(0)
         if header.message_type == MessageType.TEXT:
             message_data = check_and_decode_if_needed(message_data)
 
