@@ -694,6 +694,8 @@ class LoxoneConnection(LoxoneBaseConnection):
                     # Optimization: Check for Out of Service immediately
                     if last_header.message_type == MessageType.OUT_OF_SERVICE:
                         raise LoxoneOutOfServiceException
+                    if last_header.message_type == MessageType.KEEPALIVE:
+                        asyncio.create_task(_run_callback(Keepalive("")))
 
                 elif last_header and last_header.payload_length == message_length:
                     msg_type = last_header.message_type
@@ -709,6 +711,8 @@ class LoxoneConnection(LoxoneBaseConnection):
                     # Fire external callback if type matches
                     if callback and msg_type in callback_types:
                         asyncio.create_task(_run_callback(parsed_message))
+                else:
+                    _LOGGER.error(f"Message not handled: {message}")
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
             raise
