@@ -5,8 +5,8 @@
     },
     "step": {
       "user": {
-        "title": "Loxone",
-        "description": "Loxone Configuration",
+        "title": "Set up Loxone",
+        "description": "Configure your Loxone Miniserver connection",
         "data": {
           "username": "User",
           "port": "Port",

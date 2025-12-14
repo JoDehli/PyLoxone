@@ -5,96 +5,123 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 
-from collections import OrderedDict
+from typing import Any, Mapping, cast
 
 import voluptuous as vol
-from homeassistant.config_entries import (CONN_CLASS_LOCAL_POLL, ConfigEntry,
-                                          ConfigFlow, OptionsFlow)
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME)
-from homeassistant.core import callback
+from homeassistant.helpers.schema_config_entry_flow import (
+    SchemaCommonFlowHandler,
+    SchemaConfigFlowHandler,
+    SchemaFlowError,
+    SchemaFlowFormStep,
+)
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .const import (CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
                     CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE, DEFAULT_IP,
                     DEFAULT_PORT, DOMAIN)
 
-LOXONE_SCHEMA = vol.Schema(
+async def validate_loxone_setup(
+    handler: SchemaCommonFlowHandler, user_input: dict[str, Any]
+) -> dict[str, Any]:
+    """Validate Loxone setup."""
+    # Validate latin-1 encoding for username and password
+    try:
+        if CONF_USERNAME in user_input:
+            user_input[CONF_USERNAME].encode("latin-1")
+    except UnicodeEncodeError as err:
+        raise SchemaFlowError("Username contains characters that are not latin-1 compatible") from err
+
+    try:
+        if CONF_PASSWORD in user_input:
+            user_input[CONF_PASSWORD].encode("latin-1")
+    except UnicodeEncodeError as err:
+        raise SchemaFlowError("Password contains characters that are not latin-1 compatible") from err
+    
+    # Ensure port is stored as int
+    if CONF_PORT in user_input:
+        user_input[CONF_PORT] = int(user_input[CONF_PORT])
+    if CONF_SCENE_GEN_DELAY in user_input:
+        user_input[CONF_SCENE_GEN_DELAY] = int(user_input[CONF_SCENE_GEN_DELAY])
+
+    return user_input
+
+DATA_SCHEMA_SETUP = vol.Schema(
     {
-        vol.Required(CONF_USERNAME, default=""): str,
-        vol.Required(CONF_PASSWORD, default=""): str,
-        vol.Required(CONF_HOST, default=DEFAULT_IP): str,
-        vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
-        vol.Required(CONF_SCENE_GEN, default=True): bool,
-        vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): int,
-        vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): bool,
+        vol.Required(CONF_USERNAME, default=""): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.TEXT)
+        ),
+        vol.Required(CONF_PASSWORD, default=""): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+        ),
+        vol.Required(CONF_HOST, default=DEFAULT_IP): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.TEXT)
+        ),
+        vol.Required(CONF_PORT, default=DEFAULT_PORT): NumberSelector(
+            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
+        ),
+        vol.Required(CONF_SCENE_GEN, default=True): BooleanSelector(),
+        vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): NumberSelector(
+            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=3)
+        ),
+        vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): BooleanSelector(),
     }
 )
 
+DATA_SCHEMA_OPTIONS = vol.Schema(
+    {
+        vol.Required(CONF_USERNAME, default=""): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.TEXT)
+        ),
+        vol.Required(CONF_PASSWORD, default=""): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+        ),
+        vol.Required(CONF_HOST, default=DEFAULT_IP): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.TEXT)
+        ),
+        vol.Required(CONF_PORT, default=DEFAULT_PORT): NumberSelector(
+            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
+        ),
+        vol.Required(CONF_SCENE_GEN, default=True): BooleanSelector(),
+        vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): NumberSelector(
+            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=3)
+        ),
+        vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): BooleanSelector(),
+    }
+)
 
-class LoxoneFlowHandler(ConfigFlow, domain=DOMAIN):
-    """Handle Pyloxone handle."""
+CONFIG_FLOW = {
+    "user": SchemaFlowFormStep(
+        schema=DATA_SCHEMA_SETUP,
+        validate_user_input=validate_loxone_setup,
+    ),
+}
+
+OPTIONS_FLOW = {
+    "init": SchemaFlowFormStep(
+        schema=DATA_SCHEMA_OPTIONS,
+        validate_user_input=validate_loxone_setup,
+    ),
+}
+
+
+class LoxoneFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
+    """Handle Loxone config flow."""
 
     VERSION = 3
-    CONNECTION_CLASS = CONN_CLASS_LOCAL_POLL
+    config_flow = CONFIG_FLOW
+    options_flow = OPTIONS_FLOW
 
-    @staticmethod
-    @callback
-    def async_get_options_flow(config_entry: ConfigEntry):
-        """Get the options flow for this handler."""
-        return LoxoneOptionsFlowHandler()
-
-    async def async_step_user(self, user_input=None):
-        """Handle a flow initialized by the user."""
-        current_entries = self._async_current_entries()
-        if current_entries:
-            return self.async_abort(reason="single_instance_allowed")
-
-        if user_input is None:
-            return self.async_show_form(step_id="user", data_schema=LOXONE_SCHEMA)
-
-        return self.async_create_entry(title="PyLoxone", data={}, options=user_input)
-
-    async def async_step_import(self, import_config):
-        return await self.async_step_user(user_input=import_config)
-
-
-class LoxoneOptionsFlowHandler(OptionsFlow):
-    """Handle Loxone options."""
-
-    async def async_step_init(self, user_input=None):
-        """Manage the options."""
-        errors = {}
-
-        if user_input is not None:
-            res = self.async_create_entry(title="Pyloxone", data=user_input)
-            return res
-
-        user = self.config_entry.options.get(CONF_USERNAME, "")
-        password = self.config_entry.options.get(CONF_PASSWORD, "")
-        host = self.config_entry.options.get(CONF_HOST, "")
-        port = self.config_entry.options.get(CONF_PORT, 80)
-        gen_scenes = self.config_entry.options.get(CONF_SCENE_GEN, True)
-        gen_scene_delay = self.config_entry.options.get(
-            CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE
-        )
-        gen_subcontrols = self.config_entry.options.get(
-            CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, False
-        )
-
-        options = OrderedDict()
-
-        options[vol.Required(CONF_USERNAME, default=user)] = str
-        options[vol.Required(CONF_PASSWORD, default=password)] = str
-        options[vol.Required(CONF_HOST, default=host)] = str
-        options[vol.Required(CONF_PORT, default=port)] = int
-        options[vol.Required(CONF_SCENE_GEN, default=gen_scenes)] = bool
-        options[vol.Required(CONF_SCENE_GEN_DELAY, default=gen_scene_delay)] = int
-        options[
-            vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=gen_subcontrols)
-        ] = bool
-
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(options),
-            errors=errors,
-        )
+    def async_config_entry_title(self, options: Mapping[str, Any]) -> str:
+        """Return config entry title."""
+        host = options.get(CONF_HOST, "Loxone")
+        return f"PyLoxone ({host})"
