@@ -11,24 +11,18 @@ import voluptuous as vol
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME)
 from homeassistant.helpers.schema_config_entry_flow import (
-    SchemaCommonFlowHandler,
-    SchemaConfigFlowHandler,
-    SchemaFlowError,
-    SchemaFlowFormStep,
-)
-from homeassistant.helpers.selector import (
-    BooleanSelector,
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-    TextSelector,
-    TextSelectorConfig,
-    TextSelectorType,
-)
+    SchemaCommonFlowHandler, SchemaConfigFlowHandler, SchemaFlowError,
+    SchemaFlowFormStep)
+from homeassistant.helpers.selector import (BooleanSelector, NumberSelector,
+                                            NumberSelectorConfig,
+                                            NumberSelectorMode, TextSelector,
+                                            TextSelectorConfig,
+                                            TextSelectorType)
 
 from .const import (CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
                     CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE, DEFAULT_IP,
                     DEFAULT_PORT, DOMAIN)
+
 
 async def validate_loxone_setup(
     handler: SchemaCommonFlowHandler, user_input: dict[str, Any]
@@ -39,14 +33,18 @@ async def validate_loxone_setup(
         if CONF_USERNAME in user_input:
             user_input[CONF_USERNAME].encode("latin-1")
     except UnicodeEncodeError as err:
-        raise SchemaFlowError("Username contains characters that are not latin-1 compatible") from err
+        raise SchemaFlowError(
+            "Username contains characters that are not latin-1 compatible"
+        ) from err
 
     try:
         if CONF_PASSWORD in user_input:
             user_input[CONF_PASSWORD].encode("latin-1")
     except UnicodeEncodeError as err:
-        raise SchemaFlowError("Password contains characters that are not latin-1 compatible") from err
-    
+        raise SchemaFlowError(
+            "Password contains characters that are not latin-1 compatible"
+        ) from err
+
     # Ensure port is stored as int
     if CONF_PORT in user_input:
         user_input[CONF_PORT] = int(user_input[CONF_PORT])
@@ -54,6 +52,7 @@ async def validate_loxone_setup(
         user_input[CONF_SCENE_GEN_DELAY] = int(user_input[CONF_SCENE_GEN_DELAY])
 
     return user_input
+
 
 DATA_SCHEMA_SETUP = vol.Schema(
     {
@@ -73,7 +72,9 @@ DATA_SCHEMA_SETUP = vol.Schema(
         vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=3)
         ),
-        vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): BooleanSelector(),
+        vol.Required(
+            CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False
+        ): BooleanSelector(),
     }
 )
 
@@ -95,7 +96,9 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
         vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=3)
         ),
-        vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): BooleanSelector(),
+        vol.Required(
+            CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False
+        ): BooleanSelector(),
     }
 )
 

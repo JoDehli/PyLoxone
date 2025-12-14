@@ -43,7 +43,8 @@ from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
 from .loxone_http_client import LoxoneAsyncHttpClient
 from .loxone_token import LoxoneToken, LxJsonKeySalt
 from .message import (BaseMessage, BinaryFile, Keepalive, LLResponse,
-                      MessageType, TextMessage, parse_message, parse_header, check_and_decode_if_needed)
+                      MessageType, TextMessage, check_and_decode_if_needed,
+                      parse_header, parse_message)
 from .websocket_protocol import LoxoneClientConnection
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,10 +68,10 @@ class MessageForQueue:
     flag: bool
 
 
-
 class LoxoneBaseConnection:
     _URL_FORMAT = "ws://{url}/ws/rfc6455"
     _SSL_URL_FORMAT = "wss://{url}/ws/rfc6455"
+
     def __init__(
         self,
         host: str,
@@ -443,7 +444,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                 while True:
                     await asyncio.sleep(KEEP_ALIVE_PERIOD)
                     try:
-                        _ = asyncio.create_task(self._send_text_command(CMD_KEEP_ALIVE, encrypted=False))
+                        _ = asyncio.create_task(
+                            self._send_text_command(CMD_KEEP_ALIVE, encrypted=False)
+                        )
                         await asyncio.sleep(0)
                     except Exception as exc:
                         _LOGGER.error(f"Keep-alive message failed: {exc}")
@@ -491,7 +494,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                         )
 
                         try:
-                            _ = asyncio.create_task( self._send_text_command(command, encrypted=False))
+                            _ = asyncio.create_task(
+                                self._send_text_command(command, encrypted=False)
+                            )
                             await asyncio.sleep(0)
                         except Exception as exc:
                             _LOGGER.error(f"Error requesting new key: {exc}")
@@ -611,7 +616,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                     msg = await self._message_queue.get()
                     await asyncio.sleep(0)
                     try:
-                        _ = asyncio.create_task(self._send_text_command(msg.command, encrypted=msg.flag))
+                        _ = asyncio.create_task(
+                            self._send_text_command(msg.command, encrypted=msg.flag)
+                        )
                         await asyncio.sleep(0)
                     except Exception as e:
                         _LOGGER.error(f"Error sending message: {e}")
@@ -660,8 +667,8 @@ class LoxoneConnection(LoxoneBaseConnection):
             _LOGGER.error(f"Message processing task failed: {e}")
             raise
 
-
-    async def _do_start_listening(self,
+    async def _do_start_listening(
+        self,
         callback: Optional[Callable[[Any], Optional[Awaitable[None]]]],
         connection: LoxoneClientConnection,
     ) -> None:
@@ -675,6 +682,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         }
 
         last_header = None
+
         async def _run_callback(msg):
             try:
                 await callback(msg.as_dict())
@@ -1257,7 +1265,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                     if not self._token.token:
                         raise ValueError("Received empty token")
 
-                    await self._message_queue.put(MessageForQueue(f"{CMD_ENABLE_UPDATES}", True))
+                    await self._message_queue.put(
+                        MessageForQueue(f"{CMD_ENABLE_UPDATES}", True)
+                    )
 
                 except KeyError as e:
                     _LOGGER.error(f"Missing key in token response: {e}")
@@ -1277,7 +1287,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                 else:
                     _LOGGER.debug("Got message authwithtoken")
                     try:
-                        await self._message_queue.put(MessageForQueue(f"{CMD_ENABLE_UPDATES}", True))
+                        await self._message_queue.put(
+                            MessageForQueue(f"{CMD_ENABLE_UPDATES}", True)
+                        )
                     except asyncio.TimeoutError:
                         _LOGGER.error("Timeout queueing authwithtoken command")
 

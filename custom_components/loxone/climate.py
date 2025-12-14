@@ -38,7 +38,12 @@ OPMODES = {
     5: HVACMode.HEAT_COOL,
 }
 
-OPMODETOLOXONE = {HVACMode.HEAT_COOL: 3, HVACMode.HEAT: 4, HVACMode.COOL: 5, HVACMode.OFF: -1}
+OPMODETOLOXONE = {
+    HVACMode.HEAT_COOL: 3,
+    HVACMode.HEAT: 4,
+    HVACMode.COOL: 5,
+    HVACMode.OFF: -1,
+}
 
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -427,7 +432,13 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 
         Need to be a subset of HVAC_MODES.
         """
-        return [HVACMode.AUTO, HVACMode.HEAT, HVACMode.HEAT_COOL, HVACMode.COOL, HVACMode.OFF]
+        return [
+            HVACMode.AUTO,
+            HVACMode.HEAT,
+            HVACMode.HEAT_COOL,
+            HVACMode.COOL,
+            HVACMode.OFF,
+        ]
 
     @property
     def temperature_unit(self) -> str:

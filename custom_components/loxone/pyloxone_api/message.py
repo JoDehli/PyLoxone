@@ -5,6 +5,7 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/pyloxone-api
 """
 
+import hashlib
 import json
 import logging
 import math
@@ -13,9 +14,9 @@ import struct
 import time
 import uuid
 from enum import IntEnum
-from typing import Optional, Union
-import hashlib
 from functools import lru_cache
+from typing import Optional, Union
+
 from .exceptions import LoxoneException
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,12 +31,15 @@ class AsyncTimer:
     def __init__(self, label: str, logger: logging.Logger = _LOGGER):
         self.label = label
         self.logger = logger
+
     async def __aenter__(self):
         self._start = time.perf_counter()
         return self
+
     async def __aexit__(self, exc_type, exc, tb):
         elapsed = time.perf_counter() - self._start
         self.logger.debug("%s took %.6f s", self.label, elapsed)
+
 
 class SyncTimer:
     def __init__(self, label: str, logger: logging.Logger = _LOGGER):

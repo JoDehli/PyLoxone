@@ -565,7 +565,9 @@ async def async_setup_entry(hass, config_entry):
                 if device_uuid is None:
                     device_uuid = DEFAULT
 
-                _ = asyncio.create_task(coordinator.api.send_websocket_command(device_uuid, value))
+                _ = asyncio.create_task(
+                    coordinator.api.send_websocket_command(device_uuid, value)
+                )
 
             elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data, dict):
                 value = event.data.get(ATTR_VALUE, DEFAULT)
@@ -577,9 +579,11 @@ async def async_setup_entry(hass, config_entry):
                     value = DEFAULT
                 if device_uuid is None:
                     device_uuid = DEFAULT
-                _ = asyncio.create_task(coordinator.api.send_secured__websocket_command(
-                    device_uuid, value, code
-                ))
+                _ = asyncio.create_task(
+                    coordinator.api.send_secured__websocket_command(
+                        device_uuid, value, code
+                    )
+                )
 
         except Exception as e:
             _LOGGER.error(e)
