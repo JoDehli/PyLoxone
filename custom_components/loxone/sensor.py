@@ -451,9 +451,14 @@ class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
 
     @staticmethod
     def create_DeviceInfo_from_sensor(sensor) -> DeviceInfo:
+        try:
+            # For legacy Meter
+            model =  sensor["details"]["type"].capitalize() + " Meter"
+        except (KeyError, TypeError):
+            model = "Meter"
         return DeviceInfo(
             identifiers={(DOMAIN, sensor["uuidAction"])},
             name=sensor["name"],
             manufacturer="Loxone",
-            model=sensor["details"]["type"].capitalize() + " Meter",
+            model=model,
         )
