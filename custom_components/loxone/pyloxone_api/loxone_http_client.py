@@ -7,7 +7,7 @@ https://github.com/JoDehli/pyloxone-api
 
 import asyncio
 import logging
-import warnings
+import ssl
 
 import aiohttp
 
@@ -28,6 +28,7 @@ class LoxoneAsyncHttpClient:
         password: str,
         scheme: str = "http",
         session: aiohttp.ClientSession = None,
+        verify_ssl: bool = True,
     ):
         # Validate input parameters
         if not url:
@@ -41,6 +42,15 @@ class LoxoneAsyncHttpClient:
 
         # super().__init__()
         if session is None:
+            connector = None
+            if not verify_ssl:
+                ssl_context = ssl.create_default_context()
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+                connector = aiohttp.TCPConnector(ssl=ssl_context)
+
+            self.session = aiohttp.ClientSession(connector=connector)
+            self._own_session = True
             self.session = aiohttp.ClientSession()
             self._own_session = True
         # session.auth = aiohttp.BasicAuth(username, password)

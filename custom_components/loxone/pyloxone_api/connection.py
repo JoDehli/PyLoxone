@@ -746,6 +746,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 password=self.password,
                 scheme=self.scheme,
                 session=session,
+                verify_ssl=False
             )
 
             for attempt in range(RECONNECT_TRIES):
