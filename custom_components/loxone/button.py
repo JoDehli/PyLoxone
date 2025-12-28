@@ -107,12 +107,9 @@ class LoxoneButton(LoxoneEntity, ButtonEntity):
     def extra_state_attributes(self):
         """Return device specific state attributes."""
         return {
-            "uuid": self.uuidAction,
+            **self._attr_extra_state_attributes,
             "state_uuid": self.states["active"],
-            "room": self.room,
-            "category": self.cat,
             "device_type": self.type,
-            "platform": "loxone",
         }
 
     @property

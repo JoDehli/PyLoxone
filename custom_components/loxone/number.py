@@ -125,10 +125,8 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
         Implemented by platform classes.
         """
         return {
-            "uuid": self.uuidAction,
+            **self._attr_extra_state_attributes,
             "state_uuid": self.states["value"],
-            "room": self.room,
-            "category": self.cat,
             "device_type": self.type,
             "platform": "loxone",
         }

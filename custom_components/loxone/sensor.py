@@ -269,10 +269,7 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return device specific state attributes."""
-        return {
-            "uuid": self.uuidAction,
-            "platform": "loxone",
-        }
+        return {**self._attr_extra_state_attributes}
 
 
 class LoxoneKeepAliveSensor(LoxoneEntity, SensorEntity):
@@ -307,9 +304,7 @@ class LoxoneKeepAliveSensor(LoxoneEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return device specific state attributes."""
-        return {
-            "platform": "loxone",
-        }
+        return {**self._attr_extra_state_attributes}
 
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
@@ -364,10 +359,8 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
     def extra_state_attributes(self):
         """Return device specific state attributes."""
         return {
-            "uuid": self.uuidAction,
+            **self._attr_extra_state_attributes,
             "device_type": self.type,
-            "platform": "loxone",
-            "category": self.cat,
         }
 
 
@@ -435,10 +428,8 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
     def extra_state_attributes(self):
         """Return device specific state attributes."""
         return {
-            "uuid": self.uuidAction,
+            **self._attr_extra_state_attributes,
             "device_type": self.type + "_sensor",
-            "platform": "loxone",
-            "category": self.cat,
         }
 
 

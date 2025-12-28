@@ -169,15 +169,12 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
         Implemented by platform classes.
         """
         return {
-            "uuid": self.uuidAction,
-            "room": self.room,
-            "category": self.cat,
+            **self._attr_extra_state_attributes,
             "selected_scene": self.effect,
             "selected_scenes": [
                 self.get_moodname_by_id(id) for id in self._active_moods
             ],
             "device_type": self.type,
-            "platform": "loxone",
             "subcontrols": self._sub_controls,
         }
 
