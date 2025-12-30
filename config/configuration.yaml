@@ -1,0 +1,22 @@
+# https://www.home-assistant.io/integrations/default_config/
+default_config:
+
+# https://www.home-assistant.io/integrations/homeassistant/
+homeassistant:
+  debug: true
+
+# https://www.home-assistant.io/integrations/logger/
+#logger:
+#  default: info
+#  logs:
+#    custom_components.loxone: debug
+
+logger:
+  default: error
+  logs:
+    homeassistant: error
+    homeassistant.core: error
+    homeassistant.helpers: error
+    custom_components.loxone: debug
+    custom_components.loxone.pyloxone_api.connection: debug
+    custom_components.loxone.pyloxone_api.websocket_protocol: error

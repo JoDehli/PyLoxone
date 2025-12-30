@@ -31,5 +31,19 @@ ha_data_folder/
 # Env file for tests
 .env
 
-PyLoxone*
+# artifacts
+.pytest*
+*.egg-info
+*/build/*
+*/dist/*
+
+# misc
+.coverage
+coverage.xml
+.ruff_cache
+
+# Home Assistant configuration
+config/*
+!config/configuration.yaml
+
 tmp*
