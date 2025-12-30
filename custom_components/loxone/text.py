@@ -114,12 +114,9 @@ class LoxoneText(LoxoneEntity, TextEntity):
         Implemented by platform classes.
         """
         return {
-            "uuid": self.uuidAction,
+            **self._attr_extra_state_attributes,
             "state_uuid": self.states["text"],
-            "room": self.room,
-            "category": self.cat,
             "device_type": self.type,
-            "platform": "loxone",
         }
 
     async def async_set_value(self, value: str):

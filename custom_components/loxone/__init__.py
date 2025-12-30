@@ -642,6 +642,18 @@ class LoxoneEntity(Entity):
 
         self.listener = None
 
+        # Initialize base extra state attributes with common Loxone fields
+        self._attr_extra_state_attributes = {
+            "uuid": kwargs.get("uuidAction", ""),
+            "platform": "loxone",
+        }
+
+        # Add optional common attributes from Loxone JSON if they exist
+        if "room" in kwargs and kwargs["room"]:
+            self._attr_extra_state_attributes["room"] = kwargs["room"]
+        if "cat" in kwargs and kwargs["cat"]:
+            self._attr_extra_state_attributes["category"] = kwargs["cat"]
+
     async def async_added_to_hass(self):
         """Subscribe to device events."""
         self.listener = self.hass.bus.async_listen(EVENT, self.event_handler)

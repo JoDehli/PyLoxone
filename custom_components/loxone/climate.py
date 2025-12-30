@@ -174,6 +174,7 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
     def extra_state_attributes(self):
         """Return device specific state attributes."""
         return {
+            **self._attr_extra_state_attributes,
             "mode": self.get_state_value("mode"),
             "override": self.get_state_value("override"),
             "open_window": self.get_state_value("openWindow"),
@@ -369,6 +370,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         Implemented by platform classes.
         """
         return {
+            **self._attr_extra_state_attributes,
             "is_overridden": self.is_overridden,
         }
 
@@ -567,11 +569,8 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         Implemented by platform classes.
         """
         return {
-            "uuid": self.uuidAction,
+            **self._attr_extra_state_attributes,
             "device_type": self.type,
-            "room": self.room,
-            "category": self.cat,
-            "platform": "loxone",
         }
 
     @property

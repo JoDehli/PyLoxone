@@ -217,10 +217,8 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
         Implemented by platform classes.
         """
         return {
-            "uuid": self.uuidAction,
+            **self._attr_extra_state_attributes,
             "device_type": self.type,
-            "category": self.cat,
-            "platform": "loxone",
         }
 
 
@@ -267,11 +265,8 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         Implemented by platform classes.
         """
         device_att = {
-            "uuid": self.uuidAction,
+            **self._attr_extra_state_attributes,
             "device_type": self.type,
-            "platform": "loxone",
-            "room": self.room,
-            "category": self.cat,
         }
         return device_att
 
@@ -530,11 +525,8 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         Implemented by platform classes.
         """
         device_att = {
-            "uuid": self.uuidAction,
+            **self._attr_extra_state_attributes,
             "device_type": self.type,
-            "platform": "loxone",
-            "room": self.room,
-            "category": self.cat,
             "current_position": self.current_cover_position,
             "current_shade_mode": self.shade_postion_as_text,
             "current_position_loxone_style": round(self._position_loxone, 0),

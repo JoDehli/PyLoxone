@@ -40,16 +40,12 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
             )
 
         state_attributes = {
-            "uuid": self.uuidAction,
-            "room": self.room,
-            "category": self.cat,
             "device_type": self.type,
-            "platform": "loxone",
         }
         if self._light_controller_name:
             state_attributes.update({"light_controller": self._light_controller_name})
 
-        self._attr_extra_state_attributes = state_attributes
+        self._attr_extra_state_attributes.update(state_attributes)
 
     @cached_property
     def unique_id(self) -> str:

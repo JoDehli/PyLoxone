@@ -159,11 +159,8 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
         Implemented by platform classes.
         """
         state_dict = {
-            "uuid": self.uuidAction,
-            "room": self.room,
-            "category": self.cat,
+            **self._attr_extra_state_attributes,
             "device_type": self.type,
-            "platform": "loxone",
         }
 
         if self._state == 0.0:
