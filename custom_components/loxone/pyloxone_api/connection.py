@@ -460,13 +460,18 @@ class LoxoneConnection(LoxoneBaseConnection):
                 while True:
                     await asyncio.sleep(KEEP_ALIVE_PERIOD)
                     try:
-                        _ = asyncio.create_task(
+                        keep_alive_task = asyncio.create_task(
                             self._send_text_command(CMD_KEEP_ALIVE, encrypted=False)
                         )
+                        await keep_alive_task
                         await asyncio.sleep(0)
+                    except LoxoneConnectionClosedOk:
+                        raise  # Re-raise to trigger
                     except Exception as exc:
                         _LOGGER.error(f"Keep-alive message failed: {exc}")
                         raise
+            except LoxoneConnectionClosedOk:
+                raise
             except asyncio.CancelledError:
                 _LOGGER.debug("Keep-alive task cancelled")
                 raise
@@ -632,13 +637,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                     msg = await self._message_queue.get()
                     await asyncio.sleep(0)
                     try:
-                        task = asyncio.create_task(
+                        _ = asyncio.create_task(
                             self._send_text_command(msg.command, encrypted=msg.flag)
                         )
-                        await task
                         await asyncio.sleep(0)
-                    except LoxoneConnectionClosedOk:
-                        raise  # Re-raise to trigger reconnection
                     except Exception as e:
                         _LOGGER.error(f"Error sending message: {e}")
                     finally:
@@ -649,14 +651,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                     continue
                 except asyncio.CancelledError:
                     raise
-                except LoxoneConnectionClosedOk:
-                    raise
                 except Exception as e:
                     _LOGGER.error(f"Error in message processing loop: {e}")
                     await asyncio.sleep(0.1)  # Avoid tight loop on errors
-
-        except LoxoneConnectionClosedOk:
-            raise
 
         except asyncio.CancelledError:
             _LOGGER.debug(
