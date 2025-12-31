@@ -444,7 +444,7 @@ class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
     def create_DeviceInfo_from_sensor(sensor) -> DeviceInfo:
         try:
             # For legacy Meter
-            model =  sensor["details"]["type"].capitalize() + " Meter"
+            model = sensor["details"]["type"].capitalize() + " Meter"
         except (KeyError, TypeError):
             model = "Meter"
         return DeviceInfo(

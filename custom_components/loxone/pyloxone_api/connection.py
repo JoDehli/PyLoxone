@@ -197,6 +197,15 @@ class LoxoneBaseConnection:
         self._secured_queue: asyncio.Queue = asyncio.Queue(maxsize=1)
         self.message_header = None
 
+    @property
+    def is_connected(self) -> bool:
+        """Check if the websocket connection is open."""
+        return (
+            self.connection is not None
+            and hasattr(self.connection, "protocol")
+            and self.connection.protocol.state.name == "OPEN"
+        )
+
     def get_token_dict(self) -> dict:
         try:
             return {
@@ -245,9 +254,16 @@ class LoxoneBaseConnection:
             enc_cipher = urllib.parse.quote(cipher.decode())
             command = f"jdev/sys/enc/{enc_cipher}"
         try:
+            # Check if connection is open before sending
+            if not self.connection or not self.is_connected:
+                _LOGGER.warning("Cannot send command - connection is not open")
             await self.connection.send([command])
+        except websockets.ConnectionClosedOK:
+            raise LoxoneConnectionClosedOk(
+                "Connection closed normally while sending command"
+            )
         except Exception as e:
-            _LOGGER.error("Error while sending...")
+            _LOGGER.error("Error while sending...", e)
             raise e
 
     def _decrypt(self, command: str) -> bytes:
@@ -616,24 +632,31 @@ class LoxoneConnection(LoxoneBaseConnection):
                     msg = await self._message_queue.get()
                     await asyncio.sleep(0)
                     try:
-                        _ = asyncio.create_task(
+                        task = asyncio.create_task(
                             self._send_text_command(msg.command, encrypted=msg.flag)
                         )
+                        await task
                         await asyncio.sleep(0)
+                    except LoxoneConnectionClosedOk:
+                        raise  # Re-raise to trigger reconnection
                     except Exception as e:
                         _LOGGER.error(f"Error sending message: {e}")
                     finally:
                         # Mark task as done for queue.join()
                         self._message_queue.task_done()
-
                 except asyncio.TimeoutError:
                     # Normal timeout, continue to check shutdown event
                     continue
                 except asyncio.CancelledError:
                     raise
+                except LoxoneConnectionClosedOk:
+                    raise
                 except Exception as e:
                     _LOGGER.error(f"Error in message processing loop: {e}")
                     await asyncio.sleep(0.1)  # Avoid tight loop on errors
+
+        except LoxoneConnectionClosedOk:
+            raise
 
         except asyncio.CancelledError:
             _LOGGER.debug(
