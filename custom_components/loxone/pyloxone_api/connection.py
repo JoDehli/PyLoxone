@@ -767,7 +767,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 scheme=self.scheme,
                 session=session,
             )
-
+            api_resp = None
             for attempt in range(RECONNECT_TRIES):
                 try:
                     api_resp = await connector.get(CMD_GET_API_KEY)
@@ -781,11 +781,29 @@ class LoxoneConnection(LoxoneBaseConnection):
                     else:
                         _LOGGER.error("Max tries exceeded. Stopping.")
                         raise
-
+                except TimeoutError as e:
+                    if attempt < RECONNECT_TRIES - 1:
+                        _LOGGER.debug(
+                            f"TimeoutError, try again in {RECONNECT_DELAY} seconds..."
+                        )
+                        await asyncio.sleep(RECONNECT_DELAY)
+                    else:
+                        _LOGGER.error("Max tries exceeded. Stopping.")
+                        raise
+                except ConnectionError as e:
+                    if attempt < RECONNECT_TRIES - 1:
+                        _LOGGER.debug(
+                            f"ConnectionError, try again in {RECONNECT_DELAY} seconds..."
+                        )
+                        await asyncio.sleep(RECONNECT_DELAY)
+                    else:
+                        _LOGGER.error("Max tries exceeded. Stopping.")
+                        raise
             try:
-                data = await asyncio.wait_for(
-                    api_resp.content.read(), timeout=self.timeout or TIMEOUT
-                )
+                if api_resp:
+                    data = await asyncio.wait_for(
+                        api_resp.content.read(), timeout=self.timeout or TIMEOUT
+                    )
             except asyncio.TimeoutError:
                 raise TimeoutError("Timeout reading API key response")
             except Exception as e:
@@ -797,7 +815,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 raise ValueError(f"Invalid API key response format: {e}") from e
 
             # The json returned by the miniserver is invalid. It contains " and '.
-            # We need to normalise it
+            # We need to normalize it
             try:
                 value = json.loads(_value.replace("'", '"'))
             except json.JSONDecodeError as e:
@@ -1057,8 +1075,8 @@ class LoxoneConnection(LoxoneBaseConnection):
         if not device_uuid or not isinstance(device_uuid, str):
             raise ValueError("device_uuid must be a non-empty string")
 
-        if value is None or not isinstance(value, (str, int, float)):
-            raise ValueError("value must be a string, int, or float")
+        #if value is None or not isinstance(value, (str, int, float)):
+        #    raise ValueError("value must be a string, int, or float")
 
         try:
             command = "jdev/sps/io/{}/{}".format(device_uuid, str(value))
