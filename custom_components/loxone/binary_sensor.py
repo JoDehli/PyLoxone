@@ -141,14 +141,18 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
             )
 
         if self._from_loxone_config:
-            self._attr_extra_state_attributes.update({
-                "state_uuid": self._state_uuid,
-                "device_type": self.type,
-            })
+            self._attr_extra_state_attributes.update(
+                {
+                    "state_uuid": self._state_uuid,
+                    "device_type": self.type,
+                }
+            )
         else:
-            self._attr_extra_state_attributes.update({
-                "device_type": self.device_class,
-            })
+            self._attr_extra_state_attributes.update(
+                {
+                    "device_type": self.device_class,
+                }
+            )
 
     @property
     def icon(self):

@@ -197,6 +197,15 @@ class LoxoneBaseConnection:
         self._secured_queue: asyncio.Queue = asyncio.Queue(maxsize=1)
         self.message_header = None
 
+    @property
+    def is_connected(self) -> bool:
+        """Check if the websocket connection is open."""
+        return (
+            self.connection is not None
+            and hasattr(self.connection, "protocol")
+            and self.connection.protocol.state.name == "OPEN"
+        )
+
     def get_token_dict(self) -> dict:
         try:
             return {
@@ -245,9 +254,16 @@ class LoxoneBaseConnection:
             enc_cipher = urllib.parse.quote(cipher.decode())
             command = f"jdev/sys/enc/{enc_cipher}"
         try:
+            # Check if connection is open before sending
+            if not self.connection or not self.is_connected:
+                _LOGGER.warning("Cannot send command - connection is not open")
             await self.connection.send([command])
+        except websockets.ConnectionClosedOK:
+            raise LoxoneConnectionClosedOk(
+                "Connection closed normally while sending command"
+            )
         except Exception as e:
-            _LOGGER.error("Error while sending...")
+            _LOGGER.error("Error while sending...", e)
             raise e
 
     def _decrypt(self, command: str) -> bytes:
@@ -444,13 +460,18 @@ class LoxoneConnection(LoxoneBaseConnection):
                 while True:
                     await asyncio.sleep(KEEP_ALIVE_PERIOD)
                     try:
-                        _ = asyncio.create_task(
+                        keep_alive_task = asyncio.create_task(
                             self._send_text_command(CMD_KEEP_ALIVE, encrypted=False)
                         )
+                        await keep_alive_task
                         await asyncio.sleep(0)
+                    except LoxoneConnectionClosedOk:
+                        raise  # Re-raise to trigger
                     except Exception as exc:
                         _LOGGER.error(f"Keep-alive message failed: {exc}")
                         raise
+            except LoxoneConnectionClosedOk:
+                raise
             except asyncio.CancelledError:
                 _LOGGER.debug("Keep-alive task cancelled")
                 raise
@@ -625,7 +646,6 @@ class LoxoneConnection(LoxoneBaseConnection):
                     finally:
                         # Mark task as done for queue.join()
                         self._message_queue.task_done()
-
                 except asyncio.TimeoutError:
                     # Normal timeout, continue to check shutdown event
                     continue
@@ -747,7 +767,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 scheme=self.scheme,
                 session=session,
             )
-
+            api_resp = None
             for attempt in range(RECONNECT_TRIES):
                 try:
                     api_resp = await connector.get(CMD_GET_API_KEY)
@@ -761,11 +781,29 @@ class LoxoneConnection(LoxoneBaseConnection):
                     else:
                         _LOGGER.exception("Max connection tries exceeded. Stopping.")
                         raise
-
+                except TimeoutError as e:
+                    if attempt < RECONNECT_TRIES - 1:
+                        _LOGGER.debug(
+                            f"TimeoutError, try again in {RECONNECT_DELAY} seconds..."
+                        )
+                        await asyncio.sleep(RECONNECT_DELAY)
+                    else:
+                        _LOGGER.error("Max tries exceeded. Stopping.")
+                        raise
+                except ConnectionError as e:
+                    if attempt < RECONNECT_TRIES - 1:
+                        _LOGGER.debug(
+                            f"ConnectionError, try again in {RECONNECT_DELAY} seconds..."
+                        )
+                        await asyncio.sleep(RECONNECT_DELAY)
+                    else:
+                        _LOGGER.error("Max tries exceeded. Stopping.")
+                        raise
             try:
-                data = await asyncio.wait_for(
-                    api_resp.content.read(), timeout=self.timeout or TIMEOUT
-                )
+                if api_resp:
+                    data = await asyncio.wait_for(
+                        api_resp.content.read(), timeout=self.timeout or TIMEOUT
+                    )
             except asyncio.TimeoutError:
                 raise TimeoutError("Timeout reading API key response")
             except Exception as e:
@@ -777,7 +815,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 raise ValueError(f"Invalid API key response format: {e}") from e
 
             # The json returned by the miniserver is invalid. It contains " and '.
-            # We need to normalise it
+            # We need to normalize it
             try:
                 value = json.loads(_value.replace("'", '"'))
             except json.JSONDecodeError as e:
@@ -1037,8 +1075,8 @@ class LoxoneConnection(LoxoneBaseConnection):
         if not device_uuid or not isinstance(device_uuid, str):
             raise ValueError("device_uuid must be a non-empty string")
 
-        if value is None or not isinstance(value, (str, int, float)):
-            raise ValueError("value must be a string, int, or float")
+        #if value is None or not isinstance(value, (str, int, float)):
+        #    raise ValueError("value must be a string, int, or float")
 
         try:
             command = "jdev/sps/io/{}/{}".format(device_uuid, str(value))
