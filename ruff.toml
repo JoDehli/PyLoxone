@@ -1,6 +1,7 @@
 # The contents of this file is based on https://github.com/home-assistant/core/blob/dev/pyproject.toml
 
 target-version = "py313"
+line-length = 120
 
 [lint]
 select = [
@@ -14,6 +15,7 @@ ignore = [
     "COM812", # incompatible with formatter
     "ISC001", # incompatible with formatter
     "ANN201", # missing-return-type-undocumented-public-function
+    "I001", # Import block is un-sorted or un-formatted
 ]
 
 [lint.flake8-pytest-style]

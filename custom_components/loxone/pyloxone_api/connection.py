@@ -14,8 +14,8 @@ import urllib
 from base64 import b64decode, b64encode
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import (Any, Awaitable, Callable, Dict, List, NoReturn, Optional,
-                    Union)
+from typing import (Any, NoReturn, Optional, Union)
+from collections.abc import Awaitable, Callable
 from urllib.parse import urlparse
 
 import websockets as wslib
@@ -142,9 +142,9 @@ class LoxoneBaseConnection:
         self._public_key: str = ""
         self._session_key: str = ""
 
-        self.miniserver_version: List[int] = []
+        self.miniserver_version: list[int] = []
         self.miniserver_serial: str = ""
-        self.structure_file: Dict = {}
+        self.structure_file: dict = {}
 
         # Validate and initialize token
         try:
@@ -772,14 +772,14 @@ class LoxoneConnection(LoxoneBaseConnection):
                 try:
                     api_resp = await connector.get(CMD_GET_API_KEY)
                     break  # connection successful
-                except LoxoneServiceUnAvailableError as e:
+                except (LoxoneServiceUnAvailableError, ConnectionError, OSError, TimeoutError) as e:
                     if attempt < RECONNECT_TRIES - 1:
                         _LOGGER.debug(
-                            f"LoxoneServiceUnAvailableError, try again in {RECONNECT_DELAY} seconds..."
+                            f"Connection error (attempt {attempt + 1}/{RECONNECT_TRIES}), retrying in {RECONNECT_DELAY} seconds: {e}"
                         )
                         await asyncio.sleep(RECONNECT_DELAY)
                     else:
-                        _LOGGER.error("Max tries exceeded. Stopping.")
+                        _LOGGER.exception("Max connection tries exceeded. Stopping.")
                         raise
                 except TimeoutError as e:
                     if attempt < RECONNECT_TRIES - 1:
@@ -1125,7 +1125,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             _LOGGER.error(f"Failed to send secured websocket command: {e}")
             raise
 
-    async def _websocket_event(self, message: Dict[str, Any] | BaseMessage) -> None:
+    async def _websocket_event(self, message: dict[str, Any] | BaseMessage) -> None:
         """Handle websocket event."""
         if message is None:
             _LOGGER.warning("Received None message")
