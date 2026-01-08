@@ -100,7 +100,7 @@ Websocket direct commands enable you to, for example, send data captured by devi
 
 ## Some examples
 
-### Using a TextInput to controle a block's API Connector
+### Using a TextInput to control a block's API Connector
 
 The TextInput Virtual Input in the Miniserver enables some neat advanced applications.  
 The Audioserver for example, has limited API-support. If you want to switch presets from Home Assistant, this is not possible using the traditional Audio Player API interface.
