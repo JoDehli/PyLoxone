@@ -10,8 +10,7 @@ import json
 from abc import ABC
 
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
-from homeassistant.components.climate.const import (ClimateEntityFeature,
-                                                    HVACAction, HVACMode)
+from homeassistant.components.climate.const import ClimateEntityFeature, HVACAction, HVACMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
@@ -20,9 +19,8 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
-from .const import CONF_HVAC_AUTO_MODE, SENDDOMAIN
-from .helpers import (add_room_and_cat_to_value_values, get_all,
-                      get_or_create_device)
+from .const import CLIMATE_EVENT, CONF_HVAC_AUTO_MODE, SENDDOMAIN
+from .helpers import add_room_and_cat_to_value_values, get_all, get_or_create_device
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -129,9 +127,7 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
 
         # Set supported features
         self._attr_supported_features = (
-            ClimateEntityFeature.TARGET_TEMPERATURE
-            | ClimateEntityFeature.TURN_OFF
-            | ClimateEntityFeature.TURN_ON
+            ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON
         )
 
         # Flatten UUID values - some might be lists (e.g., "temperatures")
@@ -142,9 +138,7 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
             else:
                 self._all_uuids.add(value)
 
-        self._attr_device_info = get_or_create_device(
-            self.unique_id, self.name, self.type, self.room
-        )
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
 
     async def event_handler(self, event):
         update = False
@@ -320,13 +314,6 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
 class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller"""
 
-    attr_supported_features = (
-        ClimateEntityFeature.PRESET_MODE
-        | ClimateEntityFeature.TARGET_TEMPERATURE
-        | ClimateEntityFeature.TURN_OFF
-        | ClimateEntityFeature.TURN_ON
-    )
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.hass = kwargs["hass"]
@@ -335,10 +322,33 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         self._stateAttribValues = {}
         self.type = "RoomControllerV2"
         self._modeList = kwargs["details"]["timerModes"]
+        self._modeList.append({"id": "stop", "name": "Schedule"})
+        self._demand = 0
+        possible_capabilities = int(self.details["possibleCapabilities"])
+        heat_possible = possible_capabilities & 1
+        cool_possible = possible_capabilities & 2
+        self._range_possible = heat_possible and cool_possible
 
-        self._attr_device_info = get_or_create_device(
-            self.unique_id, self.name, self.type, self.room
-        )
+        self.hass.bus.async_listen(CLIMATE_EVENT, self.climate_handler)
+
+        self._attr_device_info = get_or_create_device(self.unique_id, self.name, self.type, self.room)
+
+    @property
+    def supported_features(self):
+        _features = ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.PRESET_MODE
+        mode = self.get_state_value("operatingMode")
+        if mode is not None and mode > -1:
+            _features |= (
+                ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+                if self._range_possible and mode and mode in {0, 3}  # 0 = Auto Heat/Cool, 3 = Manual Heat/Cool
+                else ClimateEntityFeature.TARGET_TEMPERATURE
+            )
+        return _features
+
+    def climate_handler(self, event):
+        if event.data["uuid"] == self.uuidAction and self._demand != event.data["value"]:
+            self._demand = event.data["value"]
+            self.schedule_update_ha_state()
 
     def get_mode_from_id(self, mode_id):
         for mode in self._modeList:
@@ -356,13 +366,9 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         if update:
             self.schedule_update_ha_state()
 
-        # _LOGGER.debug(f"State attribs after event handling: {self._stateAttribValues}")
-
-    def get_state_value(self, name):
-        uuid = self._stateAttribUuids[name]
-        return (
-            self._stateAttribValues[uuid] if uuid in self._stateAttribValues else None
-        )
+    def get_state_value(self, name, default=None):
+        uuid = self._stateAttribUuids.get(name, None)
+        return self._stateAttribValues.get(uuid, default) if uuid is not None else default
 
     @property
     def extra_state_attributes(self):
@@ -373,17 +379,14 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return {
             **self._attr_extra_state_attributes,
             "is_overridden": self.is_overridden,
+            "demand": self._demand,
         }
 
     @property
     def is_overridden(self) -> bool:
-        # Needed because loxone uses these variables names. Simply workaround define it also here.
-        true = True
-        false = False
-        null = None
         _override_entries = self.get_state_value("overrideEntries")
         if _override_entries:
-            _override_entries = eval(_override_entries)
+            _override_entries = json.loads(_override_entries)
             if isinstance(_override_entries, list) and len(_override_entries) > 0:
                 return True
         return False
@@ -395,31 +398,68 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 
     def set_temperature(self, **kwargs):
         """Set new target temperature"""
-        if (
-            self.get_state_value("operatingMode") > 2
-        ):  # Set manual temp if any of the manual modes selected
-            self.hass.bus.fire(
-                SENDDOMAIN,
-                dict(
-                    uuid=self.uuidAction,
-                    value=f'setManualTemperature/{kwargs["temperature"]}',
-                ),
-            )
+        update = False
+        op_mode = self.get_state_value("operatingMode", -1)
+        if op_mode in {0, 3} and self._range_possible:
+            target_temp_high = kwargs.get("target_temp_high")
+            target_temp_low = kwargs.get("target_temp_low")
+            if target_temp_low:
+                comfort_temperature = self.get_state_value("comfortTemperature")
+                if comfort_temperature != target_temp_low:
+                    self.hass.bus.fire(
+                        SENDDOMAIN,
+                        dict(
+                            uuid=self.uuidAction,
+                            value=f"setComfortTemperature/{target_temp_low}",
+                        ),
+                    )
+                    update = True
+            if target_temp_high:
+                comfort_temperature_cool = self.get_state_value("comfortTemperatureCool")
+                if comfort_temperature_cool != target_temp_high:
+                    self.hass.bus.fire(
+                        SENDDOMAIN,
+                        dict(
+                            uuid=self.uuidAction,
+                            value=f"setComfortTemperatureCool/{target_temp_high}",
+                        ),
+                    )
+                    update = True
+        elif op_mode > 2 and not self.is_overridden:  # Set manual temp if any of the manual modes selected
+            manual_temperature = self.get_state_value("tempTarget")
+            if manual_temperature != kwargs["temperature"]:
+                self.hass.bus.fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self.uuidAction,
+                        value=f"setManualTemperature/{kwargs['temperature']}",
+                    ),
+                )
+                update = True
         else:  # Set comfort temp offset otherwise
-            new_offset = kwargs["temperature"] - self.get_state_value(
-                "comfortTemperature"
-            )
-            self.hass.bus.fire(
-                SENDDOMAIN,
-                dict(uuid=self.uuidAction, value=f"setComfortModeTemp/{new_offset}"),
-            )
+            current_offset = self.get_state_value("comfortTemperatureOffset")
+            new_offset = kwargs["temperature"] - self.get_state_value("comfortTemperature")
+            if current_offset != new_offset:
+                self.hass.bus.fire(
+                    SENDDOMAIN,
+                    dict(uuid=self.uuidAction, value=f"setComfortModeTemp/{new_offset}"),
+                )
+                update = True
+
+        if update:
+            self.schedule_update_ha_state()
 
     @property
     def hvac_action(self) -> HVACAction | None:
         """Return the current HVAC action (heating, cooling)."""
-        if self.get_state_value("prepareState") == 1:
+        prepare_state = self.get_state_value("prepareState")
+        if prepare_state == 1:
             return HVACAction.PREHEATING
-        return None  # return none due to unknown other state (HVACAction.IDLE, HVACAction.COOLING, HVACAction.HEATING)
+        if prepare_state == -1 or self._demand == -1:
+            return HVACAction.COOLING
+        if self._demand == 1:
+            return HVACAction.HEATING
+        return None
 
     @property
     def hvac_mode(self) -> HVACMode | None:
@@ -435,13 +475,15 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 
         Need to be a subset of HVAC_MODES.
         """
-        return [
-            HVACMode.AUTO,
-            HVACMode.HEAT,
-            HVACMode.HEAT_COOL,
-            HVACMode.COOL,
-            HVACMode.OFF,
-        ]
+        modes = [HVACMode.AUTO, HVACMode.OFF]
+        capabilities = self.get_state_value("capabilities")
+        if capabilities is not None:
+            capabilities = int(capabilities)
+            if capabilities & 1:
+                modes.append(HVACMode.HEAT)
+            if capabilities & 2:
+                modes.append(HVACMode.COOL)
+        return modes
 
     @property
     def temperature_unit(self) -> str:
@@ -480,7 +522,6 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 
         Requires SUPPORT_PRESET_MODE.
         """
-        # return self._activeMode
         return self.get_mode_from_id(self.get_state_value("activeMode"))
 
     @property
@@ -489,14 +530,14 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 
         Requires SUPPORT_PRESET_MODE.
         """
-        return [mode["name"] for mode in self._modeList]
+        if self.hvac_mode == HVACMode.AUTO or self.is_overridden:
+            return [mode["name"] for mode in self._modeList]
+        return [mode["name"] for mode in self._modeList if mode["id"] != "stop"]
 
     def set_hvac_mode(self, hvac_mode: str):
         """Set new target hvac mode."""
 
-        target_mode = (
-            self._autoMode if hvac_mode == HVACMode.AUTO else OPMODETOLOXONE[hvac_mode]
-        )
+        target_mode = self._autoMode if hvac_mode == HVACMode.AUTO else OPMODETOLOXONE[hvac_mode]
 
         self.hass.bus.fire(
             SENDDOMAIN,
@@ -506,19 +547,19 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         self.schedule_update_ha_state()
 
         # if the mode selected is a manual one, we set the target temperature too
-        # if (hvac_mode != HVAC_MODE_AUTO):
-        #    self.set_temperature({"temperature": self.target_temperature})
+        # if hvac_mode != HVACMode.AUTO:
+        #     self.set_temperature(temperature=self.get_state_value("comfortTemperature"))
 
     def set_preset_mode(self, preset_mode: str):
         """Set new preset mode."""
-        mode_id = next(
-            (mode["id"] for mode in self._modeList if mode["name"] == preset_mode), None
-        )
+        mode_id = next((mode["id"] for mode in self._modeList if mode["name"] == preset_mode), None)
         if mode_id is not None:
-            self.hass.bus.fire(
-                SENDDOMAIN, dict(uuid=self.uuidAction, value=f"override/{mode_id}")
-            )
-            self.schedule_update_ha_state()
+            if mode_id == "stop":
+                self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f"stopOverride"))
+                self.schedule_update_ha_state()
+            else:
+                self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=f"override/{mode_id}"))
+                self.schedule_update_ha_state()
 
 
 # ------------------ AC CONTROL --------------------------------------------------------
