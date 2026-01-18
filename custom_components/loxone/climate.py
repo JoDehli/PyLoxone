@@ -320,7 +320,7 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
 class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller"""
 
-    attr_supported_features = (
+    _attr_supported_features = (
         ClimateEntityFeature.PRESET_MODE
         | ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.TURN_OFF
