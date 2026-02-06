@@ -43,7 +43,7 @@
     },
     "event_websocket_command": {
       "name": "Send Websocket command",
-      "description": "Send websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/",
+      "description": "Send websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands can be found on the Loxone Website",
       "fields": {
         "uuid": {
           "name": "UUID",
@@ -61,7 +61,7 @@
     },
     "event_secured_websocket_command": {
       "name": "Send secured websocket command",
-      "description": "Send websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands https://www.loxone.com/dede/kb/api/",
+      "description": "Send websocket commands to the loxone server. You can send a command to the Miniserver using an entity or using a UUID. If you specify both, the command will be sent to the Entity. More info and commands can be found on the Loxone Website",
       "fields": {
         "uuid": {
           "name": "UUID",
