@@ -1,14 +1,15 @@
 from collections import OrderedDict
 from functools import cached_property
 
-from homeassistant.components.light import (ATTR_EFFECT, ColorMode,
-                                            LightEntity, LightEntityFeature)
+from homeassistant.components.light import (ATTR_BRIGHTNESS, ATTR_EFFECT,
+                                            ColorMode, LightEntity,
+                                            LightEntityFeature)
 from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers.entity import DeviceInfo
 
 from .. import LoxoneEntity
 from ..const import DOMAIN, SENDDOMAIN, STATE_OFF
-from ..helpers import get_or_create_device
+from ..helpers import get_or_create_device, hass_to_lox, lox2hass_mapped, lox_to_hass
 
 
 class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
@@ -24,6 +25,14 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
         self._active_moods = []
         self._moodlist = []
         self._additional_moodlist = []
+        self._attr_brightness = None
+        self._master_value = None
+        self._master_value_uuid = None
+        self._master_position_uuid = None
+        self._master_min_uuid = None
+        self._master_max_uuid = None
+        self._master_min = STATE_UNKNOWN
+        self._master_max = STATE_UNKNOWN
         self._async_add_devices = kwargs["async_add_devices"]
 
         self.kwargs = kwargs
@@ -35,6 +44,18 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
                 "name": control["name"],
                 "type": control["type"],
             }
+            if "masterValue" in uuid and control.get("type") in ["Dimmer", "EIBDimmer"]:
+                self._master_value = control
+
+        if self._master_value:
+            self._master_value_uuid = self._master_value.get("uuidAction")
+            self._master_position_uuid = self._master_value.get("states", {}).get(
+                "position"
+            )
+            self._master_min_uuid = self._master_value.get("states", {}).get("min")
+            self._master_max_uuid = self._master_value.get("states", {}).get("max")
+            self._attr_color_mode = ColorMode.BRIGHTNESS
+            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
 
         self.type = "LightControllerV2"
         self._attr_device_info = get_or_create_device(
@@ -114,6 +135,14 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
     async def async_turn_on(self, **kwargs) -> None:
         if ATTR_EFFECT in kwargs:
             await self.got_effect(**kwargs)
+        elif ATTR_BRIGHTNESS in kwargs and self._master_value_uuid:
+            self.hass.bus.async_fire(
+                SENDDOMAIN,
+                dict(
+                    uuid=self._master_value_uuid,
+                    value=round(hass_to_lox(kwargs[ATTR_BRIGHTNESS])),
+                ),
+            )
         elif kwargs == {}:
             if self.state == STATE_OFF:
                 self.hass.bus.async_fire(
@@ -132,6 +161,32 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
 
         if self.uuidAction in event.data:
             self._state = event.data[self.uuidAction]
+            request_update = True
+
+        if self._master_min_uuid and self._master_min_uuid in event.data:
+            self._master_min = event.data[self._master_min_uuid]
+            request_update = True
+
+        if self._master_max_uuid and self._master_max_uuid in event.data:
+            self._master_max = event.data[self._master_max_uuid]
+            request_update = True
+
+        if self._master_position_uuid and self._master_position_uuid in event.data:
+            if (
+                self._master_min is not None
+                and self._master_max is not None
+                and self._master_min != "unknown"
+                and self._master_max != "unknown"
+            ):
+                self._attr_brightness = lox2hass_mapped(
+                    event.data[self._master_position_uuid],
+                    self._master_min,
+                    self._master_max,
+                )
+            else:
+                self._attr_brightness = lox_to_hass(
+                    event.data[self._master_position_uuid]
+                )
             request_update = True
 
         if self.states["activeMoods"] in event.data:
