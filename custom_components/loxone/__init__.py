@@ -556,6 +556,7 @@ async def async_setup_entry(hass, config_entry):
         hass.config_entries.async_update_entry(
             config_entry,
             data={
+                **config_entry.data,  # preserve existing data
                 "token": token["token"],
                 "hash_alg": token["hash_alg"],
                 "valid_until": token["valid_until"],
@@ -607,8 +608,8 @@ async def async_setup_entry(hass, config_entry):
     hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
     hass.services.async_register(DOMAIN, "reload", handle_reload)
 
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event),
-    hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered),
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event)
+    hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
 
     # Store listeners for cleanup
     coordinator.listeners = [

@@ -11,6 +11,7 @@ import json
 import logging
 import time
 import urllib
+from asyncio import Event
 from base64 import b64decode, b64encode
 from dataclasses import dataclass, field
 from types import TracebackType
@@ -109,6 +110,7 @@ class LoxoneBaseConnection:
         self._closed = False
         self._key_update_event: Optional[asyncio.Event] = None
         self._shutdown_event = asyncio.Event()
+        self._reconnect_event: asyncio.Event = asyncio.Event()
 
         # Parse the server input to extract scheme if present
         try:
@@ -570,12 +572,42 @@ class LoxoneConnection(LoxoneBaseConnection):
             _LOGGER.error(f"Failed to send key exchange: {e}")
             raise
 
+        async def reconnect_task() -> None:
+            try:
+                while True:
+                    # Create explicit tasks for the event waits (coroutines are not allowed)
+                    t_shutdown = asyncio.create_task(self._shutdown_event.wait())
+                    t_reconnect = asyncio.create_task(self._reconnect_event.wait())
+
+                    try:
+                        _done, _pending = await asyncio.wait(
+                            {t_shutdown, t_reconnect}, return_when=asyncio.FIRST_COMPLETED
+                        )
+                    finally:
+                        # Ensure any still-pending tasks are canceled to avoid leaks
+                        for p in (t_shutdown, t_reconnect):
+                            if not p.done():
+                                p.cancel()
+
+                    # Shutdown requested -> exit cleanly
+                    if self._shutdown_event.is_set():
+                        return
+
+                    # Reconnect requested -> clear event and raise to break listening
+                    if self._reconnect_event.is_set():
+                        self._reconnect_event.clear()
+                        raise LoxoneTokenError
+            except asyncio.CancelledError:
+                # Task was canceled during shutdown
+                raise
+
         # noinspection PyUnreachableCode
         self._pending_task = [
             asyncio.create_task(self._do_start_listening(callback, self.connection)),
             asyncio.create_task(self._process_message()),
             asyncio.create_task(keep_alive()),
             asyncio.create_task(check_refresh_token()),
+            asyncio.create_task(reconnect_task()),
         ]
 
         try:
@@ -1321,7 +1353,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 if mess_obj.code == 401:
                     _LOGGER.error("Token authentication failed (401)")
                     self.reset_token()
-                    raise LoxoneTokenError from None
+                    self._reconnect_event.set()
                 else:
                     _LOGGER.debug("Got message authwithtoken")
                     try:
