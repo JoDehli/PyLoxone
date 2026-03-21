@@ -3,6 +3,12 @@
     "abort": {
       "single_instance_allowed": "Bereits konfiguriert"
     },
+    "error": {
+      "invalid_auth": "Ung\u00fcltiger Benutzername oder Passwort",
+      "cannot_connect": "Verbindung zum Loxone Miniserver nicht m\u00f6glich",
+      "invalid_input": "Benutzername oder Passwort enth\u00e4lt nicht unterst\u00fctzte Zeichen",
+      "unknown": "Unerwarteter Fehler aufgetreten"
+    },
     "step": {
       "user": {
         "title": "Loxone",
@@ -13,15 +19,29 @@
           "host": "Miniserver Ip",
           "password": "Password",
           "generate_scenes": "Scenen generieren",
-          "generate_lightcontroller_subcontrols": "Subcontrols für LightcontrollerV2 erzeugen",
-          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+          "generate_lightcontroller_subcontrols": "Subcontrols f\u00fcr LightcontrollerV2 erzeugen",
+          "generate_scenes_delay": "Verz\u00f6gerung beim erstellen der Scenen (wenn aktiviert)"
         }
+      },
+      "device_class_mapping": {
+        "title": "Sensor-Ger\u00e4teklassen-Zuordnung",
+        "description": "Weisen Sie mehrdeutigen Sensoren Ger\u00e4teklassen zu. Sensoren mit eindeutigen Einheiten (\u00b0C, ppm usw.) werden automatisch erkannt."
       }
     }
   },
   "options": {
+    "abort": {
+      "no_coordinator": "Miniserver nicht verbunden. Bitte laden Sie die Integration zuerst neu.",
+      "no_mappable_sensors": "Keine Sensoren mit mehrdeutigen Ger\u00e4teklassen gefunden."
+    },
     "step": {
       "init": {
+        "menu_options": {
+          "settings": "Verbindungseinstellungen",
+          "device_class_mapping": "Sensor-Geräteklassen"
+        }
+      },
+      "settings": {
         "data": {
           "username": "Benutzer",
           "port": "Port",
@@ -33,6 +53,10 @@
         },
         "description": "PyLoxone Einstellungen editieren:",
         "title": "PyLoxone Einstellungen"
+      },
+      "device_class_mapping": {
+        "title": "Sensor-Geräteklassen-Zuordnung",
+        "description": "Weisen Sie mehrdeutigen Sensoren Geräteklassen zu. Sensoren mit eindeutigen Einheiten (°C, ppm usw.) werden automatisch erkannt und hier nicht angezeigt."
       }
     }
   },

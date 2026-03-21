@@ -3,6 +3,12 @@
     "abort": {
       "single_instance_allowed": "Already configured. Only a single configuration possible."
     },
+    "error": {
+      "invalid_auth": "Invalid username or password",
+      "cannot_connect": "Cannot connect to Loxone Miniserver",
+      "invalid_input": "Username or password contains unsupported characters",
+      "unknown": "Unexpected error occurred"
+    },
     "step": {
       "user": {
         "title": "Set up Loxone",
@@ -16,12 +22,26 @@
           "generate_lightcontroller_subcontrols": "generate subcontrols for lightcontrollerV2",
           "generate_scenes_delay": "Delay for the scene generation if enabled"
         }
+      },
+      "device_class_mapping": {
+        "title": "Sensor device class mapping",
+        "description": "Assign device classes to ambiguous sensors. Sensors with unambiguous units (\u00b0C, ppm, etc.) are auto-detected."
       }
     }
   },
   "options": {
+    "abort": {
+      "no_coordinator": "Miniserver not connected. Please reload the integration first.",
+      "no_mappable_sensors": "No sensors with ambiguous device classes found."
+    },
     "step": {
       "init": {
+        "menu_options": {
+          "settings": "Connection settings",
+          "device_class_mapping": "Sensor device classes"
+        }
+      },
+      "settings": {
         "data": {
           "username": "User",
           "port": "Port",
@@ -33,6 +53,10 @@
         },
         "description": "PyLoxone edit settings:",
         "title": "PyLoxone settings"
+      },
+      "device_class_mapping": {
+        "title": "Sensor device class mapping",
+        "description": "Assign device classes to ambiguous sensors. Sensors with unambiguous units (°C, ppm, etc.) are auto-detected and not shown here."
       }
     }
   },

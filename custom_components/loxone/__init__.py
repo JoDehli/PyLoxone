@@ -32,7 +32,8 @@ from homeassistant.setup import async_setup_component
 from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     ATTR_UUID, ATTR_VALUE,
                     CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
-                    CONF_SCENE_GEN_DELAY, DEFAULT, DEFAULT_DELAY_SCENE,
+                    CONF_SCENE_GEN_DELAY, CONF_SENSOR_DEVICE_CLASS_MAP,
+                    DEFAULT, DEFAULT_DELAY_SCENE,
                     DEFAULT_PORT, DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT,
                     LOXONE_PLATFORMS, SECUREDSENDDOMAIN, SENDDOMAIN, cfmt)
 from .coordinator import LoxoneCoordinator
@@ -158,6 +159,13 @@ async def async_migrate_entry(hass, config_entry):
         config_entry.options = {**new}
         config_entry.version = 3
         _LOGGER.info("Migration to version %s successful", 3)
+
+    if config_entry.version == 3:
+        new = {**config_entry.options, CONF_SENSOR_DEVICE_CLASS_MAP: {}}
+        config_entry.options = {**new}
+        config_entry.version = 4
+        _LOGGER.info("Migration to version %s successful", 4)
+
     return True
 
 
@@ -619,6 +627,23 @@ async def async_setup_entry(hass, config_entry):
 
     await start_event()
 
+    # Register listener for config entry updates (e.g., device class mapping changes)
+    # Only reload sensor platform if the device class mapping actually changed.
+    last_dc_map = config_entry.options.get(CONF_SENSOR_DEVICE_CLASS_MAP, {})
+
+    async def _on_options_update(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
+        """Reload sensor platform when device class mapping is updated."""
+        nonlocal last_dc_map
+        new_dc_map = entry_arg.options.get(CONF_SENSOR_DEVICE_CLASS_MAP, {})
+        if new_dc_map != last_dc_map:
+            last_dc_map = new_dc_map
+            await hass_arg.config_entries.async_forward_entry_unload(entry_arg, "sensor")
+            await hass_arg.config_entries.async_forward_entry_setups(entry_arg, ["sensor"])
+
+    config_entry.async_on_unload(
+        config_entry.add_update_listener(_on_options_update)
+    )
+
     return True
 
 
@@ -685,14 +710,11 @@ class LoxoneEntity(Entity):
 
     @staticmethod
     def _clean_unit(lox_format):
-        search = re.search(cfmt, lox_format, flags=re.X)
-        if search:
-            unit = lox_format.replace(search.group(0).strip(), "").strip()
-            if unit == "%%":
-                unit = unit.replace("%%", "%")
-            return unit
-        else:
-            return lox_format
+        # TODO: Extracting LoxoneEntity to its own module would allow a direct
+        # import of helpers.clean_unit instead of this lazy-import wrapper,
+        # which exists only to avoid circular imports through __init__.py.
+        from .helpers import clean_unit
+        return clean_unit(lox_format)
 
     @staticmethod
     def _get_format(lox_format):

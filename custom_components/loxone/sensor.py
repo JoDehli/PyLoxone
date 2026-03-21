@@ -31,7 +31,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util
 
 from . import LoxoneEntity
-from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
+from .const import CONF_ACTIONID, CONF_SENSOR_DEVICE_CLASS_MAP, DOMAIN, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
@@ -184,7 +184,11 @@ async def async_setup_entry(
 
     for sensor in get_all(loxconfig, "InfoOnlyAnalog"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-        sensor.update({"type": "analog"})
+        # NOTE: .update() mutates the original lox_config dict in place, changing
+        # type from "InfoOnlyAnalog" to "analog". This is a side effect — LoxoneSensor
+        # ignores this value (hardcodes self.type = "Sensor analog"). Any code reading
+        # lox_config after this point will see "analog" instead of "InfoOnlyAnalog".
+        sensor.update({"type": "analog", "config_entry": config_entry})
         entities.append(LoxoneSensor(**sensor))
 
     for sensor in get_all(loxconfig, "TextInput"):
@@ -381,6 +385,26 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
             precision = self._parse_digits_after_decimal(self.details["format"])
             if precision:
                 self._attr_suggested_display_precision = precision
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+
+        # Apply stored device class override from options flow
+        _config_entry = kwargs.get("config_entry")
+        if _config_entry is not None:
+            dc_map = _config_entry.options.get(CONF_SENSOR_DEVICE_CLASS_MAP, {})
+            _LOGGER.debug(
+                "Sensor %s (uuid=%s): dc_map=%s, entity_desc_dc=%s",
+                self.name, self.uuidAction, dc_map,
+                getattr(getattr(self, 'entity_description', None), 'device_class', 'N/A'),
+            )
+            if self.uuidAction in dc_map:
+                dc_value = dc_map[self.uuidAction]
+                _LOGGER.debug("Sensor %s: applying override dc_value=%r", self.name, dc_value)
+                if dc_value == "none":
+                    self._attr_device_class = None
+                else:
+                    self._attr_device_class = SensorDeviceClass(dc_value)
+        else:
+            _LOGGER.debug("Sensor %s: no config_entry in kwargs", self.name)
 
         _uuid = self.unique_id
         if self._parent_id:
