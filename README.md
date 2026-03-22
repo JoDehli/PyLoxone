@@ -61,7 +61,38 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 
 ## Known Limitations
 
-- Pushbuttons are stateless. They can not be used to reliably trigger automations. Use a Switch as a workaround and turn it off again in the Automation or in Loxone itself. 
+- Pushbuttons are stateless. They can not be used to reliably trigger automations. Use a Switch as a workaround and turn it off again in the Automation or in Loxone itself.
+
+## Sensor Device Class Detection
+
+Sensors (InfoOnlyAnalog, Meter) are automatically classified based on their unit and Loxone category/name. The following device classes are detected:
+
+| Device class | Detected by |
+|---|---|
+| `temperature` | Unit: °C, °F |
+| `humidity` | Unit: % **and** category or name contains "humidity", "vlhkost", "feucht", or "humidité" |
+| `battery` | Unit: % **and** name contains "batt", "akku", or "battery" |
+| `energy` | Unit: kWh, Wh, MWh |
+| `power` | Unit: W, kW |
+| `illuminance` | Unit: lx, Lx, lux |
+| `carbon_dioxide` | Unit: ppm |
+| `wind_speed` | Unit: km/h |
+
+Sensors with `%` unit that don't match any keyword are left without a device class.
+
+### Overriding the detected device class
+
+If the automatic detection assigns the wrong device class (or you want to set one for an unclassified sensor), use Home Assistant's built-in [entity customization](https://www.home-assistant.io/docs/configuration/customizing-devices/) in `configuration.yaml`:
+
+```yaml
+homeassistant:
+  customize:
+    sensor.my_percentage_sensor:
+      device_class: battery
+  customize_glob:
+    sensor.*humidity*:
+      device_class: humidity
+```
 
 ## Log Configuration
 Use the following settings if you paste a log into a issue:
