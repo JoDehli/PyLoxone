@@ -5,7 +5,9 @@ For more details about this component, please refer to the documentation at
 https://home-assistant.io/components/loxone/
 """
 
-from .const import DOMAIN
+import re
+
+from .const import DOMAIN, cfmt
 
 # Initialize a device registry
 device_registry = {}
@@ -131,3 +133,14 @@ def get_all(json_data, name):
             if json_data["controls"][c]["type"] == name:
                 controls.append(json_data["controls"][c])
     return controls
+
+
+def clean_unit(lox_format):
+    """Extract the unit string from a Loxone format specifier like '%.1f °C'."""
+    search = re.search(cfmt, lox_format, flags=re.X)
+    if search:
+        unit = lox_format.replace(search.group(0).strip(), "").strip()
+        if unit == "%%":
+            unit = "%"
+        return unit
+    return lox_format

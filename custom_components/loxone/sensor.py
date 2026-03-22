@@ -7,7 +7,6 @@ https://github.com/JoDehli/PyLoxone
 
 import logging
 import re
-from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
 
@@ -20,9 +19,9 @@ from homeassistant.components.sensor import (CONF_STATE_CLASS, PLATFORM_SCHEMA,
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
                                  CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
-                                 LIGHT_LUX, PERCENTAGE, STATE_UNKNOWN,
-                                 UnitOfEnergy, UnitOfPower, UnitOfSpeed,
-                                 UnitOfTemperature)
+                                 CONCENTRATION_PARTS_PER_MILLION, LIGHT_LUX,
+                                 PERCENTAGE, STATE_UNKNOWN, UnitOfEnergy,
+                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -32,7 +31,7 @@ from homeassistant.util import dt as dt_util
 
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
-from .helpers import (add_room_and_cat_to_value_values, get_all,
+from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
 
@@ -53,101 +52,108 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-@dataclass(frozen=True)
-class LoxoneRequiredKeysMixin:
-    """Mixin for required keys."""
+class LoxoneEntityDescription(SensorEntityDescription, frozen_or_thawed=True):
+    """Describes a Loxone sensor entity.
 
-    loxone_format_string: str
+    Acts as a classification object: carries matching criteria (which Loxone
+    units/keywords trigger this description) and the resulting classification
+    (device_class, state_class). Presentation details (actual unit, precision)
+    come from the Loxone format string via _attr_* in __init__.
+    """
 
-
-@dataclass(frozen=True)
-class LoxoneEntityDescription(SensorEntityDescription, LoxoneRequiredKeysMixin):
-    """Describes Loxone sensor entity."""
+    loxone_format_strings: tuple[str, ...]
+    category_keywords: tuple[str, ...] = ()
+    name_keywords: tuple[str, ...] = ()
 
 
 SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="temperature",
-        name="Temperature",
-        suggested_display_precision=1,
-        loxone_format_string=UnitOfTemperature.CELSIUS,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        loxone_format_strings=(UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT),
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.TEMPERATURE,
     ),
     LoxoneEntityDescription(
-        key="temperature_fahrenheit",
-        name="Temperature",
-        suggested_display_precision=1,
-        loxone_format_string=UnitOfTemperature.FAHRENHEIT,
-        native_unit_of_measurement=UnitOfTemperature.FAHRENHEIT,
-        state_class=SensorStateClass.MEASUREMENT,
-        device_class=SensorDeviceClass.TEMPERATURE,
-    ),
-    LoxoneEntityDescription(
-        key="windstrength",
-        name="Wind Strength",
-        suggested_display_precision=1,
-        loxone_format_string=UnitOfSpeed.KILOMETERS_PER_HOUR,
-        native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
+        key="wind_speed",
+        loxone_format_strings=(UnitOfSpeed.KILOMETERS_PER_HOUR,),
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.WIND_SPEED,
     ),
     LoxoneEntityDescription(
-        key="kwh",
-        name="Kilowatt per hour",
-        suggested_display_precision=1,
-        loxone_format_string=UnitOfEnergy.KILO_WATT_HOUR,
-        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        device_class=SensorDeviceClass.ENERGY,
-    ),
-    LoxoneEntityDescription(
-        key="wh",
-        name="Watt per hour",
-        suggested_display_precision=1,
-        loxone_format_string=UnitOfEnergy.WATT_HOUR,
-        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        key="energy",
+        loxone_format_strings=(
+            UnitOfEnergy.KILO_WATT_HOUR,
+            UnitOfEnergy.WATT_HOUR,
+            UnitOfEnergy.MEGA_WATT_HOUR,
+        ),
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_class=SensorDeviceClass.ENERGY,
     ),
     LoxoneEntityDescription(
         key="power",
-        name="Watt",
-        suggested_display_precision=1,
-        loxone_format_string=UnitOfPower.WATT,
-        native_unit_of_measurement=UnitOfPower.WATT,
+        loxone_format_strings=(UnitOfPower.WATT, UnitOfPower.KILO_WATT),
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.POWER,
     ),
     LoxoneEntityDescription(
-        key="power",
-        name="Kilowatt",
-        suggested_display_precision=3,
-        loxone_format_string=UnitOfPower.KILO_WATT,
-        native_unit_of_measurement=UnitOfPower.KILO_WATT,
-        state_class=SensorStateClass.MEASUREMENT,
-        device_class=SensorDeviceClass.POWER,
-    ),
-    LoxoneEntityDescription(
-        key="light_level",
-        name="Light Level",
-        loxone_format_string=LIGHT_LUX,
-        native_unit_of_measurement=LIGHT_LUX,
+        key="illuminance",
+        loxone_format_strings=(LIGHT_LUX, "Lx", "lux"),
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.ILLUMINANCE,
     ),
     LoxoneEntityDescription(
-        key="humidity_or_battery",
-        name="Humidity or Battery",
-        suggested_display_precision=1,
-        loxone_format_string=PERCENTAGE,
-        native_unit_of_measurement=PERCENTAGE,
+        key="carbon_dioxide",
+        loxone_format_strings=(CONCENTRATION_PARTS_PER_MILLION,),
         state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.CO2,
+    ),
+    LoxoneEntityDescription(
+        key="humidity",
+        loxone_format_strings=(PERCENTAGE,),
+        category_keywords=("vlhkost", "humidity", "feucht", "humidité"),
+        name_keywords=("vlhkost", "humidity", "feucht", "humidité"),
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.HUMIDITY,
+    ),
+    LoxoneEntityDescription(
+        key="battery",
+        loxone_format_strings=(PERCENTAGE,),
+        name_keywords=("batt", "akku", "battery"),
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.BATTERY,
     ),
 )
 
-SENSOR_FORMATS = [desc.loxone_format_string for desc in SENSOR_TYPES]
+UNAMBIGUOUS_UNITS: frozenset[str] = frozenset(
+    u
+    for desc in SENSOR_TYPES
+    if not desc.category_keywords and not desc.name_keywords
+    for u in desc.loxone_format_strings
+)
+"""Units that map to exactly one device class without needing keyword disambiguation."""
+
+
+def match_sensor_description(
+    unit: str, name: str = "", category: str = "",
+) -> LoxoneEntityDescription | None:
+    """Find the first matching sensor description for a Loxone sensor.
+
+    Unambiguous units (°C, kWh, ppm, …) match immediately.
+    Ambiguous units (%) require a keyword hit in name or category.
+    Returns None if no description matches.
+    """
+    name_lower = name.lower()
+    cat_lower = category.lower()
+    for desc in SENSOR_TYPES:
+        if unit not in desc.loxone_format_strings:
+            continue
+        if not desc.category_keywords and not desc.name_keywords:
+            return desc
+        cat_match = any(kw in cat_lower for kw in desc.category_keywords)
+        name_match = any(kw in name_lower for kw in desc.name_keywords)
+        if cat_match or name_match:
+            return desc
+    return None
 
 
 async def async_setup_platform(
@@ -371,16 +377,28 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
         super().__init__(**kwargs)
         self._format = self._get_format(self.details["format"])
         self._attr_should_poll = False
-        self._attr_native_unit_of_measurement = self._clean_unit(self.details["format"])
+        self._attr_native_unit_of_measurement = clean_unit(self.details["format"])
         self._parent_id = kwargs.get("parent_id", None)
 
-        if entity_description := self._get_entity_description():
-            self.entity_description = entity_description
+        precision = self._parse_digits_after_decimal(self.details["format"])
+        if precision:
+            self._attr_suggested_display_precision = precision
 
+        # Device class is detected automatically from unit/category/name.
+        # To override for a specific entity, use HA's customize in configuration.yaml:
+        #   homeassistant:
+        #     customize:
+        #       sensor.my_sensor:
+        #         device_class: battery
+        desc = match_sensor_description(
+            unit=self._attr_native_unit_of_measurement,
+            name=self.name,
+            category=kwargs.get("cat", ""),
+        )
+        if desc:
+            self.entity_description = desc
         else:
-            precision = self._parse_digits_after_decimal(self.details["format"])
-            if precision:
-                self._attr_suggested_display_precision = precision
+            self._attr_state_class = SensorStateClass.MEASUREMENT
 
         _uuid = self.unique_id
         if self._parent_id:
@@ -398,14 +416,6 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
         if match:
             digits = int(match.group(1))
             return digits
-        return None
-
-    def _get_entity_description(self) -> SensorEntityDescription | None:
-        """Return the sensor entity description."""
-        if self._attr_native_unit_of_measurement in SENSOR_FORMATS:
-            return SENSOR_TYPES[
-                SENSOR_FORMATS.index(self._attr_native_unit_of_measurement)
-            ]
         return None
 
     @property
