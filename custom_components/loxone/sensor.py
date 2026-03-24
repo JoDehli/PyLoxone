@@ -21,7 +21,8 @@ from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
                                  CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
                                  CONCENTRATION_PARTS_PER_MILLION, LIGHT_LUX,
                                  PERCENTAGE, STATE_UNKNOWN, UnitOfEnergy,
-                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature)
+                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature,
+                                 UnitOfVolume, UnitOfVolumeFlowRate)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -94,6 +95,21 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
         loxone_format_strings=(UnitOfPower.WATT, UnitOfPower.KILO_WATT),
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.POWER,
+    ),
+    LoxoneEntityDescription(
+        key="volume_flow_rate",
+        loxone_format_strings=(
+            UnitOfVolumeFlowRate.LITERS_PER_HOUR,
+            UnitOfVolumeFlowRate.LITERS_PER_MINUTE,
+        ),
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.VOLUME_FLOW_RATE,
+    ),
+    LoxoneEntityDescription(
+        key="water",
+        loxone_format_strings=(UnitOfVolume.LITERS,),
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.WATER,
     ),
     LoxoneEntityDescription(
         key="illuminance",

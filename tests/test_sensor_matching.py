@@ -10,6 +10,8 @@ from homeassistant.const import (
     UnitOfPower,
     UnitOfSpeed,
     UnitOfTemperature,
+    UnitOfVolume,
+    UnitOfVolumeFlowRate,
 )
 
 from custom_components.loxone.sensor import (
@@ -103,6 +105,30 @@ class TestSensorMatching:
         """W and kW resolve to the same description."""
         assert match_sensor_description(unit=UnitOfPower.WATT) is match_sensor_description(unit=UnitOfPower.KILO_WATT)
 
+    def test_volume_flow_rate_liters_per_hour(self):
+        desc = match_sensor_description(unit=UnitOfVolumeFlowRate.LITERS_PER_HOUR)
+        assert desc is not None
+        assert desc.device_class == SensorDeviceClass.VOLUME_FLOW_RATE
+        assert desc.state_class == SensorStateClass.MEASUREMENT
+
+    def test_volume_flow_rate_same_description(self):
+        """All flow rate units resolve to the same description."""
+        assert (
+            match_sensor_description(unit=UnitOfVolumeFlowRate.LITERS_PER_HOUR)
+            is match_sensor_description(unit=UnitOfVolumeFlowRate.LITERS_PER_MINUTE)
+        )
+
+    def test_water_liters(self):
+        desc = match_sensor_description(unit=UnitOfVolume.LITERS)
+        assert desc is not None
+        assert desc.device_class == SensorDeviceClass.WATER
+        assert desc.state_class == SensorStateClass.TOTAL_INCREASING
+
+    def test_cubic_meters_no_match(self):
+        """m³ is ambiguous (water, gas, air) — not auto-classified."""
+        desc = match_sensor_description(unit=UnitOfVolume.CUBIC_METERS)
+        assert desc is None
+
     def test_wind_speed(self):
         desc = match_sensor_description(unit=UnitOfSpeed.KILOMETERS_PER_HOUR)
         assert desc is not None
@@ -179,6 +205,13 @@ class TestUnambiguousUnits:
         for u in (UnitOfPower.WATT, UnitOfPower.KILO_WATT):
             assert u in UNAMBIGUOUS_UNITS
 
+    def test_volume_flow_rate_units_are_unambiguous(self):
+        for u in (UnitOfVolumeFlowRate.LITERS_PER_HOUR, UnitOfVolumeFlowRate.LITERS_PER_MINUTE):
+            assert u in UNAMBIGUOUS_UNITS
+
+    def test_water_units_are_unambiguous(self):
+        assert UnitOfVolume.LITERS in UNAMBIGUOUS_UNITS
+
 
 # ============================================================================
 # Tests: Unit extraction
@@ -213,6 +246,13 @@ class TestUnitExtraction:
         """Format string without a unit returns the cleaned string."""
         assert clean_unit("%.1f") == ""
 
+    def test_extract_liters_per_hour(self):
+        assert clean_unit("%.3f L/h") == UnitOfVolumeFlowRate.LITERS_PER_HOUR
+
+    def test_extract_liters_no_space(self):
+        """Loxone totalFormat often omits the space: '%.1fL'."""
+        assert clean_unit("%.1fL") == UnitOfVolume.LITERS
+
 
 # ============================================================================
 # Tests: SENSOR_TYPES structure
@@ -238,9 +278,9 @@ class TestSensorTypesStructure:
                 f"{desc.key} should not set native_unit_of_measurement"
             )
 
-    def test_eight_descriptions(self):
-        """One per concept: temp, wind, energy, power, illuminance, co2, humidity, battery."""
-        assert len(SENSOR_TYPES) == 8
+    def test_ten_descriptions(self):
+        """One per concept: temp, wind, energy, power, volume_flow_rate, water, illuminance, co2, humidity, battery."""
+        assert len(SENSOR_TYPES) == 10
 
     def test_unique_keys(self):
         keys = [desc.key for desc in SENSOR_TYPES]

@@ -74,6 +74,8 @@ Sensors (InfoOnlyAnalog, Meter) are automatically classified based on their unit
 | `battery` | Unit: % **and** name contains "batt", "akku", or "battery" |
 | `energy` | Unit: kWh, Wh, MWh |
 | `power` | Unit: W, kW |
+| `volume_flow_rate` | Unit: L/h, L/min |
+| `water` | Unit: L |
 | `illuminance` | Unit: lx, Lx, lux |
 | `carbon_dioxide` | Unit: ppm |
 | `wind_speed` | Unit: km/h |
