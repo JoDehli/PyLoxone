@@ -230,13 +230,16 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
     def extra_state_attributes(self):
         """Return the state attributes."""
         return {
-            **self._attr_extra_state_attributes,
+            "uuid": self.uuidAction,
+            "room": self.room,
+            "category": self.cat,
             "device_type": self.type,
             "level": self._level,
             "armed_at": self._armed_at,
             "next_level_at": self._next_level_at,
             "armed_delay": self._armed_delay,
             "armed_delay_total_delay": self._armed_delay_total_delay,
+            "platform": "loxone",
         }
 
     def _validate_code(self, code):

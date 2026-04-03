@@ -6,7 +6,6 @@ https://github.com/JoDehli/PyLoxone
 """
 
 import logging
-import json
 from abc import ABC
 
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
@@ -175,7 +174,6 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
     def extra_state_attributes(self):
         """Return device specific state attributes."""
         return {
-            **self._attr_extra_state_attributes,
             "mode": self.get_state_value("mode"),
             "override": self.get_state_value("override"),
             "open_window": self.get_state_value("openWindow"),
@@ -320,7 +318,7 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
 class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller"""
 
-    _attr_supported_features = (
+    attr_supported_features = (
         ClimateEntityFeature.PRESET_MODE
         | ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.TURN_OFF
@@ -371,7 +369,6 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         Implemented by platform classes.
         """
         return {
-            **self._attr_extra_state_attributes,
             "is_overridden": self.is_overridden,
         }
 
@@ -525,10 +522,9 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     """Representation of a ACControl Loxone device."""
 
-    _attr_supported_features = (
-        ClimateEntityFeature.TARGET_TEMPERATURE
-        | ClimateEntityFeature.FAN_MODE
-        | ClimateEntityFeature.SWING_MODE
+    attr_supported_features = (
+        ClimateEntityFeature.PRESET_MODE
+        | ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.TURN_OFF
         | ClimateEntityFeature.TURN_ON
     )
@@ -571,8 +567,11 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         Implemented by platform classes.
         """
         return {
-            **self._attr_extra_state_attributes,
+            "uuid": self.uuidAction,
             "device_type": self.type,
+            "room": self.room,
+            "category": self.cat,
+            "platform": "loxone",
         }
 
     @property
@@ -597,45 +596,16 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         Need to be one of HVAC_MODE_*.
         """
         if self.get_state_value("status"):
-            if self.get_state_value("mode") == 2:
-                return HVACMode.HEAT
-            elif self.get_state_value("mode") == 3:
-                return HVACMode.COOL
-            elif self.get_state_value("mode") == 4:
-                return HVACMode.DRY
-            elif self.get_state_value("mode") == 5:
-                return HVACMode.FAN_ONLY
-            else:
-                return HVACMode.AUTO
+            return HVACMode.AUTO
         return HVACMode.OFF
 
     def set_hvac_mode(self, hvac_mode):
         """Set new target hvac mode."""
-
-        mode = 1
-        match hvac_mode:
-            case HVACMode.HEAT:
-                mode = 2
-            case HVACMode.COOL:
-                mode = 3
-            case HVACMode.DRY:
-                mode = 4
-            case HVACMode.FAN_ONLY:
-                mode = 5
-        
         self.hass.bus.fire(
             SENDDOMAIN,
             dict(
                 uuid=self.uuidAction,
                 value="off" if hvac_mode == HVACMode.OFF else "on",
-            ),
-        )
-        
-        self.hass.bus.fire(
-            SENDDOMAIN,
-            dict(
-                uuid=self.uuidAction,
-                value=f'setMode/{mode}',
             ),
         )
 
@@ -645,7 +615,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
 
         Need to be a subset of HVAC_MODES.
         """
-        return [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO]
+        return [HVACMode.OFF, HVACMode.AUTO]
 
     @property
     def temperature_unit(self) -> str:
@@ -665,69 +635,4 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     @property
     def target_temperature_step(self) -> float | None:
         """Return the supported step of target temperature."""
-        return 0.5
-        
-    @property
-    def fan_mode(self) -> str | None:
-        """Return current fan mode."""
-        
-        if self.get_state_value("fanspeeds") is not None:
-            modes = json.loads(self.get_state_value("fanspeeds"))
-            
-            for mode in modes:
-                if self.get_state_value("fan") == mode["id"]:
-                    return mode["name"]
-
-        return "Auto"
-
-    def set_fan_mode(self, fan_mode):
-        """Set new target fan mode."""
-        self.hass.bus.fire(
-            SENDDOMAIN,
-            dict(
-                uuid=self.uuidAction,
-                value=f'setFan/{next((o["id"] for o in json.loads(self.get_state_value("fanspeeds")) if o["name"] == fan_mode), None)}',
-            ),
-        )
-
-    @property
-    def fan_modes(self) -> list[str]:
-        """Return the list of available hvac operation modes."""
-        
-        if self.get_state_value("fanspeeds") is not None:
-            return [o["name"] for o in json.loads(self.get_state_value("fanspeeds"))]
-        else:
-            return None
-        
-    @property
-    def swing_mode(self) -> str | None:
-        """Return current swing mode."""
-        
-        if self.get_state_value("airflows") is not None:
-            modes = json.loads(self.get_state_value("airflows"))
-            
-            for mode in modes:
-                if self.get_state_value("ventMode") == mode["id"]:
-                    return mode["name"]
-
-        return "Auto"
-
-    def set_swing_mode(self, swing_mode):
-        """Set new target swing mode."""
-        
-        self.hass.bus.fire(
-            SENDDOMAIN,
-            dict(
-                uuid=self.uuidAction,
-                value=f'setAirDir/{next((o["id"] for o in json.loads(self.get_state_value("airflows")) if o["name"] == swing_mode), None)}',
-            ),
-        )
-
-    @property
-    def swing_modes(self) -> list[str]:
-        """Return the list of available swing modes."""
-        
-        if self.get_state_value("airflows") is not None:
-            return [o["name"] for o in json.loads(self.get_state_value("airflows"))]
-        else:
-            return None
+        return 1

@@ -168,8 +168,11 @@ class LoxoneVentilation(LoxoneEntity, FanEntity):
         Implemented by platform classes.
         """
         return {
-            **self._attr_extra_state_attributes,
+            "uuid": self.uuidAction,
+            "room": self.room,
+            "category": self.cat,
             "device_type": self.type,
+            "platform": "loxone",
         }
 
     @property

@@ -91,7 +91,7 @@ async def async_unload_entry(hass, config_entry):
         try:
             await coordinator.async_cleanup()
         except Exception as e:
-            _LOGGER.warning("Error closing connection: %s", e)
+            _LOGGER.warning(f"Fehler beim Schließen der Verbindung: {e}")
 
             # Cancel and await the stored listening task (if any)
         try:
@@ -228,56 +228,28 @@ async def async_setup_entry(hass, config_entry):
         await async_set_options(hass, config_entry)
 
     coordinator = LoxoneCoordinator(hass, config_entry)
-    host = config_entry.options.get(CONF_HOST)
-
-    _LOGGER.info(
-        "Setting up Loxone integration for Miniserver at %s:%s",
-        host,
-        config_entry.options.get(CONF_PORT),
-    )
 
     try:
         await coordinator.async_config_entry_first_refresh()
-    except LoxoneServiceUnAvailableError as err:
-        _LOGGER.warning(
-            "Loxone Miniserver at %s is unavailable (service restarting?). Will retry automatically",
-            host,
+    except LoxoneServiceUnAvailableError:
+        _LOGGER.error(
+            "Loxone service unavailble. Tried many times. Look what happend to your Loxone!"
         )
-        raise ConfigEntryNotReady from err
+        return False
     except LoxoneUnauthorisedError:
         _LOGGER.error(
             "Could not connect to Loxone Miniserver. Unauthorised. Please check username and password."
         )
         return False
-    except OSError as err:
+    except OSError as e:
         await coordinator.api.close()
-        _LOGGER.warning(
-            "Network error connecting to Loxone Miniserver at %s: %s. Will retry automatically",
-            host,
-            err,
+        _LOGGER.exception("Could not connect to Loxone Miniserver %s", e)
+        return False
+    except Exception as e:
+        _LOGGER.exception(
+            "Could not connect to Loxone Miniserver. Unexpected error occurred: %s", e
         )
-        raise ConfigEntryNotReady from err
-    except (LoxoneConnectionError, LoxoneConnectionClosedOk, TimeoutError, ConnectionError) as err:
-        await coordinator.api.close()
-        _LOGGER.warning(
-            "Could not connect to Loxone Miniserver at %s: %s. Will retry automatically",
-            host,
-            err,
-        )
-        raise ConfigEntryNotReady from err
-    except Exception as err:
-        await coordinator.api.close()
-        _LOGGER.warning(
-            "Unexpected error connecting to Loxone Miniserver at %s: %s. Will retry automatically",
-            host,
-            err,
-        )
-        raise ConfigEntryNotReady from err
-
-    _LOGGER.info(
-        "Successfully connected to Loxone Miniserver at %s",
-        host,
-    )
+        return False
 
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
 
@@ -541,6 +513,25 @@ async def async_setup_entry(hass, config_entry):
                         err,
                     )
 
+    # async def start_listening_with_retry():
+    #     """Start listening with automatic reconnection on unclean disconnects."""
+    #     retry_delay = 5  # Seconds to wait before retrying
+    #     while True:
+    #         try:
+    #             await coordinator.api.start_listening(callback=message_callback)
+    #             # If start_listening completes normally, exit loop (e.g., on shutdown)
+    #             break
+    #         except (LoxoneConnectionError, websockets.exceptions.ConnectionClosed) as e:
+    #             _LOGGER.warning("WebSocket connection lost (possible unclean disconnect, e.g., internet issue). Retrying in %d seconds: %s", retry_delay, e)
+    #             await asyncio.sleep(retry_delay)
+    #         except LoxoneConnectionClosedOk:
+    #             # Normal close, no need to retry
+    #             _LOGGER.info("WebSocket connection closed normally.")
+    #             break
+    #         except Exception as e:
+    #             _LOGGER.error("Unexpected error in listening loop, stopping retries: %s", e)
+    #             break
+
     async def start_event():
         try:
             listening_task = asyncio.create_task(
@@ -556,7 +547,6 @@ async def async_setup_entry(hass, config_entry):
         hass.config_entries.async_update_entry(
             config_entry,
             data={
-                **config_entry.data,  # preserve existing data
                 "token": token["token"],
                 "hash_alg": token["hash_alg"],
                 "valid_until": token["valid_until"],
@@ -608,8 +598,8 @@ async def async_setup_entry(hass, config_entry):
     hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
     hass.services.async_register(DOMAIN, "reload", handle_reload)
 
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event)
-    hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event),
+    hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered),
 
     # Store listeners for cleanup
     coordinator.listeners = [
@@ -651,18 +641,6 @@ class LoxoneEntity(Entity):
                     sys.exit(-1)
 
         self.listener = None
-
-        # Initialize base extra state attributes with common Loxone fields
-        self._attr_extra_state_attributes = {
-            "uuid": kwargs.get("uuidAction", ""),
-            "platform": "loxone",
-        }
-
-        # Add optional common attributes from Loxone JSON if they exist
-        if "room" in kwargs and kwargs["room"]:
-            self._attr_extra_state_attributes["room"] = kwargs["room"]
-        if "cat" in kwargs and kwargs["cat"]:
-            self._attr_extra_state_attributes["category"] = kwargs["cat"]
 
     async def async_added_to_hass(self):
         """Subscribe to device events."""

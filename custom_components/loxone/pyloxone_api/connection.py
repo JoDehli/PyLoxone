@@ -11,12 +11,11 @@ import json
 import logging
 import time
 import urllib
-from asyncio import Event
 from base64 import b64decode, b64encode
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import (Any, NoReturn, Optional, Union)
-from collections.abc import Awaitable, Callable
+from typing import (Any, Awaitable, Callable, Dict, List, NoReturn, Optional,
+                    Union)
 from urllib.parse import urlparse
 
 import websockets as wslib
@@ -110,7 +109,6 @@ class LoxoneBaseConnection:
         self._closed = False
         self._key_update_event: Optional[asyncio.Event] = None
         self._shutdown_event = asyncio.Event()
-        self._reconnect_event: asyncio.Event = asyncio.Event()
 
         # Parse the server input to extract scheme if present
         try:
@@ -144,9 +142,9 @@ class LoxoneBaseConnection:
         self._public_key: str = ""
         self._session_key: str = ""
 
-        self.miniserver_version: list[int] = []
+        self.miniserver_version: List[int] = []
         self.miniserver_serial: str = ""
-        self.structure_file: dict = {}
+        self.structure_file: Dict = {}
 
         # Validate and initialize token
         try:
@@ -199,15 +197,6 @@ class LoxoneBaseConnection:
         self._secured_queue: asyncio.Queue = asyncio.Queue(maxsize=1)
         self.message_header = None
 
-    @property
-    def is_connected(self) -> bool:
-        """Check if the websocket connection is open."""
-        return (
-            self.connection is not None
-            and hasattr(self.connection, "protocol")
-            and self.connection.protocol.state.name == "OPEN"
-        )
-
     def get_token_dict(self) -> dict:
         try:
             return {
@@ -256,16 +245,9 @@ class LoxoneBaseConnection:
             enc_cipher = urllib.parse.quote(cipher.decode())
             command = f"jdev/sys/enc/{enc_cipher}"
         try:
-            # Check if connection is open before sending
-            if not self.connection or not self.is_connected:
-                _LOGGER.warning("Cannot send command - connection is not open")
             await self.connection.send([command])
-        except websockets.ConnectionClosedOK:
-            raise LoxoneConnectionClosedOk(
-                "Connection closed normally while sending command"
-            )
         except Exception as e:
-            _LOGGER.error("Error while sending...", e)
+            _LOGGER.error("Error while sending...")
             raise e
 
     def _decrypt(self, command: str) -> bytes:
@@ -462,18 +444,13 @@ class LoxoneConnection(LoxoneBaseConnection):
                 while True:
                     await asyncio.sleep(KEEP_ALIVE_PERIOD)
                     try:
-                        keep_alive_task = asyncio.create_task(
+                        _ = asyncio.create_task(
                             self._send_text_command(CMD_KEEP_ALIVE, encrypted=False)
                         )
-                        await keep_alive_task
                         await asyncio.sleep(0)
-                    except LoxoneConnectionClosedOk:
-                        raise  # Re-raise to trigger
                     except Exception as exc:
                         _LOGGER.error(f"Keep-alive message failed: {exc}")
                         raise
-            except LoxoneConnectionClosedOk:
-                raise
             except asyncio.CancelledError:
                 _LOGGER.debug("Keep-alive task cancelled")
                 raise
@@ -572,42 +549,12 @@ class LoxoneConnection(LoxoneBaseConnection):
             _LOGGER.error(f"Failed to send key exchange: {e}")
             raise
 
-        async def reconnect_task() -> None:
-            try:
-                while True:
-                    # Create explicit tasks for the event waits (coroutines are not allowed)
-                    t_shutdown = asyncio.create_task(self._shutdown_event.wait())
-                    t_reconnect = asyncio.create_task(self._reconnect_event.wait())
-
-                    try:
-                        _done, _pending = await asyncio.wait(
-                            {t_shutdown, t_reconnect}, return_when=asyncio.FIRST_COMPLETED
-                        )
-                    finally:
-                        # Ensure any still-pending tasks are canceled to avoid leaks
-                        for p in (t_shutdown, t_reconnect):
-                            if not p.done():
-                                p.cancel()
-
-                    # Shutdown requested -> exit cleanly
-                    if self._shutdown_event.is_set():
-                        return
-
-                    # Reconnect requested -> clear event and raise to break listening
-                    if self._reconnect_event.is_set():
-                        self._reconnect_event.clear()
-                        raise LoxoneTokenError
-            except asyncio.CancelledError:
-                # Task was canceled during shutdown
-                raise
-
         # noinspection PyUnreachableCode
         self._pending_task = [
             asyncio.create_task(self._do_start_listening(callback, self.connection)),
             asyncio.create_task(self._process_message()),
             asyncio.create_task(keep_alive()),
             asyncio.create_task(check_refresh_token()),
-            asyncio.create_task(reconnect_task()),
         ]
 
         try:
@@ -678,6 +625,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     finally:
                         # Mark task as done for queue.join()
                         self._message_queue.task_done()
+
                 except asyncio.TimeoutError:
                     # Normal timeout, continue to check shutdown event
                     continue
@@ -799,43 +747,25 @@ class LoxoneConnection(LoxoneBaseConnection):
                 scheme=self.scheme,
                 session=session,
             )
-            api_resp = None
+
             for attempt in range(RECONNECT_TRIES):
                 try:
                     api_resp = await connector.get(CMD_GET_API_KEY)
                     break  # connection successful
-                except (LoxoneServiceUnAvailableError, ConnectionError, OSError, TimeoutError) as e:
+                except LoxoneServiceUnAvailableError as e:
                     if attempt < RECONNECT_TRIES - 1:
                         _LOGGER.debug(
-                            f"Connection error (attempt {attempt + 1}/{RECONNECT_TRIES}), retrying in {RECONNECT_DELAY} seconds: {e}"
-                        )
-                        await asyncio.sleep(RECONNECT_DELAY)
-                    else:
-                        _LOGGER.exception("Max connection tries exceeded. Stopping.")
-                        raise
-                except TimeoutError as e:
-                    if attempt < RECONNECT_TRIES - 1:
-                        _LOGGER.debug(
-                            f"TimeoutError, try again in {RECONNECT_DELAY} seconds..."
+                            f"LoxoneServiceUnAvailableError, try again in {RECONNECT_DELAY} seconds..."
                         )
                         await asyncio.sleep(RECONNECT_DELAY)
                     else:
                         _LOGGER.error("Max tries exceeded. Stopping.")
                         raise
-                except ConnectionError as e:
-                    if attempt < RECONNECT_TRIES - 1:
-                        _LOGGER.debug(
-                            f"ConnectionError, try again in {RECONNECT_DELAY} seconds..."
-                        )
-                        await asyncio.sleep(RECONNECT_DELAY)
-                    else:
-                        _LOGGER.error("Max tries exceeded. Stopping.")
-                        raise
+
             try:
-                if api_resp:
-                    data = await asyncio.wait_for(
-                        api_resp.content.read(), timeout=self.timeout or TIMEOUT
-                    )
+                data = await asyncio.wait_for(
+                    api_resp.content.read(), timeout=self.timeout or TIMEOUT
+                )
             except asyncio.TimeoutError:
                 raise TimeoutError("Timeout reading API key response")
             except Exception as e:
@@ -847,7 +777,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 raise ValueError(f"Invalid API key response format: {e}") from e
 
             # The json returned by the miniserver is invalid. It contains " and '.
-            # We need to normalize it
+            # We need to normalise it
             try:
                 value = json.loads(_value.replace("'", '"'))
             except json.JSONDecodeError as e:
@@ -1107,8 +1037,8 @@ class LoxoneConnection(LoxoneBaseConnection):
         if not device_uuid or not isinstance(device_uuid, str):
             raise ValueError("device_uuid must be a non-empty string")
 
-        #if value is None or not isinstance(value, (str, int, float)):
-        #    raise ValueError("value must be a string, int, or float")
+        if value is None or not isinstance(value, (str, int, float)):
+            raise ValueError("value must be a string, int, or float")
 
         try:
             command = "jdev/sps/io/{}/{}".format(device_uuid, str(value))
@@ -1157,7 +1087,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             _LOGGER.error(f"Failed to send secured websocket command: {e}")
             raise
 
-    async def _websocket_event(self, message: dict[str, Any] | BaseMessage) -> None:
+    async def _websocket_event(self, message: Dict[str, Any] | BaseMessage) -> None:
         """Handle websocket event."""
         if message is None:
             _LOGGER.warning("Received None message")
@@ -1353,7 +1283,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 if mess_obj.code == 401:
                     _LOGGER.error("Token authentication failed (401)")
                     self.reset_token()
-                    self._reconnect_event.set()
+                    raise LoxoneTokenError from None
                 else:
                     _LOGGER.debug("Got message authwithtoken")
                     try:

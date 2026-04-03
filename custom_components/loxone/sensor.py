@@ -269,7 +269,10 @@ class LoxoneCustomSensor(LoxoneEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return device specific state attributes."""
-        return {**self._attr_extra_state_attributes}
+        return {
+            "uuid": self.uuidAction,
+            "platform": "loxone",
+        }
 
 
 class LoxoneKeepAliveSensor(LoxoneEntity, SensorEntity):
@@ -304,7 +307,9 @@ class LoxoneKeepAliveSensor(LoxoneEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return device specific state attributes."""
-        return {**self._attr_extra_state_attributes}
+        return {
+            "platform": "loxone",
+        }
 
 
 class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
@@ -359,8 +364,10 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
     def extra_state_attributes(self):
         """Return device specific state attributes."""
         return {
-            **self._attr_extra_state_attributes,
+            "uuid": self.uuidAction,
             "device_type": self.type,
+            "platform": "loxone",
+            "category": self.cat,
         }
 
 
@@ -428,8 +435,10 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
     def extra_state_attributes(self):
         """Return device specific state attributes."""
         return {
-            **self._attr_extra_state_attributes,
+            "uuid": self.uuidAction,
             "device_type": self.type + "_sensor",
+            "platform": "loxone",
+            "category": self.cat,
         }
 
 
@@ -442,14 +451,9 @@ class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
 
     @staticmethod
     def create_DeviceInfo_from_sensor(sensor) -> DeviceInfo:
-        try:
-            # For legacy Meter
-            model = sensor["details"]["type"].capitalize() + " Meter"
-        except (KeyError, TypeError):
-            model = "Meter"
         return DeviceInfo(
             identifiers={(DOMAIN, sensor["uuidAction"])},
             name=sensor["name"],
             manufacturer="Loxone",
-            model=model,
+            model=sensor["details"]["type"].capitalize() + " Meter",
         )
