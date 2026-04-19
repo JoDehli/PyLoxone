@@ -9,7 +9,8 @@ from homeassistant.helpers.entity import DeviceInfo
 
 from .. import LoxoneEntity
 from ..const import DOMAIN, SENDDOMAIN, STATE_OFF
-from ..helpers import get_or_create_device, hass_to_lox, lox2hass_mapped, lox_to_hass
+from ..helpers import (get_or_create_device, hass_to_lox, lox2hass_mapped,
+                       lox_to_hass)
 
 
 class LoxoneLightControllerV2(LoxoneEntity, LightEntity):

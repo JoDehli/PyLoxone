@@ -257,7 +257,12 @@ async def async_setup_entry(hass, config_entry):
             err,
         )
         raise ConfigEntryNotReady from err
-    except (LoxoneConnectionError, LoxoneConnectionClosedOk, TimeoutError, ConnectionError) as err:
+    except (
+        LoxoneConnectionError,
+        LoxoneConnectionClosedOk,
+        TimeoutError,
+        ConnectionError,
+    ) as err:
         await coordinator.api.close()
         _LOGGER.warning(
             "Could not connect to Loxone Miniserver at %s: %s. Will retry automatically",

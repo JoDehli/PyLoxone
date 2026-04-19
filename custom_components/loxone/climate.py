@@ -5,8 +5,8 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 
-import logging
 import json
+import logging
 from abc import ABC
 
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
@@ -622,7 +622,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
                 mode = 4
             case HVACMode.FAN_ONLY:
                 mode = 5
-        
+
         self.hass.bus.fire(
             SENDDOMAIN,
             dict(
@@ -630,12 +630,12 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
                 value="off" if hvac_mode == HVACMode.OFF else "on",
             ),
         )
-        
+
         self.hass.bus.fire(
             SENDDOMAIN,
             dict(
                 uuid=self.uuidAction,
-                value=f'setMode/{mode}',
+                value=f"setMode/{mode}",
             ),
         )
 
@@ -645,7 +645,14 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
 
         Need to be a subset of HVAC_MODES.
         """
-        return [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO]
+        return [
+            HVACMode.OFF,
+            HVACMode.HEAT,
+            HVACMode.COOL,
+            HVACMode.DRY,
+            HVACMode.FAN_ONLY,
+            HVACMode.AUTO,
+        ]
 
     @property
     def temperature_unit(self) -> str:
@@ -666,14 +673,14 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     def target_temperature_step(self) -> float | None:
         """Return the supported step of target temperature."""
         return 0.5
-        
+
     @property
     def fan_mode(self) -> str | None:
         """Return current fan mode."""
-        
+
         if self.get_state_value("fanspeeds") is not None:
             modes = json.loads(self.get_state_value("fanspeeds"))
-            
+
             for mode in modes:
                 if self.get_state_value("fan") == mode["id"]:
                     return mode["name"]
@@ -693,19 +700,19 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     @property
     def fan_modes(self) -> list[str]:
         """Return the list of available hvac operation modes."""
-        
+
         if self.get_state_value("fanspeeds") is not None:
             return [o["name"] for o in json.loads(self.get_state_value("fanspeeds"))]
         else:
             return None
-        
+
     @property
     def swing_mode(self) -> str | None:
         """Return current swing mode."""
-        
+
         if self.get_state_value("airflows") is not None:
             modes = json.loads(self.get_state_value("airflows"))
-            
+
             for mode in modes:
                 if self.get_state_value("ventMode") == mode["id"]:
                     return mode["name"]
@@ -714,7 +721,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
 
     def set_swing_mode(self, swing_mode):
         """Set new target swing mode."""
-        
+
         self.hass.bus.fire(
             SENDDOMAIN,
             dict(
@@ -726,7 +733,7 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     @property
     def swing_modes(self) -> list[str]:
         """Return the list of available swing modes."""
-        
+
         if self.get_state_value("airflows") is not None:
             return [o["name"] for o in json.loads(self.get_state_value("airflows"))]
         else:

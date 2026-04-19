@@ -51,6 +51,6 @@ async def discover(timeout: int = 5) -> tuple[str, int, str] | None:
                 ).decode()
                 # Look for a Loxone Response.
                 if (found := re.match(r, response)) is not None:
-                    (ip, port) = found.groups()
+                    ip, port = found.groups()
                     return ip, int(port), response
             return None

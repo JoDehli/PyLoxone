@@ -17,12 +17,13 @@ from homeassistant.components.sensor import (CONF_STATE_CLASS, PLATFORM_SCHEMA,
                                              SensorEntityDescription,
                                              SensorStateClass)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
+from homeassistant.const import (CONCENTRATION_PARTS_PER_MILLION,
+                                 CONF_DEVICE_CLASS, CONF_NAME,
                                  CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
-                                 CONCENTRATION_PARTS_PER_MILLION, LIGHT_LUX,
-                                 PERCENTAGE, STATE_UNKNOWN, UnitOfEnergy,
-                                 UnitOfPower, UnitOfSpeed, UnitOfTemperature,
-                                 UnitOfVolume, UnitOfVolumeFlowRate)
+                                 LIGHT_LUX, PERCENTAGE, STATE_UNKNOWN,
+                                 UnitOfEnergy, UnitOfPower, UnitOfSpeed,
+                                 UnitOfTemperature, UnitOfVolume,
+                                 UnitOfVolumeFlowRate)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -150,7 +151,9 @@ UNAMBIGUOUS_UNITS: frozenset[str] = frozenset(
 
 
 def match_sensor_description(
-    unit: str, name: str = "", category: str = "",
+    unit: str,
+    name: str = "",
+    category: str = "",
 ) -> LoxoneEntityDescription | None:
     """Find the first matching sensor description for a Loxone sensor.
 
@@ -471,7 +474,7 @@ class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
         try:
             # For legacy Meter
             model = sensor["details"]["type"].capitalize() + " Meter"
-        except (KeyError, TypeError):
+        except KeyError, TypeError:
             model = "Meter"
         return DeviceInfo(
             identifiers={(DOMAIN, sensor["uuidAction"])},

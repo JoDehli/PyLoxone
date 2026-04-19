@@ -13,10 +13,10 @@ import time
 import urllib
 from asyncio import Event
 from base64 import b64decode, b64encode
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import (Any, NoReturn, Optional, Union)
-from collections.abc import Awaitable, Callable
+from typing import Any, NoReturn, Optional, Union
 from urllib.parse import urlparse
 
 import websockets as wslib
@@ -581,7 +581,8 @@ class LoxoneConnection(LoxoneBaseConnection):
 
                     try:
                         _done, _pending = await asyncio.wait(
-                            {t_shutdown, t_reconnect}, return_when=asyncio.FIRST_COMPLETED
+                            {t_shutdown, t_reconnect},
+                            return_when=asyncio.FIRST_COMPLETED,
                         )
                     finally:
                         # Ensure any still-pending tasks are canceled to avoid leaks
@@ -645,7 +646,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
             raise
-        except (LoxoneConnectionError, LoxoneTokenError, LoxoneConnectionClosedOk):
+        except LoxoneConnectionError, LoxoneTokenError, LoxoneConnectionClosedOk:
             raise
         except Exception as e:
             raise
@@ -776,7 +777,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
             raise
-        except (LoxoneTokenError, LoxoneOutOfServiceException, LoxoneConnectionError):
+        except LoxoneTokenError, LoxoneOutOfServiceException, LoxoneConnectionError:
             # Re-raise expected Loxone exceptions
             raise
         except Exception as e:
@@ -804,7 +805,12 @@ class LoxoneConnection(LoxoneBaseConnection):
                 try:
                     api_resp = await connector.get(CMD_GET_API_KEY)
                     break  # connection successful
-                except (LoxoneServiceUnAvailableError, ConnectionError, OSError, TimeoutError) as e:
+                except (
+                    LoxoneServiceUnAvailableError,
+                    ConnectionError,
+                    OSError,
+                    TimeoutError,
+                ) as e:
                     if attempt < RECONNECT_TRIES - 1:
                         _LOGGER.debug(
                             f"Connection error (attempt {attempt + 1}/{RECONNECT_TRIES}), retrying in {RECONNECT_DELAY} seconds: {e}"
@@ -1107,7 +1113,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         if not device_uuid or not isinstance(device_uuid, str):
             raise ValueError("device_uuid must be a non-empty string")
 
-        #if value is None or not isinstance(value, (str, int, float)):
+        # if value is None or not isinstance(value, (str, int, float)):
         #    raise ValueError("value must be a string, int, or float")
 
         try:
