@@ -582,11 +582,14 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
 
     def set_temperature(self, **kwargs):
         """Set new target temperature"""
+        temp = kwargs.get("temperature")
+        if temp is None:
+            return
         self.hass.bus.fire(
             SENDDOMAIN,
             dict(
                 uuid=self.uuidAction,
-                value=f'setTarget/{kwargs["targetTemperature"]}',
+                value=f"setTarget/{temp}",
             ),
         )
 
