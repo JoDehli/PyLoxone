@@ -474,7 +474,7 @@ class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
         try:
             # For legacy Meter
             model = sensor["details"]["type"].capitalize() + " Meter"
-        except KeyError, TypeError:
+        except (KeyError, TypeError):
             model = "Meter"
         return DeviceInfo(
             identifiers={(DOMAIN, sensor["uuidAction"])},

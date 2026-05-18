@@ -19,9 +19,9 @@ from types import TracebackType
 from typing import Any, NoReturn, Optional, Union
 from urllib.parse import urlparse
 
+import aiohttp
 import websockets as wslib
 import websockets.exceptions
-from async_upnp_client import aiohttp
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.PublicKey import RSA
@@ -646,7 +646,11 @@ class LoxoneConnection(LoxoneBaseConnection):
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
             raise
-        except LoxoneConnectionError, LoxoneTokenError, LoxoneConnectionClosedOk:
+        except (
+            LoxoneConnectionError,
+            LoxoneTokenError,
+            LoxoneConnectionClosedOk,
+        ):
             raise
         except Exception as e:
             raise
@@ -777,7 +781,11 @@ class LoxoneConnection(LoxoneBaseConnection):
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
             raise
-        except LoxoneTokenError, LoxoneOutOfServiceException, LoxoneConnectionError:
+        except (
+            LoxoneTokenError,
+            LoxoneOutOfServiceException,
+            LoxoneConnectionError,
+        ):
             # Re-raise expected Loxone exceptions
             raise
         except Exception as e:

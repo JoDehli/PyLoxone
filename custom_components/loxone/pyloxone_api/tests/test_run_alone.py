@@ -13,10 +13,6 @@ def load_credentials_from_env():
         "port": os.getenv("LOXONE_PORT"),
     }
 
-
-load_credentials_from_env()
-
-
 def test_alone(load_credentials_from_env):
     pass
     # print("Username", username)
