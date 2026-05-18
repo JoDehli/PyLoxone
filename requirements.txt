@@ -5,6 +5,8 @@ ruff==0.14.6
 websockets>=14
 pycryptodome
 pytest
+pytest-asyncio
 httpx
 debugpy
 pre-commit
+python-dotenv
