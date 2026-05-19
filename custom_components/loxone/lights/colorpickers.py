@@ -101,7 +101,7 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
                 self._attr_brightness = round(255 * _color[0] / 100)
                 request_update = True
             else:
-                _LOGGER.error("Not handled command ->", _color)
+                _LOGGER.error("Not handled command -> %s", _color)
 
         if request_update:
             self.async_schedule_update_ha_state()
@@ -240,7 +240,7 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
                 self._attr_brightness = round(255 * _color[0] / 100)
                 request_update = True
             else:
-                _LOGGER.error("Not handled command ->", _color)
+                _LOGGER.error("Not handled command -> %s", _color)
 
         if request_update:
             self.async_schedule_update_ha_state()
