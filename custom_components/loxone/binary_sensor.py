@@ -1,4 +1,4 @@
-"""Support for Fritzbox binary sensors."""
+"""Support for Loxone binary sensors."""
 
 from __future__ import annotations
 
