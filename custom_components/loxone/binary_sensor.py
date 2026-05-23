@@ -7,8 +7,7 @@ from typing import Literal, final
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-from homeassistant.components.binary_sensor import (PLATFORM_SCHEMA,
-                                                    BinarySensorDeviceClass,
+from homeassistant.components.binary_sensor import (BinarySensorDeviceClass,
                                                     BinarySensorEntity)
 from homeassistant.components.sensor import CONF_STATE_CLASS
 from homeassistant.config_entries import ConfigEntry
@@ -30,14 +29,10 @@ _LOGGER = logging.getLogger(__name__)
 NEW_SENSOR = "binairy_sensors"
 DEFAULT_NAME = "Loxone Binary Sensor"
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_ACTIONID): cv.string,
-        vol.Required(CONF_NAME): cv.string,
-        vol.Optional(CONF_DEVICE_CLASS): cv.string,
-    }
-)
-
+LOXONE_DEVICE_CLASS_MAP: dict[str, BinarySensorDeviceClass] = {
+    "presence": BinarySensorDeviceClass.PRESENCE,
+    "smoke": BinarySensorDeviceClass.SMOKE,
+}
 
 async def async_setup_platform(
     hass: HomeAssistant,
@@ -127,6 +122,13 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
         self._on_state = STATE_ON
         self._off_state = STATE_OFF
         self._attr_available = True
+        if self.type in LOXONE_DEVICE_CLASS_MAP:
+            self._attr_device_class = LOXONE_DEVICE_CLASS_MAP[self.type]
+        else:
+            self._attr_device_class = None
+
+
+
 
         if self._parent_id:
             self.uuidAction = self._parent_id
@@ -150,36 +152,9 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
         else:
             self._attr_extra_state_attributes.update(
                 {
-                    "device_type": self.device_class,
+                    "device_type": self._attr_device_class,
                 }
             )
-
-    @property
-    def icon(self):
-        if self._from_loxone_config:
-            if self.type == "presence":
-                """Return the sensor icon."""
-                return "mdi:motion-sensor"
-            elif self.type == "smoke":
-                """Return the sensor icon."""
-                return "mdi:smoke-detector"
-            elif self.type == "digital":
-                """Return the sensor icon."""
-                return "mdi:checkbox-blank-circle-outline"
-        else:
-            if self.device_class:
-                if self.device_class == "presence":
-                    """Return the sensor icon."""
-                    return "mdi:motion-sensor"
-                elif self.device_class == "smoke":
-                    """Return the sensor icon."""
-                    return "mdi:smoke-detector"
-                elif self.device_class == "digital":
-                    """Return the sensor icon."""
-                    return "mdi:checkbox-blank-circle-outline"
-                """Return the sensor icon."""
-            else:
-                return "mdi:checkbox-blank-circle-outline"
 
     async def event_handler(self, e):
         if self._state_uuid in e.data:
@@ -216,9 +191,6 @@ class LoxoneCustomBinarySensor(LoxoneEntity, BinarySensorEntity):
             self.uuidAction = kwargs["uuidAction"]
         else:
             self.uuidAction = ""
-
-        if "device_class" in kwargs:
-            self._attr_device_class = kwargs["device_class"]
 
     @property
     def is_on(self) -> bool | None:
