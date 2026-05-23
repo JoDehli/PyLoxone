@@ -34,6 +34,7 @@ LOXONE_DEVICE_CLASS_MAP: dict[str, BinarySensorDeviceClass] = {
     "smoke": BinarySensorDeviceClass.SMOKE,
 }
 
+
 async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
@@ -126,9 +127,6 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
             self._attr_device_class = LOXONE_DEVICE_CLASS_MAP[self.type]
         else:
             self._attr_device_class = None
-
-
-
 
         if self._parent_id:
             self.uuidAction = self._parent_id
