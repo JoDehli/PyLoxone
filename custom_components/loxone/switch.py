@@ -78,12 +78,13 @@ async def async_setup_entry(
 
 class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch"""
+    _attr_available = False
+    _attr_is_on = STATE_UNKNOWN
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._icon = None
         self._assumed = False
-        self._state = STATE_UNKNOWN
         self._delay_remain = 0.0
         self._delay_time_total = 0.0
 
@@ -117,30 +118,25 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
         """Return if the state is based on assumptions."""
         return self._assumed
 
-    @property
-    def is_on(self):
-        """Return true if switch is on."""
-        return self._state
-
     def turn_on(self, **kwargs):
         """Turn the switch on."""
         self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse"))
-        self._state = True
+        self._attr_is_on = True
         self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
         self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="off"))
-        self._state = False
+        self._attr_is_on = False
         self.schedule_update_ha_state()
 
     async def event_handler(self, e):
         should_update = False
         if self._deactivation_delay in e.data:
             if e.data[self._deactivation_delay] == 0.0:
-                self._state = False
+                self._attr_is_on = False
             else:
-                self._state = True
+                self._attr_is_on = True
 
             self._delay_remain = int(e.data[self._deactivation_delay])
             should_update = True
@@ -150,6 +146,8 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             should_update = True
 
         if should_update:
+            if not self._attr_available:
+                self._attr_available = True
             self.async_schedule_update_ha_state()
 
     @property
@@ -163,7 +161,7 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
             "device_type": self.type,
         }
 
-        if self._state == 0.0:
+        if self._attr_is_on == False:
             state_dict.update({"delay_time_total": str(self._delay_time_total)})
 
         else:
@@ -179,10 +177,12 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
 class LoxoneSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch"""
 
+    _attr_available = False
+    _attr_is_on = STATE_UNKNOWN
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         """Initialize the Loxone switch."""
-        self._state = STATE_UNKNOWN
         self._icon = None
         self._assumed = False
 
@@ -206,29 +206,28 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
         """Return if the state is based on assumptions."""
         return self._assumed
 
-    @property
-    def is_on(self):
-        """Return true if switch is on."""
-        return self._state
-
     def turn_on(self, **kwargs):
         """Turn the switch on."""
-        if not self._state:
+        if not self._attr_is_on:
             self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
-            self._state = True
+            self._attr_is_on = True
             self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
-        if self._state:
+        if self._attr_is_on:
             self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="Off"))
-            self._state = False
+            self._attr_is_on = False
             self.schedule_update_ha_state()
 
     async def event_handler(self, event):
         if self.uuidAction in event.data or self.states["active"] in event.data:
             if self.states["active"] in event.data:
-                self._state = event.data[self.states["active"]]
+                self._attr_is_on = event.data[self.states["active"]]
+
+            if not self._attr_available:
+                self._attr_available = True
+
             self.async_schedule_update_ha_state()
 
     @property
@@ -258,9 +257,10 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
 
     def turn_on(self, **kwargs):
         """Turn the switch on."""
-        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
-        self._state = True
-        self.schedule_update_ha_state()
+        if not self._attr_is_on:
+            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="on"))
+            self._attr_is_on = True
+            self.schedule_update_ha_state()
 
     @property
     def extra_state_attributes(self):
