@@ -19,10 +19,14 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
     _attr_supported_features = LightEntityFeature.EFFECT
     _attr_color_mode = ColorMode.ONOFF
     _attr_supported_color_modes = {ColorMode.ONOFF}
+    _attr_is_on: bool | None = None
+    _attr_state: None = None
+    _attr_available = False
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._state = STATE_UNKNOWN
+        self._attr_state = STATE_UNKNOWN
+        self._attr_is_on = STATE_UNKNOWN
         self._active_moods = []
         self._moodlist = []
         self._additional_moodlist = []
@@ -209,6 +213,8 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             request_update = True
 
         if request_update:
+            if not self._attr_available:
+                self._attr_available = True
             self.async_schedule_update_ha_state()
 
     @property

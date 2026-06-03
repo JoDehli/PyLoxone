@@ -6,6 +6,7 @@ from homeassistant.components.light import (ATTR_BRIGHTNESS,
                                             ATTR_COLOR_TEMP_KELVIN,
                                             ATTR_HS_COLOR, ColorMode,
                                             LightEntity)
+from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers.device_registry import DeviceInfo
 
 from .. import LoxoneEntity
@@ -20,10 +21,15 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
     _attr_min_color_temp_kelvin = 2000
 
     _attr_supported_color_modes: set[ColorMode] = {ColorMode.COLOR_TEMP}
+    _attr_is_on: bool | None = None
+    _attr_state: None = None
+    _attr_available = False
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         """Initialize the Tunable White Light."""
+        self._attr_state = STATE_UNKNOWN
+        self._attr_is_on = STATE_UNKNOWN
         self._attr_unique_id = self.uuidAction
         self._attr_color_mode = ColorMode.UNKNOWN
         self._color_uuid = kwargs.get("states", {}).get("color", None)
@@ -104,6 +110,8 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
                 _LOGGER.error("Not handled command -> %s", _color)
 
         if request_update:
+            if not self._attr_available:
+                self._attr_available = True
             self.async_schedule_update_ha_state()
 
     @cached_property

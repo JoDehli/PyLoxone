@@ -11,17 +11,16 @@ import json
 import logging
 import time
 import urllib
-from asyncio import Event
 from base64 import b64decode, b64encode
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from types import TracebackType
 from typing import Any, NoReturn, Optional, Union
 from urllib.parse import urlparse
 
+import aiohttp
 import websockets as wslib
 import websockets.exceptions
-from async_upnp_client import aiohttp
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.PublicKey import RSA
@@ -142,7 +141,7 @@ class LoxoneBaseConnection:
             raise RuntimeError(f"Failed to generate cryptographic keys: {e}") from e
 
         self._public_key: str = ""
-        self._session_key: str = ""
+        self._session_key: bytes
 
         self.miniserver_version: list[int] = []
         self.miniserver_serial: str = ""
@@ -618,7 +617,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             for task in done:
                 try:
                     await task
-                except websockets.exceptions.ConnectionClosedOK as e:
+                except websockets.exceptions.ConnectionClosedOK:
                     _LOGGER.debug("Task ConnectionClosedOK received")
                     raise LoxoneConnectionClosedOk
                 except LoxoneTokenError as e:
@@ -646,9 +645,9 @@ class LoxoneConnection(LoxoneBaseConnection):
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
             raise
-        except LoxoneConnectionError, LoxoneTokenError, LoxoneConnectionClosedOk:
+        except (LoxoneConnectionError, LoxoneTokenError, LoxoneConnectionClosedOk):
             raise
-        except Exception as e:
+        except Exception:
             raise
         finally:
             # Cancel pending tasks
@@ -777,7 +776,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
             raise
-        except LoxoneTokenError, LoxoneOutOfServiceException, LoxoneConnectionError:
+        except (LoxoneTokenError, LoxoneOutOfServiceException, LoxoneConnectionError):
             # Re-raise expected Loxone exceptions
             raise
         except Exception as e:
@@ -819,7 +818,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     else:
                         _LOGGER.exception("Max connection tries exceeded. Stopping.")
                         raise
-                except TimeoutError as e:
+                except TimeoutError:
                     if attempt < RECONNECT_TRIES - 1:
                         _LOGGER.debug(
                             f"TimeoutError, try again in {RECONNECT_DELAY} seconds..."
@@ -828,7 +827,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     else:
                         _LOGGER.error("Max tries exceeded. Stopping.")
                         raise
-                except ConnectionError as e:
+                except ConnectionError:
                     if attempt < RECONNECT_TRIES - 1:
                         _LOGGER.debug(
                             f"ConnectionError, try again in {RECONNECT_DELAY} seconds..."

@@ -75,7 +75,10 @@ def detect_encoding(byte_string):
         try:
             byte_string.decode(encoding)
             return encoding
-        except UnicodeDecodeError, AttributeError:
+        except (
+                UnicodeDecodeError,
+                AttributeError
+        ):
             continue
     return None
 

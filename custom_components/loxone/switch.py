@@ -78,13 +78,17 @@ async def async_setup_entry(
 
 class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch"""
+
     _attr_available = False
-    _attr_is_on = STATE_UNKNOWN
+    _attr_is_on: bool | None = None
+    _attr_state: None = None
+    _attr_assumed_state: None = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._attr_state = STATE_UNKNOWN
+        self._attr_is_on = STATE_UNKNOWN
         self._icon = None
-        self._assumed = False
         self._delay_remain = 0.0
         self._delay_time_total = 0.0
 
@@ -113,11 +117,6 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
         """Return the icon to use for device if any."""
         return self._icon
 
-    @property
-    def assumed_state(self):
-        """Return if the state is based on assumptions."""
-        return self._assumed
-
     def turn_on(self, **kwargs):
         """Turn the switch on."""
         self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="pulse"))
@@ -131,21 +130,29 @@ class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):
         self.schedule_update_ha_state()
 
     async def event_handler(self, e):
+        """Handle timed-switch events and update state attributes."""
+        data = e.data
         should_update = False
-        if self._deactivation_delay in e.data:
-            if e.data[self._deactivation_delay] == 0.0:
-                self._attr_is_on = False
-            else:
-                self._attr_is_on = True
 
-            self._delay_remain = int(e.data[self._deactivation_delay])
+        # If we're currently unavailable but incoming data contains relevant keys,
+        # schedule an async update immediately (preserves original behavior).
+        if not self._attr_available and (
+            self._deactivation_delay in data or self._deactivation_delay_total in data
+        ):
+            self.async_schedule_update_ha_state()
+
+        if self._deactivation_delay in data:
+            # Preserve original comparison to 0.0
+            self._attr_is_on = False if data[self._deactivation_delay] == 0.0 else True
+            self._delay_remain = int(data[self._deactivation_delay])
             should_update = True
 
-        if self._deactivation_delay_total in e.data:
-            self._delay_time_total = int(e.data[self._deactivation_delay_total])
+        if self._deactivation_delay_total in data:
+            self._delay_time_total = int(data[self._deactivation_delay_total])
             should_update = True
 
         if should_update:
+            # Make entity available if it wasn't and schedule a final update
             if not self._attr_available:
                 self._attr_available = True
             self.async_schedule_update_ha_state()
@@ -178,10 +185,15 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
     """Representation of a loxone switch"""
 
     _attr_available = False
-    _attr_is_on = STATE_UNKNOWN
+    _attr_is_on: bool | None = None
+    _attr_state: None = None
+    _attr_assumed_state: None = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._attr_state = STATE_UNKNOWN
+        self._attr_is_on = STATE_UNKNOWN
+
         """Initialize the Loxone switch."""
         self._icon = None
         self._assumed = False
@@ -201,11 +213,6 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
         """Return the icon to use for device if any."""
         return self._icon
 
-    @property
-    def assumed_state(self):
-        """Return if the state is based on assumptions."""
-        return self._assumed
-
     def turn_on(self, **kwargs):
         """Turn the switch on."""
         if not self._attr_is_on:
@@ -222,12 +229,13 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
 
     async def event_handler(self, event):
         if self.uuidAction in event.data or self.states["active"] in event.data:
+            if not self._attr_available:
+                self.async_schedule_update_ha_state()
             if self.states["active"] in event.data:
                 self._attr_is_on = event.data[self.states["active"]]
 
             if not self._attr_available:
                 self._attr_available = True
-
             self.async_schedule_update_ha_state()
 
     @property

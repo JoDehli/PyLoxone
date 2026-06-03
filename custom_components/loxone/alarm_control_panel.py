@@ -68,6 +68,8 @@ async def async_setup_entry(
 
 
 class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
+    _attr_available = False
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._state = 0.0
@@ -130,6 +132,8 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
             request_update = True
 
         if request_update:
+            if not self._attr_available:
+                self._attr_available = True
             self.async_schedule_update_ha_state()
 
     @property

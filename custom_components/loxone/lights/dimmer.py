@@ -16,10 +16,14 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
 
     _attr_color_mode = ColorMode.BRIGHTNESS
     _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
+    _attr_is_on: bool | None = None
+    _attr_state: None = None
+    _attr_available = False
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         """Initialize the dimmer ."""
+        self._attr_state = STATE_UNKNOWN
         self._attr_is_on = STATE_UNKNOWN
         self._attr_unique_id = self.uuidAction
         self._position = 0.0
@@ -112,6 +116,8 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         )
 
         if request_update:
+            if not self._attr_available:
+                self._attr_available = True
             self.async_schedule_update_ha_state()
 
     @cached_property

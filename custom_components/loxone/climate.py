@@ -13,7 +13,7 @@ from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
 from homeassistant.components.climate.const import (ClimateEntityFeature,
                                                     HVACAction, HVACMode)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import STATE_UNKNOWN, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -115,12 +115,16 @@ async def async_setup_entry(
 class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller (legacy, non-V2)"""
 
+    _attr_available: bool = False
+    _attr_state: None = None
+
     def __init__(self, **kwargs):
         # Add room name to entity name for better identification in HomeKit
         if "room" in kwargs and kwargs["room"]:
             kwargs["name"] = f"{kwargs['room']} Climate"
 
         super().__init__(**kwargs)
+        self._attr_state = STATE_UNKNOWN
         self.hass = kwargs["hass"]
         self._autoMode = kwargs[CONF_HVAC_AUTO_MODE]
         self._stateAttribUuids = kwargs["states"]
@@ -154,6 +158,8 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
             update = True
 
         if update:
+            if not self._attr_available:
+                self._attr_available = True
             self.async_write_ha_state()
 
     def get_state_value(self, name):
@@ -320,6 +326,9 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
 class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller"""
 
+    _attr_available: bool = False
+    _attr_state: None = None
+
     _attr_supported_features = (
         ClimateEntityFeature.PRESET_MODE
         | ClimateEntityFeature.TARGET_TEMPERATURE
@@ -329,6 +338,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._attr_state = STATE_UNKNOWN
         self.hass = kwargs["hass"]
         self._autoMode = kwargs[CONF_HVAC_AUTO_MODE]
         self._stateAttribUuids = kwargs["states"]
@@ -354,6 +364,8 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             update = True
 
         if update:
+            if not self._attr_available:
+                self._attr_available = True
             self.schedule_update_ha_state()
 
         # _LOGGER.debug(f"State attribs after event handling: {self._stateAttribValues}")
