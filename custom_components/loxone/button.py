@@ -62,6 +62,8 @@ class LoxoneButton(LoxoneEntity, ButtonEntity):
         super().__init__(**kwargs)
         self._attr_icon = None
         self._attr_unique_id = self.uuidAction
+        self._attr_state = None
+        self._state_value = None
 
     @property
     def icon(self):
@@ -88,6 +90,8 @@ class LoxoneButton(LoxoneEntity, ButtonEntity):
                 active = event.data[self.states["active"]]
                 new_state = True if active == 1.0 else False
                 if new_state != self._attr_state:
+                    self._attr_state = new_state
+                    self._state_value = active
                     self.__set_state(dt_util.utcnow().isoformat())
                     request_update = True
         if request_update:
@@ -109,6 +113,8 @@ class LoxoneButton(LoxoneEntity, ButtonEntity):
         return {
             **self._attr_extra_state_attributes,
             "state_uuid": self.states["active"],
+            "new_state": self._attr_state,
+            "state_value": self._state_value,
             "device_type": self.type,
         }
 
