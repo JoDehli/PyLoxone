@@ -18,6 +18,7 @@ import websockets
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
+                                 EVENT_HOMEASSISTANT_STARTED,
                                  EVENT_HOMEASSISTANT_STOP, Platform)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
@@ -413,6 +414,7 @@ async def async_setup_entry(hass, config_entry):
         _LOGGER.info("Loxone integration reload complete")
 
     async def loxone_discovered(event):
+        _LOGGER.info("Creating groups")
         miniserver = get_miniserver_from_hass(hass)
         if miniserver.miniserver_type < 2 and "component" in event.data:
             if event.data["component"] == DOMAIN:
@@ -614,7 +616,7 @@ async def async_setup_entry(hass, config_entry):
     hass.services.async_register(DOMAIN, "reload", handle_reload)
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event)
-    hass.bus.async_listen_once(EVENT_COMPONENT_LOADED, loxone_discovered)
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, loxone_discovered)
 
     # Store listeners for cleanup
     coordinator.listeners = [
