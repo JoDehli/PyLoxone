@@ -55,7 +55,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 
 class LoxoneEntityDescription(SensorEntityDescription, frozen_or_thawed=True):
-    """Describes a Loxone sensor entity.
+    """
+    Describes a Loxone sensor entity.
 
     Acts as a classification object: carries matching criteria (which Loxone
     units/keywords trigger this description) and the resulting classification
@@ -155,7 +156,8 @@ def match_sensor_description(
     name: str = "",
     category: str = "",
 ) -> LoxoneEntityDescription | None:
-    """Find the first matching sensor description for a Loxone sensor.
+    """
+    Find the first matching sensor description for a Loxone sensor.
 
     Unambiguous units (°C, kWh, ppm, …) match immediately.
     Ambiguous units (%) require a keyword hit in name or category.
@@ -219,7 +221,7 @@ async def async_setup_entry(
     for sensor in get_all(loxconfig, "Meter"):
         _LOGGER.info("Found Meter: %s", sensor)
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-        device_info = LoxoneMeterSensor.create_DeviceInfo_from_sensor(sensor)
+        device_info = LoxoneMeterSensor.create_device_info_from_sensor(sensor)
 
         for state_key, name_suffix, format_key in [
             ("actual", "Actual", "actualFormat"),
@@ -376,7 +378,7 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
     async def async_set_value(self, value):
         """Set new value."""
         self.hass.bus.async_fire(
-            SENDDOMAIN, dict(uuid=self.uuidAction, value="{}".format(value))
+            SENDDOMAIN, dict(uuid=self.uuidAction, value=f"{value}")
         )
         self.async_schedule_update_ha_state()
 
@@ -397,7 +399,7 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
         self._format = self._get_format(self.details["format"])
         self._attr_should_poll = False
         self._attr_native_unit_of_measurement = clean_unit(self.details["format"])
-        self._parent_id = kwargs.get("parent_id", None)
+        self._parent_id = kwargs.get("parent_id")
 
         precision = self._parse_digits_after_decimal(self.details["format"])
         if precision:
@@ -465,12 +467,12 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
 class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        device_info = kwargs.get("device_info", None)
+        device_info = kwargs.get("device_info")
         if device_info:
             self._attr_device_info = device_info
 
     @staticmethod
-    def create_DeviceInfo_from_sensor(sensor) -> DeviceInfo:
+    def create_device_info_from_sensor(sensor) -> DeviceInfo:
         try:
             # For legacy Meter
             model = sensor["details"]["type"].capitalize() + " Meter"
