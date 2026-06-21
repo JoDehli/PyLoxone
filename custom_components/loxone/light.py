@@ -76,7 +76,7 @@ async def async_setup_entry(
         new_light_controller = LoxoneLightControllerV2(**light_controller)
         entities.append(new_light_controller)
 
-        if generate_subcontrols and "subControls" in light_controller:
+        if "subControls" in light_controller:
             for sub_control_uuid in light_controller["subControls"]:
                 if (
                     sub_control_uuid.find("masterValue") > -1
@@ -91,6 +91,7 @@ async def async_setup_entry(
                         "lightcontroller_id": light_controller.get("uuidAction", None),
                         "lightcontroller_name": light_controller.get("name", None),
                         "async_add_devices": async_add_entities,
+                        "enabled_default": generate_subcontrols,
                     }
                 )
 

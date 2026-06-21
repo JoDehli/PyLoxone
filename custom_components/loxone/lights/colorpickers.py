@@ -38,6 +38,7 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
 
         if self._light_controller_id:
             self.type = "LightControllerV2"
+            self._attr_entity_registry_enabled_default = kwargs.get("enabled_default", True)
             self._attr_device_info = get_or_create_device(
                 self._light_controller_id, self.name, self.type, self.room
             )
@@ -140,6 +141,7 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
 
         if self._light_controller_id:
             self.type = "LightControllerV2"
+            self._attr_entity_registry_enabled_default = kwargs.get("enabled_default", True)
             self._attr_device_info = get_or_create_device(
                 self._light_controller_id, self.name, self.type, self.room
             )
@@ -259,6 +261,7 @@ class LumiTech(RGBColorPicker):
         """Initialize the LumiTech."""
         if self._light_controller_id:
             self.type = "LightControllerV2"
+            self._attr_entity_registry_enabled_default = kwargs.get("enabled_default", True)
             self._attr_device_info = get_or_create_device(
                 self._light_controller_id, self.name, self.type, self.room
             )
