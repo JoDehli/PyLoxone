@@ -58,6 +58,7 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - AudioZoneV2
 - Slider
 - TextInput
+- Radio Buttons
 
 ## Known Limitations
 
