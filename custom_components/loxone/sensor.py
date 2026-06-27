@@ -115,7 +115,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     ),
     LoxoneEntityDescription(
         key="illuminance",
-        loxone_format_strings=(LIGHT_LUX, "Lx", "lux"),
+        loxone_format_strings=(LIGHT_LUX, "lx", "lux"),
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.ILLUMINANCE,
     ),
