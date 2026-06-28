@@ -30,6 +30,7 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
 
         if self._light_controller_id:
             self.type = "LightControllerV2"
+            self._attr_entity_registry_enabled_default = kwargs.get("enabled_default", True)
             self._attr_device_info = get_or_create_device(
                 self._light_controller_id, self.name, self.type, self.room
             )
