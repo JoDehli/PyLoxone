@@ -17,7 +17,7 @@ def get_or_create_device(device_uuid, device_name, device_type, device_room):
     if device_uuid not in device_registry:
         device_registry[device_uuid] = {
             "identifiers": {(DOMAIN, device_uuid)},
-            "name": f"{DOMAIN} {device_name}",
+            "name": device_name,
             "manufacturer": "Loxone",
             "model": device_type,
             "suggested_area": device_room,
