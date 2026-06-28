@@ -16,6 +16,7 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
 
     _attr_color_mode = ColorMode.BRIGHTNESS
     _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
+    _attr_available = False
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -98,8 +99,8 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
             if (
                 self._min is not None
                 and self._max is not None
-                and self._min != "unknown"
-                and self._max != "unknown"
+                and self._min != STATE_UNKNOWN
+                and self._max != STATE_UNKNOWN
             ):
                 self._attr_brightness = lox2hass_mapped(
                     e.data[self._position_uuid], self._min, self._max
@@ -113,6 +114,10 @@ class LoxoneDimmer(LoxoneEntity, LightEntity):
         )
 
         if request_update:
+            if not self._attr_available:
+                min_max_values_are_not_unknown = self._min != STATE_UNKNOWN and self._max != STATE_UNKNOWN
+                if min_max_values_are_not_unknown or self._attr_is_on != STATE_UNKNOWN:
+                    self._attr_available = True
             self.async_schedule_update_ha_state()
 
     @cached_property
