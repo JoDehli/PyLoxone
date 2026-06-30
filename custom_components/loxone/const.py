@@ -23,6 +23,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.NUMBER,
     Platform.BUTTON,
     Platform.SCENE,
+    Platform.SELECT,
 ]
 
 LOXONE_DEFAULT_PORT = 8080
