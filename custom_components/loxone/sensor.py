@@ -31,7 +31,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util
 
-from . import LoxoneEntity
+from . import LoxoneEntity, MiniServer
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
                       get_or_create_device)
@@ -204,10 +204,10 @@ async def async_setup_entry(
     miniserver = get_miniserver_from_hass(hass)
 
     loxconfig = miniserver.lox_config.json
-    entities: list[Any] = [LoxoneKeepAliveSensor()]
+    entities: list[Any] = [LoxoneKeepAliveSensor(miniserver.serial)]
 
     if "softwareVersion" in loxconfig:
-        entities.append(LoxoneVersionSensor(loxconfig["softwareVersion"]))
+        entities.append(LoxoneVersionSensor(miniserver.serial, loxconfig["softwareVersion"]))
 
     for sensor in get_all(loxconfig, "InfoOnlyAnalog"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
@@ -305,14 +305,15 @@ class LoxoneKeepAliveSensor(LoxoneEntity, SensorEntity):
     _attr_unique_id = "loxone_keep_alive_sensor_uuid"
     _attr_device_class = SensorDeviceClass.TIMESTAMP  # tell HA this is a timestamp
 
-    def __init__(self, **kwargs):
+    def __init__(self, miniserver_serial, **kwargs):
         super().__init__(**kwargs)
+        self._miniserver_serial = miniserver_serial
         self._attr_native_value = None
 
     @cached_property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return self._attr_unique_id
+        return f"{self._miniserver_serial}-{self._attr_unique_id}"
 
     async def event_handler(self, e):
         if "keep_alive" in e.data and e.data["keep_alive"] == "received":
@@ -340,8 +341,9 @@ class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
     _attr_icon = "mdi:information-outline"
     _attr_unique_id = "loxone_software_version"
 
-    def __init__(self, version_list, **kwargs):
+    def __init__(self, minisersver_serial, version_list, **kwargs):
         super().__init__(**kwargs)
+        self._miniserver_serial = minisersver_serial
         try:
             self._attr_native_value = ".".join([str(x) for x in version_list])
         except Exception:
@@ -350,7 +352,7 @@ class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
     @cached_property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return self._attr_unique_id
+        return f"{self._miniserver_serial}-{self._attr_native_value}"
 
 
 class LoxoneTextSensor(LoxoneEntity, SensorEntity):
