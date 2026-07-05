@@ -63,6 +63,18 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 
 - Pushbuttons are stateless. They can not be used to reliably trigger automations. Use a Switch as a workaround and turn it off again in the Automation or in Loxone itself.
 
+## LightControllerV2 Sub-Controls
+
+Each `LightControllerV2` in Loxone groups individual lighting outputs (dimmers, color pickers, switches) as sub-controls. These are registered in the Home Assistant entity registry but **disabled by default** to keep the UI clean.
+
+To access individual light outputs:
+
+1. Open **Settings → Devices & Services → Entities**
+2. Filter by your LightControllerV2 device
+3. Enable the sub-control entities you want to use (dimmer, color picker, etc.)
+
+The integration option **"Generate sub-controls for LightControllerV2"** controls the default enabled state for newly created sub-control entities. When enabled, new sub-controls start as enabled; when disabled (the default), they start as disabled but remain visible in the entity registry for manual activation.
+
 ## Sensor Device Class Detection
 
 Sensors (InfoOnlyAnalog, Meter) are automatically classified based on their unit and Loxone category/name. The following device classes are detected:
