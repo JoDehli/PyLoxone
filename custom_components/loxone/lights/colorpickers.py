@@ -230,7 +230,6 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
 
     async def event_handler(self, e):
         request_update = False
-        print(self._attr_name)
         if self._color_uuid in e.data:
             _color = e.data[self._color_uuid]
 
