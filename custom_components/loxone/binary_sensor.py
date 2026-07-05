@@ -97,8 +97,14 @@ async def async_setup_entry(
 class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
     """Representation of a binary Loxone device."""
 
+    _attr_is_on: bool | None = None
+    _attr_state: None = None
+    _attr_available = False
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._attr_state = STATE_UNKNOWN
+        self._attr_is_on = STATE_UNKNOWN
         self._from_loxone_config = False
 
         if (
@@ -155,14 +161,14 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
             )
 
     async def event_handler(self, e):
-
         if self._state_uuid in e.data:
-            print(self._attr_name)
             self._state = e.data[self._state_uuid]
             if self._state == 1.0:
                 self._state = self._on_state
             else:
                 self._state = self._off_state
+            if not self._attr_available:
+                self._attr_available = True
             self.async_schedule_update_ha_state()
 
     @final
