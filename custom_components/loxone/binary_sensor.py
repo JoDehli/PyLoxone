@@ -155,7 +155,9 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
             )
 
     async def event_handler(self, e):
+
         if self._state_uuid in e.data:
+            print(self._attr_name)
             self._state = e.data[self._state_uuid]
             if self._state == 1.0:
                 self._state = self._on_state

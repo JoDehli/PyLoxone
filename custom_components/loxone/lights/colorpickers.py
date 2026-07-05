@@ -6,6 +6,7 @@ from homeassistant.components.light import (ATTR_BRIGHTNESS,
                                             ATTR_COLOR_TEMP_KELVIN,
                                             ATTR_HS_COLOR, ColorMode,
                                             LightEntity)
+from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers.device_registry import DeviceInfo
 
 from .. import LoxoneEntity
@@ -20,10 +21,13 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
     _attr_min_color_temp_kelvin = 2000
 
     _attr_supported_color_modes: set[ColorMode] = {ColorMode.COLOR_TEMP}
-
+    _attr_available = False
+    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         """Initialize the Tunable White Light."""
+        self._attr_state = STATE_UNKNOWN
+        self._attr_is_on = STATE_UNKNOWN
         self._attr_unique_id = self.uuidAction
         self._attr_color_mode = ColorMode.UNKNOWN
         self._color_uuid = kwargs.get("states", {}).get("color", None)
@@ -105,6 +109,8 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
                 _LOGGER.error("Not handled command -> %s", _color)
 
         if request_update:
+            if not self._attr_available:
+                self._attr_available = True
             self.async_schedule_update_ha_state()
 
     @cached_property
@@ -117,7 +123,8 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
     __color_mode_reported = True
     _attr_max_color_temp_kelvin = 6500
     _attr_min_color_temp_kelvin = 2000
-
+    _attr_available = False
+    
     _attr_supported_color_modes: set[ColorMode] = {
         ColorMode.COLOR_TEMP,
         ColorMode.HS,
@@ -223,6 +230,7 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
 
     async def event_handler(self, e):
         request_update = False
+        print(self._attr_name)
         if self._color_uuid in e.data:
             _color = e.data[self._color_uuid]
 
@@ -245,6 +253,8 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
                 _LOGGER.error("Not handled command -> %s", _color)
 
         if request_update:
+            if not self._attr_available:
+                self._attr_available = True
             self.async_schedule_update_ha_state()
 
     @cached_property
