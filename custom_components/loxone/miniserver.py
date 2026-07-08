@@ -23,17 +23,9 @@ NEW_COVERS = "covers"
 
 
 @callback
-def get_miniserver_from_hass(hass):
-    """Return Miniserver with a matching bridge id."""
-    return hass.data[DOMAIN][list(hass.data[DOMAIN].keys())[0]].miniserver
-
-
-@callback
-def get_miniserver_from_config(hass, config):
-    """Return first Miniserver. Only one Miniserver is allowed"""
-    if len(config) == 0:
-        return None
-    return config[next(iter(config))]
+def get_miniserver_from_hass(hass, config_entry):
+    """Return the Miniserver for this specific config entry."""
+    return hass.data[DOMAIN][config_entry.entry_id].miniserver
 
 
 @dataclass

@@ -54,7 +54,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Loxone Light Controller."""
-    miniserver = get_miniserver_from_hass(hass)
+    miniserver = get_miniserver_from_hass(hass, config_entry)
     generate_subcontrols = config_entry.options.get(
         "generate_lightcontroller_subcontrols", False
     )
