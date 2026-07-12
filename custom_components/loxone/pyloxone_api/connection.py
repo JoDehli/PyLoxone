@@ -1238,7 +1238,7 @@ class LoxoneConnection(LoxoneBaseConnection):
 
                     self._key = value_dict.get("key", "")
                     self._user_salt = value_dict.get("salt", "")
-                    self._hash_alg = value_dict.get("hashAlg")
+                    self._hash_alg = value_dict.get("hashAlg", "SHA1")
 
                     if not self._key:
                         raise ValueError("Key is empty")
