@@ -1,4 +1,33 @@
 {
+  "entity": {
+    "climate": {
+      "room_controller_v2": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "schedule": "Schedule",
+              "paused_door_window": "Paused (Door/Window)"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "override_reason": {
+        "state": {
+          "none": "None",
+          "presence": "Presence",
+          "window_open": "Window Open",
+          "comfort_override": "Comfort Override",
+          "eco_override": "Eco Override",
+          "eco_plus_override": "Eco+ Override",
+          "prepare_heat_up": "Prepare State Heat Up",
+          "prepare_cool_down": "Prepare State Cool Down",
+          "overridden_by_source": "Overridden by source"
+        }
+      }
+    }
+  },
   "config": {
     "abort": {
       "single_instance_allowed": "Already configured. Only a single configuration possible."
@@ -38,8 +67,8 @@
   },
   "services": {
     "reload": {
-       "name": "Pyloxone Reload",
-            "description": "Reloads the Loxone integration by reconnecting to the Miniserver and refreshing all entities. This is useful after making configuration changes in Loxone Config or when connection issues occur. All current entity states will be re\\-synchronized from the Miniserver."
+      "name": "Pyloxone Reload",
+      "description": "Reloads the Loxone integration by reconnecting to the Miniserver and refreshing all entities. This is useful after making configuration changes in Loxone Config or when connection issues occur. All current entity states will be re\\-synchronized from the Miniserver."
     },
     "event_websocket_command": {
       "name": "Send Websocket command",

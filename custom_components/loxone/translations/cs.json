@@ -1,0 +1,31 @@
+{
+    "entity": {
+        "climate": {
+            "room_controller_v2": {
+                "state_attributes": {
+                    "preset_mode": {
+                        "state": {
+                            "schedule": "Časový plán",
+                            "paused_door_window": "Pozastaveno (Dveře/Okno)"
+                        }
+                    }
+                }
+            }
+        },
+        "sensor": {
+            "override_reason": {
+                "state": {
+                    "none": "Žádný",
+                    "presence": "Přítomnost",
+                    "window_open": "Otevřené okno",
+                    "comfort_override": "Dočasný komfortní režim",
+                    "eco_override": "Dočasný Eco režim",
+                    "eco_plus_override": "Dočasný Eco+ režim",
+                    "prepare_heat_up": "Příprava vytápění",
+                    "prepare_cool_down": "Příprava chlazení",
+                    "overridden_by_source": "Řízeno nadřazeným zdrojem"
+                }
+            }
+        }
+    }
+}

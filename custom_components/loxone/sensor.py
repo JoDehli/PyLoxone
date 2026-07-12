@@ -27,13 +27,13 @@ from homeassistant.const import (CONCENTRATION_PARTS_PER_MILLION,
                                  UnitOfVolumeFlowRate)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util
 
 from . import LoxoneEntity, MiniServer
-from .const import CLIMATE_EVENT, CONF_ACTIONID, DOMAIN, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
+from .const import CLIMATE_EVENT, CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
@@ -54,6 +54,17 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
+OVERRIDE_REASONS = {
+    0: "None",
+    1: "Presence",
+    2: "Window Open",
+    3: "Comfort Override",
+    4: "Eco Override",
+    5: "Eco+ Override",
+    6: "Prepare State Heat Up",
+    7: "Prepare State Cool Down",
+    8: "Overridden by source",
+}
 
 class LoxoneEntityDescription(SensorEntityDescription, frozen_or_thawed=True):
     """
@@ -151,18 +162,6 @@ UNAMBIGUOUS_UNITS: frozenset[str] = frozenset(
 )
 """Units that map to exactly one device class without needing keyword disambiguation."""
 
-OVERRIDE_REASONS = {
-    0: "None",
-    1: "Presence",
-    2: "Window Open",
-    3: "Comfort Override",
-    4: "Eco Override",
-    5: "Eco+ Override",
-    6: "Prepare State Heat Up",
-    7: "Prepare State Cool Down",
-    8: "Overriden by source",
-}
-
 def match_sensor_description(
     unit: str,
     name: str = "",
@@ -256,66 +255,44 @@ async def async_setup_entry(
                 }
                 entities.append(LoxoneMeterSensor(**subsensor))
 
-    for sensor in get_all(loxconfig, ["ClimateControllerUS", "ClimateController"]):
-        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-        entities.append(LoxoneClimateController(**sensor))
+    # Climate controller demand sensors
+    for ctrl_type in ("ClimateController", "ClimateControllerUS"):
+        for ctrl in get_all(loxconfig, ctrl_type):
+            ctrl = add_room_and_cat_to_value_values(loxconfig, ctrl)
+            ctrl_kwargs = {**ctrl, "type": "climate_controller", "hass": hass}
+            entities.append(LoxoneClimateController(**ctrl_kwargs))
 
-    for sensor in get_all(loxconfig, "IRoomControllerV2"):
-        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-        device = get_or_create_device(sensor["uuidAction"], sensor["name"], sensor["type"], sensor["room"])
+    # IRoomControllerV2 sub-sensors: override reason + comfort temperatures
+    for irc in get_all(loxconfig, "IRoomControllerV2"):
+        irc = add_room_and_cat_to_value_values(loxconfig, irc)
+        states = irc.get("states", {})
+        device_info = get_or_create_device(
+            irc["uuidAction"], irc["name"], "RoomControllerV2", irc.get("room", "")
+        )
 
-        states_list = [
-            ("overrideReason", "Override Reason", False, SensorDeviceClass.ENUM, LoxoneRoomControllerOverrideSensor),
-            (
-                "comfortTemperature",
-                "Comfort Temperature",
-                True,
-                SensorDeviceClass.TEMPERATURE,
-                LoxoneRoomControllerTemperatureSensor,
-            ),
-            (
-                "comfortTemperatureCool",
-                "Comfort Temperature Cool",
-                True,
-                SensorDeviceClass.TEMPERATURE,
-                LoxoneRoomControllerTemperatureSensor,
-            ),
-        ]
+        if "overrideReason" in states:
+            entities.append(LoxoneRoomControllerOverrideSensor(
+                name=f"{irc['name']} Override Reason",
+                uuid=states["overrideReason"],
+                device_info=device_info,
+                parent_uuid=irc["uuidAction"],
+            ))
 
-        if sensor["details"]["connectedInputs"] > 0:
-            # Bits from StructureFile pdf
-            # ■ Bit 1 Comfort-Temperature Heating
-            # ■ Bit 2 Comfort-Temperature Cooling
-            # ■ Bit 3 Comfort Temperature Heat+Cooling
-            # ■ Bit 4 Allowed Comfort-Tolerance
-            # ■ Bit 5 Lower absent Temperature
-            # ■ Bit 6 Upper absent Temperature
-            # ■ Bit 7 Allowed deviation absent
-            # ■ Bit 8 Shading temperature heating
-            # ■ Bit 9 Shading temperature cooling
-            # ■ Bit 10 Frostprotect Temperature
-            # ■ Bit 11 HeatProtect Temperature
-            # ■ Bit 12 Mode input
-            # ■ Bit 13 CO2-Level
-            # ■ Bit 14 Indoor Humidity
-            """"""
+        if "comfortTemperature" in states:
+            entities.append(LoxoneRoomControllerTemperatureSensor(
+                name=f"{irc['name']} Comfort Temperature",
+                uuid=states["comfortTemperature"],
+                device_info=device_info,
+                parent_uuid=irc["uuidAction"],
+            ))
 
-        for state_key, name_suffix, include_format, device_class, sensor_class in states_list:
-            if state_key in sensor["states"]:
-                room_controller_sensor = {
-                    "type": name_suffix,
-                    "device_info": device,
-                    "device_class": device_class,
-                    "parent_id": sensor["uuidAction"],
-                    "uuidAction": sensor["states"][state_key],
-                    "room": sensor.get("room", ""),
-                    "cat": sensor.get("cat", ""),
-                    "name": f"{sensor['name']} {name_suffix}",
-                    "details": {"format": sensor["details"]["format"] if include_format else ""},
-                    "async_add_devices": async_add_entities,
-                    "config_entry": config_entry,
-                }
-                entities.append(sensor_class(**room_controller_sensor))
+        if "comfortTemperatureCool" in states:
+            entities.append(LoxoneRoomControllerTemperatureSensor(
+                name=f"{irc['name']} Comfort Temperature Cool",
+                uuid=states["comfortTemperatureCool"],
+                device_info=device_info,
+                parent_uuid=irc["uuidAction"],
+            ))
 
     @callback
     def async_add_sensors(_):
@@ -558,83 +535,130 @@ class LoxoneMeterSensor(LoxoneSensor, SensorEntity):
             model=model,
         )
 
+class LoxoneRoomControllerTemperatureSensor(SensorEntity):
+    """Sensor for IRoomControllerV2 comfort temperature states."""
 
-class LoxoneRoomControllerTemperatureSensor(LoxoneSensor, SensorEntity):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        device_info = kwargs.get("device_info", None)
-        if device_info:
-            self._attr_device_info = device_info
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
 
+    def __init__(self, name: str, uuid: str, device_info: DeviceInfo, parent_uuid: str):
+        self._attr_name = name
+        self._uuid = uuid
+        self._attr_unique_id = uuid
+        self._attr_device_info = device_info
+        self._attr_native_value = None
+        self._parent_uuid = parent_uuid
 
-class LoxoneRoomControllerOverrideSensor(LoxoneEntity, SensorEntity):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        device_info = kwargs.get("device_info", None)
-        if device_info:
-            self._attr_device_info = device_info
+    async def async_added_to_hass(self):
+        """Subscribe to Loxone events."""
+        self.async_on_remove(
+            self.hass.bus.async_listen(EVENT, self.event_handler)
+        )
 
     async def event_handler(self, e):
-        if self.uuidAction in e.data:
-            self._attr_native_value = OVERRIDE_REASONS[int(e.data[self.uuidAction])]
+        if self._uuid in e.data:
+            self._attr_native_value = e.data[self._uuid]
             self.async_schedule_update_ha_state()
 
+class LoxoneRoomControllerOverrideSensor(SensorEntity):
+    """Sensor for IRoomControllerV2 override reason."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, name: str, uuid: str, device_info: DeviceInfo, parent_uuid: str):
+        self._attr_name = name
+        self._uuid = uuid
+        self._attr_unique_id = uuid
+        self._attr_device_info = device_info
+        self._attr_native_value = "None"
+        self._attr_options = list(OVERRIDE_REASONS.values())
+        self._parent_uuid = parent_uuid
+
+    async def async_added_to_hass(self):
+        """Subscribe to Loxone events."""
+        self.async_on_remove(
+            self.hass.bus.async_listen(EVENT, self.event_handler)
+        )
+
+    async def event_handler(self, e):
+        if self._uuid in e.data:
+            reason_code = int(e.data[self._uuid])
+            self._attr_native_value = OVERRIDE_REASONS.get(reason_code, f"Unknown ({reason_code})")
+            self.async_schedule_update_ha_state()
 
 class LoxoneClimateController(LoxoneEntity, SensorEntity):
+    """Climate controller sensor that fires demand events for IRoomControllerV2.
+
+    Reads the control list from the ClimateController's state and fires
+    CLIMATE_EVENT for each linked room controller with the current demand
+    (1 = heating, -1 = cooling, 0 = idle).
+    """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        device_info = kwargs.get("device_info", None)
-        if device_info:
-            self._attr_device_info = device_info
-        self.type = "Climate controller"
-        self._attr_should_poll = False
-        self._stateAttribUuids = kwargs["states"]
-        self._stateAttribKeys = {v: k for k, v in self._stateAttribUuids.items()}
+        self.hass = kwargs["hass"]
+        self._stateAttribUuids = kwargs.get("states", {})
         self._stateAttribValues = {}
+        self._heat_demand = 0
+        self._cool_demand = 0
+        self.type = "ClimateController"
 
-    async def event_handler(self, event):
+        self._attr_device_info = get_or_create_device(
+            self.unique_id, self.name, self.type, self.room
+        )
+
+    async def event_handler(self, e):
         update = False
 
-        demand = -1
-        for key in set(self._stateAttribUuids.values()) & event.data.keys():
-            if self._stateAttribKeys[key] == "controls":
-                demand = 0
-                self._stateAttribValues[key] = json.loads(event.data[key])
-                for control in self._stateAttribValues[key]:
-                    self.hass.bus.async_fire(CLIMATE_EVENT, dict(uuid=control["uuid"], value=control["demand"]))
-                    if control["demand"] == 1 or control["demand"] == -1:
-                        demand = demand + 1
+        for key in set(self._stateAttribUuids.values()) & e.data.keys():
+            raw = e.data[key]
+            # Parse JSON control lists from the Miniserver
+            if isinstance(raw, str) and raw.startswith("["):
+                try:
+                    parsed = json.loads(raw)
+                    self._stateAttribValues[key] = parsed
+                    # Fire demand events for each control in the list
+                    heat_count = 0
+                    cool_count = 0
+                    for control in parsed:
+                        demand = control.get("demand", 0)
+                        if demand == 1:
+                            heat_count += 1
+                        elif demand == -1:
+                            cool_count += 1
+                        self.hass.bus.async_fire(
+                            CLIMATE_EVENT,
+                            {"uuid": control["uuid"], "value": demand},
+                        )
+                    self._heat_demand = heat_count
+                    self._cool_demand = cool_count
+                except (json.JSONDecodeError, TypeError, KeyError) as err:
+                    _LOGGER.debug("ClimateController JSON parse error: %s", err)
             else:
-                self._stateAttribValues[key] = event.data[key]
+                self._stateAttribValues[key] = raw
             update = True
 
-        if demand > -1:
-            self._attr_native_value = demand
-
         if update:
-            self.async_schedule_update_ha_state()
+            self.schedule_update_ha_state()
 
-    def get_state_value(self, name):
-        uuid = self._stateAttribUuids[name]
-        return self._stateAttribValues[uuid] if uuid in self._stateAttribValues else None
+    @property
+    def native_value(self):
+        """Return summary state."""
+        if self._heat_demand > 0:
+            return f"Heating ({self._heat_demand})"
+        if self._cool_demand > 0:
+            return f"Cooling ({self._cool_demand})"
+        return "Idle"
 
     @property
     def extra_state_attributes(self):
-        """Return device specific state attributes."""
-        heat_demand = 0
-        cool_demand = 0
-        controls = self.get_state_value("controls")
-        if controls is not None:
-            for control in controls:
-                if control["demand"] == 1:
-                    heat_demand = heat_demand + 1
-                if control["demand"] == -1:
-                    cool_demand = cool_demand + 1
+        """Return detailed demand attributes."""
         return {
             **self._attr_extra_state_attributes,
-            "heat_demand": heat_demand,
-            "cool_demand": cool_demand,
-            "controls": controls,
-            "currentStatus": self.get_state_value("currentStatus"),
-            "stage": self.get_state_value("stage"),
+            "heat_demand": self._heat_demand,
+            "cool_demand": self._cool_demand,
+            "device_type": self.type,
         }

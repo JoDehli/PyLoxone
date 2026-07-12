@@ -74,21 +74,11 @@ async def async_setup_entry(
                     new_switch = LoxoneIntercomSubControl(**_)
                     entities.append(new_switch)
         elif switch_entity["type"] == "IRoomControllerV2":
-            if "overrideEntries" in switch_entity["states"]:
-                overrride_switch = {
-                    "room_controller": switch_entity,
-                    "type": "RoomControllerOverride",
-                    "parent_id": switch_entity["uuidAction"],
-                    "uuidAction": switch_entity["uuidAction"],
-                    "overrideUuid": switch_entity["states"]["overrideEntries"],
-                    "room": switch_entity.get("room", ""),
-                    "cat": switch_entity.get("cat", ""),
-                    "name": switch_entity.get("name", ""),
-                    "async_add_devices": async_add_entities,
-                    "config_entry": config_entry,
-                }
-                override_entity = LoxoneRoomControllerOverride(**overrride_switch)
-                entities.append(override_entity)
+            irc = add_room_and_cat_to_value_values(loxconfig, switch_entity)
+            states = irc.get("states", {})
+            if "overrideEntries" in states:
+                override_kwargs = {**irc, "type": "RoomControllerOverride"}
+                entities.append(LoxoneRoomControllerOverride(**override_kwargs))
         elif switch_entity["type"] == "LightControllerV2":
             if switch_entity.get("presence", None):
                 presence_switch = {
@@ -105,8 +95,7 @@ async def async_setup_entry(
                     "config_entry": config_entry,
                     "states": switch_entity["states"],
                 }
-                presence_entity = LoxoneLightPresenceSwitch(**presence_switch)
-                entities.append(presence_entity)
+                entities.append(LoxoneLightPresenceSwitch(**presence_switch))
     async_add_entities(entities)
 
 
@@ -320,52 +309,65 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
         }
 
 
-class LoxoneRoomControllerOverride(LoxoneSwitch):
+class LoxoneRoomControllerOverride(LoxoneEntity, SwitchEntity):
+    """Switch to trigger/stop comfort override on IRoomControllerV2."""
+
+    _attr_available = True
+    _attr_is_on = False
+    _attr_entity_category = EntityCategory.CONFIG
+
     def __init__(self, **kwargs):
-        self._override_id = kwargs["overrideUuid"]
         super().__init__(**kwargs)
-        self._attr_device_info = get_or_create_device(self.uuidAction, self.name, "IRoomControllerV2", self.room)
-        self.name = f"{self.name} Override"
+        self._override_uuid = self.states.get("overrideEntries")
+        self._base_name = self.name  # Original IRC name before modification
+        self._attr_name = f"{self.name} Comfort Override"
+        self.type = "RoomControllerOverride"
+
+        # Use uuidAction (not unique_id) so this groups with the climate entity
+        self._attr_device_info = get_or_create_device(
+            self.uuidAction, self._base_name, "RoomControllerV2", self.room
+        )
+
+    @cached_property
+    def unique_id(self) -> str:
+        """Return unique ID based on override state UUID."""
+        return f"{self.uuidAction}_override"
 
     def turn_on(self, **kwargs):
-        """Turn the switch on."""
-        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="override/1"))
-        self._state = True
+        """Trigger comfort override (mode 1)."""
+        self.hass.bus.fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="override/1")
+        )
+        self._attr_is_on = True
         self.schedule_update_ha_state()
 
     def turn_off(self, **kwargs):
-        """Turn the switch off."""
-        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stopOverride"))
-        self._state = False
+        """Stop the active override."""
+        self.hass.bus.fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="stopOverride")
+        )
+        self._attr_is_on = False
         self.schedule_update_ha_state()
 
-    async def event_handler(self, event):
-        if self._override_id in event.data:
-            override_list = json.loads(event.data[self._override_id])
-            if isinstance(override_list, list):
-                self._state = len(override_list) > 0
-            if not self._attr_available:
-                self._attr_available = True
+    async def event_handler(self, e):
+        if self._override_uuid and self._override_uuid in e.data:
+            raw = e.data[self._override_uuid]
+            try:
+                entries = json.loads(raw) if isinstance(raw, str) else raw
+                self._attr_is_on = isinstance(entries, list) and len(entries) > 0
+            except (json.JSONDecodeError, TypeError):
+                self._attr_is_on = False
             self.async_schedule_update_ha_state()
 
     @property
     def extra_state_attributes(self):
-        """Return device specific state attributes.
-
-        Implemented by platform classes.
-        """
+        """Return device specific state attributes."""
         return {
-            "uuid": self._override_id,
+            "uuid": self.uuidAction,
             "room": self.room,
-            "category": self.cat,
             "device_type": self.type,
             "platform": "loxone",
         }
-
-    @cached_property
-    def unique_id(self) -> str:
-        """Return a unique ID."""
-        return self._override_id
 
 
 class LoxoneLightPresenceSwitch(LoxoneSwitch):
