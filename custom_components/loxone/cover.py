@@ -49,7 +49,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set Loxone covers."""
-    miniserver = get_miniserver_from_hass(hass)
+    miniserver = get_miniserver_from_hass(hass, config_entry)
     loxconfig = miniserver.lox_config.json
     entities = []
 

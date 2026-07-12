@@ -415,7 +415,7 @@ async def async_setup_entry(hass, config_entry):
 
     async def loxone_discovered(event):
         _LOGGER.info("Creating groups")
-        miniserver = get_miniserver_from_hass(hass)
+        miniserver = get_miniserver_from_hass(hass, config_entry)
         if miniserver.miniserver_type < 2 and "component" in event.data:
             if event.data["component"] == DOMAIN:
                 try:
