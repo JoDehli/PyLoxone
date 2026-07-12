@@ -45,13 +45,14 @@ def _dedupe_label(label: str, used: set[str]) -> str:
 
 def build_option_maps(
     details: dict,
-) -> tuple[list[str], dict[int, str], dict[str, int]]:
+) -> tuple[list[str], dict[int, str], dict[str, int], int | None]:
     """Build the option list and lookup maps for a Loxone Radio block.
 
     Returns a tuple of:
       * the ordered list of option labels,
       * a mapping of Loxone output number to option label,
-      * a mapping of option label to Loxone output number.
+      * a mapping of option label to Loxone output number,
+      * the output number of the "all off" entry, or None if not present.
 
     The "all off" entry (output number ``0``) is only included when the Radio
     block exposes the ``allOff`` detail.
@@ -61,13 +62,14 @@ def build_option_maps(
     options: list[str] = []
     num_to_opt: dict[int, str] = {}
     opt_to_num: dict[str, int] = {}
-
+    all_off_num = None
     if "allOff" in details:
         label = details.get("allOff") or ALL_OFF_DEFAULT_LABEL
         label = _dedupe_label(label, used)
         options.append(label)
         num_to_opt[ALL_OFF_VALUE] = label
         opt_to_num[label] = ALL_OFF_VALUE
+        all_off_num = ALL_OFF_VALUE
 
     for key in sorted(outputs.keys(), key=lambda k: int(k)):
         number = int(key)
@@ -76,7 +78,7 @@ def build_option_maps(
         num_to_opt[number] = label
         opt_to_num[label] = number
 
-    return options, num_to_opt, opt_to_num
+    return options, num_to_opt, opt_to_num, all_off_num
 
 
 async def async_setup_platform(
@@ -120,6 +122,7 @@ class LoxoneSelect(LoxoneEntity, SelectEntity):
             self._options,
             self._num_to_option,
             self._option_to_num,
+            self._all_off_num
         ) = build_option_maps(self.details)
         self._attr_current_option = None
 
@@ -166,7 +169,10 @@ class LoxoneSelect(LoxoneEntity, SelectEntity):
         if number is None:
             _LOGGER.warning("Unknown option '%s' for Loxone select %s", option, self.name)
             return
-        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=str(number)))
+        if number == self._all_off_num:
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="reset"))
+        else:
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=str(number)))
         self.async_schedule_update_ha_state()
 
     @property
