@@ -27,6 +27,7 @@ class LoxoneAsyncHttpClient:
         username: str,
         password: str,
         scheme: str = "http",
+        verify_ssl: bool = True,
         session: aiohttp.ClientSession = None,
     ):
         # Validate input parameters
@@ -38,6 +39,8 @@ class LoxoneAsyncHttpClient:
             raise ValueError("Password cannot be empty")
         if scheme not in ("http", "https"):
             raise ValueError(f"Invalid scheme '{scheme}'. Must be 'http' or 'https'")
+        if not isinstance(verify_ssl, bool):
+            raise ValueError("verify_ssl must be a boolean")
 
         # super().__init__()
         if session is None:
@@ -52,6 +55,8 @@ class LoxoneAsyncHttpClient:
 
         self.timeout = TIMEOUT
         self.base_url = f"{scheme}://{url}"
+        self.scheme = scheme
+        self.verify_ssl = verify_ssl
         self.username = username
         self.password = password
         self._closed = False
@@ -72,11 +77,14 @@ class LoxoneAsyncHttpClient:
 
         try:
             _LOGGER.debug(f"Making GET request to: {url}")
-            response = await self.session.get(
-                url,
-                auth=aiohttp.BasicAuth(self.username, self.password),
-                timeout=aiohttp.ClientTimeout(total=self.timeout),
-            )
+            request_kwargs = {
+                "auth": aiohttp.BasicAuth(self.username, self.password),
+                "timeout": aiohttp.ClientTimeout(total=self.timeout),
+            }
+            if self.scheme == "https":
+                request_kwargs["ssl"] = self.verify_ssl
+
+            response = await self.session.get(url, **request_kwargs)
 
             if response.status != 200:
                 await self._handle_error(response)

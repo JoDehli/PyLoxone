@@ -20,8 +20,9 @@ from homeassistant.helpers.selector import (BooleanSelector, NumberSelector,
                                             TextSelectorType)
 
 from .const import (CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
-                    CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE, DEFAULT_IP,
-                    DEFAULT_PORT, DOMAIN)
+                    CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL,
+                    DEFAULT_DELAY_SCENE, DEFAULT_IP, DEFAULT_PORT,
+                    DEFAULT_VERIFY_SSL, DOMAIN)
 
 
 async def validate_loxone_setup(
@@ -68,6 +69,7 @@ DATA_SCHEMA_SETUP = vol.Schema(
         vol.Required(CONF_PORT, default=DEFAULT_PORT): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
         ),
+        vol.Required(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL): BooleanSelector(),
         vol.Required(CONF_SCENE_GEN, default=True): BooleanSelector(),
         vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=3)
@@ -92,6 +94,7 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
         vol.Required(CONF_PORT, default=DEFAULT_PORT): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
         ),
+        vol.Required(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL): BooleanSelector(),
         vol.Required(CONF_SCENE_GEN, default=True): BooleanSelector(),
         vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=3)

@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from .const import CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
 from .miniserver import MiniServer
 from .pyloxone_api.connection import LoxoneConnection, LoxoneException
 
@@ -29,6 +30,9 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         self._password = config_entry.options[CONF_PASSWORD]
         self._host = config_entry.options[CONF_HOST]
         self._port = config_entry.options[CONF_PORT]
+        self._verify_ssl = config_entry.options.get(
+            CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
+        )
 
         self.api: LoxoneConnection | None = None
         self.miniserver: MiniServer | None = None
@@ -47,6 +51,7 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 username=self._username,
                 password=self._password,
                 token=self.config_entry.data,
+                verify_ssl=self._verify_ssl,
             )
         else:
             self.api = LoxoneConnection(
@@ -54,6 +59,7 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 port=self._port,
                 username=self._username,
                 password=self._password,
+                verify_ssl=self._verify_ssl,
             )
         try:
             session = async_get_clientsession(self.hass)
