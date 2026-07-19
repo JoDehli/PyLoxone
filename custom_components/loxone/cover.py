@@ -228,6 +228,7 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         super().__init__(**kwargs)
         self.hass = kwargs["hass"]
         self._position = None
+        self._target_position = None
         self._closed = True
         self._direction = 0
 
@@ -237,7 +238,10 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         )
 
     async def event_handler(self, e):
-        if self.states["position"] in e.data or self.states["direction"] in e.data:
+        if (self.states["position"] in e.data 
+            or self.states["direction"] in e.data
+            or self.states["targetPosition"] in e.data
+        ):
             if self.states["position"] in e.data:
                 self._position = float(e.data[self.states["position"]]) * 100.0
                 if self._position == 0:
@@ -248,6 +252,10 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
             if self.states["direction"] in e.data:
                 self._direction = e.data[self.states["direction"]]
 
+            if self.states["targetPosition"] in e.data:
+                target_position_loxone = float(e.data[self.states["targetPosition"]]) * 100.0
+                self._target_position = target_position_loxone
+                
             self.schedule_update_ha_state()
 
     @property
@@ -259,6 +267,10 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         return self._position
 
     @property
+    def target_position(self):
+        return self._target_position
+
+    @property
     def extra_state_attributes(self):
         """
         Return device specific state attributes.
@@ -267,6 +279,7 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         device_att = {
             **self._attr_extra_state_attributes,
             "device_type": self.type,
+            "target_position": self.target_position,
         }
         return device_att
 
