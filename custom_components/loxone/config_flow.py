@@ -123,7 +123,7 @@ OPTIONS_FLOW = {
 class LoxoneFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
     """Handle Loxone config flow."""
 
-    VERSION = 3
+    VERSION = 4
     config_flow = CONFIG_FLOW
     options_flow = OPTIONS_FLOW
 
