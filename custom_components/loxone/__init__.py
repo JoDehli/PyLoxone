@@ -151,18 +151,30 @@ async def async_setup(hass, config):
 
 
 async def async_migrate_entry(hass, config_entry):
-    # _LOGGER.debug("Migrating from version %s", config_entry.version)
-    if config_entry.version == 1:
-        new = {**config_entry.options, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: True}
-        config_entry.options = {**new}
-        config_entry.version = 2
+    """Migrate a config entry using Home Assistant's supported update API."""
+    old_version = config_entry.version
+    version = old_version
+    options = dict(config_entry.options)
+
+    if version == 1:
+        options[CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN] = True
+        version = 2
         _LOGGER.info("Migration to version %s successful", 2)
 
-    if config_entry.version == 2:
-        new = {**config_entry.options, CONF_SCENE_GEN_DELAY: DEFAULT_DELAY_SCENE}
-        config_entry.options = {**new}
-        config_entry.version = 3
+    if version == 2:
+        options[CONF_SCENE_GEN_DELAY] = DEFAULT_DELAY_SCENE
+        version = 3
         _LOGGER.info("Migration to version %s successful", 3)
+
+    if version == 3:
+        options[CONF_VERIFY_SSL] = DEFAULT_VERIFY_SSL
+        version = 4
+        _LOGGER.info("Migration to version %s successful", 4)
+
+    if version != old_version:
+        hass.config_entries.async_update_entry(
+            config_entry, options=options, version=version
+        )
     return True
 
 
