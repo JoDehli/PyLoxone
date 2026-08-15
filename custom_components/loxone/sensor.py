@@ -338,7 +338,7 @@ class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
     _attr_should_poll = False
     _attr_name = "Loxone Software Version"
     _attr_icon = "mdi:information-outline"
-    _attr_unique_id = "loxone_software_version"
+    _attr_unique_id = "loxone_software_version_uuid"
 
     def __init__(self, minisersver_serial, version_list, **kwargs):
         super().__init__(**kwargs)
@@ -351,7 +351,7 @@ class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
     @cached_property
     def unique_id(self) -> str:
         """Return a unique ID."""
-        return f"{self._miniserver_serial}-{self._attr_native_value}"
+        return f"{self._miniserver_serial}-{self._attr_unique_id}"
 
 
 class LoxoneTextSensor(LoxoneEntity, SensorEntity):
