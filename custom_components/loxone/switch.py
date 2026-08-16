@@ -74,28 +74,14 @@ async def async_setup_entry(
                     new_switch = LoxoneIntercomSubControl(**_)
                     entities.append(new_switch)
         elif switch_entity["type"] == "IRoomControllerV2":
-            irc = add_room_and_cat_to_value_values(loxconfig, switch_entity)
-            states = irc.get("states", {})
+            states = switch_entity.get("states", {})
             if "overrideEntries" in states:
-                override_kwargs = {**irc, "type": "RoomControllerOverride"}
+                override_kwargs = {**switch_entity, "type": "RoomControllerOverride"}
                 entities.append(LoxoneRoomControllerOverride(**override_kwargs))
         elif switch_entity["type"] == "LightControllerV2":
             if switch_entity.get("presence", None):
-                presence_switch = {
-                    "lightcontroller_id": switch_entity.get("uuidAction", None),
-                    "lightcontroller_name": switch_entity.get("name", None),
-                    "type": "RoomControllerOverride",
-                    "parent_id": switch_entity["uuidAction"],
-                    "uuidAction": switch_entity["uuidAction"],
-                    "presenceUuid": switch_entity["states"]["presence"],
-                    "room": switch_entity.get("room", ""),
-                    "cat": switch_entity.get("cat", ""),
-                    "name": switch_entity.get("name", ""),
-                    "async_add_devices": async_add_entities,
-                    "config_entry": config_entry,
-                    "states": switch_entity["states"],
-                }
-                entities.append(LoxoneLightPresenceSwitch(**presence_switch))
+                override_kwargs = {**switch_entity, "type": "PresenceDetectionSwitch"}
+                entities.append(LoxoneLightPresenceSwitch(**override_kwargs))
     async_add_entities(entities)
 
 
@@ -376,7 +362,7 @@ class LoxoneLightPresenceSwitch(LoxoneSwitch):
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, **kwargs):
-        self._presence_id = kwargs["presenceUuid"]
+        self._presence_id = kwargs["states"]["presence"]
         super().__init__(**kwargs)
         self._attr_device_info = get_or_create_device(self.uuidAction, self.name, "LightControllerV2", self.room)
         self.name = f"{self.name} Presence Detection"
