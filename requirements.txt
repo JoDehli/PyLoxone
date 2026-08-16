@@ -1,7 +1,7 @@
 colorlog==6.10.1
-homeassistant==2026.6.4
+homeassistant==2026.8.1
 pip>=21.3.1
-ruff==0.15.18
+ruff==0.15.20
 websockets>=14
 pycryptodome
 pytest

@@ -9,6 +9,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import ssl
 import time
 import urllib
 from base64 import b64decode, b64encode
@@ -81,6 +82,7 @@ class LoxoneBaseConnection:
         token: Optional[dict] = None,
         port: int = 8080,
         timeout: Optional[float] = None,
+        verify_ssl: bool = True,
     ):
         # Validate input parameters
         if not host or not isinstance(host, str):
@@ -97,6 +99,8 @@ class LoxoneBaseConnection:
             raise ValueError(
                 f"Timeout must be a non-negative number or None, got {timeout}"
             )
+        if not isinstance(verify_ssl, bool):
+            raise ValueError("verify_ssl must be a boolean")
 
         self.host = host
         self.username = username
@@ -104,6 +108,7 @@ class LoxoneBaseConnection:
         self.token = token
         self.port = port
         self.timeout = None if timeout == 0 else timeout
+        self.verify_ssl = verify_ssl
         self.connection: wslib.ClientConnection | None = None
         self._pending_task = []
         self._closed = False
@@ -197,6 +202,16 @@ class LoxoneBaseConnection:
         )
         self._secured_queue: asyncio.Queue = asyncio.Queue(maxsize=1)
         self.message_header = None
+
+    def _websocket_ssl_context(self) -> ssl.SSLContext | None:
+        """Return an unverified TLS context when explicitly configured."""
+        if self.scheme != "https" or self.verify_ssl:
+            return None
+
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        return ssl_context
 
     @property
     def is_connected(self) -> bool:
@@ -797,6 +812,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 username=self.username,
                 password=self.password,
                 scheme=self.scheme,
+                verify_ssl=self.verify_ssl,
                 session=session,
             )
             api_resp = None
@@ -1009,14 +1025,17 @@ class LoxoneConnection(LoxoneBaseConnection):
                 base_url = self._URL_FORMAT.format(**params)
 
             try:
+                websocket_options = {
+                    "open_timeout": self.timeout or TIMEOUT,
+                    "create_connection": LoxoneClientConnection,
+                    "compression": None,
+                    "max_size": MAX_WEBSOCKET_MESSAGE_SIZE,
+                }
+                if ssl_context := self._websocket_ssl_context():
+                    websocket_options["ssl"] = ssl_context
+
                 connection = await asyncio.wait_for(
-                    wslib.connect(
-                        base_url,
-                        open_timeout=self.timeout or TIMEOUT,
-                        create_connection=LoxoneClientConnection,
-                        compression=None,
-                        max_size=MAX_WEBSOCKET_MESSAGE_SIZE,
-                    ),
+                    wslib.connect(base_url, **websocket_options),
                     timeout=(self.timeout or TIMEOUT) * 2,
                 )
             except asyncio.TimeoutError:

@@ -41,6 +41,7 @@
           "port": "Port",
           "host": "Miniserver Ip",
           "password": "Password",
+          "verify_ssl": "TLS-Zertifikat des Miniservers prüfen",
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
@@ -56,6 +57,7 @@
           "port": "Port",
           "host": "Miniserver Ip",
           "password": "Password",
+          "verify_ssl": "TLS-Zertifikat des Miniservers prüfen",
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"

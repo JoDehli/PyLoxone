@@ -33,9 +33,10 @@ from homeassistant.setup import async_setup_component
 from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     ATTR_UUID, ATTR_VALUE,
                     CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
-                    CONF_SCENE_GEN_DELAY, DEFAULT, DEFAULT_DELAY_SCENE,
-                    DEFAULT_PORT, DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT,
-                    LOXONE_PLATFORMS, SECUREDSENDDOMAIN, SENDDOMAIN, cfmt)
+                    CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL, DEFAULT,
+                    DEFAULT_DELAY_SCENE, DEFAULT_PORT, DEFAULT_VERIFY_SSL,
+                    DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT, LOXONE_PLATFORMS,
+                    SECUREDSENDDOMAIN, SENDDOMAIN, cfmt)
 from .coordinator import LoxoneCoordinator
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
@@ -59,6 +60,9 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Required(CONF_PASSWORD): cv.string,
                 vol.Required(CONF_HOST): cv.string,
                 vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
+                vol.Optional(
+                    CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL
+                ): cv.boolean,
                 vol.Optional(CONF_SCENE_GEN, default=True): cv.boolean,
                 vol.Optional(
                     CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE
@@ -147,18 +151,30 @@ async def async_setup(hass, config):
 
 
 async def async_migrate_entry(hass, config_entry):
-    # _LOGGER.debug("Migrating from version %s", config_entry.version)
-    if config_entry.version == 1:
-        new = {**config_entry.options, CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: True}
-        config_entry.options = {**new}
-        config_entry.version = 2
+    """Migrate a config entry using Home Assistant's supported update API."""
+    old_version = config_entry.version
+    version = old_version
+    options = dict(config_entry.options)
+
+    if version == 1:
+        options[CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN] = True
+        version = 2
         _LOGGER.info("Migration to version %s successful", 2)
 
-    if config_entry.version == 2:
-        new = {**config_entry.options, CONF_SCENE_GEN_DELAY: DEFAULT_DELAY_SCENE}
-        config_entry.options = {**new}
-        config_entry.version = 3
+    if version == 2:
+        options[CONF_SCENE_GEN_DELAY] = DEFAULT_DELAY_SCENE
+        version = 3
         _LOGGER.info("Migration to version %s successful", 3)
+
+    if version == 3:
+        options[CONF_VERIFY_SSL] = DEFAULT_VERIFY_SSL
+        version = 4
+        _LOGGER.info("Migration to version %s successful", 4)
+
+    if version != old_version:
+        hass.config_entries.async_update_entry(
+            config_entry, options=options, version=version
+        )
     return True
 
 
@@ -169,6 +185,7 @@ async def async_set_options(hass, config_entry):
         CONF_PORT: options_in.pop(CONF_PORT, DEFAULT_PORT),
         CONF_USERNAME: options_in.pop(CONF_USERNAME, ""),
         CONF_PASSWORD: options_in.pop(CONF_PASSWORD, ""),
+        CONF_VERIFY_SSL: options_in.pop(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
         CONF_SCENE_GEN: options_in.pop(CONF_SCENE_GEN, ""),
         CONF_SCENE_GEN_DELAY: options_in.pop(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE),
         CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: options_in.pop(

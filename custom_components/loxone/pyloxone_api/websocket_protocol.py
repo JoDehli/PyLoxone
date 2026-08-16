@@ -45,7 +45,7 @@ class LoxoneClientConnection(ClientConnection):
         text: bool | None = None,
     ) -> None:
         _LOGGER.debug(f"Sent:{message}")
-        result = await super().send(message, text)
+        result = await super().send(message, text=text)
         return result
 
     async def recv_message(self) -> BaseMessage:

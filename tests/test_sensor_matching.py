@@ -3,11 +3,11 @@ import pytest
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import (
-    CONCENTRATION_PARTS_PER_MILLION,
     LIGHT_LUX,
     PERCENTAGE,
     UnitOfEnergy,
     UnitOfPower,
+    UnitOfRatio,
     UnitOfSpeed,
     UnitOfTemperature,
     UnitOfVolume,
@@ -63,7 +63,7 @@ class TestSensorMatching:
         assert desc.device_class == SensorDeviceClass.ILLUMINANCE
 
     def test_carbon_dioxide_ppm(self):
-        desc = match_sensor_description(unit=CONCENTRATION_PARTS_PER_MILLION)
+        desc = match_sensor_description(unit=UnitOfRatio.PARTS_PER_MILLION)
         assert desc is not None
         assert desc.device_class == SensorDeviceClass.CO2
 
@@ -186,7 +186,7 @@ class TestUnambiguousUnits:
         assert UnitOfTemperature.CELSIUS in UNAMBIGUOUS_UNITS
 
     def test_ppm_is_unambiguous(self):
-        assert CONCENTRATION_PARTS_PER_MILLION in UNAMBIGUOUS_UNITS
+        assert UnitOfRatio.PARTS_PER_MILLION in UNAMBIGUOUS_UNITS
 
     def test_percentage_is_not_unambiguous(self):
         """% is ambiguous (could be humidity or battery)."""
@@ -240,7 +240,7 @@ class TestUnitExtraction:
         assert clean_unit("%.0f Lx") == "Lx"
 
     def test_extract_ppm(self):
-        assert clean_unit("%.0f ppm") == CONCENTRATION_PARTS_PER_MILLION
+        assert clean_unit("%.0f ppm") == UnitOfRatio.PARTS_PER_MILLION
 
     def test_extract_bare_format(self):
         """Format string without a unit returns the cleaned string."""
