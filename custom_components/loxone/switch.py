@@ -398,7 +398,7 @@ class LoxoneLightPresenceSwitch(LoxoneSwitch):
         request_update = False
         if self._presence_id in event.data:
             active = event.data[self._presence_id]
-            new_state = True if active == 7.0 else False
+            new_state = True if int(active) & 2 else False
             if new_state != self._attr_is_on:
                 self._attr_is_on = new_state
                 request_update = True
