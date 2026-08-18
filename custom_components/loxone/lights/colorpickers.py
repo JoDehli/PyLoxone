@@ -175,6 +175,8 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         if ATTR_HS_COLOR in kwargs:
+            if ATTR_BRIGHTNESS in kwargs:
+                self._attr_brightness = kwargs[ATTR_BRIGHTNESS]
             r, g, b = color_util.color_hs_to_RGB(
                 kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1]
             )
@@ -190,6 +192,8 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
             )
         elif ATTR_COLOR_TEMP_KELVIN in kwargs:
             self._attr_color_temp_kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
+            if ATTR_BRIGHTNESS in kwargs:
+                self._attr_brightness = kwargs[ATTR_BRIGHTNESS]
             self.hass.bus.async_fire(
                 SENDDOMAIN,
                 dict(
@@ -225,8 +229,48 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
                         ),
                     ),
                 )
+            else:
+                # color_mode not yet known (e.g. no real event received from
+                # Loxone yet) - fall back to a sensible default color instead
+                # of silently dropping the brightness-only command.
+                h, s = self.hs_color if self.hs_color else (0, 0)
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self.uuidAction,
+                        value="hsv({},{},{})".format(
+                            h, s, hass_to_lox(self._attr_brightness)
+                        ),
+                    ),
+                )
         else:
-            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
+            # Bare turn_on with no parameters: reuse the last known color so
+            # the Loxone ColorPickerV2 block receives a structured command it
+            # actually understands, instead of a bare "On" it appears to
+            # ignore.
+            if self._attr_color_mode == ColorMode.COLOR_TEMP and self._attr_color_temp_kelvin:
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self.uuidAction,
+                        value="temp({},{})".format(
+                            hass_to_lox(self._attr_brightness or 255),
+                            self._attr_color_temp_kelvin,
+                        ),
+                    ),
+                )
+            else:
+                h, s = self.hs_color if self.hs_color else (0, 0)
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self.uuidAction,
+                        value="hsv({},{},{})".format(
+                            h, s, hass_to_lox(self._attr_brightness or 255)
+                        ),
+                    ),
+                )
+        self.async_schedule_update_ha_state()
 
     async def event_handler(self, e):
         request_update = False
