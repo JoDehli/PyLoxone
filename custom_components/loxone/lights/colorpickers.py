@@ -22,7 +22,7 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
 
     _attr_supported_color_modes: set[ColorMode] = {ColorMode.COLOR_TEMP}
     _attr_available = False
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         """Initialize the Tunable White Light."""
@@ -126,7 +126,7 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
     _attr_max_color_temp_kelvin = 6500
     _attr_min_color_temp_kelvin = 2000
     _attr_available = False
-    
+
     _attr_supported_color_modes: set[ColorMode] = {
         ColorMode.COLOR_TEMP,
         ColorMode.HS,
@@ -176,6 +176,10 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
         self.async_schedule_update_ha_state()
 
     async def async_turn_on(self, **kwargs) -> None:
+        if ATTR_BRIGHTNESS in kwargs:
+            self._attr_brightness = kwargs[ATTR_BRIGHTNESS]
+        else:
+            self._attr_brightness = self._attr_brightness or 255
         if ATTR_HS_COLOR in kwargs:
             r, g, b = color_util.color_hs_to_RGB(
                 kwargs[ATTR_HS_COLOR][0], kwargs[ATTR_HS_COLOR][1]
@@ -203,7 +207,6 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
             )
 
         elif ATTR_BRIGHTNESS in kwargs:
-            self._attr_brightness = kwargs[ATTR_BRIGHTNESS]
             if self._attr_color_mode == ColorMode.HS:
                 self.hass.bus.async_fire(
                     SENDDOMAIN,
@@ -228,7 +231,8 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
                     ),
                 )
         else:
-            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
+            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/{}".format(
+                        hass_to_lox(self._attr_brightness))))
 
     async def event_handler(self, e):
         request_update = False
