@@ -1,4 +1,33 @@
 {
+  "entity": {
+    "climate": {
+      "room_controller_v2": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "schedule": "Zeitplan",
+              "paused_door_window": "Pausiert (Tür/Fenster)"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "override_reason": {
+        "state": {
+          "none": "Keine",
+          "presence": "Anwesenheit",
+          "window_open": "Fenster offen",
+          "comfort_override": "Komfort-Übersteuerung",
+          "eco_override": "Eco-Übersteuerung",
+          "eco_plus_override": "Eco+-Übersteuerung",
+          "prepare_heat_up": "Aufheizen vorbereiten",
+          "prepare_cool_down": "Abkühlen vorbereiten",
+          "overridden_by_source": "Von Quelle übersteuert"
+        }
+      }
+    }
+  },
   "config": {
     "abort": {
       "single_instance_allowed": "Bereits konfiguriert"

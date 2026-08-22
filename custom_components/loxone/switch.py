@@ -5,11 +5,13 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 
+from functools import cached_property
+import json
 import logging
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_UNKNOWN
+from homeassistant.const import STATE_UNKNOWN, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -43,8 +45,7 @@ async def async_setup_entry(
     loxconfig = miniserver.lox_config.json
     entities = []
 
-    for switch_entity in get_all(loxconfig, ["Switch", "TimedSwitch", "Intercom"]):
-
+    for switch_entity in get_all(loxconfig, ["Switch", "TimedSwitch", "Intercom", "IRoomControllerV2", "LightControllerV2"]):
         switch_entity = add_room_and_cat_to_value_values(loxconfig, switch_entity)
 
         if switch_entity["type"] in ["Switch"]:
@@ -72,7 +73,15 @@ async def async_setup_entry(
 
                     new_switch = LoxoneIntercomSubControl(**_)
                     entities.append(new_switch)
-
+        elif switch_entity["type"] == "IRoomControllerV2":
+            states = switch_entity.get("states", {})
+            if "overrideEntries" in states:
+                override_kwargs = {**switch_entity, "type": "RoomControllerOverride"}
+                entities.append(LoxoneRoomControllerOverride(**override_kwargs))
+        elif switch_entity["type"] == "LightControllerV2":
+            if switch_entity.get("presence", None):
+                override_kwargs = {**switch_entity, "type": "PresenceDetectionSwitch"}
+                entities.append(LoxoneLightPresenceSwitch(**override_kwargs))
     async_add_entities(entities)
 
 
@@ -246,7 +255,7 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
         """
         return {
             "uuid": self.uuidAction,
-            "state_uuid": self.states["active"],
+            "state_uuid": self.states.get("active", None),
             "room": self.room,
             "category": self.cat,
             "device_type": self.type,
@@ -284,3 +293,103 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
             "device_type": self.type,
             "platform": "loxone",
         }
+
+
+class LoxoneRoomControllerOverride(LoxoneEntity, SwitchEntity):
+    """Switch to trigger/stop comfort override on IRoomControllerV2."""
+
+    _attr_available = True
+    _attr_is_on = False
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._override_uuid = self.states.get("overrideEntries")
+        self._base_name = self.name  # Original IRC name before modification
+        self._attr_name = f"{self.name} Comfort Override"
+        self.type = "RoomControllerOverride"
+
+        # Use uuidAction (not unique_id) so this groups with the climate entity
+        self._attr_device_info = get_or_create_device(
+            self.uuidAction, self._base_name, "RoomControllerV2", self.room
+        )
+
+    @cached_property
+    def unique_id(self) -> str:
+        """Return unique ID based on override state UUID."""
+        return f"{self.uuidAction}_override"
+
+    def turn_on(self, **kwargs):
+        """Trigger comfort override (mode 1)."""
+        self.hass.bus.fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="override/1")
+        )
+        self._attr_is_on = True
+        self.schedule_update_ha_state()
+
+    def turn_off(self, **kwargs):
+        """Stop the active override."""
+        self.hass.bus.fire(
+            SENDDOMAIN, dict(uuid=self.uuidAction, value="stopOverride")
+        )
+        self._attr_is_on = False
+        self.schedule_update_ha_state()
+
+    async def event_handler(self, e):
+        if self._override_uuid and self._override_uuid in e.data:
+            raw = e.data[self._override_uuid]
+            try:
+                entries = json.loads(raw) if isinstance(raw, str) else raw
+                self._attr_is_on = isinstance(entries, list) and len(entries) > 0
+            except (json.JSONDecodeError, TypeError):
+                self._attr_is_on = False
+            self.async_schedule_update_ha_state()
+
+    @property
+    def extra_state_attributes(self):
+        """Return device specific state attributes."""
+        return {
+            "uuid": self.uuidAction,
+            "room": self.room,
+            "device_type": self.type,
+            "platform": "loxone",
+        }
+
+
+class LoxoneLightPresenceSwitch(LoxoneSwitch):
+    """Representation of a light controller presence detection switch."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, **kwargs):
+        self._presence_id = kwargs["states"]["presence"]
+        super().__init__(**kwargs)
+        self._attr_device_info = get_or_create_device(self.uuidAction, self.name, "LightControllerV2", self.room)
+        self.name = f"{self.name} Presence Detection"
+
+    @cached_property
+    def unique_id(self) -> str:
+        """Return a unique ID."""
+        return self._presence_id
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction + "/presence", value="on"))
+        self.async_schedule_update_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction + "/presence", value="off"))
+        self.async_schedule_update_ha_state()
+
+    async def event_handler(self, event):
+        request_update = False
+        if self._presence_id in event.data:
+            active = event.data[self._presence_id]
+            new_state = True if int(active) & 2 else False
+            if new_state != self._attr_is_on:
+                self._attr_is_on = new_state
+                request_update = True
+            if not self._attr_available:
+                self._attr_available = True
+
+        if request_update:
+            self.async_schedule_update_ha_state()
