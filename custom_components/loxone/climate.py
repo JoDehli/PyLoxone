@@ -496,7 +496,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         active_mode = self.active_mode
         is_fixed = active_mode in (ActiveMode.FIXED_DYNAMIC, ActiveMode.FIXED)
 
-        if active_mode is ActiveMode.FIXED or op_mode in (OperatingMode.MANUAL_COOL, OperatingMode.MANUAL_HEAT) or (op_mode is OperatingMode.MANUAL_HEAT_COOL and not self._range_possible):
+        if is_fixed or active_mode == ActiveMode.MANUAL or op_mode in (OperatingMode.MANUAL_COOL, OperatingMode.MANUAL_HEAT) or (op_mode is OperatingMode.MANUAL_HEAT_COOL and not self._range_possible):
             # Manual mode — set manual temperature directly
             if "temperature" in kwargs:
                 self.hass.bus.fire(
@@ -672,7 +672,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
 
         return modes
 
-    def set_hvac_mode(self, hvac_mode: str):
+    def set_hvac_mode(self, hvac_mode: HVACMode):
         """Set new target hvac mode."""
 
         target_mode = (
@@ -705,7 +705,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         modes = [mode["name"] for mode in self._modeList]
         # Hide "Schedule" when not in auto mode and not overriden
         is_auto = self.operating_mode in (OperatingMode.AUTO_HEAT_COOL, OperatingMode.AUTO_HEAT, OperatingMode.AUTO_COOL, OperatingMode.MANUAL_HEAT_COOL)
-        if not is_auto or (not self.is_overridden and is_auto):
+        if not is_auto or (not self.is_overridden and self.operating_mode is OperatingMode.AUTO_HEAT_COOL):
             modes = [m for m in modes if m != PRESET_SCHEDULE]
         # Include the paused indicator when window is open
         if self.get_state_value("openWindow"):
@@ -720,7 +720,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             (mode["id"] for mode in self._modeList if mode["name"] == preset_mode), None
         )
         if mode_id is not None:
-            if mode_id == "stop" and self.is_overridden:
+            if mode_id == "stop" and self.is_overridden and self.operating_mode:
                 self.hass.bus.fire(
                     SENDDOMAIN, dict(uuid=self.uuidAction, value="stopOverride")
                 )
