@@ -23,7 +23,8 @@
           "eco_plus_override": "Eco+ Override",
           "prepare_heat_up": "Prepare State Heat Up",
           "prepare_cool_down": "Prepare State Cool Down",
-          "overridden_by_source": "Overridden by source"
+          "overridden_by_source": "Overridden by source",
+          "fixed": "Fixed Setpoint"
         }
       }
     }

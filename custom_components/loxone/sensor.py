@@ -63,6 +63,7 @@ OVERRIDE_REASONS = {
     6: "Prepare State Heat Up",
     7: "Prepare State Cool Down",
     8: "Overridden by source",
+    14: "Fixed",
 }
 
 class LoxoneEntityDescription(SensorEntityDescription, frozen_or_thawed=True):
@@ -229,7 +230,7 @@ async def async_setup_entry(
         entities.append(LoxoneTextSensor(**sensor))
 
     for sensor in get_all(loxconfig, "Meter"):
-        _LOGGER.info("Found Meter: %s", sensor)
+        _LOGGER.debug("Found Meter: %s", sensor)
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         device_info = LoxoneMeterSensor.create_device_info_from_sensor(sensor)
 
@@ -400,7 +401,6 @@ class LoxoneVersionSensor(LoxoneEntity, SensorEntity):
     def unique_id(self) -> str:
         """Return a unique ID."""
         return f"{self._miniserver_serial}-{self._attr_unique_id}"
-
 
 class LoxoneTextSensor(LoxoneEntity, SensorEntity):
     """Representation of a Text Sensor."""
@@ -585,7 +585,10 @@ class LoxoneRoomControllerOverrideSensor(SensorEntity):
     async def event_handler(self, e):
         if self._uuid in e.data:
             reason_code = int(e.data[self._uuid])
+            reason_code = 14 if reason_code > 14 else reason_code
             self._attr_native_value = OVERRIDE_REASONS.get(reason_code, f"Unknown ({reason_code})")
+            if self._attr_native_value.startswith("Unknown") and self._attr_native_value not in self._attr_options:
+                self._attr_options.append(self._attr_native_value)
             self.async_schedule_update_ha_state()
 
 class LoxoneClimateController(LoxoneEntity, SensorEntity):

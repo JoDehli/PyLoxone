@@ -23,7 +23,8 @@
           "eco_plus_override": "Eco+-Übersteuerung",
           "prepare_heat_up": "Aufheizen vorbereiten",
           "prepare_cool_down": "Abkühlen vorbereiten",
-          "overridden_by_source": "Von Quelle übersteuert"
+          "overridden_by_source": "Von Quelle übersteuert",
+          "fixed": "Fester Sollwert"
         }
       }
     }
