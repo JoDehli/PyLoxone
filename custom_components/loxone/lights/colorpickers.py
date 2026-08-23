@@ -106,7 +106,10 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
                 self._attr_brightness = round(255 * _color[0] / 100)
                 request_update = True
             elif _color.startswith("hsv"):
-                _LOGGER.warning("hsv not supported for TunableWhiteLight")
+                if _color == "hsv(0,0,0)":
+                    self._attr_brightness = 0
+                else:
+                    _LOGGER.warning("hsv not supported for TunableWhiteLight")
             else:
                 _LOGGER.error("Not handled command -> %s", _color)
 
