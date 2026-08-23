@@ -705,7 +705,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         modes = [mode["name"] for mode in self._modeList]
         # Hide "Schedule" when not in auto mode and not overriden
         is_auto = self.operating_mode in (OperatingMode.AUTO_HEAT_COOL, OperatingMode.AUTO_HEAT, OperatingMode.AUTO_COOL, OperatingMode.MANUAL_HEAT_COOL)
-        if not is_auto or (not self.is_overridden and self.operating_mode is OperatingMode.AUTO_HEAT_COOL):
+        if not is_auto or (not self.is_overridden and is_auto):
             modes = [m for m in modes if m != PRESET_SCHEDULE]
         # Include the paused indicator when window is open
         if self.get_state_value("openWindow"):
