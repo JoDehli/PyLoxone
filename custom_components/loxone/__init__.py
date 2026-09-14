@@ -20,7 +20,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME, EVENT_COMPONENT_LOADED,
                                  EVENT_HOMEASSISTANT_STARTED,
                                  EVENT_HOMEASSISTANT_STOP, Platform)
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
@@ -339,12 +339,12 @@ async def async_setup_entry(hass, config_entry):
     )
 
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
-    await coordinator.miniserver.async_update_device_registry()
+    miniserver_device = await coordinator.miniserver.async_update_device_registry()
 
     if coordinator.hardware is not None:
         hardware_data = coordinator.hardware.data
         registry = dr.async_get(hass)
-        registry.async_get_or_create(
+        air_base_device = registry.async_get_or_create(
             config_entry_id=config_entry.entry_id,
             identifiers={air_base_identifier(hardware_data)},
             manufacturer="Loxone",
@@ -352,7 +352,7 @@ async def async_setup_entry(hass, config_entry):
             name=f"{hardware_data.miniserver_name} Air Base",
             serial_number=hardware_data.air_base,
             sw_version=hardware_data.air_base_version,
-            via_device=(DOMAIN, hardware_data.miniserver_serial),
+            via_device_id=miniserver_device.id,
         )
         for device in hardware_data.devices.values():
             registry.async_get_or_create(
@@ -365,7 +365,7 @@ async def async_setup_entry(hass, config_entry):
                 suggested_area=device.room,
                 sw_version=device.firmware,
                 hw_version=device.hardware_version,
-                via_device=air_base_identifier(hardware_data),
+                via_device_id=air_base_device.id,
             )
 
         known_device_ids = frozenset(hardware_data.devices)

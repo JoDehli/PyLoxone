@@ -50,7 +50,6 @@ def hardware_device_info(data, device: HardwareDevice) -> DeviceInfo:
         suggested_area=device.room,
         sw_version=device.firmware,
         hw_version=device.hardware_version,
-        via_device=air_base_identifier(data),
     )
 
 
