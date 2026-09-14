@@ -64,9 +64,9 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - TextInput
 - Radio Buttons
 
-## Physical Air hardware (fork preview)
+## Physical Window Handle Air hardware
 
-This fork can additionally discover Loxone Window Handle Air devices through the
+PyLoxone can additionally discover Loxone Window Handle Air devices through the
 local Miniserver endpoints `/data/status`, `/jdev/sps/enumdev`,
 `/jdev/sps/enumin` and `/jdev/sps/enumout`.
 
@@ -384,6 +384,5 @@ Here is a example of a Room Controller V2:
             }
         },
 ```
-
 
 
