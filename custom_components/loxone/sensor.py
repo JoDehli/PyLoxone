@@ -34,7 +34,8 @@ from homeassistant.util import dt as dt_util
 from . import LoxoneEntity, MiniServer
 from .const import CLIMATE_EVENT, CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
-                      get_or_create_device)
+                      get_hardware_control_role, get_or_create_device)
+from .hardware.entity import hardware_sensor_entities
 from .miniserver import get_miniserver_from_hass
 
 NEW_SENSOR = "sensors"
@@ -216,6 +217,10 @@ async def async_setup_entry(
 
     loxconfig = miniserver.lox_config.json
     entities: list[Any] = [LoxoneKeepAliveSensor(miniserver.serial)]
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]
+
+    if coordinator.hardware is not None:
+        entities.extend(hardware_sensor_entities(coordinator.hardware, config_entry))
 
     if "softwareVersion" in loxconfig:
         entities.append(LoxoneVersionSensor(miniserver.serial, loxconfig["softwareVersion"]))
@@ -449,6 +454,7 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
         self._attr_should_poll = False
         self._attr_native_unit_of_measurement = clean_unit(self.details["format"])
         self._parent_id = kwargs.get("parent_id")
+        self._hardware_role = get_hardware_control_role(self.unique_id)
 
         precision = self._parse_digits_after_decimal(self.details["format"])
         if precision:
@@ -460,15 +466,23 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
         #     customize:
         #       sensor.my_sensor:
         #         device_class: battery
-        desc = match_sensor_description(
-            unit=self._attr_native_unit_of_measurement,
-            name=self.name,
-            category=kwargs.get("cat", ""),
-        )
-        if desc:
-            self.entity_description = desc
+        if self._hardware_role == "position":
+            self._attr_has_entity_name = True
+            self._attr_translation_key = "hardware_position"
+            self._attr_device_class = SensorDeviceClass.ENUM
+            self._attr_options = ["closed", "tilted", "open", "unknown"]
+            self._attr_native_unit_of_measurement = None
+            self._attr_state_class = None
         else:
-            self._attr_state_class = SensorStateClass.MEASUREMENT
+            desc = match_sensor_description(
+                unit=self._attr_native_unit_of_measurement,
+                name=self.name,
+                category=kwargs.get("cat", ""),
+            )
+            if desc:
+                self.entity_description = desc
+            else:
+                self._attr_state_class = SensorStateClass.MEASUREMENT
 
         _uuid = self.unique_id
         if self._parent_id:
@@ -501,7 +515,15 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:
-            self._attr_native_value = e.data[self.uuidAction]
+            value = e.data[self.uuidAction]
+            if self._hardware_role == "position":
+                try:
+                    value = {1: "closed", 2: "tilted", 3: "open"}.get(
+                        round(float(value)), "unknown"
+                    )
+                except (TypeError, ValueError):
+                    value = "unknown"
+            self._attr_native_value = value
             self.async_schedule_update_ha_state()
 
     @property

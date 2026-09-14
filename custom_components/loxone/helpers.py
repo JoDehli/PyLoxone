@@ -12,8 +12,32 @@ from .const import DOMAIN, cfmt
 # Initialize a device registry
 device_registry = {}
 
+# LoxAPP control UUIDs explicitly associated with physical hardware. This is
+# rebuilt before platforms are forwarded for a config entry.
+hardware_control_registry = {}
+hardware_control_roles = {}
+
+
+def configure_hardware_control_registry(mapping):
+    """Replace cached logical devices with physical hardware associations."""
+    device_registry.clear()
+    hardware_control_registry.clear()
+    hardware_control_roles.clear()
+    for uuid, value in mapping.items():
+        info, role = value
+        hardware_control_registry[str(uuid).casefold()] = info
+        hardware_control_roles[str(uuid).casefold()] = role
+
+
+def get_hardware_control_role(device_uuid):
+    """Return the physical role assigned to a LoxAPP control UUID."""
+    return hardware_control_roles.get(str(device_uuid).casefold())
+
 
 def get_or_create_device(device_uuid, device_name, device_type, device_room):
+    hardware_device = hardware_control_registry.get(str(device_uuid).casefold())
+    if hardware_device is not None:
+        return hardware_device
     if device_uuid not in device_registry:
         device_registry[device_uuid] = {
             "identifiers": {(DOMAIN, device_uuid)},

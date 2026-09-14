@@ -13,6 +13,20 @@
       }
     },
     "sensor": {
+      "hardware_position": {
+        "name": "Position",
+        "state": {"closed": "Geschlossen", "tilted": "Gekippt", "open": "Geöffnet", "unknown": "Unbekannt"}
+      },
+      "hardware_update_mode": {
+        "name": "Aktualisierungsmodus",
+        "state": {"polled": "Polling", "hybrid": "Hybrid", "pushed": "Push"}
+      },
+      "hardware_battery": {"name": "Batterie"},
+      "hardware_system_temperature": {"name": "Systemtemperatur"},
+      "hardware_hops": {"name": "Funk-Hops"},
+      "hardware_quality_device": {"name": "Funkqualität Gerät"},
+      "hardware_quality_extension": {"name": "Funkqualität Air Base"},
+      "hardware_last_received": {"name": "Zuletzt empfangen"},
       "override_reason": {
         "state": {
           "none": "Keine",
@@ -27,6 +41,16 @@
           "fixed": "Fester Sollwert"
         }
       }
+    },
+    "binary_sensor": {
+      "hardware_online": {"name": "Online"},
+      "hardware_vibration": {"name": "Erschütterung"},
+      "hardware_battery_low": {"name": "Batterie schwach"}
+    },
+    "select": {
+      "hardware_mapping_primary": {"name": "Zugeordnetes UI-Element"},
+      "hardware_mapping_position": {"name": "Zuordnung Position"},
+      "hardware_mapping_vibration": {"name": "Zuordnung Erschütterung"}
     }
   },
   "config": {
@@ -45,7 +69,11 @@
           "verify_ssl": "TLS-Zertifikat des Miniservers prüfen",
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
-          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)",
+          "hardware_enabled": "Physische Air-Hardware erkennen",
+          "hardware_fast_poll_interval": "Intervall für Position und Erschütterung",
+          "hardware_inventory_interval": "Intervall für Hardware-Inventar",
+          "hardware_battery_interval": "Intervall für Batterie und Temperatur"
         }
       }
     }
@@ -61,7 +89,11 @@
           "verify_ssl": "TLS-Zertifikat des Miniservers prüfen",
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
-          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)",
+          "hardware_enabled": "Physische Air-Hardware erkennen",
+          "hardware_fast_poll_interval": "Intervall für Position und Erschütterung",
+          "hardware_inventory_interval": "Intervall für Hardware-Inventar",
+          "hardware_battery_interval": "Intervall für Batterie und Temperatur"
         },
         "description": "PyLoxone Einstellungen editieren:",
         "title": "PyLoxone Einstellungen"

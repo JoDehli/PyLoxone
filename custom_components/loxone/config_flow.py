@@ -19,10 +19,16 @@ from homeassistant.helpers.selector import (BooleanSelector, NumberSelector,
                                             TextSelectorConfig,
                                             TextSelectorType)
 
-from .const import (CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
+from .const import (CONF_HARDWARE_BATTERY_INTERVAL, CONF_HARDWARE_ENABLED,
+                    CONF_HARDWARE_FAST_POLL_INTERVAL,
+                    CONF_HARDWARE_INVENTORY_INTERVAL,
+                    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
                     CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL,
-                    DEFAULT_DELAY_SCENE, DEFAULT_IP, DEFAULT_PORT,
-                    DEFAULT_VERIFY_SSL, DOMAIN)
+                    DEFAULT_DELAY_SCENE, DEFAULT_HARDWARE_BATTERY_INTERVAL,
+                    DEFAULT_HARDWARE_ENABLED,
+                    DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+                    DEFAULT_HARDWARE_INVENTORY_INTERVAL, DEFAULT_IP,
+                    DEFAULT_PORT, DEFAULT_VERIFY_SSL, DOMAIN)
 
 
 async def validate_loxone_setup(
@@ -51,6 +57,13 @@ async def validate_loxone_setup(
         user_input[CONF_PORT] = int(user_input[CONF_PORT])
     if CONF_SCENE_GEN_DELAY in user_input:
         user_input[CONF_SCENE_GEN_DELAY] = int(user_input[CONF_SCENE_GEN_DELAY])
+    for key in (
+        CONF_HARDWARE_FAST_POLL_INTERVAL,
+        CONF_HARDWARE_INVENTORY_INTERVAL,
+        CONF_HARDWARE_BATTERY_INTERVAL,
+    ):
+        if key in user_input:
+            user_input[key] = int(user_input[key])
 
     return user_input
 
@@ -77,6 +90,21 @@ DATA_SCHEMA_SETUP = vol.Schema(
         vol.Required(
             CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False
         ): BooleanSelector(),
+        vol.Required(
+            CONF_HARDWARE_ENABLED, default=DEFAULT_HARDWARE_ENABLED
+        ): BooleanSelector(),
+        vol.Required(
+            CONF_HARDWARE_FAST_POLL_INTERVAL,
+            default=DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+        ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=30)),
+        vol.Required(
+            CONF_HARDWARE_INVENTORY_INTERVAL,
+            default=DEFAULT_HARDWARE_INVENTORY_INTERVAL,
+        ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=10, max=300)),
+        vol.Required(
+            CONF_HARDWARE_BATTERY_INTERVAL,
+            default=DEFAULT_HARDWARE_BATTERY_INTERVAL,
+        ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=1440)),
     }
 )
 
@@ -102,6 +130,21 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
         vol.Required(
             CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False
         ): BooleanSelector(),
+        vol.Required(
+            CONF_HARDWARE_ENABLED, default=DEFAULT_HARDWARE_ENABLED
+        ): BooleanSelector(),
+        vol.Required(
+            CONF_HARDWARE_FAST_POLL_INTERVAL,
+            default=DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+        ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=30)),
+        vol.Required(
+            CONF_HARDWARE_INVENTORY_INTERVAL,
+            default=DEFAULT_HARDWARE_INVENTORY_INTERVAL,
+        ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=10, max=300)),
+        vol.Required(
+            CONF_HARDWARE_BATTERY_INTERVAL,
+            default=DEFAULT_HARDWARE_BATTERY_INTERVAL,
+        ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=1440)),
     }
 )
 
@@ -123,7 +166,7 @@ OPTIONS_FLOW = {
 class LoxoneFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
     """Handle Loxone config flow."""
 
-    VERSION = 4
+    VERSION = 5
     config_flow = CONFIG_FLOW
     options_flow = OPTIONS_FLOW
 

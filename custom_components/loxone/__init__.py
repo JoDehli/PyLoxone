@@ -24,6 +24,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.discovery import async_load_platform
@@ -32,13 +33,21 @@ from homeassistant.setup import async_setup_component
 
 from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     ATTR_UUID, ATTR_VALUE,
+                    CONF_HARDWARE_BATTERY_INTERVAL, CONF_HARDWARE_ENABLED,
+                    CONF_HARDWARE_FAST_POLL_INTERVAL,
+                    CONF_HARDWARE_INVENTORY_INTERVAL,
                     CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
                     CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL, DEFAULT,
-                    DEFAULT_DELAY_SCENE, DEFAULT_PORT, DEFAULT_VERIFY_SSL,
+                    DEFAULT_DELAY_SCENE, DEFAULT_HARDWARE_BATTERY_INTERVAL,
+                    DEFAULT_HARDWARE_ENABLED,
+                    DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+                    DEFAULT_HARDWARE_INVENTORY_INTERVAL, DEFAULT_PORT,
+                    DEFAULT_VERIFY_SSL,
                     DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT, LOXONE_PLATFORMS,
                     SECUREDSENDDOMAIN, SENDDOMAIN, cfmt)
 from .coordinator import LoxoneCoordinator
 from .helpers import get_miniserver_type
+from .hardware.entity import air_base_identifier, hardware_identifier
 from .miniserver import MiniServer, get_miniserver_from_hass
 from .pyloxone_api.connection import LoxoneConnection
 from .pyloxone_api.exceptions import (LoxoneConnectionClosedOk,
@@ -171,6 +180,18 @@ async def async_migrate_entry(hass, config_entry):
         version = 4
         _LOGGER.info("Migration to version %s successful", 4)
 
+    if version == 4:
+        options[CONF_HARDWARE_ENABLED] = DEFAULT_HARDWARE_ENABLED
+        options[CONF_HARDWARE_FAST_POLL_INTERVAL] = (
+            DEFAULT_HARDWARE_FAST_POLL_INTERVAL
+        )
+        options[CONF_HARDWARE_INVENTORY_INTERVAL] = (
+            DEFAULT_HARDWARE_INVENTORY_INTERVAL
+        )
+        options[CONF_HARDWARE_BATTERY_INTERVAL] = DEFAULT_HARDWARE_BATTERY_INTERVAL
+        version = 5
+        _LOGGER.info("Migration to version %s successful", 5)
+
     if version != old_version:
         hass.config_entries.async_update_entry(
             config_entry, options=options, version=version
@@ -190,6 +211,21 @@ async def async_set_options(hass, config_entry):
         CONF_SCENE_GEN_DELAY: options_in.pop(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE),
         CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: options_in.pop(
             CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, ""
+        ),
+        CONF_HARDWARE_ENABLED: options_in.pop(
+            CONF_HARDWARE_ENABLED, DEFAULT_HARDWARE_ENABLED
+        ),
+        CONF_HARDWARE_FAST_POLL_INTERVAL: options_in.pop(
+            CONF_HARDWARE_FAST_POLL_INTERVAL,
+            DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+        ),
+        CONF_HARDWARE_INVENTORY_INTERVAL: options_in.pop(
+            CONF_HARDWARE_INVENTORY_INTERVAL,
+            DEFAULT_HARDWARE_INVENTORY_INTERVAL,
+        ),
+        CONF_HARDWARE_BATTERY_INTERVAL: options_in.pop(
+            CONF_HARDWARE_BATTERY_INTERVAL,
+            DEFAULT_HARDWARE_BATTERY_INTERVAL,
         ),
     }
     hass.config_entries.async_update_entry(
@@ -303,6 +339,83 @@ async def async_setup_entry(hass, config_entry):
     )
 
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
+    await coordinator.miniserver.async_update_device_registry()
+
+    if coordinator.hardware is not None:
+        hardware_data = coordinator.hardware.data
+        registry = dr.async_get(hass)
+        registry.async_get_or_create(
+            config_entry_id=config_entry.entry_id,
+            identifiers={air_base_identifier(hardware_data)},
+            manufacturer="Loxone",
+            model="Air Base Extension",
+            name=f"{hardware_data.miniserver_name} Air Base",
+            serial_number=hardware_data.air_base,
+            sw_version=hardware_data.air_base_version,
+            via_device=(DOMAIN, hardware_data.miniserver_serial),
+        )
+        for device in hardware_data.devices.values():
+            registry.async_get_or_create(
+                config_entry_id=config_entry.entry_id,
+                identifiers={hardware_identifier(hardware_data, device)},
+                manufacturer="Loxone",
+                model=device.device_type,
+                name=device.name,
+                serial_number=device.serial,
+                suggested_area=device.room,
+                sw_version=device.firmware,
+                hw_version=device.hardware_version,
+                via_device=air_base_identifier(hardware_data),
+            )
+
+        known_device_ids = frozenset(hardware_data.devices)
+        known_mappings = frozenset(
+            (device.device_id, role, uuid)
+            for device in hardware_data.devices.values()
+            for role, uuid in device.resolved_mappings.items()
+        )
+        reload_scheduled = False
+
+        @callback
+        def sync_hardware_registry() -> None:
+            """Refresh metadata and reload if inventory/mappings changed."""
+            nonlocal reload_scheduled
+            current = coordinator.hardware.data
+            current_mappings = frozenset(
+                (device.device_id, role, uuid)
+                for device in current.devices.values()
+                for role, uuid in device.resolved_mappings.items()
+            )
+            if (
+                frozenset(current.devices) != known_device_ids
+                or current_mappings != known_mappings
+            ):
+                if not reload_scheduled:
+                    reload_scheduled = True
+                    hass.async_create_task(
+                        hass.config_entries.async_reload(config_entry.entry_id)
+                    )
+                return
+
+            for device in current.devices.values():
+                registry_device = registry.async_get_device(
+                    identifiers={hardware_identifier(current, device)}
+                )
+                if registry_device is None:
+                    continue
+                changes = {}
+                if registry_device.name != device.name:
+                    changes["name"] = device.name
+                if registry_device.sw_version != device.firmware:
+                    changes["sw_version"] = device.firmware
+                if registry_device.hw_version != device.hardware_version:
+                    changes["hw_version"] = device.hardware_version
+                if changes:
+                    registry.async_update_device(registry_device.id, **changes)
+
+        config_entry.async_on_unload(
+            coordinator.hardware.async_add_listener(sync_hardware_registry)
+        )
 
     setup_tasks = []
     await hass.config_entries.async_forward_entry_setups(config_entry, LOXONE_PLATFORMS)
@@ -368,6 +481,8 @@ async def async_setup_entry(hass, config_entry):
     async def message_callback(message):
         """Fire message on HomeAssistant Bus."""
         _LOGGER.debug(f"{message}")
+        if coordinator.hardware is not None:
+            await coordinator.hardware.async_apply_push(message)
         hass.bus.async_fire(EVENT, message)
 
     async def handle_websocket_command(call):

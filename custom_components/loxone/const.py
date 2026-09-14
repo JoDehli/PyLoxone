@@ -72,6 +72,17 @@ SERVICE_QUICK_SHADE = "quick_shade"
 
 CONF_HVAC_AUTO_MODE = "hvac_auto_mode"
 
+# Physical hardware inventory and mapping.
+CONF_HARDWARE_ENABLED = "hardware_enabled"
+CONF_HARDWARE_FAST_POLL_INTERVAL = "hardware_fast_poll_interval"
+CONF_HARDWARE_INVENTORY_INTERVAL = "hardware_inventory_interval"
+CONF_HARDWARE_BATTERY_INTERVAL = "hardware_battery_interval"
+CONF_HARDWARE_MAPPINGS = "hardware_mappings"
+DEFAULT_HARDWARE_ENABLED = True
+DEFAULT_HARDWARE_FAST_POLL_INTERVAL = 2
+DEFAULT_HARDWARE_INVENTORY_INTERVAL = 30
+DEFAULT_HARDWARE_BATTERY_INTERVAL = 15
+
 STATE_ON = "on"
 STATE_OFF = "off"
 

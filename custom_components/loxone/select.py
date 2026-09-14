@@ -14,8 +14,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
-from .const import SENDDOMAIN
+from .const import DOMAIN, SENDDOMAIN
 from .helpers import add_room_and_cat_to_value_values, get_all, get_or_create_device
+from .hardware.entity import hardware_select_entities
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -100,6 +101,10 @@ async def async_setup_entry(
     miniserver = get_miniserver_from_hass(hass, config_entry)
     loxconfig = miniserver.lox_config.json
     entities = []
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]
+
+    if coordinator.hardware is not None:
+        entities.extend(hardware_select_entities(coordinator.hardware, config_entry))
 
     for select_entity in get_all(loxconfig, ["Radio"]):
         select_entity = add_room_and_cat_to_value_values(loxconfig, select_entity)

@@ -64,6 +64,47 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - TextInput
 - Radio Buttons
 
+## Physical Air hardware (fork preview)
+
+This fork can additionally discover physical Loxone Air devices through the
+local Miniserver endpoints `/data/status`, `/jdev/sps/enumdev`,
+`/jdev/sps/enumin` and `/jdev/sps/enumout`.
+
+Every discovered Air device is represented in Home Assistant using its stable
+Loxone serial number. Hardware diagnostics include connectivity, firmware,
+radio quality, last reception, battery data where available, and system
+temperature where the device exposes it.
+
+### Hardware-to-UI assignment
+
+Each Air device has an **Assigned UI element** dropdown containing the controls
+from `LoxAPP3.json`. Window Handle Air devices additionally have separate
+**Position assignment** and **Vibration assignment** dropdowns.
+
+Assignments are stored by physical serial number and Loxone control UUID, so
+renaming a device or control does not break the relationship. Window-handle
+assignments are detected automatically from the configured physical input
+designation. An automatic match is displayed as the current dropdown value and
+can be overridden, explicitly disabled, or restored to automatic mode.
+
+Mapped LoxAPP controls remain the canonical Home Assistant entities and are
+attached to the physical device. The hardware layer does not create a second
+position or vibration entity for an assigned control. If no matching LoxAPP
+control exists, a polled fallback entity is created instead.
+
+### Update mechanisms
+
+| Data | Mechanism | Default |
+| --- | --- | --- |
+| LoxAPP control states | Existing encrypted PyLoxone WebSocket | Immediate |
+| Window position and vibration | HTTP reliability fallback | 2 seconds |
+| Inventory, names and online state | HTTP polling | 30 seconds |
+| Battery and system temperature | HTTP polling | 15 minutes |
+
+Physical hardware discovery and all polling intervals can be changed in the
+integration options. A hardware-endpoint permission or firmware limitation is
+non-fatal: normal PyLoxone entities continue to load without the hardware layer.
+
 ## Known Limitations
 
 - Pushbuttons are stateless. They can not be used to reliably trigger automations. Use a Switch as a workaround and turn it off again in the Automation or in Loxone itself.
@@ -344,7 +385,6 @@ Here is a example of a Room Controller V2:
             }
         },
 ```
-
 
 
 
