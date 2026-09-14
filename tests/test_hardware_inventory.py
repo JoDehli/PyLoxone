@@ -21,7 +21,7 @@ STATUS = """
     LastReceived="2026-09-14 20:00:00" />
   <AirDevice Type="Nano IO Air" Serial="50:4F:94:FF:FE:B3:56:B9"
     Name="EG_WZ_Terassentuer_Bedienfeld" Place="Wohnzimmer"
-    Online="true" Version="16.1.10.17" HwVersion="2" />
+    Online="true" Battery="127" Version="16.1.10.17" HwVersion="2" />
 </Status>
 """
 
@@ -64,6 +64,7 @@ def test_parse_inventory_includes_all_air_device_types() -> None:
     assert data.devices["B299C3"].is_window_handle
     assert data.devices["B299C3"].battery == 70
     assert data.devices["B356B9"].device_type == "Nano IO Air"
+    assert data.devices["B356B9"].battery is None
     assert data.controls["position-control"].room == "Wohnzimmer"
 
 

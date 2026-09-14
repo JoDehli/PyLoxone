@@ -56,6 +56,12 @@ def _as_bool(value: str | None) -> bool | None:
     return bool(number) if number is not None else None
 
 
+def _as_battery(value: str | None) -> int | None:
+    """Parse a real percentage and discard powered-device sentinels."""
+    number = _as_int(value)
+    return number if number is not None and 0 <= number <= 100 else None
+
+
 def _parse_datetime(value: str | None, local_timezone: tzinfo) -> datetime | None:
     if not value:
         return None
@@ -139,7 +145,7 @@ def parse_status_xml(
             installation=element.attrib.get("Inst") or None,
             air_base=air_base,
             online=element.attrib.get("Online", "false").lower() == "true",
-            battery=_as_int(element.attrib.get("Battery")),
+            battery=_as_battery(element.attrib.get("Battery")),
             battery_low=(
                 element.attrib.get("BattWeak", "false").lower() == "true" if "BattWeak" in element.attrib else None
             ),
@@ -359,7 +365,7 @@ class LoxoneHardwareApi:
                     if parsed is not None and parsed < 120:
                         device.system_temperature = parsed
                 elif attribute == "battery":
-                    device.battery = _as_int(value)
+                    device.battery = _as_battery(value)
                 else:
                     device.battery_low = _as_bool(value)
 
