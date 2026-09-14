@@ -52,10 +52,17 @@ class LoxoneHardwareCoordinator(DataUpdateCoordinator[HardwareData]):
         try:
             current = deepcopy(self.data)
             if now - self._last_inventory >= self.inventory_interval:
-                discovered = await self.api.async_discover()
-                self._merge_runtime_values(discovered, current)
-                current = discovered
                 self._last_inventory = now
+                try:
+                    discovered = await self.api.async_discover()
+                except LoxoneHardwareError as err:
+                    _LOGGER.warning(
+                        "Could not refresh Loxone hardware inventory; retaining last snapshot: %s",
+                        err,
+                    )
+                else:
+                    self._merge_runtime_values(discovered, current)
+                    current = discovered
             current = await self.api.async_refresh_fast(current)
             if now - self._last_slow_poll >= self.battery_interval:
                 current = await self.api.async_refresh_battery_and_temperature(current)

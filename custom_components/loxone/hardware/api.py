@@ -257,6 +257,10 @@ class LoxoneHardwareApi:
         self.structure = structure
         self.manual_mappings = manual_mappings or {}
         self.local_timezone = local_timezone
+        # Gen 1 Miniservers can become unresponsive when all Air channels are
+        # requested in one large burst. Keep the requests concurrent, but put
+        # a deliberately small ceiling on the physical API traffic.
+        self._request_semaphore = asyncio.Semaphore(2)
         self.miniserver_serial: str | None = None
         self.air_base: str | None = None
         self.channel_names: dict[str, str] = {}
@@ -265,26 +269,28 @@ class LoxoneHardwareApi:
     async def _request_json(self, path: str) -> dict[str, Any]:
         try:
             async with asyncio.timeout(15):
-                response = await self.session.get(
-                    f"{self.base_url}/{path.lstrip('/')}",
-                    auth=self.auth,
-                    ssl=self.verify_ssl if self.base_url.startswith("https") else None,
-                )
-                response.raise_for_status()
-                return await response.json(content_type=None)
+                async with self._request_semaphore:
+                    async with self.session.get(
+                        f"{self.base_url}/{path.lstrip('/')}",
+                        auth=self.auth,
+                        ssl=self.verify_ssl if self.base_url.startswith("https") else None,
+                    ) as response:
+                        response.raise_for_status()
+                        return await response.json(content_type=None)
         except (TimeoutError, ClientError, ValueError) as err:
             raise LoxoneHardwareError(str(err)) from err
 
     async def _request_text(self, path: str) -> str:
         try:
             async with asyncio.timeout(15):
-                response = await self.session.get(
-                    f"{self.base_url}/{path.lstrip('/')}",
-                    auth=self.auth,
-                    ssl=self.verify_ssl if self.base_url.startswith("https") else None,
-                )
-                response.raise_for_status()
-                return await response.text()
+                async with self._request_semaphore:
+                    async with self.session.get(
+                        f"{self.base_url}/{path.lstrip('/')}",
+                        auth=self.auth,
+                        ssl=self.verify_ssl if self.base_url.startswith("https") else None,
+                    ) as response:
+                        response.raise_for_status()
+                        return await response.text()
         except (TimeoutError, ClientResponseError, ClientError) as err:
             raise LoxoneHardwareError(str(err)) from err
 
