@@ -48,7 +48,6 @@
       "hardware_battery_low": {"name": "Battery low"}
     },
     "select": {
-      "hardware_mapping_primary": {"name": "Assigned UI element"},
       "hardware_mapping_position": {"name": "Position assignment"},
       "hardware_mapping_vibration": {"name": "Vibration assignment"}
     }

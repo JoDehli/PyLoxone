@@ -21,7 +21,7 @@ class UiControl:
 
 @dataclass(slots=True)
 class HardwareDevice:
-    """A physical device connected through Loxone Air."""
+    """A physical Loxone Window Handle Air."""
 
     device_id: str
     serial: str

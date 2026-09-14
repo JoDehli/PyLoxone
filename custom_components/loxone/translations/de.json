@@ -48,7 +48,6 @@
       "hardware_battery_low": {"name": "Batterie schwach"}
     },
     "select": {
-      "hardware_mapping_primary": {"name": "Zugeordnetes UI-Element"},
       "hardware_mapping_position": {"name": "Zuordnung Position"},
       "hardware_mapping_vibration": {"name": "Zuordnung Erschütterung"}
     }

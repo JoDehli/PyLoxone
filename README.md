@@ -66,20 +66,19 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 
 ## Physical Air hardware (fork preview)
 
-This fork can additionally discover physical Loxone Air devices through the
+This fork can additionally discover Loxone Window Handle Air devices through the
 local Miniserver endpoints `/data/status`, `/jdev/sps/enumdev`,
 `/jdev/sps/enumin` and `/jdev/sps/enumout`.
 
-Every discovered Air device is represented in Home Assistant using its stable
-Loxone serial number. Hardware diagnostics include connectivity, firmware,
-radio quality, last reception, battery data where available, and system
-temperature where the device exposes it.
+Every discovered window handle is represented in Home Assistant using its
+stable Loxone serial number. Hardware diagnostics include connectivity,
+firmware, radio quality, last reception and battery data. Other Air hardware is
+deliberately left to the normal PyLoxone UI-control integration.
 
 ### Hardware-to-UI assignment
 
-Each Air device has an **Assigned UI element** dropdown containing the controls
-from `LoxAPP3.json`. Window Handle Air devices additionally have separate
-**Position assignment** and **Vibration assignment** dropdowns.
+Each window handle has separate **Position assignment** and **Vibration
+assignment** dropdowns containing compatible controls from `LoxAPP3.json`.
 
 Assignments are stored by physical serial number and Loxone control UUID, so
 renaming a device or control does not break the relationship. Window-handle
@@ -385,7 +384,6 @@ Here is a example of a Room Controller V2:
             }
         },
 ```
-
 
 
 

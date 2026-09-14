@@ -395,15 +395,13 @@ class HardwareMappingSelect(LoxoneHardwareEntity, SelectEntity):
 
 
 def hardware_select_entities(coordinator, config_entry) -> list[SelectEntity]:
-    """Create a mapping dropdown on every detected device."""
+    """Create position and vibration mappings on every window handle."""
     entities: list[SelectEntity] = []
-    for device_id, device in coordinator.data.devices.items():
-        entities.append(HardwareMappingSelect(coordinator, config_entry, device_id, "primary"))
-        if device.is_window_handle:
-            entities.extend(
-                (
-                    HardwareMappingSelect(coordinator, config_entry, device_id, "position"),
-                    HardwareMappingSelect(coordinator, config_entry, device_id, "vibration"),
-                )
+    for device_id in coordinator.data.devices:
+        entities.extend(
+            (
+                HardwareMappingSelect(coordinator, config_entry, device_id, "position"),
+                HardwareMappingSelect(coordinator, config_entry, device_id, "vibration"),
             )
+        )
     return entities

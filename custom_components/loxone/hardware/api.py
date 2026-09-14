@@ -45,10 +45,8 @@ def _as_int(value: str | None) -> int | None:
 def _as_float(value: str | None) -> float | None:
     if value is None:
         return None
-    try:
-        return float(value)
-    except ValueError:
-        return None
+    match = re.search(r"-?\d+(?:[.,]\d+)?", value)
+    return float(match.group().replace(",", ".")) if match else None
 
 
 def _as_bool(value: str | None) -> bool | None:
@@ -132,6 +130,9 @@ def parse_status_xml(
         last_inventory=datetime.now(timezone.utc),
     )
     for element in root.findall(".//AirDevice"):
+        device_type = element.attrib.get("Type") or "Air Device"
+        if device_type.casefold() != "fenstergriff air":
+            continue
         serial = element.attrib.get("Serial", "").upper()
         if not serial:
             continue
@@ -140,7 +141,7 @@ def parse_status_xml(
             device_id=device_id,
             serial=serial,
             name=element.attrib.get("Name") or f"{element.attrib.get('Type', 'Air Device')} {device_id}",
-            device_type=element.attrib.get("Type") or "Air Device",
+            device_type=device_type,
             room=element.attrib.get("Place") or None,
             installation=element.attrib.get("Inst") or None,
             air_base=air_base,
@@ -202,7 +203,7 @@ def apply_control_mappings(
                 if len({control.uuid for control in matches}) == 1:
                     device.automatic_mappings[role] = matches[0].uuid
 
-        for role in ("primary", "position", "vibration"):
+        for role in ("position", "vibration"):
             key = mapping_key(device.serial, role)
             if key in manual_mappings:
                 chosen = manual_mappings[key]

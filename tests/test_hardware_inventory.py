@@ -1,6 +1,7 @@
 """Tests for physical Loxone Air hardware discovery and mapping."""
 
 from custom_components.loxone.hardware.api import (
+    _as_float,
     apply_control_mappings,
     mapping_key,
     parse_channel_names,
@@ -53,18 +54,22 @@ STRUCTURE = {
 }
 
 
-def test_parse_inventory_includes_all_air_device_types() -> None:
-    """Window handles and generic Air devices are both discovered."""
+def test_temperature_parser_accepts_loxone_unit_suffix() -> None:
+    """System-temperature values may include the degree symbol."""
+    assert _as_float("34.0°") == 34.0
+    assert _as_float("34,5 °C") == 34.5
+
+
+def test_parse_inventory_only_includes_window_handles() -> None:
+    """Generic Air devices remain outside the hardware inventory."""
     serial, air_base = parse_enum_devices(ENUMDEV)
     data = parse_status_xml(STATUS, serial, air_base, STRUCTURE)
 
     assert serial == "ABCDEF123456"
     assert air_base == "0C000001"
-    assert set(data.devices) == {"B299C3", "B356B9"}
+    assert set(data.devices) == {"B299C3"}
     assert data.devices["B299C3"].is_window_handle
     assert data.devices["B299C3"].battery == 70
-    assert data.devices["B356B9"].device_type == "Nano IO Air"
-    assert data.devices["B356B9"].battery is None
     assert data.controls["position-control"].room == "Wohnzimmer"
 
 
@@ -113,13 +118,11 @@ def test_display_name_is_not_used_for_automatic_mapping() -> None:
     assert data.devices["B299C3"].resolved_mappings == {}
 
 
-def test_manual_primary_mapping_and_explicit_unassignment() -> None:
-    """Manual UUIDs override automatic matches; an empty UUID disables one."""
+def test_explicit_unassignment_disables_an_automatic_handle_mapping() -> None:
+    """An empty manual UUID disables one automatic handle mapping."""
     data = parse_status_xml(STATUS, "ABCDEF123456", "0C000001", STRUCTURE)
-    nano = data.devices["B356B9"]
     handle = data.devices["B299C3"]
     manual = {
-        mapping_key(nano.serial, "primary"): "blind-control",
         mapping_key(handle.serial, "position"): "",
     }
     apply_control_mappings(
@@ -128,6 +131,5 @@ def test_manual_primary_mapping_and_explicit_unassignment() -> None:
         manual,
     )
 
-    assert nano.resolved_mappings["primary"] == "blind-control"
     assert "position" in handle.automatic_mappings
     assert "position" not in handle.resolved_mappings
