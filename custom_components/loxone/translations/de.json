@@ -69,7 +69,13 @@
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)",
-          "hardware_enabled": "Physische Air-Hardware erkennen",
+          "hardware_enabled": "Physische Air-Hardware erkennen (Aktuell nur Fenstergriffe Air)"
+        }
+      },
+      "hardware": {
+        "title": "Fenstergriffe Air",
+        "description": "Polling-Intervalle für erkannte Fenstergriffe Air festlegen.",
+        "data": {
           "hardware_fast_poll_interval": "Intervall für Position und Erschütterung",
           "hardware_inventory_interval": "Intervall für Hardware-Inventar",
           "hardware_battery_interval": "Intervall für Batterie und Temperatur"
@@ -89,13 +95,19 @@
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)",
-          "hardware_enabled": "Physische Air-Hardware erkennen",
-          "hardware_fast_poll_interval": "Intervall für Position und Erschütterung",
-          "hardware_inventory_interval": "Intervall für Hardware-Inventar",
-          "hardware_battery_interval": "Intervall für Batterie und Temperatur"
+          "hardware_enabled": "Physische Air-Hardware erkennen (Aktuell nur Fenstergriffe Air)"
         },
         "description": "PyLoxone Einstellungen editieren:",
         "title": "PyLoxone Einstellungen"
+      },
+      "hardware": {
+        "title": "Fenstergriffe Air",
+        "description": "Polling-Intervalle für erkannte Fenstergriffe Air festlegen.",
+        "data": {
+          "hardware_fast_poll_interval": "Intervall für Position und Erschütterung",
+          "hardware_inventory_interval": "Intervall für Hardware-Inventar",
+          "hardware_battery_interval": "Intervall für Batterie und Temperatur"
+        }
       }
     }
   },

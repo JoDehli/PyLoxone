@@ -69,7 +69,13 @@
           "generate_scenes": "generate scenes",
           "generate_lightcontroller_subcontrols": "Enable LightControllerV2 subcontrols by default",
           "generate_scenes_delay": "Delay for the scene generation if enabled",
-          "hardware_enabled": "Discover physical Air hardware",
+          "hardware_enabled": "Discover physical Air hardware (currently Air window handles only)"
+        }
+      },
+      "hardware": {
+        "title": "Air window handles",
+        "description": "Configure polling intervals for discovered Air window handles.",
+        "data": {
           "hardware_fast_poll_interval": "Position and vibration polling interval",
           "hardware_inventory_interval": "Hardware inventory polling interval",
           "hardware_battery_interval": "Battery and temperature polling interval"
@@ -89,13 +95,19 @@
           "generate_scenes": "Generate scenes",
           "generate_lightcontroller_subcontrols": "Enable LightControllerV2 subcontrols by default",
           "generate_scenes_delay": "Delay for the scene generation if enabled",
-          "hardware_enabled": "Discover physical Air hardware",
-          "hardware_fast_poll_interval": "Position and vibration polling interval",
-          "hardware_inventory_interval": "Hardware inventory polling interval",
-          "hardware_battery_interval": "Battery and temperature polling interval"
+          "hardware_enabled": "Discover physical Air hardware (currently Air window handles only)"
         },
         "description": "PyLoxone edit settings:",
         "title": "PyLoxone settings"
+      },
+      "hardware": {
+        "title": "Air window handles",
+        "description": "Configure polling intervals for discovered Air window handles.",
+        "data": {
+          "hardware_fast_poll_interval": "Position and vibration polling interval",
+          "hardware_inventory_interval": "Hardware inventory polling interval",
+          "hardware_battery_interval": "Battery and temperature polling interval"
+        }
       }
     }
   },
