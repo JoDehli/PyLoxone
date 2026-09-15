@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 from homeassistant.const import CONF_PORT
 
 from custom_components.loxone.config_flow import CONFIG_FLOW, OPTIONS_FLOW
@@ -16,11 +14,12 @@ from custom_components.loxone.const import (
 )
 
 
-def _schema_keys(step) -> set[str]:
-    return {key.schema for key in step.schema.schema}
+def _schema_fields(step) -> dict[str, object]:
+    return {key.schema: selector for key, selector in step.schema.schema.items()}
 
 
-def test_hardware_intervals_are_not_on_initial_forms() -> None:
+def test_hardware_intervals_follow_discovery_switch_visibility() -> None:
+    """Keep interval fields on the same form and bind visibility to the switch."""
     interval_keys = {
         CONF_HARDWARE_FAST_POLL_INTERVAL,
         CONF_HARDWARE_INVENTORY_INTERVAL,
@@ -28,24 +27,16 @@ def test_hardware_intervals_are_not_on_initial_forms() -> None:
     }
 
     for flow, initial_step in ((CONFIG_FLOW, "user"), (OPTIONS_FLOW, "init")):
-        initial_keys = _schema_keys(flow[initial_step])
-        hardware_keys = _schema_keys(flow["hardware"])
+        fields = _schema_fields(flow[initial_step])
 
-        assert CONF_HARDWARE_ENABLED in initial_keys
-        assert initial_keys.isdisjoint(interval_keys)
-        assert hardware_keys == interval_keys
-
-
-def test_hardware_step_is_skipped_when_discovery_is_disabled() -> None:
-    for flow, initial_step in ((CONFIG_FLOW, "user"), (OPTIONS_FLOW, "init")):
-        next_step = flow[initial_step].next_step
-        assert asyncio.run(next_step({CONF_HARDWARE_ENABLED: False})) is None
-
-
-def test_hardware_step_is_shown_when_discovery_is_enabled() -> None:
-    for flow, initial_step in ((CONFIG_FLOW, "user"), (OPTIONS_FLOW, "init")):
-        next_step = flow[initial_step].next_step
-        assert asyncio.run(next_step({CONF_HARDWARE_ENABLED: True})) == "hardware"
+        assert CONF_HARDWARE_ENABLED in fields
+        assert interval_keys <= fields.keys()
+        for key in interval_keys:
+            assert fields[key].serialize()["visible"] == {
+                "field": CONF_HARDWARE_ENABLED,
+                "operator": "eq",
+                "value": True,
+            }
 
 
 def test_local_http_port_is_the_setup_default() -> None:

@@ -46,6 +46,21 @@ from .const import (
 )
 
 
+class HardwareNumberSelector(NumberSelector):
+    """Number selector shown only while physical hardware discovery is enabled."""
+
+    def serialize(self) -> dict[str, Any]:
+        """Serialize the selector with a Home Assistant form visibility rule."""
+        return {
+            **super().serialize(),
+            "visible": {
+                "field": CONF_HARDWARE_ENABLED,
+                "operator": "eq",
+                "value": True,
+            },
+        }
+
+
 async def validate_loxone_setup(handler: SchemaCommonFlowHandler, user_input: dict[str, Any]) -> dict[str, Any]:
     """Validate Loxone setup."""
     # Validate latin-1 encoding for username and password
@@ -92,23 +107,18 @@ DATA_SCHEMA_SETUP = vol.Schema(
         ),
         vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): BooleanSelector(),
         vol.Required(CONF_HARDWARE_ENABLED, default=DEFAULT_HARDWARE_ENABLED): BooleanSelector(),
-    }
-)
-
-DATA_SCHEMA_HARDWARE = vol.Schema(
-    {
         vol.Required(
             CONF_HARDWARE_FAST_POLL_INTERVAL,
             default=DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
-        ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=30)),
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=30)),
         vol.Required(
             CONF_HARDWARE_INVENTORY_INTERVAL,
             default=DEFAULT_HARDWARE_INVENTORY_INTERVAL,
-        ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=10, max=300)),
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=10, max=300)),
         vol.Required(
             CONF_HARDWARE_BATTERY_INTERVAL,
             default=DEFAULT_HARDWARE_BATTERY_INTERVAL,
-        ): NumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=1440)),
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=1440)),
     }
 )
 
@@ -127,25 +137,25 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
         ),
         vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): BooleanSelector(),
         vol.Required(CONF_HARDWARE_ENABLED, default=DEFAULT_HARDWARE_ENABLED): BooleanSelector(),
+        vol.Required(
+            CONF_HARDWARE_FAST_POLL_INTERVAL,
+            default=DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=30)),
+        vol.Required(
+            CONF_HARDWARE_INVENTORY_INTERVAL,
+            default=DEFAULT_HARDWARE_INVENTORY_INTERVAL,
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=10, max=300)),
+        vol.Required(
+            CONF_HARDWARE_BATTERY_INTERVAL,
+            default=DEFAULT_HARDWARE_BATTERY_INTERVAL,
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=1440)),
     }
 )
-
-
-async def next_hardware_step(options: dict[str, Any]) -> str | None:
-    """Show hardware polling settings only when hardware discovery is enabled."""
-    if options.get(CONF_HARDWARE_ENABLED, DEFAULT_HARDWARE_ENABLED):
-        return "hardware"
-    return None
 
 
 CONFIG_FLOW = {
     "user": SchemaFlowFormStep(
         schema=DATA_SCHEMA_SETUP,
-        validate_user_input=validate_loxone_setup,
-        next_step=next_hardware_step,
-    ),
-    "hardware": SchemaFlowFormStep(
-        schema=DATA_SCHEMA_HARDWARE,
         validate_user_input=validate_loxone_setup,
     ),
 }
@@ -153,11 +163,6 @@ CONFIG_FLOW = {
 OPTIONS_FLOW = {
     "init": SchemaFlowFormStep(
         schema=DATA_SCHEMA_OPTIONS,
-        validate_user_input=validate_loxone_setup,
-        next_step=next_hardware_step,
-    ),
-    "hardware": SchemaFlowFormStep(
-        schema=DATA_SCHEMA_HARDWARE,
         validate_user_input=validate_loxone_setup,
     ),
 }
