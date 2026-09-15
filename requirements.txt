@@ -6,5 +6,6 @@ websockets>=14
 pycryptodome
 pytest
 httpx
+defusedxml==0.7.1
 debugpy
 pre-commit

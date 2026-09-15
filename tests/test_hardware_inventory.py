@@ -1,5 +1,8 @@
 """Tests for physical Loxone Air hardware discovery and mapping."""
 
+import pytest
+from defusedxml.common import EntitiesForbidden
+
 from custom_components.loxone.hardware.api import (
     _as_float,
     apply_control_mappings,
@@ -58,6 +61,15 @@ def test_temperature_parser_accepts_loxone_unit_suffix() -> None:
     """System-temperature values may include the degree symbol."""
     assert _as_float("34.0°") == 34.0
     assert _as_float("34,5 °C") == 34.5
+
+
+def test_inventory_parser_rejects_xml_entities() -> None:
+    """Reject entity declarations in the Miniserver status response."""
+    payload = """<!DOCTYPE status [<!ENTITY probe \"blocked\">]>
+    <Status><Miniserver Name="&probe;" /></Status>"""
+
+    with pytest.raises(EntitiesForbidden):
+        parse_status_xml(payload, "ABCDEF123456", "0C000001", STRUCTURE)
 
 
 def test_parse_inventory_only_includes_window_handles() -> None:

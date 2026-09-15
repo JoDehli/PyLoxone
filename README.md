@@ -98,10 +98,10 @@ control exists, a polled fallback entity is created instead.
 | LoxAPP control states | Existing encrypted PyLoxone WebSocket | Immediate |
 | Window position and vibration | HTTP reliability fallback | 2 seconds |
 | Inventory, names and online state | HTTP polling | 30 seconds |
-| Battery and system temperature | HTTP polling | 15 minutes |
+| Battery and system temperature | HTTP polling | 15 minutes (900 seconds) |
 
-Physical hardware discovery and all polling intervals can be changed in the
-integration options. A hardware-endpoint permission or firmware limitation is
+Physical hardware discovery and all polling intervals (in seconds) can be changed
+in the integration options. A hardware-endpoint permission or firmware limitation is
 non-fatal: normal PyLoxone entities continue to load without the hardware layer.
 
 ## Known Limitations
@@ -384,5 +384,4 @@ Here is a example of a Room Controller V2:
             }
         },
 ```
-
 

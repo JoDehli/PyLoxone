@@ -70,9 +70,9 @@
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)",
           "hardware_enabled": "Physische Air-Hardware erkennen (Aktuell nur Fenstergriffe Air)",
-          "hardware_fast_poll_interval": "Intervall für Position und Erschütterung",
-          "hardware_inventory_interval": "Intervall für Hardware-Inventar",
-          "hardware_battery_interval": "Intervall für Batterie und Temperatur"
+          "hardware_fast_poll_interval": "Intervall für Position und Erschütterung (Sekunden)",
+          "hardware_inventory_interval": "Intervall für Hardware-Inventar (Sekunden)",
+          "hardware_battery_interval": "Intervall für Batterie und Temperatur (Sekunden)"
         }
       }
     }
@@ -90,9 +90,9 @@
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)",
           "hardware_enabled": "Physische Air-Hardware erkennen (Aktuell nur Fenstergriffe Air)",
-          "hardware_fast_poll_interval": "Intervall für Position und Erschütterung",
-          "hardware_inventory_interval": "Intervall für Hardware-Inventar",
-          "hardware_battery_interval": "Intervall für Batterie und Temperatur"
+          "hardware_fast_poll_interval": "Intervall für Position und Erschütterung (Sekunden)",
+          "hardware_inventory_interval": "Intervall für Hardware-Inventar (Sekunden)",
+          "hardware_battery_interval": "Intervall für Batterie und Temperatur (Sekunden)"
         },
         "description": "PyLoxone Einstellungen editieren:",
         "title": "PyLoxone Einstellungen"

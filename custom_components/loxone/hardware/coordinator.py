@@ -5,15 +5,17 @@ from __future__ import annotations
 import logging
 import time
 from copy import deepcopy
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import LoxoneHardwareApi, LoxoneHardwareError
 from .models import HardwareData
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 class LoxoneHardwareCoordinator(DataUpdateCoordinator[HardwareData]):
     """Combine WebSocket events with tiered HTTP polling."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         hass: HomeAssistant,
         config_entry: ConfigEntry,
@@ -31,6 +33,7 @@ class LoxoneHardwareCoordinator(DataUpdateCoordinator[HardwareData]):
         inventory_interval: int = 30,
         battery_interval: int = 900,
     ) -> None:
+        """Initialize polling around an already discovered hardware snapshot."""
         super().__init__(
             hass,
             logger=_LOGGER,
@@ -68,9 +71,11 @@ class LoxoneHardwareCoordinator(DataUpdateCoordinator[HardwareData]):
                 current = await self.api.async_refresh_battery_and_temperature(current)
                 self._last_slow_poll = now
             self._publish_mapped_values(current)
-            return current
         except LoxoneHardwareError as err:
-            raise UpdateFailed(f"Could not update Loxone hardware: {err}") from err
+            message = f"Could not update Loxone hardware: {err}"
+            raise UpdateFailed(message) from err
+        else:
+            return current
 
     def _publish_mapped_values(self, data: HardwareData) -> None:
         """Feed polled fallback values into existing PyLoxone entities."""
@@ -116,5 +121,5 @@ class LoxoneHardwareCoordinator(DataUpdateCoordinator[HardwareData]):
                 setattr(device, attribute, new_value)
                 changed = True
         if changed:
-            updated.last_push = datetime.now(timezone.utc)
+            updated.last_push = datetime.now(UTC)
             self.async_set_updated_data(updated)

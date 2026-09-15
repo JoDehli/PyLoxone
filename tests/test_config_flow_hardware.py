@@ -45,3 +45,14 @@ def test_local_http_port_is_the_setup_default() -> None:
 
     assert DEFAULT_PORT == 80
     assert port_key.default() == 80
+
+
+def test_battery_polling_uses_seconds_and_defaults_to_fifteen_minutes() -> None:
+    """Expose a seconds-based selector with the documented 15-minute default."""
+    fields = _schema_fields(CONFIG_FLOW["user"])
+    selector = fields[CONF_HARDWARE_BATTERY_INTERVAL]
+
+    assert selector.config["min"] == 60
+    assert selector.config["max"] == 86400
+    battery_key = next(key for key in CONFIG_FLOW["user"].schema.schema if key.schema == CONF_HARDWARE_BATTERY_INTERVAL)
+    assert battery_key.default() == 900

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -15,31 +14,36 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTemperature
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from ..const import CONF_HARDWARE_MAPPINGS, DOMAIN
+from ..const import CONF_HARDWARE_MAPPINGS, DOMAIN  # noqa: TID252
 from .api import mapping_key
 from .coordinator import LoxoneHardwareCoordinator
-from .models import HardwareDevice, UiControl
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from homeassistant.config_entries import ConfigEntry
+
+    from .models import HardwareData, HardwareDevice, UiControl
 
 AUTOMATIC = "__automatic__"
 UNASSIGNED = "__unassigned__"
 
 
-def air_base_identifier(data) -> tuple[str, str]:
+def air_base_identifier(data: HardwareData) -> tuple[str, str]:
     """Return the stable Air Base device identifier."""
     return (DOMAIN, f"{data.miniserver_serial}:air-base:{data.air_base}")
 
 
-def hardware_identifier(data, device: HardwareDevice) -> tuple[str, str]:
+def hardware_identifier(data: HardwareData, device: HardwareDevice) -> tuple[str, str]:
     """Return the stable physical-device identifier."""
     return (DOMAIN, f"{data.miniserver_serial}:air:{device.serial}")
 
 
-def hardware_device_info(data, device: HardwareDevice) -> DeviceInfo:
+def hardware_device_info(data: HardwareData, device: HardwareDevice) -> DeviceInfo:
     """Build registry metadata for one physical Air device."""
     return DeviceInfo(
         identifiers={hardware_identifier(data, device)},
@@ -53,7 +57,9 @@ def hardware_device_info(data, device: HardwareDevice) -> DeviceInfo:
     )
 
 
-def control_device_mapping(data) -> dict[str, tuple[DeviceInfo, str]]:
+def control_device_mapping(
+    data: HardwareData,
+) -> dict[str, tuple[DeviceInfo, str]]:
     """Map every assigned logical control to its physical HA device."""
     result = {}
     for device in data.devices.values():
@@ -75,6 +81,7 @@ class LoxoneHardwareEntity(CoordinatorEntity[LoxoneHardwareCoordinator]):
         device_id: str,
         key: str,
     ) -> None:
+        """Initialize a physical-hardware entity."""
         super().__init__(coordinator)
         self.config_entry = config_entry
         self.device_id = device_id
@@ -104,22 +111,23 @@ class LoxoneHardwareEntity(CoordinatorEntity[LoxoneHardwareCoordinator]):
 class HardwareValueSensor(LoxoneHardwareEntity, SensorEntity):
     """A hardware value supplied by the coordinator."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
-        coordinator,
-        config_entry,
-        device_id,
-        key,
+        coordinator: LoxoneHardwareCoordinator,
+        config_entry: ConfigEntry,
+        device_id: str,
+        key: str,
         value_fn: Callable[[HardwareDevice], Any],
         *,
         translation_key: str,
-        device_class=None,
-        native_unit=None,
-        state_class=None,
-        icon=None,
-        diagnostic=True,
-        available_offline=False,
+        device_class: SensorDeviceClass | None = None,
+        native_unit: str | None = None,
+        state_class: SensorStateClass | None = None,
+        icon: str | None = None,
+        diagnostic: bool = True,
+        available_offline: bool = False,
     ) -> None:
+        """Initialize a coordinator-backed diagnostic value."""
         super().__init__(coordinator, config_entry, device_id, key)
         self._value_fn = value_fn
         self._available_offline = available_offline
@@ -132,11 +140,13 @@ class HardwareValueSensor(LoxoneHardwareEntity, SensorEntity):
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
 
     @property
-    def native_value(self):
+    def native_value(self) -> Any:
+        """Return the current native sensor value."""
         return self._value_fn(self.device)
 
     @property
     def available(self) -> bool:
+        """Return whether the latest relevant data is available."""
         if self._available_offline:
             return self.coordinator.last_update_success
         return super().available
@@ -149,15 +159,23 @@ class HardwarePositionSensor(LoxoneHardwareEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options: ClassVar[list[str]] = ["closed", "tilted", "open", "unknown"]
 
-    def __init__(self, coordinator, config_entry, device_id) -> None:
+    def __init__(
+        self,
+        coordinator: LoxoneHardwareCoordinator,
+        config_entry: ConfigEntry,
+        device_id: str,
+    ) -> None:
+        """Initialize a fallback position sensor."""
         super().__init__(coordinator, config_entry, device_id, "position")
 
     @property
     def native_value(self) -> str:
+        """Return the normalized handle position."""
         return self.device.position_name
 
     @property
     def icon(self) -> str:
+        """Return an icon matching the current handle position."""
         return {
             "closed": "mdi:window-closed-variant",
             "tilted": "mdi:angle-acute",
@@ -174,11 +192,18 @@ class HardwareUpdateModeSensor(LoxoneHardwareEntity, SensorEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:update"
 
-    def __init__(self, coordinator, config_entry, device_id) -> None:
+    def __init__(
+        self,
+        coordinator: LoxoneHardwareCoordinator,
+        config_entry: ConfigEntry,
+        device_id: str,
+    ) -> None:
+        """Initialize an update-mode sensor."""
         super().__init__(coordinator, config_entry, device_id, "update-mode")
 
     @property
     def native_value(self) -> str:
+        """Return the active combination of push and polling."""
         if not self.coordinator.push_connected():
             return "polled"
         count = sum(role in self.device.push_state_uuids for role in ("position", "vibration"))
@@ -186,23 +211,34 @@ class HardwareUpdateModeSensor(LoxoneHardwareEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
+        """Return whether the coordinator has a valid snapshot."""
         return self.coordinator.last_update_success
 
 
 class HardwareOnlineSensor(LoxoneHardwareEntity, BinarySensorEntity):
+    """Report whether a physical device is online."""
+
     _attr_translation_key = "hardware_online"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator, config_entry, device_id) -> None:
+    def __init__(
+        self,
+        coordinator: LoxoneHardwareCoordinator,
+        config_entry: ConfigEntry,
+        device_id: str,
+    ) -> None:
+        """Initialize a connectivity sensor."""
         super().__init__(coordinator, config_entry, device_id, "online")
 
     @property
     def is_on(self) -> bool:
+        """Return the physical device connectivity state."""
         return self.device.online
 
     @property
     def available(self) -> bool:
+        """Return whether the coordinator has a valid snapshot."""
         return self.coordinator.last_update_success
 
 
@@ -212,28 +248,44 @@ class HardwareVibrationSensor(LoxoneHardwareEntity, BinarySensorEntity):
     _attr_translation_key = "hardware_vibration"
     _attr_device_class = BinarySensorDeviceClass.VIBRATION
 
-    def __init__(self, coordinator, config_entry, device_id) -> None:
+    def __init__(
+        self,
+        coordinator: LoxoneHardwareCoordinator,
+        config_entry: ConfigEntry,
+        device_id: str,
+    ) -> None:
+        """Initialize a fallback vibration sensor."""
         super().__init__(coordinator, config_entry, device_id, "vibration")
 
     @property
     def is_on(self) -> bool | None:
+        """Return whether vibration is currently detected."""
         return self.device.vibration
 
 
 class HardwareBatteryLowSensor(LoxoneHardwareEntity, BinarySensorEntity):
+    """Report the physical device's low-battery flag."""
+
     _attr_translation_key = "hardware_battery_low"
     _attr_device_class = BinarySensorDeviceClass.BATTERY
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, coordinator, config_entry, device_id) -> None:
+    def __init__(
+        self,
+        coordinator: LoxoneHardwareCoordinator,
+        config_entry: ConfigEntry,
+        device_id: str,
+    ) -> None:
+        """Initialize a low-battery sensor."""
         super().__init__(coordinator, config_entry, device_id, "battery-low")
 
     @property
     def is_on(self) -> bool | None:
+        """Return whether the device reports a weak battery."""
         return self.device.battery_low
 
 
-def hardware_sensor_entities(coordinator, config_entry) -> list[SensorEntity]:
+def hardware_sensor_entities(coordinator: LoxoneHardwareCoordinator, config_entry: ConfigEntry) -> list[SensorEntity]:
     """Build hardware sensors without duplicating mapped LoxAPP values."""
     entities: list[SensorEntity] = []
     for device_id, device in coordinator.data.devices.items():
@@ -298,7 +350,9 @@ def hardware_sensor_entities(coordinator, config_entry) -> list[SensorEntity]:
     return entities
 
 
-def hardware_binary_sensor_entities(coordinator, config_entry) -> list[BinarySensorEntity]:
+def hardware_binary_sensor_entities(
+    coordinator: LoxoneHardwareCoordinator, config_entry: ConfigEntry
+) -> list[BinarySensorEntity]:
     """Build physical binary sensors."""
     entities: list[BinarySensorEntity] = []
     for device_id, device in coordinator.data.devices.items():
@@ -321,7 +375,14 @@ class HardwareMappingSelect(LoxoneHardwareEntity, SelectEntity):
     _attr_entity_category = EntityCategory.CONFIG
     _attr_icon = "mdi:link-variant"
 
-    def __init__(self, coordinator, config_entry, device_id, role) -> None:
+    def __init__(
+        self,
+        coordinator: LoxoneHardwareCoordinator,
+        config_entry: ConfigEntry,
+        device_id: str,
+        role: str,
+    ) -> None:
+        """Initialize a logical-control assignment selector."""
         super().__init__(coordinator, config_entry, device_id, f"mapping-{role}")
         self.role = role
         self._attr_translation_key = f"hardware_mapping_{role}"
@@ -365,6 +426,7 @@ class HardwareMappingSelect(LoxoneHardwareEntity, SelectEntity):
 
     @property
     def current_option(self) -> str:
+        """Return the label for the currently resolved assignment."""
         self._rebuild_options()
         key = mapping_key(self.device.serial, self.role)
         mappings = self.config_entry.data.get(CONF_HARDWARE_MAPPINGS, {})
@@ -378,6 +440,7 @@ class HardwareMappingSelect(LoxoneHardwareEntity, SelectEntity):
         return self._value_to_label.get(selected.casefold(), self._value_to_label[UNASSIGNED])
 
     async def async_select_option(self, option: str) -> None:
+        """Persist the selected assignment and reload the integration."""
         selected = self._label_to_value[option]
         mappings = dict(self.config_entry.data.get(CONF_HARDWARE_MAPPINGS, {}))
         key = mapping_key(self.device.serial, self.role)
@@ -394,7 +457,7 @@ class HardwareMappingSelect(LoxoneHardwareEntity, SelectEntity):
         await self.hass.config_entries.async_reload(self.config_entry.entry_id)
 
 
-def hardware_select_entities(coordinator, config_entry) -> list[SelectEntity]:
+def hardware_select_entities(coordinator: LoxoneHardwareCoordinator, config_entry: ConfigEntry) -> list[SelectEntity]:
     """Create position and vibration mappings on every window handle."""
     entities: list[SelectEntity] = []
     for device_id in coordinator.data.devices:

@@ -1,11 +1,8 @@
-"""
-Config Flow for PyLoxone
+"""Config flow for PyLoxone."""
 
-For more details about this component, please refer to the documentation at
-https://github.com/JoDehli/PyLoxone
-"""
+from __future__ import annotations
 
-from typing import Any, Mapping, cast
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
@@ -45,6 +42,9 @@ from .const import (
     DOMAIN,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 
 class HardwareNumberSelector(NumberSelector):
     """Number selector shown only while physical hardware discovery is enabled."""
@@ -61,20 +61,22 @@ class HardwareNumberSelector(NumberSelector):
         }
 
 
-async def validate_loxone_setup(handler: SchemaCommonFlowHandler, user_input: dict[str, Any]) -> dict[str, Any]:
+async def validate_loxone_setup(_handler: SchemaCommonFlowHandler, user_input: dict[str, Any]) -> dict[str, Any]:
     """Validate Loxone setup."""
     # Validate latin-1 encoding for username and password
     try:
         if CONF_USERNAME in user_input:
             user_input[CONF_USERNAME].encode("latin-1")
     except UnicodeEncodeError as err:
-        raise SchemaFlowError("Username contains characters that are not latin-1 compatible") from err
+        message = "Username contains characters that are not latin-1 compatible"
+        raise SchemaFlowError(message) from err
 
     try:
         if CONF_PASSWORD in user_input:
             user_input[CONF_PASSWORD].encode("latin-1")
     except UnicodeEncodeError as err:
-        raise SchemaFlowError("Password contains characters that are not latin-1 compatible") from err
+        message = "Password contains characters that are not latin-1 compatible"
+        raise SchemaFlowError(message) from err
 
     # Ensure port is stored as int
     if CONF_PORT in user_input:
@@ -118,7 +120,7 @@ DATA_SCHEMA_SETUP = vol.Schema(
         vol.Required(
             CONF_HARDWARE_BATTERY_INTERVAL,
             default=DEFAULT_HARDWARE_BATTERY_INTERVAL,
-        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=1440)),
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=60, max=86400)),
     }
 )
 
@@ -148,7 +150,7 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
         vol.Required(
             CONF_HARDWARE_BATTERY_INTERVAL,
             default=DEFAULT_HARDWARE_BATTERY_INTERVAL,
-        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=1440)),
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=60, max=86400)),
     }
 )
 
@@ -171,7 +173,7 @@ OPTIONS_FLOW = {
 class LoxoneFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
     """Handle Loxone config flow."""
 
-    VERSION = 5
+    VERSION = 6
     config_flow = CONFIG_FLOW
     options_flow = OPTIONS_FLOW
 

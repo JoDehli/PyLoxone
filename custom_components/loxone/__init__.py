@@ -132,7 +132,7 @@ async def async_unload_entry(hass, config_entry):
         except Exception as e:
             raise e
 
-    # Services deregistrieren beim Entladen
+    # Deregister services while unloading.
     hass.services.async_remove(DOMAIN, "event_websocket_command")
     hass.services.async_remove(DOMAIN, "event_secured_websocket_command")
     hass.services.async_remove(DOMAIN, "sync_areas")
@@ -191,6 +191,15 @@ async def async_migrate_entry(hass, config_entry):
         options[CONF_HARDWARE_BATTERY_INTERVAL] = DEFAULT_HARDWARE_BATTERY_INTERVAL
         version = 5
         _LOGGER.info("Migration to version %s successful", 5)
+
+    if version == 5:
+        # Version 5 accidentally stored the documented 15-minute default as seconds.
+        if options.get(CONF_HARDWARE_BATTERY_INTERVAL) == 15:
+            options[CONF_HARDWARE_BATTERY_INTERVAL] = (
+                DEFAULT_HARDWARE_BATTERY_INTERVAL
+            )
+        version = 6
+        _LOGGER.info("Migration to version %s successful", 6)
 
     if version != old_version:
         hass.config_entries.async_update_entry(
@@ -450,19 +459,19 @@ async def async_setup_entry(hass, config_entry):
                     "valid_until": "",
                 },
             )
-            # Loxone-Integration neu laden
+            # Reload the Loxone integration.
             hass.async_create_task(_reload_after_delay(1.0))
         except LoxoneOutOfServiceException as e:
             _LOGGER.debug(
                 "Loxone LoxoneOutOfServiceException received. Try to reloading Loxone integration."
             )
-            # Loxone-Integration neu laden
+            # Reload the Loxone integration.
             hass.async_create_task(_reload_after_delay(1.0))
         except LoxoneConnectionError as e:
             _LOGGER.debug(
                 "Loxone LoxoneConnectionError received. Try to reloading Loxone integration."
             )
-            # Loxone-Integration neu laden
+            # Reload the Loxone integration.
             hass.async_create_task(_reload_after_delay(1.0))
         except (
             LoxoneConnectionClosedOk,
@@ -471,7 +480,7 @@ async def async_setup_entry(hass, config_entry):
             _LOGGER.debug(
                 "Loxone LoxoneConnectionClosedOk received. Mostly a timeout Problem. Try to reloading Loxone integration."
             )
-            # Loxone-Integration neu laden
+            # Reload the Loxone integration.
             hass.async_create_task(_reload_after_delay(1.0))
         except asyncio.exceptions.CancelledError as e:
             _LOGGER.error(e)

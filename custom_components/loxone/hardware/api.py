@@ -5,13 +5,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import xml.etree.ElementTree as ET
 from copy import deepcopy
-from datetime import datetime, timezone, tzinfo
+from datetime import UTC, datetime, tzinfo
 from typing import Any
 from urllib.parse import quote, urlparse
 
 from aiohttp import BasicAuth, ClientError, ClientResponseError, ClientSession
+from defusedxml import ElementTree as DefusedElementTree
 
 from .models import HardwareData, HardwareDevice, control_catalog
 
@@ -22,6 +22,10 @@ CHANNEL_BATTERY = "AI0"
 CHANNEL_POSITION = "AI2"
 CHANNEL_VIBRATION = "I4"
 CHANNEL_SYSTEM_TEMPERATURE = "ST"
+MAX_BATTERY_PERCENTAGE = 100
+MAX_PLAUSIBLE_SYSTEM_TEMPERATURE = 120
+HTTPS_PORT = 443
+HTTP_PORT = 80
 
 
 class LoxoneHardwareError(Exception):
@@ -31,7 +35,9 @@ class LoxoneHardwareError(Exception):
 def _ll_value(payload: dict[str, Any]) -> Any:
     ll = payload.get("LL") or {}
     if str(ll.get("Code", ll.get("code", ""))) != "200":
-        raise LoxoneHardwareError(f"Loxone returned code {ll.get('Code', ll.get('code', 'unknown'))}")
+        code = ll.get("Code", ll.get("code", "unknown"))
+        message = f"Loxone returned code {code}"
+        raise LoxoneHardwareError(message)
     return ll.get("value")
 
 
@@ -57,7 +63,7 @@ def _as_bool(value: str | None) -> bool | None:
 def _as_battery(value: str | None) -> int | None:
     """Parse a real percentage and discard powered-device sentinels."""
     number = _as_int(value)
-    return number if number is not None and 0 <= number <= 100 else None
+    return number if number is not None and 0 <= number <= MAX_BATTERY_PERCENTAGE else None
 
 
 def _parse_datetime(value: str | None, local_timezone: tzinfo) -> datetime | None:
@@ -74,7 +80,8 @@ def parse_enum_devices(value: str) -> tuple[str, str]:
     miniserver = re.search(r"\(([0-9A-Fa-f]{12})\)", value)
     air_base = re.search(r"[0-9A-Fa-f]{12}\.([0-9A-Fa-f]{8})", value)
     if not miniserver or not air_base:
-        raise LoxoneHardwareError("Could not identify Miniserver and Air Base")
+        message = "Could not identify Miniserver and Air Base"
+        raise LoxoneHardwareError(message)
     return miniserver.group(1).upper(), air_base.group(1).upper()
 
 
@@ -96,10 +103,10 @@ def parse_status_xml(
     miniserver_serial: str,
     air_base_hint: str,
     structure: dict[str, Any],
-    local_timezone: tzinfo = timezone.utc,
+    local_timezone: tzinfo = UTC,
 ) -> HardwareData:
     """Parse the physical inventory from /data/status."""
-    root = ET.fromstring(xml)
+    root = DefusedElementTree.fromstring(xml)
     miniserver = root.find(".//Miniserver")
     extension = next(
         (
@@ -127,7 +134,7 @@ def parse_status_xml(
         air_base=air_base,
         air_base_version=air_base_version,
         controls=control_catalog(structure),
-        last_inventory=datetime.now(timezone.utc),
+        last_inventory=datetime.now(UTC),
     )
     for element in root.findall(".//AirDevice"):
         device_type = element.attrib.get("Type") or "Air Device"
@@ -205,10 +212,7 @@ def apply_control_mappings(
 
         for role in ("position", "vibration"):
             key = mapping_key(device.serial, role)
-            if key in manual_mappings:
-                chosen = manual_mappings[key]
-            else:
-                chosen = device.automatic_mappings.get(role, "")
+            chosen = manual_mappings[key] if key in manual_mappings else device.automatic_mappings.get(role, "")
             if chosen and chosen.casefold() in data.controls:
                 device.resolved_mappings[role] = chosen.casefold()
 
@@ -234,9 +238,10 @@ def mapping_key(serial: str, role: str) -> str:
 class LoxoneHardwareApi:
     """HTTP client for physical Air hardware."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         session: ClientSession,
+        *,
         host: str,
         port: int,
         username: str,
@@ -244,12 +249,13 @@ class LoxoneHardwareApi:
         verify_ssl: bool,
         structure: dict[str, Any],
         manual_mappings: dict[str, str] | None = None,
-        local_timezone: tzinfo = timezone.utc,
+        local_timezone: tzinfo = UTC,
     ) -> None:
+        """Initialize access to the authenticated local Miniserver endpoints."""
         parsed = urlparse(host if "://" in host else f"//{host}")
-        scheme = parsed.scheme or ("https" if port == 443 else "http")
+        scheme = parsed.scheme or ("https" if port == HTTPS_PORT else "http")
         hostname = parsed.hostname or parsed.path
-        default_port = 443 if scheme == "https" else 80
+        default_port = HTTPS_PORT if scheme == "https" else HTTP_PORT
         port_part = "" if port == default_port else f":{port}"
         self.base_url = f"{scheme}://{hostname}{port_part}"
         self.session = session
@@ -349,7 +355,7 @@ class LoxoneHardwareApi:
                 )
 
         await asyncio.gather(*(read(device) for device in updated.devices.values()))
-        updated.last_poll = datetime.now(timezone.utc)
+        updated.last_poll = datetime.now(UTC)
         return updated
 
     async def async_refresh_battery_and_temperature(self, data: HardwareData) -> HardwareData:
@@ -369,7 +375,7 @@ class LoxoneHardwareApi:
                     continue
                 if attribute == "temperature":
                     parsed = _as_float(value)
-                    if parsed is not None and parsed < 120:
+                    if parsed is not None and parsed < MAX_PLAUSIBLE_SYSTEM_TEMPERATURE:
                         device.system_temperature = parsed
                 elif attribute == "battery":
                     device.battery = _as_battery(value)
