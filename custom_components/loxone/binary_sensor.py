@@ -134,16 +134,15 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
         else:
             self._attr_device_class = None
 
-        if self._parent_id:
-            self.uuidAction = self._parent_id
+        device_uuid = self._parent_id or self.unique_id
 
         if self._from_loxone_config:
             self._attr_device_info = get_or_create_device(
-                self.unique_id, self.name, self.type, self.room
+                device_uuid, self.name, self.type, self.room
             )
         else:
             self._attr_device_info = get_or_create_device(
-                self.unique_id, self.name, self.type, ""
+                device_uuid, self.name, self.type, ""
             )
 
         if self._from_loxone_config:
