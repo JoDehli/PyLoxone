@@ -125,5 +125,15 @@
       "name": "Beschattung ",
       "description": "Loxone Jalousie in Schattenposition bringen. Position wird von Loxone abhängig von mehreren Werten festgelegt."
     }
+  },
+  "issues": {
+    "loxone_status": {
+      "title": "{title}",
+      "description": "{description}"
+    },
+    "loxone_device_status": {
+      "title": "{title}: {name}",
+      "description": "{description}"
+    }
   }
 }

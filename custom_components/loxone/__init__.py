@@ -38,9 +38,7 @@ from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT, LOXONE_PLATFORMS,
                     SECUREDSENDDOMAIN, SENDDOMAIN, cfmt)
 from .coordinator import LoxoneCoordinator
-from .helpers import get_miniserver_type
-from .miniserver import MiniServer, get_miniserver_from_hass
-from .pyloxone_api.connection import LoxoneConnection
+from .miniserver import get_miniserver_from_hass
 from .pyloxone_api.exceptions import (LoxoneConnectionClosedOk,
                                       LoxoneConnectionError, LoxoneException,
                                       LoxoneOutOfServiceException,

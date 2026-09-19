@@ -28,5 +28,15 @@
         }
       }
     }
+  },
+  "issues": {
+    "loxone_status": {
+      "title": "{title}",
+      "description": "{description}"
+    },
+    "loxone_device_status": {
+      "title": "{title}: {name}",
+      "description": "{description}"
+    }
   }
 }
