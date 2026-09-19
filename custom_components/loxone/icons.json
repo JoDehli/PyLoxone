@@ -1,0 +1,14 @@
+{
+  "entity": {
+    "sensor": {
+      "hardware_position": {
+        "default": "mdi:window-closed-alert",
+        "state": {
+          "closed": "mdi:window-closed-variant",
+          "tilted": "mdi:angle-acute",
+          "open": "mdi:window-open-variant"
+        }
+      }
+    }
+  }
+}

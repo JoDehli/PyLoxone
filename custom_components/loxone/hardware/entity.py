@@ -33,6 +33,22 @@ AUTOMATIC = "__automatic__"
 UNASSIGNED = "__unassigned__"
 
 
+def window_position_is_open(position: str) -> bool | None:
+    """Map an exact handle position to Home Assistant window semantics."""
+    if position == "unknown":
+        return None
+    return position != "closed"
+
+
+def window_position_icon(position: str) -> str:
+    """Return the closest Material Design icon for a handle position."""
+    return {
+        "closed": "mdi:window-closed-variant",
+        "tilted": "mdi:angle-acute",
+        "open": "mdi:window-open-variant",
+    }.get(position, "mdi:window-closed-alert")
+
+
 def air_base_identifier(data: HardwareData) -> tuple[str, str]:
     """Return the stable Air Base device identifier."""
     return (DOMAIN, f"{data.miniserver_serial}:air-base:{data.air_base}")
@@ -176,11 +192,7 @@ class HardwarePositionSensor(LoxoneHardwareEntity, SensorEntity):
     @property
     def icon(self) -> str:
         """Return an icon matching the current handle position."""
-        return {
-            "closed": "mdi:window-closed-variant",
-            "tilted": "mdi:angle-acute",
-            "open": "mdi:window-open-variant",
-        }.get(self.native_value, "mdi:window-closed-alert")
+        return window_position_icon(self.native_value)
 
 
 class HardwareUpdateModeSensor(LoxoneHardwareEntity, SensorEntity):
@@ -240,6 +252,40 @@ class HardwareOnlineSensor(LoxoneHardwareEntity, BinarySensorEntity):
     def available(self) -> bool:
         """Return whether the coordinator has a valid snapshot."""
         return self.coordinator.last_update_success
+
+
+class HardwareWindowSensor(LoxoneHardwareEntity, BinarySensorEntity):
+    """Expose a window handle through Home Assistant's window semantics."""
+
+    _attr_name = None
+    _attr_device_class = BinarySensorDeviceClass.WINDOW
+
+    def __init__(
+        self,
+        coordinator: LoxoneHardwareCoordinator,
+        config_entry: ConfigEntry,
+        device_id: str,
+    ) -> None:
+        """Initialize the native window projection."""
+        super().__init__(coordinator, config_entry, device_id, "window")
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true for fully open and tilted windows."""
+        return window_position_is_open(self.device.position_name)
+
+    @property
+    def icon(self) -> str:
+        """Distinguish closed, tilted and fully open positions visually."""
+        return window_position_icon(self.device.position_name)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose the exact position alongside the binary window state."""
+        return {
+            **super().extra_state_attributes,
+            "window_position": self.device.position_name,
+        }
 
 
 class HardwareVibrationSensor(LoxoneHardwareEntity, BinarySensorEntity):
@@ -357,8 +403,10 @@ def hardware_binary_sensor_entities(
     entities: list[BinarySensorEntity] = []
     for device_id, device in coordinator.data.devices.items():
         entities.append(HardwareOnlineSensor(coordinator, config_entry, device_id))
-        if device.is_window_handle and "vibration" not in device.resolved_mappings:
-            entities.append(HardwareVibrationSensor(coordinator, config_entry, device_id))
+        if device.is_window_handle:
+            entities.append(HardwareWindowSensor(coordinator, config_entry, device_id))
+            if "vibration" not in device.resolved_mappings:
+                entities.append(HardwareVibrationSensor(coordinator, config_entry, device_id))
         if device.battery_low is not None or device.is_window_handle:
             entities.append(HardwareBatteryLowSensor(coordinator, config_entry, device_id))
     return entities

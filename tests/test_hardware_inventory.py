@@ -1,7 +1,10 @@
 """Tests for physical Loxone Air hardware discovery and mapping."""
 
+from types import SimpleNamespace
+
 import pytest
 from defusedxml.common import EntitiesForbidden
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 
 from custom_components.loxone.hardware.api import (
     _as_float,
@@ -11,6 +14,12 @@ from custom_components.loxone.hardware.api import (
     parse_enum_devices,
     parse_status_xml,
 )
+from custom_components.loxone.hardware.entity import (
+    HardwareWindowSensor,
+    window_position_icon,
+    window_position_is_open,
+)
+from custom_components.loxone.hardware.models import HardwareData, HardwareDevice
 
 ENUMDEV = "Miniserver (ABCDEF123456), Air Base (ABCDEF123456.0C000001), Window Handle (0C000001.B299C3)"
 
@@ -145,3 +154,54 @@ def test_explicit_unassignment_disables_an_automatic_handle_mapping() -> None:
 
     assert "position" in handle.automatic_mappings
     assert "position" not in handle.resolved_mappings
+
+
+@pytest.mark.parametrize(
+    ("position", "expected"),
+    [("closed", False), ("tilted", True), ("open", True), ("unknown", None)],
+)
+def test_exact_position_maps_to_native_window_state(position: str, expected: bool | None) -> None:
+    """Tilted and fully open positions both count as an open window."""
+    assert window_position_is_open(position) is expected
+
+
+@pytest.mark.parametrize(
+    ("position", "expected"),
+    [
+        ("closed", "mdi:window-closed-variant"),
+        ("tilted", "mdi:angle-acute"),
+        ("open", "mdi:window-open-variant"),
+        ("unknown", "mdi:window-closed-alert"),
+    ],
+)
+def test_exact_position_has_a_stable_icon(position: str, expected: str) -> None:
+    """Every supported window position has a deterministic icon."""
+    assert window_position_icon(position) == expected
+
+
+def test_native_window_projection_retains_exact_tilted_position() -> None:
+    """The native window entity exposes both HA and exact position semantics."""
+    device = HardwareDevice(
+        device_id="B299C3",
+        serial="B299C3",
+        name="Living room window",
+        device_type="Fenstergriff Air",
+        air_base="0C000001",
+        online=True,
+        position=2,
+    )
+    data = HardwareData(
+        miniserver_serial="ABCDEF123456",
+        miniserver_name="Test Home",
+        miniserver_version=None,
+        air_base="0C000001",
+        air_base_version=None,
+        devices={device.device_id: device},
+    )
+    entity = HardwareWindowSensor(SimpleNamespace(data=data), SimpleNamespace(), device.device_id)
+
+    assert entity.name is None
+    assert entity.device_class is BinarySensorDeviceClass.WINDOW
+    assert entity.is_on is True
+    assert entity.icon == "mdi:angle-acute"
+    assert entity.extra_state_attributes["window_position"] == "tilted"

@@ -86,10 +86,17 @@ assignments are detected automatically from the configured physical input
 designation. An automatic match is displayed as the current dropdown value and
 can be overridden, explicitly disabled, or restored to automatic mode.
 
-Mapped LoxAPP controls remain the canonical Home Assistant entities and are
-attached to the physical device. The hardware layer does not create a second
-position or vibration entity for an assigned control. If no matching LoxAPP
-control exists, a polled fallback entity is created instead.
+Mapped LoxAPP controls remain the canonical entities for the exact position and
+vibration values and are attached to the physical device. The exact position is
+shown as `closed`, `tilted`, or `open`, with a matching state icon. If no
+matching LoxAPP control exists, a polled fallback entity is created instead.
+
+Each handle also has one native Home Assistant window entity. It is closed only
+when the exact position is `closed`; both `tilted` and `open` count as an open
+window for alarms, area targeting, voice assistants, and window automations.
+Its `window_position` attribute retains the exact three-state value. This
+semantic projection uses the same coordinator data and does not add another
+request to the Miniserver.
 
 ### Update mechanisms
 
@@ -152,6 +159,7 @@ homeassistant:
     sensor.*humidity*:
       device_class: humidity
 ```
+
 
 ## Log Configuration
 Use the following settings if you paste a log into a issue:
@@ -384,4 +392,3 @@ Here is a example of a Room Controller V2:
             }
         },
 ```
-
