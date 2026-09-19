@@ -408,7 +408,8 @@ async def async_setup_entry(hass, config_entry):
 
             for device in current.devices.values():
                 registry_device = registry.async_get_device_by_identifier(
-                    hardware_identifier(current, device)
+                    hardware_identifier(current, device),
+                    config_entry.entry_id,
                 )
                 if registry_device is None:
                     continue
