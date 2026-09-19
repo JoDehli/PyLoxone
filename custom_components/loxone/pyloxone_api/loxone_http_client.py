@@ -42,11 +42,9 @@ class LoxoneAsyncHttpClient:
         if not isinstance(verify_ssl, bool):
             raise ValueError("verify_ssl must be a boolean")
 
-        # super().__init__()
         if session is None:
             self.session = aiohttp.ClientSession()
             self._own_session = True
-        # session.auth = aiohttp.BasicAuth(username, password)
         else:
             if session.closed:
                 raise ValueError("Provided session is already closed")
@@ -78,7 +76,11 @@ class LoxoneAsyncHttpClient:
         try:
             _LOGGER.debug(f"Making GET request to: {url}")
             request_kwargs = {
-                "auth": aiohttp.BasicAuth(self.username, self.password, encoding="utf-8"),
+                "headers": {
+                    "Authorization": aiohttp.encode_basic_auth(
+                        self.username, self.password, encoding="utf-8"
+                    )
+                },
                 "timeout": aiohttp.ClientTimeout(total=self.timeout),
             }
             if self.scheme == "https":

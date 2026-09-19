@@ -10,7 +10,12 @@ from datetime import UTC, datetime, tzinfo
 from typing import Any
 from urllib.parse import quote, urlparse
 
-from aiohttp import BasicAuth, ClientError, ClientResponseError, ClientSession
+from aiohttp import (
+    ClientError,
+    ClientResponseError,
+    ClientSession,
+    encode_basic_auth,
+)
 from defusedxml import ElementTree as DefusedElementTree
 
 from .models import HardwareData, HardwareDevice, control_catalog
@@ -259,7 +264,9 @@ class LoxoneHardwareApi:
         port_part = "" if port == default_port else f":{port}"
         self.base_url = f"{scheme}://{hostname}{port_part}"
         self.session = session
-        self.auth = BasicAuth(username, password, encoding="utf-8")
+        self.headers = {
+            "Authorization": encode_basic_auth(username, password, encoding="utf-8")
+        }
         self.verify_ssl = verify_ssl
         self.structure = structure
         self.manual_mappings = manual_mappings or {}
@@ -279,7 +286,7 @@ class LoxoneHardwareApi:
                 async with self._request_semaphore:
                     async with self.session.get(
                         f"{self.base_url}/{path.lstrip('/')}",
-                        auth=self.auth,
+                        headers=self.headers,
                         ssl=self.verify_ssl if self.base_url.startswith("https") else None,
                     ) as response:
                         response.raise_for_status()
@@ -293,7 +300,7 @@ class LoxoneHardwareApi:
                 async with self._request_semaphore:
                     async with self.session.get(
                         f"{self.base_url}/{path.lstrip('/')}",
-                        auth=self.auth,
+                        headers=self.headers,
                         ssl=self.verify_ssl if self.base_url.startswith("https") else None,
                     ) as response:
                         response.raise_for_status()
