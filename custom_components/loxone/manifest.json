@@ -13,5 +13,5 @@
     "httpx",
     "defusedxml==0.7.1"
   ],
-  "version": "0.9.22"
+  "version": "0.10.10"
 }
