@@ -88,7 +88,7 @@ class MiniServer:
         }
         return new_device[device_type]
 
-    async def async_update_device_registry(self) -> None:
+    async def async_update_device_registry(self) -> dr.DeviceEntry:
         device_registry = dr.async_get(self.hass)
         # Host device
         # device_registry.async_get_or_create(
@@ -99,7 +99,7 @@ class MiniServer:
         # )
 
         # Miniserver service
-        device_registry.async_get_or_create(
+        return device_registry.async_get_or_create(
             config_entry_id=self.config_entry.entry_id,
             connections={
                 (CONNECTION_NETWORK_MAC, self.config_entry.options[CONF_HOST])

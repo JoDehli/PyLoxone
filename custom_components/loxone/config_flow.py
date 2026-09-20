@@ -1,71 +1,104 @@
-"""
-Config Flow for PyLoxone
+"""Config flow for PyLoxone."""
 
-For more details about this component, please refer to the documentation at
-https://github.com/JoDehli/PyLoxone
-"""
+from __future__ import annotations
 
-from typing import Any, Mapping, cast
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
-from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
-                                 CONF_USERNAME)
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.helpers.schema_config_entry_flow import (
-    SchemaCommonFlowHandler, SchemaConfigFlowHandler, SchemaFlowError,
-    SchemaFlowFormStep)
-from homeassistant.helpers.selector import (BooleanSelector, NumberSelector,
-                                            NumberSelectorConfig,
-                                            NumberSelectorMode, TextSelector,
-                                            TextSelectorConfig,
-                                            TextSelectorType)
+    SchemaCommonFlowHandler,
+    SchemaConfigFlowHandler,
+    SchemaFlowError,
+    SchemaFlowFormStep,
+)
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
-from .const import (CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
-                    CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL,
-                    DEFAULT_DELAY_SCENE, DEFAULT_IP, DEFAULT_PORT,
-                    DEFAULT_VERIFY_SSL, DOMAIN)
+from .const import (
+    CONF_HARDWARE_BATTERY_INTERVAL,
+    CONF_HARDWARE_ENABLED,
+    CONF_HARDWARE_FAST_POLL_INTERVAL,
+    CONF_HARDWARE_INVENTORY_INTERVAL,
+    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN,
+    CONF_SCENE_GEN,
+    CONF_SCENE_GEN_DELAY,
+    CONF_VERIFY_SSL,
+    DEFAULT_DELAY_SCENE,
+    DEFAULT_HARDWARE_BATTERY_INTERVAL,
+    DEFAULT_HARDWARE_ENABLED,
+    DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+    DEFAULT_HARDWARE_INVENTORY_INTERVAL,
+    DEFAULT_IP,
+    DEFAULT_PORT,
+    DEFAULT_VERIFY_SSL,
+    DOMAIN,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
-async def validate_loxone_setup(
-    handler: SchemaCommonFlowHandler, user_input: dict[str, Any]
-) -> dict[str, Any]:
+class HardwareNumberSelector(NumberSelector):
+    """Number selector shown only while physical hardware discovery is enabled."""
+
+    def serialize(self) -> dict[str, Any]:
+        """Serialize the selector with a Home Assistant form visibility rule."""
+        return {
+            **super().serialize(),
+            "visible": {
+                "field": CONF_HARDWARE_ENABLED,
+                "operator": "eq",
+                "value": True,
+            },
+        }
+
+
+async def validate_loxone_setup(_handler: SchemaCommonFlowHandler, user_input: dict[str, Any]) -> dict[str, Any]:
     """Validate Loxone setup."""
     # Validate latin-1 encoding for username and password
     try:
         if CONF_USERNAME in user_input:
             user_input[CONF_USERNAME].encode("latin-1")
     except UnicodeEncodeError as err:
-        raise SchemaFlowError(
-            "Username contains characters that are not latin-1 compatible"
-        ) from err
+        message = "Username contains characters that are not latin-1 compatible"
+        raise SchemaFlowError(message) from err
 
     try:
         if CONF_PASSWORD in user_input:
             user_input[CONF_PASSWORD].encode("latin-1")
     except UnicodeEncodeError as err:
-        raise SchemaFlowError(
-            "Password contains characters that are not latin-1 compatible"
-        ) from err
+        message = "Password contains characters that are not latin-1 compatible"
+        raise SchemaFlowError(message) from err
 
     # Ensure port is stored as int
     if CONF_PORT in user_input:
         user_input[CONF_PORT] = int(user_input[CONF_PORT])
     if CONF_SCENE_GEN_DELAY in user_input:
         user_input[CONF_SCENE_GEN_DELAY] = int(user_input[CONF_SCENE_GEN_DELAY])
+    for key in (
+        CONF_HARDWARE_FAST_POLL_INTERVAL,
+        CONF_HARDWARE_INVENTORY_INTERVAL,
+        CONF_HARDWARE_BATTERY_INTERVAL,
+    ):
+        if key in user_input:
+            user_input[key] = int(user_input[key])
 
     return user_input
 
 
 DATA_SCHEMA_SETUP = vol.Schema(
     {
-        vol.Required(CONF_USERNAME, default=""): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.TEXT)
-        ),
-        vol.Required(CONF_PASSWORD, default=""): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.PASSWORD)
-        ),
-        vol.Required(CONF_HOST, default=DEFAULT_IP): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.TEXT)
-        ),
+        vol.Required(CONF_USERNAME, default=""): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
+        vol.Required(CONF_PASSWORD, default=""): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
+        vol.Required(CONF_HOST, default=DEFAULT_IP): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
         vol.Required(CONF_PORT, default=DEFAULT_PORT): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
         ),
@@ -74,23 +107,28 @@ DATA_SCHEMA_SETUP = vol.Schema(
         vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=3)
         ),
+        vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): BooleanSelector(),
+        vol.Required(CONF_HARDWARE_ENABLED, default=DEFAULT_HARDWARE_ENABLED): BooleanSelector(),
         vol.Required(
-            CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False
-        ): BooleanSelector(),
+            CONF_HARDWARE_FAST_POLL_INTERVAL,
+            default=DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=30)),
+        vol.Required(
+            CONF_HARDWARE_INVENTORY_INTERVAL,
+            default=DEFAULT_HARDWARE_INVENTORY_INTERVAL,
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=10, max=300)),
+        vol.Required(
+            CONF_HARDWARE_BATTERY_INTERVAL,
+            default=DEFAULT_HARDWARE_BATTERY_INTERVAL,
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=60, max=86400)),
     }
 )
 
 DATA_SCHEMA_OPTIONS = vol.Schema(
     {
-        vol.Required(CONF_USERNAME, default=""): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.TEXT)
-        ),
-        vol.Required(CONF_PASSWORD, default=""): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.PASSWORD)
-        ),
-        vol.Required(CONF_HOST, default=DEFAULT_IP): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.TEXT)
-        ),
+        vol.Required(CONF_USERNAME, default=""): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
+        vol.Required(CONF_PASSWORD, default=""): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
+        vol.Required(CONF_HOST, default=DEFAULT_IP): TextSelector(TextSelectorConfig(type=TextSelectorType.TEXT)),
         vol.Required(CONF_PORT, default=DEFAULT_PORT): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
         ),
@@ -99,11 +137,23 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
         vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=3)
         ),
+        vol.Required(CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False): BooleanSelector(),
+        vol.Required(CONF_HARDWARE_ENABLED, default=DEFAULT_HARDWARE_ENABLED): BooleanSelector(),
         vol.Required(
-            CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False
-        ): BooleanSelector(),
+            CONF_HARDWARE_FAST_POLL_INTERVAL,
+            default=DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=30)),
+        vol.Required(
+            CONF_HARDWARE_INVENTORY_INTERVAL,
+            default=DEFAULT_HARDWARE_INVENTORY_INTERVAL,
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=10, max=300)),
+        vol.Required(
+            CONF_HARDWARE_BATTERY_INTERVAL,
+            default=DEFAULT_HARDWARE_BATTERY_INTERVAL,
+        ): HardwareNumberSelector(NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=60, max=86400)),
     }
 )
+
 
 CONFIG_FLOW = {
     "user": SchemaFlowFormStep(
@@ -123,7 +173,7 @@ OPTIONS_FLOW = {
 class LoxoneFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
     """Handle Loxone config flow."""
 
-    VERSION = 4
+    VERSION = 6
     config_flow = CONFIG_FLOW
     options_flow = OPTIONS_FLOW
 

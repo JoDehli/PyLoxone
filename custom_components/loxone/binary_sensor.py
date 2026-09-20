@@ -22,7 +22,8 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from . import LoxoneEntity
 from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all,
-                      get_or_create_device)
+                      get_hardware_control_role, get_or_create_device)
+from .hardware.entity import hardware_binary_sensor_entities
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,6 +65,12 @@ async def async_setup_entry(
     miniserver = get_miniserver_from_hass(hass, config_entry)
     loxconfig = miniserver.lox_config.json
     entities = []
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]
+
+    if coordinator.hardware is not None:
+        entities.extend(
+            hardware_binary_sensor_entities(coordinator.hardware, config_entry)
+        )
 
     for sensor in get_all(loxconfig, "InfoOnlyDigital"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
@@ -131,6 +138,10 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
         self._attr_available = True
         if self.type in LOXONE_DEVICE_CLASS_MAP:
             self._attr_device_class = LOXONE_DEVICE_CLASS_MAP[self.type]
+        elif get_hardware_control_role(self.unique_id) == "vibration":
+            self._attr_has_entity_name = True
+            self._attr_translation_key = "hardware_vibration"
+            self._attr_device_class = BinarySensorDeviceClass.VIBRATION
         else:
             self._attr_device_class = None
 

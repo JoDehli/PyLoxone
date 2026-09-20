@@ -64,6 +64,53 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - TextInput
 - Radio Buttons
 
+## Physical Window Handle Air hardware
+
+PyLoxone can additionally discover Loxone Window Handle Air devices through the
+local Miniserver endpoints `/data/status`, `/jdev/sps/enumdev`,
+`/jdev/sps/enumin` and `/jdev/sps/enumout`.
+
+Every discovered window handle is represented in Home Assistant using its
+stable Loxone serial number. Hardware diagnostics include connectivity,
+firmware, radio quality, last reception and battery data. Other Air hardware is
+deliberately left to the normal PyLoxone UI-control integration.
+
+### Hardware-to-UI assignment
+
+Each window handle has separate **Position assignment** and **Vibration
+assignment** dropdowns containing compatible controls from `LoxAPP3.json`.
+
+Assignments are stored by physical serial number and Loxone control UUID, so
+renaming a device or control does not break the relationship. Window-handle
+assignments are detected automatically from the configured physical input
+designation. An automatic match is displayed as the current dropdown value and
+can be overridden, explicitly disabled, or restored to automatic mode.
+
+Mapped LoxAPP controls remain the canonical entities for the exact position and
+vibration values and are attached to the physical device. The exact position is
+shown as `closed`, `tilted`, or `open`, with a matching state icon. If no
+matching LoxAPP control exists, a polled fallback entity is created instead.
+
+Each handle also has one native Home Assistant window entity. It is closed only
+when the exact position is `closed`; both `tilted` and `open` count as an open
+window for alarms, area targeting, voice assistants, and window automations.
+Its `window_position` attribute retains the exact three-state value. This
+semantic projection uses the same coordinator data and does not add another
+request to the Miniserver.
+
+### Update mechanisms
+
+| Data | Mechanism | Default |
+| --- | --- | --- |
+| LoxAPP control states | Existing encrypted PyLoxone WebSocket | Immediate |
+| Window position and vibration | HTTP reliability fallback | 2 seconds |
+| Inventory, names and online state | HTTP polling | 30 seconds |
+| Battery and system temperature | HTTP polling | 15 minutes (900 seconds) |
+
+Physical hardware discovery and all polling intervals (in seconds) can be changed
+in the integration options. A hardware-endpoint permission or firmware limitation is
+non-fatal: normal PyLoxone entities continue to load without the hardware layer.
+
 ## Known Limitations
 
 - Pushbuttons are stateless. They can not be used to reliably trigger automations. Use a Switch as a workaround and turn it off again in the Automation or in Loxone itself.
@@ -112,6 +159,7 @@ homeassistant:
     sensor.*humidity*:
       device_class: humidity
 ```
+
 
 ## Log Configuration
 Use the following settings if you paste a log into a issue:
@@ -344,8 +392,3 @@ Here is a example of a Room Controller V2:
             }
         },
 ```
-
-
-
-
-

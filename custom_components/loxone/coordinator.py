@@ -7,7 +7,22 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
+from .const import (
+    CONF_HARDWARE_BATTERY_INTERVAL,
+    CONF_HARDWARE_ENABLED,
+    CONF_HARDWARE_FAST_POLL_INTERVAL,
+    CONF_HARDWARE_INVENTORY_INTERVAL,
+    CONF_HARDWARE_MAPPINGS,
+    CONF_VERIFY_SSL,
+    DEFAULT_HARDWARE_BATTERY_INTERVAL,
+    DEFAULT_HARDWARE_ENABLED,
+    DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+    DEFAULT_HARDWARE_INVENTORY_INTERVAL,
+    DEFAULT_VERIFY_SSL,
+)
+from .hardware import LoxoneHardwareApi, LoxoneHardwareCoordinator
+from .hardware.entity import control_device_mapping
+from .helpers import configure_hardware_control_registry
 from .miniserver import MiniServer
 from .pyloxone_api.connection import LoxoneConnection, LoxoneException
 
@@ -37,6 +52,7 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         self.api: LoxoneConnection | None = None
         self.miniserver: MiniServer | None = None
         self.listeners = []
+        self.hardware: LoxoneHardwareCoordinator | None = None
 
     async def async_config_entry_first_refresh(self) -> None:
         _LOGGER.debug("async_config_entry_first_refresh")
@@ -75,6 +91,62 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             self.hass, self.api.structure_file, self.config_entry
         )
 
+        configure_hardware_control_registry({})
+        if self.config_entry.options.get(
+            CONF_HARDWARE_ENABLED, DEFAULT_HARDWARE_ENABLED
+        ):
+            try:
+                hardware_api = LoxoneHardwareApi(
+                    session=session,
+                    host=self._host,
+                    port=self._port,
+                    username=self._username,
+                    password=self._password,
+                    verify_ssl=self._verify_ssl,
+                    structure=self.api.structure_file,
+                    manual_mappings=self.config_entry.data.get(
+                        CONF_HARDWARE_MAPPINGS, {}
+                    ),
+                )
+                hardware_data = await hardware_api.async_discover()
+                self.hardware = LoxoneHardwareCoordinator(
+                    self.hass,
+                    self.config_entry,
+                    hardware_api,
+                    hardware_data,
+                    fast_interval=int(
+                        self.config_entry.options.get(
+                            CONF_HARDWARE_FAST_POLL_INTERVAL,
+                            DEFAULT_HARDWARE_FAST_POLL_INTERVAL,
+                        )
+                    ),
+                    inventory_interval=int(
+                        self.config_entry.options.get(
+                            CONF_HARDWARE_INVENTORY_INTERVAL,
+                            DEFAULT_HARDWARE_INVENTORY_INTERVAL,
+                        )
+                    ),
+                    battery_interval=int(
+                        self.config_entry.options.get(
+                            CONF_HARDWARE_BATTERY_INTERVAL,
+                            DEFAULT_HARDWARE_BATTERY_INTERVAL,
+                        )
+                    )
+                    * 60,
+                )
+                self.hardware.push_connected = lambda: bool(
+                    self.api and self.api.is_connected
+                )
+                await self.hardware.async_config_entry_first_refresh()
+                configure_hardware_control_registry(
+                    control_device_mapping(self.hardware.data)
+                )
+            except Exception as err:
+                # Hardware inventory is additive. A firmware or permission that
+                # does not expose these endpoints must not break normal PyLoxone.
+                _LOGGER.warning("Physical hardware inventory unavailable: %s", err)
+                self.hardware = None
+
         return None
 
     async def _async_update_data(self) -> None:
@@ -94,6 +166,9 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 if listener is not None:
                     listener()
             self.listeners = []
+
+        if self.hardware is not None:
+            await self.hardware.async_shutdown()
 
         # Close API connection
         if hasattr(self, "api"):

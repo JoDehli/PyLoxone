@@ -43,6 +43,7 @@ def test_https_http_client_can_disable_certificate_verification() -> None:
 
     assert session.url == "https://192.0.2.1/jdev/cfg/apiKey"
     assert session.kwargs["ssl"] is False
+    assert session.kwargs["headers"]["Authorization"].startswith("Basic ")
 
 
 def test_http_client_does_not_pass_tls_options_for_plain_http() -> None:
@@ -59,6 +60,7 @@ def test_http_client_does_not_pass_tls_options_for_plain_http() -> None:
     asyncio.run(client.get("/jdev/cfg/apiKey"))
 
     assert "ssl" not in session.kwargs
+    assert session.kwargs["headers"]["Authorization"].startswith("Basic ")
 
 
 def test_websocket_uses_unverified_context_only_when_requested() -> None:

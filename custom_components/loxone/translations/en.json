@@ -13,6 +13,20 @@
       }
     },
     "sensor": {
+      "hardware_position": {
+        "name": "Position",
+        "state": {"closed": "Closed", "tilted": "Tilted", "open": "Open", "unknown": "Unknown"}
+      },
+      "hardware_update_mode": {
+        "name": "Update mode",
+        "state": {"polled": "Polling", "hybrid": "Hybrid", "pushed": "Push"}
+      },
+      "hardware_battery": {"name": "Battery"},
+      "hardware_system_temperature": {"name": "System temperature"},
+      "hardware_hops": {"name": "Radio hops"},
+      "hardware_quality_device": {"name": "Device radio quality"},
+      "hardware_quality_extension": {"name": "Air Base radio quality"},
+      "hardware_last_received": {"name": "Last received"},
       "override_reason": {
         "state": {
           "none": "None",
@@ -27,6 +41,15 @@
           "fixed": "Fixed Setpoint"
         }
       }
+    },
+    "binary_sensor": {
+      "hardware_online": {"name": "Online"},
+      "hardware_vibration": {"name": "Vibration"},
+      "hardware_battery_low": {"name": "Battery low"}
+    },
+    "select": {
+      "hardware_mapping_position": {"name": "Position assignment"},
+      "hardware_mapping_vibration": {"name": "Vibration assignment"}
     }
   },
   "config": {
@@ -45,7 +68,11 @@
           "verify_ssl": "Verify the Miniserver TLS certificate",
           "generate_scenes": "generate scenes",
           "generate_lightcontroller_subcontrols": "Enable LightControllerV2 subcontrols by default",
-          "generate_scenes_delay": "Delay for the scene generation if enabled"
+          "generate_scenes_delay": "Delay for the scene generation if enabled",
+          "hardware_enabled": "Discover physical Air hardware (currently Air window handles only)",
+          "hardware_fast_poll_interval": "Position and vibration polling interval (seconds)",
+          "hardware_inventory_interval": "Hardware inventory polling interval (seconds)",
+          "hardware_battery_interval": "Battery and temperature polling interval (seconds)"
         }
       }
     }
@@ -61,7 +88,11 @@
           "verify_ssl": "Verify the Miniserver TLS certificate",
           "generate_scenes": "Generate scenes",
           "generate_lightcontroller_subcontrols": "Enable LightControllerV2 subcontrols by default",
-          "generate_scenes_delay": "Delay for the scene generation if enabled"
+          "generate_scenes_delay": "Delay for the scene generation if enabled",
+          "hardware_enabled": "Discover physical Air hardware (currently Air window handles only)",
+          "hardware_fast_poll_interval": "Position and vibration polling interval (seconds)",
+          "hardware_inventory_interval": "Hardware inventory polling interval (seconds)",
+          "hardware_battery_interval": "Battery and temperature polling interval (seconds)"
         },
         "description": "PyLoxone edit settings:",
         "title": "PyLoxone settings"

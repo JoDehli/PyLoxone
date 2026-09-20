@@ -7,10 +7,13 @@ from types import SimpleNamespace
 
 from custom_components.loxone import async_migrate_entry
 from custom_components.loxone.const import (
+    CONF_HARDWARE_BATTERY_INTERVAL,
+    CONF_HARDWARE_ENABLED,
     CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN,
     CONF_SCENE_GEN_DELAY,
     CONF_VERIFY_SSL,
     DEFAULT_DELAY_SCENE,
+    DEFAULT_HARDWARE_ENABLED,
     DEFAULT_VERIFY_SSL,
 )
 
@@ -32,8 +35,9 @@ def test_version_three_migration_uses_home_assistant_update_api() -> None:
 
     assert asyncio.run(async_migrate_entry(hass, entry)) is True
 
-    assert entry.version == 4
+    assert entry.version == 6
     assert entry.options[CONF_VERIFY_SSL] is DEFAULT_VERIFY_SSL
+    assert entry.options[CONF_HARDWARE_ENABLED] is DEFAULT_HARDWARE_ENABLED
     assert len(config_entries.calls) == 1
 
 
@@ -44,7 +48,7 @@ def test_version_one_migrates_through_all_versions_in_one_update() -> None:
 
     assert asyncio.run(async_migrate_entry(hass, entry)) is True
 
-    assert entry.version == 4
+    assert entry.version == 6
     assert entry.options[CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN] is True
     assert entry.options[CONF_SCENE_GEN_DELAY] == DEFAULT_DELAY_SCENE
     assert entry.options[CONF_VERIFY_SSL] is DEFAULT_VERIFY_SSL
@@ -54,8 +58,23 @@ def test_version_one_migrates_through_all_versions_in_one_update() -> None:
 def test_current_version_does_not_update_entry() -> None:
     config_entries = _ConfigEntries()
     hass = SimpleNamespace(config_entries=config_entries)
-    entry = SimpleNamespace(version=4, options={})
+    entry = SimpleNamespace(version=6, options={})
 
     assert asyncio.run(async_migrate_entry(hass, entry)) is True
 
     assert config_entries.calls == []
+
+
+def test_version_five_corrects_battery_interval_units() -> None:
+    """Convert the erroneous 15-second default to the documented 15 minutes."""
+    config_entries = _ConfigEntries()
+    hass = SimpleNamespace(config_entries=config_entries)
+    entry = SimpleNamespace(
+        version=5,
+        options={CONF_HARDWARE_BATTERY_INTERVAL: 15},
+    )
+
+    assert asyncio.run(async_migrate_entry(hass, entry)) is True
+
+    assert entry.version == 6
+    assert entry.options[CONF_HARDWARE_BATTERY_INTERVAL] == 900
