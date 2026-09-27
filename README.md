@@ -60,7 +60,7 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - Fan
 - RoomController and RoomControllerV2
 - AudioZoneV2
-- Slider
+- Slider and ValueSelector (Up-Down Buttons)
 - TextInput
 - Radio Buttons
 

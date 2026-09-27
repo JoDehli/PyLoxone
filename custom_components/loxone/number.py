@@ -16,7 +16,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
 from .const import SENDDOMAIN
-from .helpers import (add_room_and_cat_to_value_values, get_all,
+from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
 
@@ -43,7 +43,7 @@ async def async_setup_entry(
     loxconfig = miniserver.lox_config.json
     entities = []
 
-    for number_entity in get_all(loxconfig, ["Slider"]):
+    for number_entity in get_all(loxconfig, ["Slider", "ValueSelector"]):
         number_entity = add_room_and_cat_to_value_values(loxconfig, number_entity)
         new_number = LoxoneNumber(**number_entity)
         entities.append(new_number)
@@ -60,11 +60,17 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
         self._state = STATE_UNKNOWN
         self._icon = None
         self._assumed = False
-        self._native_max_value = kwargs["details"]["max"]
-        self._native_min_value = kwargs["details"]["min"]
-        self._native_step = kwargs["details"]["step"]
+        # A Slider carries min, max and step in its details. A ValueSelector (the
+        # Up-Down Buttons block) publishes them as states instead, so they start
+        # from placeholders and follow the state events.
+        details = kwargs["details"]
+        self._native_max_value = details.get("max", 100)
+        self._native_min_value = details.get("min", 0)
+        self._native_step = details.get("step", 1)
+        if unit := clean_unit(details.get("format", "")):
+            self._attr_native_unit_of_measurement = unit
 
-        self.type = "Slider"
+        self.type = kwargs.get("type", "Slider")
         self._attr_device_info = get_or_create_device(
             self.unique_id, self.name, self.type, self.room
         )
@@ -105,8 +111,16 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
         return self._state
 
     async def event_handler(self, e):
-        if self.uuidAction in e.data:
-            data = e.data[self.uuidAction]
+        if self.type == "ValueSelector":
+            for key, attr in (("min", "_native_min_value"), ("max", "_native_max_value"),
+                              ("step", "_native_step")):
+                uuid = self.states.get(key)
+                if uuid in e.data:
+                    setattr(self, attr, e.data[uuid])
+                    self.schedule_update_ha_state()
+        value_uuid = self.states.get("value", self.uuidAction)
+        if value_uuid in e.data:
+            data = e.data[value_uuid]
             if isinstance(data, (list, dict)):
                 data = str(data)
                 if len(data) >= 255:
