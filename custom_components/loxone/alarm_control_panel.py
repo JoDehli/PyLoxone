@@ -1,7 +1,6 @@
 """Interfaces with Alarm.com alarm control panels."""
 
 import logging
-import re
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -91,12 +90,7 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
     @property
     def code_arm_required(self):
         """Whether the code is required for arm actions."""
-        self._code = "required"
-        if self.isSecured:
-            self._code = "required"
-        else:
-            self._code = None
-        return self.isSecured
+        return bool(self.isSecured)
 
     async def event_handler(self, e):
         request_update = False
@@ -248,8 +242,11 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
     @property
     def code_format(self):
         """Return one or more digits/characters."""
-        if self._code is None:
+        # The Loxone miniserver enforces the alarm code itself and never
+        # returns the configured value, so we can't introspect it here.
+        # Loxone alarm codes are numeric PINs in practice, so advertise
+        # NUMBER when the alarm is secured (e.g. NSPanel needs NUMBER to
+        # render a numeric keypad) and None otherwise.
+        if not self.isSecured:
             return None
-        if isinstance(self._code, str) and re.search("^\\d+$", self._code):
-            return CodeFormat.NUMBER
-        return CodeFormat.TEXT
+        return CodeFormat.NUMBER
