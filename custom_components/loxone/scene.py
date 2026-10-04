@@ -82,7 +82,11 @@ async def async_setup_entry(
             async_add_entities(scenes)
             _LOGGER.info(f"Generated {len(scenes)} scenes")
         else:
-            _LOGGER.warning("No scenes generated")
+            # Issue #514: emitting WARNING for the common case of "no
+            # LightControllerV2 entities present" spams the log on every
+            # reconnect. Demote to DEBUG so users only see this when they
+            # enable debug logging.
+            _LOGGER.debug("No scenes generated")
 
     # Wait for platforms to be ready and then generate scenes
     hass.loop.call_later(delay_scene, lambda: hass.async_create_task(gen_scenes()))

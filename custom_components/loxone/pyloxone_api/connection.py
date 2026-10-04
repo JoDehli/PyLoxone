@@ -269,18 +269,22 @@ class LoxoneBaseConnection:
             cipher = b64encode(aes_cipher.encrypt(padded_bytes))
             enc_cipher = urllib.parse.quote(cipher.decode())
             command = f"jdev/sys/enc/{enc_cipher}"
+        # Issue #514: during a normal token expiry the Miniserver closes the
+        # websocket (1000) and sends fail until the supervisor reconnects.
+        # Raising ``LoxoneConnectionClosedOk`` here lets the supervisor's
+        # DEBUG-level handler run the normal reconnect path instead of
+        # spamming ERROR logs at every command attempt.
+        if not self.connection or not self.is_connected:
+            raise LoxoneConnectionClosedOk("Cannot send command - connection is not open")
         try:
-            # Check if connection is open before sending
-            if not self.connection or not self.is_connected:
-                _LOGGER.warning("Cannot send command - connection is not open")
             await self.connection.send([command])
         except websockets.ConnectionClosedOK:
             raise LoxoneConnectionClosedOk(
                 "Connection closed normally while sending command"
             )
         except Exception as e:
-            _LOGGER.error("Error while sending...", e)
-            raise e
+            _LOGGER.debug("Error while sending: %s", e)
+            raise
 
     def _decrypt(self, command: str) -> bytes:
         """AES decrypt a command returned by the miniserver."""
@@ -470,8 +474,14 @@ class LoxoneConnection(LoxoneBaseConnection):
         # Clear shutdown event when starting
         self._shutdown_event.clear()
 
-        async def keep_alive() -> NoReturn:
+        async def keep_alive() -> None:
             """Send keep-alive messages to the Miniserver."""
+            # Issue #514: a normal token expiry / websocket closure (1000)
+            # is the expected end-state of this loop, not an error. Log at
+            # DEBUG and return cleanly so HA's task observer does not log
+            # the task as having raised. The supervisor (``start_listening``
+            # / the recv loop) detects the dead connection through the
+            # recv-side ``async for`` and triggers the reconnect.
             try:
                 while True:
                     await asyncio.sleep(KEEP_ALIVE_PERIOD)
@@ -482,17 +492,16 @@ class LoxoneConnection(LoxoneBaseConnection):
                         await keep_alive_task
                         await asyncio.sleep(0)
                     except LoxoneConnectionClosedOk:
-                        raise  # Re-raise to trigger
+                        _LOGGER.debug("Keep-alive: connection closed, exiting")
+                        return
                     except Exception as exc:
-                        _LOGGER.error(f"Keep-alive message failed: {exc}")
+                        _LOGGER.warning("Keep-alive message failed: %s", exc)
                         raise
-            except LoxoneConnectionClosedOk:
-                raise
             except asyncio.CancelledError:
                 _LOGGER.debug("Keep-alive task cancelled")
                 raise
             except Exception as exc:
-                _LOGGER.error(f"Keep-alive task encountered an error: {exc}")
+                _LOGGER.warning("Keep-alive task encountered an error: %s", exc)
                 raise
 
         async def check_refresh_token() -> NoReturn:
@@ -536,7 +545,11 @@ class LoxoneConnection(LoxoneBaseConnection):
                             )
                             await asyncio.sleep(0)
                         except Exception as exc:
-                            _LOGGER.error(f"Error requesting new key: {exc}")
+                            # Issue #514: a failure here is normal during
+                            # the token-expiry self-heal (the websocket is
+                            # closed until the supervisor reconnects). Demote
+                            # to WARNING; we retry on the next cycle.
+                            _LOGGER.warning("Error requesting new key: %s", exc)
                             self._key_update_event = None
                             await asyncio.sleep(1)
                             continue
@@ -565,14 +578,18 @@ class LoxoneConnection(LoxoneBaseConnection):
                     except asyncio.CancelledError:
                         raise
                     except Exception as e:
-                        _LOGGER.error(f"Error in token refresh cycle: {e}")
+                        # Issue #514: transient cycle errors during the
+                        # token-expiry self-heal. Demote to WARNING; we
+                        # sleep 1 s and retry.
+                        _LOGGER.warning("Error in token refresh cycle: %s", e)
                         await asyncio.sleep(1)  # Avoid tight loop on errors
 
             except asyncio.CancelledError:
                 _LOGGER.debug("Token refresh task cancelled")
                 raise
             except Exception as exc:
-                _LOGGER.error(f"Token refresh task failed: {exc}")
+                # Issue #514: see above. Demote to WARNING.
+                _LOGGER.warning("Token refresh task failed: %s", exc)
                 raise
 
         try:
@@ -642,11 +659,16 @@ class LoxoneConnection(LoxoneBaseConnection):
                     _LOGGER.error(f"Miniserver out of service: {e}")
                     raise
                 except websockets.exceptions.ConnectionClosedError as e:
-                    _LOGGER.error(f"Connection closed with error: {e}")
+                    # Issue #514: an abnormal websocket close is the trigger
+                    # for the reconnect-and-self-heal path, not a hard
+                    # failure. Log at WARNING and surface as
+                    # LoxoneConnectionError so the supervisor reloads.
+                    _LOGGER.warning("Connection closed with error: %s", e)
                     raise LoxoneConnectionError
                 except websockets.exceptions.ConnectionClosed as e:
-                    _LOGGER.error(
-                        "Connection closed by websocket, converting to LoxoneConnectionError"
+                    _LOGGER.warning(
+                        "Connection closed by websocket, converting to LoxoneConnectionError: %s",
+                        e,
                     )
                     raise LoxoneConnectionError("Connection closed") from None
                 except asyncio.CancelledError:
@@ -1375,7 +1397,12 @@ class LoxoneConnection(LoxoneBaseConnection):
                 "authwithtoken" in mess_obj.message
             ):
                 if mess_obj.code == 401:
-                    _LOGGER.error("Token authentication failed (401)")
+                    # Issue #514: 401 here is the *expected* first leg of the
+                    # token-expiry self-heal flow — the cached token is
+                    # stale, the integration resets it and falls back to
+                    # username/password auth. Log at DEBUG so the user only
+                    # sees ERROR if the fallback also fails.
+                    _LOGGER.debug("Token authentication failed (401); resetting and re-authenticating")
                     self.reset_token()
                     self._reconnect_event.set()
                 else:
