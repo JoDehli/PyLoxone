@@ -13,7 +13,6 @@ from homeassistant.helpers import device_registry as dr
 from .helpers import get_miniserver_type
 
 _LOGGER = logging.getLogger(__name__)
-CONNECTION_NETWORK_MAC = "mac"
 DOMAIN = "loxone"
 NEW_GROUP = "groups"
 NEW_LIGHT = "lights"
@@ -23,7 +22,7 @@ NEW_COVERS = "covers"
 
 
 @callback
-def get_miniserver_from_hass(hass, config_entry):
+def get_miniserver_from_hass(hass, config_entry) -> MiniServer:
     """Return the Miniserver for this specific config entry."""
     return hass.data[DOMAIN][config_entry.entry_id].miniserver
 
@@ -88,29 +87,33 @@ class MiniServer:
         }
         return new_device[device_type]
 
-    async def async_update_device_registry(self) -> None:
-        device_registry = dr.async_get(self.hass)
-        # Host device
-        # device_registry.async_get_or_create(
-        #     config_entry_id=self.config_entry.entry_id,
-        #     connections={
-        #         (CONNECTION_NETWORK_MAC, self.config_entry.options[CONF_HOST])
-        #     },
-        # )
+    @property
+    def get_device(self) -> dr.DeviceEntry:
+        return self.device_entry
 
-        # Miniserver service
-        device_registry.async_get_or_create(
-            config_entry_id=self.config_entry.entry_id,
-            connections={
-                (CONNECTION_NETWORK_MAC, self.config_entry.options[CONF_HOST])
+    @property
+    def device_info(self) -> dr.DeviceInfo:
+        return {
+            "name": self.name,
+            "model": get_miniserver_type(self.miniserver_type),
+            "identifiers": {(DOMAIN, self.serial)},
+            "serial_number": self.serial,
+            "manufacturer": "Loxone",
+            "connections":{
+                (dr.CONNECTION_NETWORK_MAC, self.config_entry.options[CONF_HOST])
             },
-            name=self.name,
-            model=get_miniserver_type(self.miniserver_type),
-            identifiers={(DOMAIN, self.serial)},
-            manufacturer="Loxone",
-            sw_version=self.software_version,
-            configuration_url="http://{host}:{port}".format(
+            "sw_version": self.software_version,
+            "configuration_url":"http://{host}:{port}".format(
                 host=self.config_entry.options[CONF_HOST],
                 port=self.config_entry.options[CONF_PORT],
             ),
+        }
+
+    async def async_update_device_registry(self) -> None:
+        device_registry = dr.async_get(self.hass)
+
+        # Miniserver service
+        self.device_entry = device_registry.async_get_or_create(
+            config_entry_id=self.config_entry.entry_id,
+            **self.device_info,
         )

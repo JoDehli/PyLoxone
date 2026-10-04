@@ -5,13 +5,17 @@ For more details about this component, please refer to the documentation at
 https://home-assistant.io/components/loxone/
 """
 
+import datetime
 import re
 
 from .const import DOMAIN, cfmt
+from homeassistant.util import dt as dt_util
 
 # Initialize a device registry
 device_registry = {}
 
+def get_device(device_uuid, default = None):
+    return device_registry.get(device_uuid, default)
 
 def get_or_create_device(device_uuid, device_name, device_type, device_room):
     if device_uuid not in device_registry:
@@ -144,3 +148,10 @@ def clean_unit(lox_format):
             unit = "%"
         return unit
     return lox_format
+
+LOXONE_EPOCH = dt_util.parse_datetime("2009-01-01T00:00:00.000")
+
+def get_datetime_from_loxone(timestamp: float):
+    timestamp /= 1000
+    timestamp += LOXONE_EPOCH.timestamp()
+    return dt_util.utc_from_timestamp(timestamp)
