@@ -1,0 +1,9 @@
+# Test and development tooling. Install on top of requirements.txt:
+#
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# pytest-homeassistant-custom-component pins the Home Assistant release the
+# tests run on (0.13.355 -> homeassistant 2026.8.1, the same version
+# requirements.txt pins) and brings the full HA test harness: pytest,
+# pytest-asyncio, pytest-cov, the `hass` fixture and friends.
+pytest-homeassistant-custom-component==0.13.355

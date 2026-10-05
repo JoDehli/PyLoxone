@@ -349,3 +349,20 @@ Here is a example of a Room Controller V2:
 
 
 
+
+## Development: running the tests
+
+```
+pip install -r requirements.txt -r requirements-dev.txt
+pytest -q
+```
+
+The suite runs the integration inside the Home Assistant test harness
+(`pytest-homeassistant-custom-component`) against the synthetic structure file
+`tests/fixtures/LoxAPP3.json`, so no Miniserver is needed. Tests that do need
+one are marked `online` and skipped by default (`pytest -m online` runs them).
+The fixtures `mock_connection` and `mock_entry` in `tests/conftest.py` set up
+the integration without a network; `mock_connection.feed(uuid, value)` pushes
+a state message to the entities and `mock_connection.sent` records every
+command the integration sends. The `CI` workflow runs the same suite on every
+push and pull request.

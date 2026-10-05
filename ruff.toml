@@ -18,6 +18,11 @@ ignore = [
     "I001", # Import block is un-sorted or un-formatted
 ]
 
+[lint.per-file-ignores]
+# Tests may assert, use fixtures as untyped arguments, import inside a test
+# and skip docstrings.
+"tests/**" = ["S101", "ANN", "D", "ARG", "PLR2004", "PLC0415", "INP001", "FBT"]
+
 [lint.flake8-pytest-style]
 fixture-parentheses = false
 
