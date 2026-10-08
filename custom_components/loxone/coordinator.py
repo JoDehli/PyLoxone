@@ -38,7 +38,7 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         self.miniserver: MiniServer | None = None
         self.listeners = []
 
-    async def _on_token_changed(self, token: dict) -> None:
+    def _on_token_changed(self, token: dict) -> None:
         """Persist a freshly-issued token into the ConfigEntry.
 
         Called by :class:`LoxoneConnection` via the
@@ -57,6 +57,12 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             # mutate a ConfigEntry's data from a coordinator.
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data=new_data
+            )
+            _LOGGER.info(
+                "Persisted updated Loxone token for config entry %s "
+                "(valid until %s)",
+                self.config_entry.entry_id,
+                token.get("valid_until", "unknown"),
             )
         except Exception as e:
             _LOGGER.warning(

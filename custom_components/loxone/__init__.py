@@ -10,7 +10,7 @@ import logging
 import re
 import sys
 import traceback
-from functools import cached_property
+from functools import cached_property, partial
 
 import homeassistant.components.group as group
 import voluptuous as vol
@@ -36,7 +36,7 @@ from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL, DEFAULT,
                     DEFAULT_DELAY_SCENE, DEFAULT_PORT, DEFAULT_VERIFY_SSL,
                     DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT, LOXONE_PLATFORMS,
-                    SECUREDSENDDOMAIN, SENDDOMAIN, cfmt)
+                    SECUREDSENDDOMAIN, SENDDOMAIN, SERVICE_REFRESH_TOKEN, cfmt)
 from .coordinator import LoxoneCoordinator
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
@@ -77,6 +77,30 @@ CONFIG_SCHEMA = vol.Schema(
 _UNDEF: dict = {}
 
 # TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
+
+
+async def _async_handle_refresh_token(hass: HomeAssistant, call) -> None:
+    """Refresh the token for exactly the selected Loxone entry."""
+    entry_id = call.data.get("config_entry_id")
+    coordinator = hass.data.get(DOMAIN, {}).get(entry_id)
+    config_entry = getattr(coordinator, "config_entry", None)
+    if (
+        coordinator is None
+        or config_entry is None
+        or config_entry.entry_id != entry_id
+        or config_entry.domain != DOMAIN
+        or coordinator.api is None
+    ):
+        raise HomeAssistantError(
+            "The selected Loxone config entry is not loaded"
+        )
+
+    try:
+        await coordinator.api.async_refresh_token()
+    except Exception as err:
+        raise HomeAssistantError(
+            f"Token refresh failed for '{config_entry.title}': {err}"
+        ) from err
 
 
 async def async_unload_entry(hass, config_entry):
@@ -140,7 +164,21 @@ async def async_unload_entry(hass, config_entry):
 
 
 async def async_setup(hass, config):
-    """setup loxone"""
+    """Set up integration-wide services and optional YAML import."""
+    hass.data.setdefault(DOMAIN, {})
+    service_schema = vol.Schema(
+        {
+            vol.Required("config_entry_id"): cv.string,
+        }
+    )
+    if not hass.services.has_service(DOMAIN, SERVICE_REFRESH_TOKEN):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REFRESH_TOKEN,
+            partial(_async_handle_refresh_token, hass),
+            schema=service_schema,
+        )
+
     if DOMAIN in config:
         hass.async_create_task(
             hass.config_entries.flow.async_init(

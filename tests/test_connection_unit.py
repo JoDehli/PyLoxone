@@ -1487,6 +1487,29 @@ class TestAuthenticatedEvent:
         assert not conn._authenticated_event.is_set()
 
     @pytest.mark.asyncio
+    async def test_cached_token_authentication_sets_event(self):
+        """A successful ``authwithtoken`` response must also
+        release the token-refresh gate. Cached-token startup does
+        not receive a new ``gettoken``/``getjwt`` response.
+        """
+        from custom_components.loxone.pyloxone_api.connection import (
+            LoxoneConnection,
+        )
+        from custom_components.loxone.pyloxone_api.message import TextMessage
+
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        response = TextMessage(
+            '{"LL":{"control":"jdev/sys/authwithtoken",'
+            '"value":"OK","code":"200"}}'
+        )
+
+        await conn._websocket_event(response)
+
+        assert conn._authenticated_event.is_set()
+
+    @pytest.mark.asyncio
     async def test_event_can_be_set_and_awaited(self):
         """The event is a normal ``asyncio.Event`` and can be
         awaited / set.
@@ -1763,6 +1786,49 @@ class TestTokenChangeCallback:
         # The kill is sent unencrypted so the Miniserver can
         # parse it before any auth state is touched.
         assert sent[0][1] is False
+
+    def test_coordinator_persists_token_without_logging_secret(self):
+        """A refresh callback merges the new token into entry
+        data, preserves unrelated data, and confirms persistence
+        without putting the secret itself in the log.
+        """
+        from unittest.mock import patch
+
+        from custom_components.loxone.coordinator import LoxoneCoordinator
+
+        entry = SimpleNamespace(
+            entry_id="entry-a",
+            title="Test Miniserver",
+            data={"existing_setting": "preserved"},
+        )
+        saved: list[dict] = []
+
+        class _ConfigEntries:
+            def async_update_entry(self, config_entry, *, data):
+                saved.append(data)
+                config_entry.data = data
+
+        coordinator = object.__new__(LoxoneCoordinator)
+        coordinator.config_entry = entry
+        coordinator.hass = SimpleNamespace(
+            config_entries=_ConfigEntries()
+        )
+        refreshed_token = {
+            "token": "secret-token-value",
+            "valid_until": 2_000_000_000,
+            "hash_alg": "SHA256",
+        }
+
+        with patch("custom_components.loxone.coordinator._LOGGER.info") as info:
+            coordinator._on_token_changed(refreshed_token)
+
+        assert len(saved) == 1
+        assert entry.data == {
+            "existing_setting": "preserved",
+            **refreshed_token,
+        }
+        assert info.called
+        assert "secret-token-value" not in str(info.call_args)
 
 
 class TestOutageTracking:
@@ -2341,4 +2407,168 @@ class TestRunSupervisorReconnect:
         assert len(start_listening_calls) == 2, (
             f"expected 2 start_listening calls (1 fail + "
             f"1 success), got {len(start_listening_calls)}"
+        )
+
+
+class TestManualTokenRefresh:
+    """The manual token refresh operation reuses the same
+    key-exchange/refresh sequence as automatic maintenance,
+    waits for confirmation, and serializes concurrent calls.
+    """
+
+    @pytest.mark.asyncio
+    async def test_refresh_requests_key_then_waits_for_token(self, monkeypatch):
+        from custom_components.loxone.pyloxone_api.connection import (
+            LoxoneConnection,
+        )
+
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        conn._authenticated_event.set()
+        conn._token.token = "existing-token"
+        conn._key = "old-key"
+        conn.connection = SimpleNamespace(
+            protocol=SimpleNamespace(state=SimpleNamespace(name="OPEN")),
+            state=SimpleNamespace(CLOSED="CLOSED", OPEN="OPEN", name="OPEN"),
+        )
+        sent: list[str] = []
+
+        async def fake_send(self, command, encrypted=False):
+            sent.append(command)
+            assert encrypted is False
+            self._key = "new-key"
+            self._key_update_event.set()
+
+        async def fake_refresh():
+            conn._token.token = "updated-token"
+            conn._token.valid_until = 2_000_000_000
+            conn._token_refresh_event.set()
+
+        monkeypatch.setattr(LoxoneConnection, "_send_text_command", fake_send)
+        conn._refresh_token = fake_refresh
+
+        result = await conn.async_refresh_token()
+
+        assert sent == ["jdev/sys/getkey"]
+        assert result["token"] == "updated-token"
+        assert conn._key_update_event is None
+
+    @pytest.mark.asyncio
+    async def test_refresh_fails_before_authentication(self):
+        from custom_components.loxone.pyloxone_api.connection import (
+            LoxoneConnection,
+        )
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneTokenError,
+        )
+
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        with pytest.raises(LoxoneTokenError, match="before authentication"):
+            await conn.async_refresh_token()
+
+
+class TestRefreshTokenServiceRouting:
+    """The integration-wide service must dispatch to only the
+    selected config entry, even when several entries are loaded.
+    """
+
+    @pytest.mark.asyncio
+    async def test_service_refreshes_only_selected_entry(self):
+        from types import SimpleNamespace
+
+        from custom_components.loxone import _async_handle_refresh_token
+        from custom_components.loxone.const import DOMAIN
+
+        calls: list[str] = []
+
+        class _Api:
+            def __init__(self, entry_id):
+                self.entry_id = entry_id
+
+            async def async_refresh_token(self):
+                calls.append(self.entry_id)
+
+        def _coordinator(entry_id):
+            return SimpleNamespace(
+                config_entry=SimpleNamespace(
+                    entry_id=entry_id, domain=DOMAIN, title=f"Loxone {entry_id}"
+                ),
+                api=_Api(entry_id),
+            )
+
+        hass = SimpleNamespace(
+            data={DOMAIN: {"entry-a": _coordinator("entry-a"),
+                           "entry-b": _coordinator("entry-b")}}
+        )
+        call = SimpleNamespace(data={"config_entry_id": "entry-b"})
+
+        await _async_handle_refresh_token(hass, call)
+        assert calls == ["entry-b"]
+
+    @pytest.mark.asyncio
+    async def test_service_rejects_unloaded_or_invalid_entry(self):
+        from types import SimpleNamespace
+
+        from homeassistant.exceptions import HomeAssistantError
+
+        from custom_components.loxone import _async_handle_refresh_token
+        from custom_components.loxone.const import DOMAIN
+
+        hass = SimpleNamespace(data={DOMAIN: {}})
+        call = SimpleNamespace(data={"config_entry_id": "not-loaded"})
+
+        with pytest.raises(HomeAssistantError, match="not loaded"):
+            await _async_handle_refresh_token(hass, call)
+
+    @pytest.mark.asyncio
+    async def test_global_service_registers_once(self, hass):
+        from custom_components.loxone import async_setup
+        from custom_components.loxone.const import (
+            DOMAIN,
+            SERVICE_REFRESH_TOKEN,
+        )
+
+        assert await async_setup(hass, {})
+        assert await async_setup(hass, {})
+        assert hass.services.has_service(DOMAIN, SERVICE_REFRESH_TOKEN)
+
+
+class TestLoxoneTokenExpiryFormatting:
+    def test_formats_loxone_timestamp_and_remaining_duration(self):
+        import datetime
+
+        from custom_components.loxone.pyloxone_api.connection import (
+            _format_loxone_token_expiration,
+        )
+        from custom_components.loxone.pyloxone_api.loxone_token import (
+            LOXONE_EPOCH,
+        )
+
+        now = datetime.datetime(2026, 10, 8, 21, 57, 32)
+        valid_until = 560_765_254
+
+        formatted = _format_loxone_token_expiration(valid_until, now)
+
+        assert formatted == "2026-10-09 08:07:34; in 0d 10h 10m 2s"
+        assert LOXONE_EPOCH + datetime.timedelta(seconds=valid_until) == (
+            datetime.datetime(2026, 10, 9, 8, 7, 34)
+        )
+
+    def test_formats_expired_token_as_time_ago(self):
+        import datetime
+
+        from custom_components.loxone.pyloxone_api.connection import (
+            _format_loxone_token_expiration,
+        )
+        from custom_components.loxone.pyloxone_api.loxone_token import (
+            LOXONE_EPOCH,
+        )
+
+        now = LOXONE_EPOCH + datetime.timedelta(seconds=120)
+
+        assert _format_loxone_token_expiration(60, now) == (
+            "2009-01-01 00:01:00; ago 0d 0h 1m 0s"
         )

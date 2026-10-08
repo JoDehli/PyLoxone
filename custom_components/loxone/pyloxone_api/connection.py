@@ -6,6 +6,7 @@ https://github.com/JoDehli/pyloxone-api
 """
 
 import asyncio
+import datetime
 import hashlib
 import json
 import logging
@@ -47,7 +48,7 @@ from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
                          LoxoneServiceUnAvailableError, LoxoneTokenError,
                          LoxoneUnauthorisedError)
 from .loxone_http_client import LoxoneAsyncHttpClient
-from .loxone_token import LoxoneToken, LxJsonKeySalt
+from .loxone_token import LOXONE_EPOCH, LoxoneToken, LxJsonKeySalt
 from .message import (BaseMessage, BinaryFile, Keepalive, LLResponse,
                       MessageType, TextMessage, check_and_decode_if_needed,
                       parse_header, parse_message)
@@ -66,6 +67,25 @@ warnings.filterwarnings(
 
 def time_elapsed_in_seconds():
     return int(round(time.time()))
+
+
+def _format_loxone_token_expiration(
+    valid_until: int | float | str,
+    now: datetime.datetime | None = None,
+) -> str:
+    """Format a Loxone-epoch token expiry and its remaining duration."""
+    expiration = LOXONE_EPOCH + datetime.timedelta(seconds=float(valid_until))
+    current = now or datetime.datetime.now()
+    remaining_seconds = int((expiration - current).total_seconds())
+    duration = datetime.timedelta(seconds=abs(remaining_seconds))
+    days = duration.days
+    hours, remainder = divmod(duration.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    direction = "in" if remaining_seconds >= 0 else "ago"
+    return (
+        f"{expiration:%Y-%m-%d %H:%M:%S}; {direction} "
+        f"{days}d {hours}h {minutes}m {seconds}s"
+    )
 
 
 def percent_encode_credential(value: str) -> str:
@@ -244,6 +264,11 @@ class LoxoneBaseConnection:
         # the old 20-second sleep, so the first refresh happens
         # as soon as auth completes.
         self._authenticated_event: asyncio.Event = asyncio.Event()
+        # Serialize automatic and service-triggered refreshes so
+        # only one key-exchange / refresh response is in flight.
+        self._token_refresh_lock = asyncio.Lock()
+        self._token_refresh_event: asyncio.Event = asyncio.Event()
+        self._token_refresh_error: Exception | None = None
 
         # Optional callback invoked (possibly as a coroutine) when
         # the token changes. The integration passes
@@ -612,6 +637,57 @@ class LoxoneBaseConnection:
             _LOGGER.error(f"Token refresh failed: {e}")
             raise
 
+    async def async_refresh_token(self, timeout: float = 30.0) -> dict:
+        """Force an immediate token refresh and await Miniserver confirmation.
+
+        This is shared by the automatic refresh loop and the HA service.
+        The operation first obtains a fresh session key, sends the
+        version-appropriate refresh command, then waits for the refresh
+        response handler to update the token. A lock prevents overlapping
+        automatic/manual requests on the same websocket.
+        """
+        if not self._authenticated_event.is_set() or not self._token.token:
+            raise LoxoneTokenError("Cannot refresh before authentication")
+        if self._shutdown_event.is_set() or not self.is_connected:
+            raise LoxoneConnectionClosedOk(
+                "Cannot refresh token while disconnected"
+            )
+
+        async with self._token_refresh_lock:
+            if self._shutdown_event.is_set() or not self.is_connected:
+                raise LoxoneConnectionClosedOk(
+                    "Connection closed before token refresh started"
+                )
+
+            old_key = self._key
+            key_updated_event = asyncio.Event()
+            self._key_update_event = key_updated_event
+            self._token_refresh_event.clear()
+            self._token_refresh_error = None
+
+            try:
+                self._spawn_task(
+                    self._send_text_command(CMD_GET_KEY, encrypted=False),
+                    name="loxone.send-keyexchange",
+                )
+                await asyncio.sleep(0)
+                await asyncio.wait_for(key_updated_event.wait(), timeout=15.0)
+                if self._key == old_key:
+                    raise LoxoneTokenError(
+                        "Miniserver did not provide a new session key"
+                    )
+
+                await self._refresh_token()
+                await asyncio.wait_for(
+                    self._token_refresh_event.wait(), timeout=timeout
+                )
+                if self._token_refresh_error is not None:
+                    raise self._token_refresh_error
+                return self.get_token_dict()
+            finally:
+                if self._key_update_event is key_updated_event:
+                    self._key_update_event = None
+
     def _signal_token_changed(self) -> None:
         """Notify the integration that the token has changed.
 
@@ -968,79 +1044,34 @@ class LoxoneConnection(LoxoneBaseConnection):
                             f"Seconds to refresh token: {generate_refresh_time_log(seconds_to_refresh)}"
                         )
 
+                        scheduled_valid_until = self._token.valid_until
                         await asyncio.sleep(seconds_to_refresh)
                         # Check shutdown before proceeding
                         if self._shutdown_event.is_set():
                             break
-
-                        command = f"{CMD_GET_KEY}"
-                        # gets a new key for the token refresh
-                        # Store old key and create event to wait for update
-                        old_key = self._key
-                        key_updated_event = asyncio.Event()
-                        self._key_update_event = (
-                            key_updated_event  # Store for _websocket_event to signal
-                        )
+                        # A manual refresh may have completed while
+                        # this automatic timer was sleeping. Recompute
+                        # from the new token instead of immediately
+                        # refreshing it a second time.
+                        if self._token.valid_until != scheduled_valid_until:
+                            continue
 
                         try:
-                            self._spawn_task(
-                                self._send_text_command(
-                                    command, encrypted=False
-                                ),
-                                name="loxone.send-keyexchange",
-                            )
+                            await self.async_refresh_token()
+                            consecutive_failures = 0
+                        except asyncio.CancelledError:
+                            raise
+                        except LoxoneUnauthorisedError:
+                            raise
                         except Exception as exc:
-                            # Issue #514: a failure here is normal during
-                            # the token-expiry self-heal (the websocket is
-                            # closed until the supervisor reconnects). Demote
-                            # to WARNING; we retry on the next cycle.
-                            _LOGGER.warning("Error requesting new key: %s", exc)
-                            self._key_update_event = None
+                            _LOGGER.warning(
+                                "Error in token refresh cycle: %s", exc
+                            )
                             consecutive_failures += 1
                             await self._maybe_escalate_auth(
                                 consecutive_failures
                             )
                             await asyncio.sleep(1)
-                            continue
-
-                        try:
-                            await asyncio.sleep(0)
-                            await asyncio.wait_for(
-                                key_updated_event.wait(), timeout=15.0
-                            )
-                            # Verify key actually changed
-                            if self._key == old_key:
-                                _LOGGER.warning(
-                                    "Key was not updated despite event being set"
-                                )
-                                consecutive_failures += 1
-                                await self._maybe_escalate_auth(
-                                    consecutive_failures
-                                )
-                                continue
-                            else:
-                                _LOGGER.debug("Key changed successfully.")
-                                # Reset the failure counter on a
-                                # successful key change — the
-                                # token refresh itself runs in a
-                                # spawned background task and any
-                                # failure there is reported
-                                # separately by _on_task_done.
-                                consecutive_failures = 0
-                                self._spawn_task(
-                                    self._refresh_token(),
-                                    name="loxone.refresh-token",
-                                )
-                        except asyncio.TimeoutError:
-                            _LOGGER.warning(
-                                "Timed out waiting for new key (15s). Will retry on next cycle."
-                            )
-                            consecutive_failures += 1
-                            await self._maybe_escalate_auth(
-                                consecutive_failures
-                            )
-                        finally:
-                            self._key_update_event = None
 
                     except asyncio.CancelledError:
                         raise
@@ -2548,6 +2579,12 @@ class LoxoneConnection(LoxoneBaseConnection):
                 else:
                     _LOGGER.debug("Got message authwithtoken")
                     try:
+                        # Cached-token authentication is a successful
+                        # authentication path too. Signal the refresh
+                        # loop and manual refresh service just as the
+                        # gettoken/getjwt handler does.
+                        if mess_obj.code == 200:
+                            self._authenticated_event.set()
                         await self._message_queue.put(
                             MessageForQueue(f"{CMD_ENABLE_UPDATES}", True)
                         )
@@ -2560,6 +2597,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             ):
                 _LOGGER.debug(f"Got token refresh response")
                 try:
+                    self._check_auth_response(mess_obj, "token refresh")
                     value_dict = mess_obj.value_as_dict
                     if not isinstance(value_dict, dict):
                         raise ValueError("value_as_dict is not a dictionary")
@@ -2581,14 +2619,22 @@ class LoxoneConnection(LoxoneBaseConnection):
                         )
 
                     _LOGGER.debug(
-                        f"Token refreshed successfully, valid until: {valid_until}"
+                        "Token refreshed successfully, valid until: %s (%s)",
+                        valid_until,
+                        _format_loxone_token_expiration(valid_until),
                     )
 
                     # Notify the integration that the token
                     # changed so the new value can be persisted.
                     self._signal_token_changed()
+                    self._token_refresh_error = None
+                    self._token_refresh_event.set()
 
                 except KeyError as e:
+                    self._token_refresh_error = LoxoneTokenError(
+                        f"Malformed token refresh response: {e}"
+                    )
+                    self._token_refresh_event.set()
                     _LOGGER.error(
                         f"Missing key in token refresh response: {e}. "
                         f"Response: {mess_obj.value_as_dict}, "
@@ -2596,6 +2642,8 @@ class LoxoneConnection(LoxoneBaseConnection):
                         f"Message: {getattr(mess_obj, 'message', 'N/A')}"
                     )
                 except Exception as e:
+                    self._token_refresh_error = e
+                    self._token_refresh_event.set()
                     _LOGGER.error(
                         f"Unexpected error processing token refresh: {e}. "
                         f"Response: {getattr(mess_obj, 'value_as_dict', 'N/A')}"
