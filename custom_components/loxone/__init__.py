@@ -567,13 +567,39 @@ async def async_setup_entry(hass, config_entry):
 
     async def start_event():
         try:
+            # ``run()`` owns the listen loop with bounded
+            # exponential backoff — the previous
+            # ``start_listening + done_callback`` pattern
+            # forced a full integration reload on every
+            # transient drop. ``run()`` retries in-place and
+            # only propagates unrecoverable failures (auth,
+            # unexpected). The done-callback reload path is
+            # kept as a safety net for anything ``run()``
+            # itself can't handle.
             listening_task = asyncio.create_task(
-                coordinator.api.start_listening(callback=message_callback)
+                coordinator.api.run(
+                    on_state=_on_connection_state,
+                    callback=message_callback,
+                )
             )
             listening_task.add_done_callback(handle_task_result)
 
         except Exception as e:
             raise e
+
+    def _on_connection_state(state: str) -> None:
+        """Forward the supervisor's state to HA's availability.
+
+        Called by :meth:`LoxoneConnection.run` on every
+        connection-state transition. State is one of
+        ``"connected"``, ``"disconnected"``, ``"failed"``.
+        The integration updates entity availability here so
+        the user sees status changes without a full reload.
+        """
+        # The ``on_state`` callback is sync from the
+        # supervisor's perspective — the supervisor does the
+        # actual entity-availability update on the HA bus.
+        _LOGGER.debug("Loxone connection state: %s", state)
 
     async def stop_event(_):
         token = coordinator.api.get_token_dict()

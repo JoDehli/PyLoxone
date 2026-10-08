@@ -587,7 +587,17 @@ class TestDoStartListeningStateMachine:
             password="password",
             port=8080,
         )
-        await connection._do_start_listening(callback, conn)
+        # The recv loop now raises
+        # ``LoxoneConnectionClosedOk`` when the websocket ends
+        # cleanly (the fake connection is empty after the body
+        # is consumed), so the supervisor can react immediately
+        # instead of waiting for the keepalive to time out.
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionClosedOk,
+        )
+
+        with pytest.raises(LoxoneConnectionClosedOk):
+            await connection._do_start_listening(callback, conn)
 
         assert len(fired) == 1
         assert fired[0]["control"] == "jdev/sps/io/abc"
@@ -619,7 +629,13 @@ class TestDoStartListeningStateMachine:
             password="password",
             port=8080,
         )
-        await connection._do_start_listening(callback, conn)
+        # Clean close → ``LoxoneConnectionClosedOk``.
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionClosedOk,
+        )
+
+        with pytest.raises(LoxoneConnectionClosedOk):
+            await connection._do_start_listening(callback, conn)
 
         assert len(fired) == 1
         assert fired[0]["control"] == "jdev/sps/io/abc"
@@ -661,7 +677,13 @@ class TestDoStartListeningStateMachine:
             password="password",
             port=8080,
         )
-        await connection._do_start_listening(callback, conn)
+        # Clean close → ``LoxoneConnectionClosedOk``.
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionClosedOk,
+        )
+
+        with pytest.raises(LoxoneConnectionClosedOk):
+            await connection._do_start_listening(callback, conn)
 
         assert len(fired) == 1
         assert fired[0]["control"] == "jdev/sps/io/abc"
@@ -693,7 +715,13 @@ class TestDoStartListeningStateMachine:
             port=8080,
         )
 
-        await connection._do_start_listening(callback, conn)
+        # Clean close → ``LoxoneConnectionClosedOk``.
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionClosedOk,
+        )
+
+        with pytest.raises(LoxoneConnectionClosedOk):
+            await connection._do_start_listening(callback, conn)
 
         # The orphan was ignored; the KEEPALIVE fires (with empty
         # value).
@@ -729,10 +757,140 @@ class TestDoStartListeningStateMachine:
             password="password",
             port=8080,
         )
-        # No exception means the state machine continued past the
-        # non-0x03 frame.
-        await connection._do_start_listening(callback, conn)
+        # Clean close → ``LoxoneConnectionClosedOk``.
+        # The state machine survived the non-0x03 frame and
+        # consumed the keepalive; what surfaces at the end is
+        # the empty-connection close.
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionClosedOk,
+        )
+
+        with pytest.raises(LoxoneConnectionClosedOk):
+            await connection._do_start_listening(callback, conn)
 
         # The keepalive fired — the state machine survived the
         # non-0x03 frame.
         assert keepalive_fired == [True]
+
+
+class TestRecvLoopCleanClose:
+    """``_do_start_listening`` raises ``LoxoneConnectionClosedOk``
+    when the websocket ends cleanly (recv ``async for`` exits
+    without an exception). Previously the close only surfaced
+    30 s later when the keepalive timer timed out; the supervisor
+    can now react immediately.
+    """
+
+    @pytest.mark.asyncio
+    async def test_recv_loop_exits_with_closed_ok(self):
+        """An empty async iterator (no frames) causes the recv
+        loop to exit and raise ``LoxoneConnectionClosedOk``.
+        """
+        from types import SimpleNamespace
+
+        from custom_components.loxone.pyloxone_api.connection import (
+            LoxoneConnection,
+        )
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionClosedOk,
+        )
+
+        class _EmptyConn:
+            """Async iterator that yields nothing — emulates
+            a websocket that closed cleanly.
+            """
+            state = SimpleNamespace(CLOSED="CLOSED", OPEN="OPEN", name="OPEN")
+            protocol = SimpleNamespace(state=SimpleNamespace(name="OPEN"))
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                raise StopAsyncIteration
+
+            async def send(self, *args, **kwargs):
+                return None
+
+            async def close(self, *args, **kwargs):
+                return None
+
+        async def callback(_):
+            pass
+
+        conn = LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+        with pytest.raises(LoxoneConnectionClosedOk):
+            await conn._do_start_listening(callback, _EmptyConn())
+
+    @pytest.mark.asyncio
+    async def test_recv_loop_keeps_processing_then_raises(self):
+        """Frames are still processed normally; the
+        ``LoxoneConnectionClosedOk`` only fires AFTER the
+        iterator is exhausted.
+        """
+        from types import SimpleNamespace
+
+        from custom_components.loxone.pyloxone_api.connection import (
+            LoxoneConnection,
+        )
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionClosedOk,
+        )
+        from custom_components.loxone.pyloxone_api.message import (
+            MessageType,
+        )
+
+        text_body = (
+            b'{"LL": {"control": "jdev/sps/io/abc", "value": "1", "code": "200"}}'
+        )
+        text_hdr = (
+            b"\x03"
+            + bytes([MessageType.TEXT])
+            + b"\x00"
+            + b"\x00"
+            + len(text_body).to_bytes(4, "little")
+        )
+
+        class _OneFrameThenClose:
+            state = SimpleNamespace(CLOSED="CLOSED", OPEN="OPEN", name="OPEN")
+            protocol = SimpleNamespace(state=SimpleNamespace(name="OPEN"))
+
+            def __init__(self, frames):
+                self._frames = list(frames)
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                if not self._frames:
+                    raise StopAsyncIteration
+                return self._frames.pop(0)
+
+            async def send(self, *args, **kwargs):
+                return None
+
+            async def close(self, *args, **kwargs):
+                return None
+
+        fired: list[dict] = []
+
+        async def callback(data):
+            fired.append(data)
+
+        conn = LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+        with pytest.raises(LoxoneConnectionClosedOk):
+            await conn._do_start_listening(
+                callback, _OneFrameThenClose([text_hdr, text_body])
+            )
+        # The frame was processed before the close fired.
+        assert len(fired) == 1
+        assert fired[0]["control"] == "jdev/sps/io/abc"

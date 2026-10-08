@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 import aiohttp
 import websockets as wslib
 import websockets.exceptions
+import random
 from Crypto.Cipher import AES, PKCS1_v1_5
 from Crypto.Hash import HMAC, SHA1, SHA256
 from Crypto.PublicKey import RSA
@@ -32,16 +33,19 @@ from Crypto.Util import Padding
 from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_GET_API_KEY, CMD_GET_KEY, CMD_GET_KEY_AND_SALT,
                     CMD_GET_PUBLIC_KEY, CMD_GET_VISUAL_PASSWD, CMD_KEEP_ALIVE,
-                    CMD_KEY_EXCHANGE, CMD_REFRESH_TOKEN,
+                    CMD_KEY_EXCHANGE, CMD_KILL_TOKEN, CMD_REFRESH_TOKEN,
                     CMD_REFRESH_TOKEN_JSON_WEB, CMD_REQUEST_TOKEN,
                     CMD_REQUEST_TOKEN_JSON_WEB, DELAY_CHECK_TOKEN_REFRESH,
-                    IV_BYTES, KEEP_ALIVE_PERIOD, LOXAPPPATH, MAX_REFRESH_DELAY,
+                    IV_BYTES, KEEP_ALIVE_PERIOD, LLRSP_UNAUTHORISED_CODES,
+                    LOXAPPPATH, MAX_RECONNECT_DELAY, MAX_REFRESH_DELAY,
                     MAX_WEBSOCKET_MESSAGE_SIZE, RECONNECT_DELAY,
                     RECONNECT_TRIES, SALT_BYTES, SALT_MAX_AGE_SECONDS,
-                    SALT_MAX_USE_COUNT, TIMEOUT, TOKEN_PERMISSION)
+                    SALT_MAX_USE_COUNT, TIMEOUT, TOKEN_PERMISSION,
+                    TOKEN_REFRESH_MAX_FAILURES, WEBSOCKET_CLOSE_TIMEOUT)
 from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
                          LoxoneException, LoxoneOutOfServiceException,
-                         LoxoneServiceUnAvailableError, LoxoneTokenError)
+                         LoxoneServiceUnAvailableError, LoxoneTokenError,
+                         LoxoneUnauthorisedError)
 from .loxone_http_client import LoxoneAsyncHttpClient
 from .loxone_token import LoxoneToken, LxJsonKeySalt
 from .message import (BaseMessage, BinaryFile, Keepalive, LLResponse,
@@ -184,6 +188,7 @@ class LoxoneBaseConnection:
         timeout: Optional[float] = None,
         verify_ssl: bool = True,
         executor: Optional[Callable[..., Any]] = None,
+        token_change_callback: Optional[Callable[..., Any]] = None,
     ):
         # Validate input parameters
         if not host or not isinstance(host, str):
@@ -222,10 +227,41 @@ class LoxoneBaseConnection:
         self.executor: Optional[Callable[..., Any]] = executor
         self.connection: wslib.ClientConnection | None = None
         self._pending_task = []
+        # Background tasks that should be tracked across the
+        # connection's lifetime (fire-and-forget coroutines spawned
+        # by the recv loop or by the keepalive / token-refresh paths).
+        # ``_spawn_task`` adds to the set and registers a done
+        # callback so completed tasks are removed and any
+        # unhandled exception is logged at WARNING.
+        self._tasks: set[asyncio.Task] = set()
         self._closed = False
         self._key_update_event: Optional[asyncio.Event] = None
         self._shutdown_event = asyncio.Event()
         self._reconnect_event: asyncio.Event = asyncio.Event()
+        # Set by the token handler once the first ``gettoken`` /
+        # ``getjwt`` response has populated ``self._token``.
+        # ``check_refresh_token`` blocks on this event instead of
+        # the old 20-second sleep, so the first refresh happens
+        # as soon as auth completes.
+        self._authenticated_event: asyncio.Event = asyncio.Event()
+
+        # Optional callback invoked (possibly as a coroutine) when
+        # the token changes. The integration passes
+        # ``self._on_token_changed`` so the new token can be
+        # persisted to ``ConfigEntry.data`` for the next restart.
+        # The callback may be sync or async; we handle both.
+        self._token_change_callback: Optional[Callable[..., Any]] = (
+            token_change_callback
+        )
+
+        # Outage-tracking state for ``_note_connection_lost`` /
+        # ``_note_connection_restored``. The recv loop and the
+        # supervisor both call these so a single outage produces
+        # exactly one WARNING ("connection lost") and one INFO
+        # ("connection restored") regardless of how many
+        # background tasks notice the drop.
+        self._confirmed_connected: bool = False
+        self._outage_active: bool = False
 
         # Parse the server input to extract scheme if present
         try:
@@ -343,6 +379,41 @@ class LoxoneBaseConnection:
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
         return ssl_context
+
+    def _build_websocket_options(self) -> dict:
+        """Build the kwargs dict for ``wslib.connect(...)``.
+
+        Centralised so the open() call site doesn't need to know
+        the field names, and so tests can assert the policy in one
+        place. The two non-obvious choices are:
+
+        - ``ping_interval=None`` — the Loxone Miniserver sends its
+          own 30 s TEXT keepalive, so the websockets library's
+          Ping/Pong frames are redundant and would race the
+          keepalive timer. Disabling them means the keepalive is
+          the single liveness channel and a stalled Miniserver
+          shows up in the keepalive timeout rather than a missed
+          Pong.
+        - ``close_timeout=WEBSOCKET_CLOSE_TIMEOUT`` — when the
+          integration calls ``close()`` it gives the Miniserver
+          up to 10 s to acknowledge the close frame before the
+          websockets library drops the TCP connection.
+
+        ``open_timeout`` and ``max_size`` keep their previous
+        values. ``compression`` is explicitly disabled because
+        the Loxone binary protocol and the legacy
+        per-message-deflate are a known-bad combination — the
+        websocket frames contain binary headers and JSON payloads
+        where per-message-deflate can break frame boundaries.
+        """
+        return {
+            "open_timeout": self.timeout or TIMEOUT,
+            "create_connection": LoxoneClientConnection,
+            "compression": None,
+            "max_size": MAX_WEBSOCKET_MESSAGE_SIZE,
+            "ping_interval": None,
+            "close_timeout": WEBSOCKET_CLOSE_TIMEOUT,
+        }
 
     @property
     def is_connected(self) -> bool:
@@ -541,6 +612,81 @@ class LoxoneBaseConnection:
             _LOGGER.error(f"Token refresh failed: {e}")
             raise
 
+    def _signal_token_changed(self) -> None:
+        """Notify the integration that the token has changed.
+
+        The integration passes a ``token_change_callback`` that
+        merges the new token into ``ConfigEntry.data`` so a HA
+        restart can pick it up. The callback may be sync or async;
+        we await it if it's a coroutine.
+
+        The token dict is built from ``self.get_token_dict()`` so
+        the contract with the integration is stable.
+
+        Failures are logged at WARNING, never raised — a
+        persistence error must not break the websocket path.
+        """
+        if self._token_change_callback is None:
+            return
+        try:
+            token_dict = self.get_token_dict()
+            result = self._token_change_callback(token_dict)
+            if asyncio.iscoroutine(result):
+                # Run the async callback in a tracked task so
+                # any exception is logged at WARNING (not
+                # silently dropped) and we don't block the
+                # caller (the recv loop or the token handler).
+                self._spawn_task(
+                    self._await_callback(result),
+                    name="loxone.token-changed",
+                )
+        except Exception as e:
+            _LOGGER.warning(
+                "token_change_callback raised: %s", e, exc_info=True
+            )
+
+    async def _await_callback(self, coro) -> None:
+        """Await a coroutine returned by ``_token_change_callback``.
+
+        Extracted so ``_signal_token_changed`` can hand the
+        coroutine to ``_spawn_task`` cleanly. Exceptions are
+        logged via the standard done-callback path; this
+        wrapper just drains the coroutine.
+        """
+        await coro
+
+    async def kill_token(self) -> None:
+        """Invalidate the current token on the Miniserver.
+
+        Sends ``CMD_KILL_TOKEN`` (``jdev/sys/killtoken/...`` for
+        legacy tokens or ``jdev/sys/killtoken/<jwt>`` for JWTs).
+        The Miniserver drops the session so a subsequent HA
+        restart requires a fresh username/password auth instead
+        of reusing the killed token.
+
+        The JWT form of the command is the one that's actually
+        exercised in production (Miniserver >= 10.2). The legacy
+        form is best-effort. We log and swallow errors so
+        ``async_cleanup`` can still run ``close()`` after.
+        """
+        if not self._token or not self._token.token:
+            _LOGGER.debug(
+                "kill_token: no token to invalidate; nothing to do"
+            )
+            return
+        try:
+            token = self._token.token
+            command = f"{CMD_KILL_TOKEN}/{token}"
+            _LOGGER.debug("kill_token: sending %s", command)
+            # Fire the kill on the wire. The Miniserver replies
+            # with a TEXT envelope; we don't wait for the reply
+            # because ``close()`` is about to drop the
+            # websocket. The ``try/except`` here guards against
+            # a closed-websocket race during teardown.
+            await self._send_text_command(command, encrypted=False)
+        except Exception as e:
+            _LOGGER.warning("kill_token: failed to send: %s", e)
+
     def _hash_token(self):
         try:
             if not self._token or not self._token.token:
@@ -711,6 +857,19 @@ class LoxoneConnection(LoxoneBaseConnection):
     connection: Optional[LoxoneClientConnection]
     _recv_loop: Optional["asyncio.Task[None]"]
 
+    # Errors the :meth:`run` supervisor treats as recoverable
+    # and retries with exponential backoff. Anything else
+    # propagates to the caller.
+    RETRYABLE_SESSION_ERRORS = (
+        LoxoneException,
+        LoxoneOutOfServiceException,
+        LoxoneConnectionClosedOk,
+        LoxoneConnectionError,
+        OSError,
+        TimeoutError,
+        websockets.exceptions.ConnectionClosed,
+    )
+
     async def __aenter__(self) -> "LoxoneConnection":
         return self
 
@@ -748,13 +907,17 @@ class LoxoneConnection(LoxoneBaseConnection):
                 while True:
                     await asyncio.sleep(KEEP_ALIVE_PERIOD)
                     try:
-                        keep_alive_task = asyncio.create_task(
-                            self._send_text_command(CMD_KEEP_ALIVE, encrypted=False)
+                        # Direct ``await`` — no point wrapping a
+                        # single coroutine in ``create_task`` and
+                        # then awaiting the resulting task. Keeps
+                        # the exception flow obvious.
+                        await self._send_text_command(
+                            CMD_KEEP_ALIVE, encrypted=False
                         )
-                        await keep_alive_task
-                        await asyncio.sleep(0)
                     except LoxoneConnectionClosedOk:
-                        _LOGGER.debug("Keep-alive: connection closed, exiting")
+                        self._note_connection_lost(
+                            "keep-alive detected closed websocket"
+                        )
                         return
                     except Exception as exc:
                         _LOGGER.warning("Keep-alive message failed: %s", exc)
@@ -767,9 +930,27 @@ class LoxoneConnection(LoxoneBaseConnection):
                 raise
 
         async def check_refresh_token() -> NoReturn:
-            """Check if the token needs to be refreshed."""
+            """Check if the token needs to be refreshed.
+
+            Waits on ``self._authenticated_event`` for the first
+            ``gettoken`` / ``getjwt`` response, then enters the
+            50%-of-lifetime refresh cycle. The previous
+            implementation slept 20 s (DELAY_CHECK_TOKEN_REFRESH)
+            and clamped ``seconds_to_refresh`` to 1 s as a
+            fallback if the token wasn't ready yet — both hacks
+            are gone now that the event is the synchronisation
+            point.
+
+            A consecutive-failure counter escalates to
+            ``LoxoneTokenError`` after
+            ``TOKEN_REFRESH_MAX_FAILURES`` cycles; the supervisor
+            propagates that as a hard auth failure.
+            """
             _LOGGER.debug(f"Start check refresh token task...")
-            await asyncio.sleep(DELAY_CHECK_TOKEN_REFRESH)
+            # Block on the first token. Cancelled cleanly on
+            # shutdown.
+            await self._authenticated_event.wait()
+            consecutive_failures = 0
             try:
                 while not self._shutdown_event.is_set():
                     try:
@@ -802,10 +983,12 @@ class LoxoneConnection(LoxoneBaseConnection):
                         )
 
                         try:
-                            _ = asyncio.create_task(
-                                self._send_text_command(command, encrypted=False)
+                            self._spawn_task(
+                                self._send_text_command(
+                                    command, encrypted=False
+                                ),
+                                name="loxone.send-keyexchange",
                             )
-                            await asyncio.sleep(0)
                         except Exception as exc:
                             # Issue #514: a failure here is normal during
                             # the token-expiry self-heal (the websocket is
@@ -813,6 +996,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                             # to WARNING; we retry on the next cycle.
                             _LOGGER.warning("Error requesting new key: %s", exc)
                             self._key_update_event = None
+                            consecutive_failures += 1
+                            await self._maybe_escalate_auth(
+                                consecutive_failures
+                            )
                             await asyncio.sleep(1)
                             continue
 
@@ -826,28 +1013,57 @@ class LoxoneConnection(LoxoneBaseConnection):
                                 _LOGGER.warning(
                                     "Key was not updated despite event being set"
                                 )
+                                consecutive_failures += 1
+                                await self._maybe_escalate_auth(
+                                    consecutive_failures
+                                )
                                 continue
                             else:
                                 _LOGGER.debug("Key changed successfully.")
-                                _ = asyncio.create_task(self._refresh_token())
+                                # Reset the failure counter on a
+                                # successful key change — the
+                                # token refresh itself runs in a
+                                # spawned background task and any
+                                # failure there is reported
+                                # separately by _on_task_done.
+                                consecutive_failures = 0
+                                self._spawn_task(
+                                    self._refresh_token(),
+                                    name="loxone.refresh-token",
+                                )
                         except asyncio.TimeoutError:
                             _LOGGER.warning(
                                 "Timed out waiting for new key (15s). Will retry on next cycle."
+                            )
+                            consecutive_failures += 1
+                            await self._maybe_escalate_auth(
+                                consecutive_failures
                             )
                         finally:
                             self._key_update_event = None
 
                     except asyncio.CancelledError:
                         raise
+                    except LoxoneTokenError:
+                        # Escalation from ``_maybe_escalate_auth``
+                        # — propagate to the supervisor.
+                        raise
                     except Exception as e:
                         # Issue #514: transient cycle errors during the
                         # token-expiry self-heal. Demote to WARNING; we
                         # sleep 1 s and retry.
                         _LOGGER.warning("Error in token refresh cycle: %s", e)
+                        consecutive_failures += 1
+                        await self._maybe_escalate_auth(
+                            consecutive_failures
+                        )
                         await asyncio.sleep(1)  # Avoid tight loop on errors
 
             except asyncio.CancelledError:
                 _LOGGER.debug("Token refresh task cancelled")
+                raise
+            except LoxoneTokenError:
+                _LOGGER.warning("Token refresh task escalating to supervisor")
                 raise
             except Exception as exc:
                 # Issue #514: see above. Demote to WARNING.
@@ -912,7 +1128,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                 try:
                     await task
                 except websockets.exceptions.ConnectionClosedOK:
-                    _LOGGER.debug("Task ConnectionClosedOK received")
+                    self._note_connection_lost(
+                        "websocket closed cleanly (close code 1000)"
+                    )
                     raise LoxoneConnectionClosedOk
                 except LoxoneTokenError as e:
                     _LOGGER.error(f"Token error {e}")
@@ -925,12 +1143,13 @@ class LoxoneConnection(LoxoneBaseConnection):
                     # for the reconnect-and-self-heal path, not a hard
                     # failure. Log at WARNING and surface as
                     # LoxoneConnectionError so the supervisor reloads.
-                    _LOGGER.warning("Connection closed with error: %s", e)
+                    self._note_connection_lost(
+                        f"websocket closed with error: {e}"
+                    )
                     raise LoxoneConnectionError
                 except websockets.exceptions.ConnectionClosed as e:
-                    _LOGGER.warning(
-                        "Connection closed by websocket, converting to LoxoneConnectionError: %s",
-                        e,
+                    self._note_connection_lost(
+                        f"websocket closed: {e}"
                     )
                     raise LoxoneConnectionError("Connection closed") from None
                 except asyncio.CancelledError:
@@ -957,8 +1176,198 @@ class LoxoneConnection(LoxoneBaseConnection):
             if self._pending_task:
                 await asyncio.gather(*self._pending_task, return_exceptions=True)
 
+    async def _maybe_escalate_auth(self, consecutive_failures: int) -> None:
+        """Raise ``LoxoneTokenError`` after enough refresh failures.
+
+        Called by the refresh loop on each failed cycle. The
+        counter is reset by the caller on a successful key
+        change. After ``TOKEN_REFRESH_MAX_FAILURES`` consecutive
+        failures we raise ``LoxoneTokenError``; the supervisor
+        treats that as a hard auth failure and stops
+        retrying — the integration surfaces a config-entry error
+        instead of looping forever.
+        """
+        if consecutive_failures >= TOKEN_REFRESH_MAX_FAILURES:
+            _LOGGER.warning(
+                "Token refresh failed %d times in a row; "
+                "escalating to LoxoneTokenError",
+                consecutive_failures,
+            )
+            raise LoxoneTokenError(
+                f"Token refresh failed {consecutive_failures} times"
+            )
+
+    def _note_connection_lost(self, reason: str) -> None:
+        """Mark the connection as lost and log a single WARNING.
+
+        Called from the recv loop, the keepalive task, and the
+        supervisor whenever they detect the connection has
+        dropped. The ``_outage_active`` flag makes sure a
+        single outage produces exactly one WARNING even if
+        multiple tasks notice the drop in quick succession.
+        Subsequent calls before ``_note_connection_restored``
+        are logged at DEBUG ("already flagged").
+        """
+        if self._outage_active:
+            _LOGGER.debug(
+                "Connection lost (already flagged): %s", reason
+            )
+            return
+        self._outage_active = True
+        _LOGGER.warning("Connection lost: %s", reason)
+
+    def _note_connection_restored(self) -> None:
+        """Mark the connection as restored and log a single INFO.
+
+        Called from the recv loop / supervisor once a fresh
+        ``open()`` cycle has succeeded. Clears the
+        ``_outage_active`` flag so the next drop will produce
+        another WARNING. The ``_confirmed_connected`` flag
+        distinguishes "we just reconnected after a known
+        outage" (announce it) from "we just initialised" (no
+        announcement).
+        """
+        if not self._outage_active:
+            # No outage in progress — nothing to announce.
+            return
+        self._outage_active = False
+        if self._confirmed_connected:
+            _LOGGER.info("Connection restored")
+        # ``_confirmed_connected`` is set on the first
+        # successful connect inside ``open()``; we don't flip
+        # it here because the first-ever restore is silent
+        # (it would be confusing to see "Connection restored"
+        # before any "Connection lost").
+
+    async def _signal_state(
+        self,
+        on_state: Optional[Callable[..., Any]],
+        state: str,
+    ) -> None:
+        """Fire the optional ``on_state`` callback.
+
+        The supervisor's owner (typically the integration's
+        coordinator) passes ``on_state`` to :meth:`run` so
+        entity availability can be updated without relying on
+        a Task done-callback. ``on_state`` is a regular callable
+        (sync) — the supervisor's hot path stays inline. The
+        callback may also be a coroutine function; if so, we
+        spawn the call in a tracked task so any exception is
+        logged via the standard done-callback path.
+        """
+        if on_state is None:
+            return
+        try:
+            result = on_state(state)
+            if asyncio.iscoroutine(result):
+                self._spawn_task(
+                    self._await_on_state(result),
+                    name=f"loxone.on-state-{state}",
+                )
+        except Exception as e:
+            _LOGGER.warning("on_state callback raised: %s", e)
+
+    async def _await_on_state(self, coro) -> None:
+        """Drain a coroutine returned by ``on_state``.
+
+        Extracted so :meth:`_signal_state` can hand the
+        coroutine to :meth:`_spawn_task` cleanly.
+        """
+        await coro
+
+    async def _safe_close(self) -> None:
+        """Best-effort ``close()`` used by the supervisor.
+
+        Closes the websocket and cancels pending background
+        tasks WITHOUT setting the shutdown event. The public
+        :meth:`close` sets the event to signal "this is a real
+        close, don't come back"; the supervisor's close is
+        just "the previous attempt died, prepare for the next
+        one" and the next iteration of the retry loop must
+        be allowed to run.
+
+        Failures are logged at DEBUG (not WARNING) — the
+        supervisor will retry regardless.
+        """
+        try:
+            await self.close(_signal_shutdown=False)
+            # ``close()`` marks the instance permanently closed
+            # to prevent later accidental reuse. This invocation
+            # is the supervisor's internal teardown between
+            # attempts, so make the same instance reusable once
+            # its socket and worker tasks have been cleaned up.
+            # If a public close raced with the retry, keep the
+            # terminal state; ``run()`` will observe the shutdown
+            # event and exit.
+            if not self._shutdown_event.is_set():
+                self._closed = False
+        except Exception as e:
+            _LOGGER.debug("_safe_close: close() raised: %s", e)
+
+    @staticmethod
+    def _check_auth_response(
+        mess_obj: Any, context: str
+    ) -> None:
+        """Inspect an LL envelope code and raise on hard auth failure.
+
+        The five auth response handlers — ``getkey2``, ``getkey``,
+        ``getvisusalt``, ``gettoken`` / ``getjwt``, and
+        ``authwithtoken`` — used to log the error and continue.
+        That meant a wrong-password restart would silently keep
+        retrying, with the user only seeing the integration
+        surface a "disconnected" state.
+
+        This helper centralises the policy:
+
+        - Code in :data:`LLRSP_UNAUTHORISED_CODES` (401, 4003) →
+          raise :class:`LoxoneUnauthorisedError`. The supervisor
+          propagates this as a hard auth failure.
+        - Any other non-200 code → log at WARNING and return; the
+          handler decides what to do (often nothing — those are
+          transient).
+        - ``code == 200`` (or missing) → no-op.
+        """
+        code = getattr(mess_obj, "code", None)
+        if code is None or code == 200:
+            return
+        if code in LLRSP_UNAUTHORISED_CODES:
+            _LOGGER.warning(
+                "Auth response in %s returned code %d "
+                "(unauthorised) — escalating",
+                context,
+                code,
+            )
+            raise LoxoneUnauthorisedError(
+                f"{context}: unauthorised (code {code})"
+            )
+        _LOGGER.warning(
+            "Auth response in %s returned non-ok code %d",
+            context,
+            code,
+        )
+
     async def _process_message(self) -> NoReturn:
-        """Process queued messages with graceful shutdown."""
+        """Process queued messages with graceful shutdown.
+
+        This is the **high-throughput** outbound path: under load
+        the Miniserver can push status updates at several hundred
+        messages per second, and this consumer must not become a
+        bottleneck. The pattern is a tight ``while`` loop that
+        pops a message off the queue and immediately schedules
+        the actual send as a background task. The two
+        ``await asyncio.sleep(0)`` calls yield to the event loop
+        so the spawned tasks actually start running instead of
+        piling up in the task queue — without them the consumer
+        could enqueue thousands of unstarted tasks before any of
+        them get to run, which on a busy integration manifests as
+        stale state, dropped value updates, and (in the worst
+        case) the websocket hitting its keepalive timeout because
+        no real work got done.
+
+        Keep this fire-and-forget scheduling behavior under load
+        testing before changing it: blocking the queue consumer
+        on each send can let the message backlog grow.
+        """
         _LOGGER.debug("Message processing task started")
 
         try:
@@ -966,11 +1375,26 @@ class LoxoneConnection(LoxoneBaseConnection):
                 try:
                     # Use asyncio.Queue.get() with timeout
                     msg = await self._message_queue.get()
+                    # Yield so the consumer doesn't starve the
+                    # loop right after a wake-up.
                     await asyncio.sleep(0)
                     try:
-                        _ = asyncio.create_task(
-                            self._send_text_command(msg.command, encrypted=msg.flag)
+                        # ``_spawn_task`` is a thin wrapper
+                        # around ``asyncio.create_task`` that
+                        # adds a done callback so unhandled
+                        # exceptions are logged at WARNING
+                        # instead of being silently swallowed.
+                        # The throughput characteristics are
+                        # identical to a bare ``create_task``.
+                        self._spawn_task(
+                            self._send_text_command(
+                                msg.command, encrypted=msg.flag
+                            ),
+                            name="loxone.send-queued",
                         )
+                        # Yield so the spawned send task gets
+                        # a chance to start before the next
+                        # ``get()`` call.
                         await asyncio.sleep(0)
                     except Exception as e:
                         _LOGGER.error(f"Error sending message: {e}")
@@ -1083,6 +1507,7 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         last_header: Optional[MessageHeader] = None
         body_buffer = bytearray()
+        dispatched_since_yield = 0
 
         async def _run_callback(msg):
             try:
@@ -1128,6 +1553,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 body_buffer = bytearray()
 
         async def _dispatch_body(header: MessageHeader, body: bytes) -> None:
+            nonlocal dispatched_since_yield
             msg_type = header.message_type
             if msg_type == MessageType.TEXT:
                 body = check_and_decode_if_needed(body)
@@ -1138,13 +1564,50 @@ class LoxoneConnection(LoxoneBaseConnection):
                     f"Failed to parse body for {msg_type}: {e}"
                 )
                 return
-            await self._websocket_event(parsed_message)
+            # Fire-and-forget the internal event processing and
+            # the external callback. ``await`` here would block
+            # the recv loop on every status update — at the
+            # Miniserver's update rate that drops messages and
+            # can starve the keepalive path. ``_spawn_task``
+            # preserves fire-and-forget scheduling and adds a
+            # done-callback to log unhandled exceptions. The
+            # recv loop yields in bounded batches below.
+            self._spawn_task(
+                self._websocket_event(parsed_message),
+                name=f"loxone.event-{msg_type.name}",
+            )
             if callback and msg_type in callback_types:
-                await _run_callback(parsed_message)
+                self._spawn_task(
+                    _run_callback(parsed_message),
+                    name=f"loxone.callback-{msg_type.name}",
+                )
+            # Let handlers run in bounded batches: yielding on
+            # every event adds scheduler overhead, while never
+            # yielding lets a buffered recv stream accumulate
+            # unbounded pending tasks. The websocket read itself
+            # naturally yields whenever it waits for network data.
+            dispatched_since_yield += 1
+            if dispatched_since_yield >= 16:
+                dispatched_since_yield = 0
+                await asyncio.sleep(0)
 
         async def _dispatch_bodyless(header: MessageHeader) -> None:
             if header.message_type == MessageType.KEEPALIVE:
-                await _run_callback(Keepalive(""))
+                # Fire-and-forget — same rationale as
+                # ``_dispatch_body``. The keepalive callback
+                # is the integration's "the websocket is alive"
+                # heartbeat; awaiting it would serialise it
+                # behind any in-flight user callback and
+                # noticeably slow the keepalive loop.
+                self._spawn_task(
+                    _run_callback(Keepalive("")),
+                    name="loxone.keepalive",
+                )
+                # Keepalives are infrequent (roughly every 30 s),
+                # so yield immediately to deliver the liveness
+                # callback without affecting the high-rate state
+                # event path.
+                await asyncio.sleep(0)
             # Other bodyless types (UNKNOWN, etc.) are logged at
             # DEBUG — there is no canonical handler for them.
 
@@ -1199,6 +1662,24 @@ class LoxoneConnection(LoxoneBaseConnection):
                     body_buffer = body_buffer[last_header.payload_length:]
                     await _dispatch_body(last_header, body)
                     last_header = None
+
+            # Flush the final partial batch before surfacing a
+            # clean close. In the normal long-running recv path,
+            # batches have already been yielding periodically.
+            await asyncio.sleep(0)
+
+            # ``async for message in connection`` ended without
+            # raising — the websocket was closed cleanly by the
+            # peer (close code 1000). Surface that as
+            # ``LoxoneConnectionClosedOk`` so the supervisor
+            # can decide whether to reconnect.
+            # Without this, the close would only surface 30 s
+            # later when the keepalive timer timed out, by
+            # which time the user had already seen
+            # ``Connection lost`` as an ERROR.
+            raise LoxoneConnectionClosedOk(
+                "Websocket closed cleanly (recv loop ended without exception)"
+            )
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
             raise
@@ -1208,6 +1689,99 @@ class LoxoneConnection(LoxoneBaseConnection):
         except Exception as e:
             _LOGGER.error(f"Unexpected error in listening loop: {e}", exc_info=True)
             raise
+
+    async def _get_with_retry(
+        self,
+        url: str,
+        connector: LoxoneAsyncHttpClient,
+        *,
+        max_tries: int = RECONNECT_TRIES,
+        base_delay: float = RECONNECT_DELAY,
+        max_delay: float = MAX_RECONNECT_DELAY,
+    ) -> tuple[bytes, str]:
+        """Fetch ``url`` via ``connector`` with bounded exponential backoff.
+
+        Used for the three bootstrap GETs in :meth:`open` —
+        ``CMD_GET_API_KEY``, ``LOXAPPPATH`` and ``CMD_GET_PUBLIC_KEY`` —
+        which all have to succeed before the websocket handshake can
+        begin. Transient network errors (Miniserver briefly
+        unreachable, a TLS hiccup, an aiohttp timeout) are retried
+        with backoff ``min(base_delay * 2**attempt, max_delay)`` and
+        a small jitter so multiple HA instances reconnecting after
+        the same outage don't lock-step.
+
+        Catches the error classes that indicate "Miniserver
+        unreachable, try again":
+
+        - ``LoxoneServiceUnAvailableError`` (HTTP 503)
+        - ``ConnectionError`` (DNS / TCP refused)
+        - ``OSError`` (lower-level socket error)
+        - ``asyncio.TimeoutError`` and the stdlib ``TimeoutError``
+        - ``aiohttp.ClientError`` (catch-all for aiohttp's transient
+          client-side failures)
+
+        Auth and parse errors are NOT retried: those are raised by
+        the LL envelope parse and propagate immediately.
+
+        Returns ``(body_bytes, final_url)`` where ``final_url`` is
+        the URL after any redirect (used to discover the canonical
+        base URL on Cloud-DNS-flavoured Miniservers).
+        """
+        last_exc: BaseException | None = None
+        for attempt in range(max_tries):
+            try:
+                # ``async with`` releases the aiohttp response on
+                # exit; we capture the body and the final URL as
+                # locals so they survive the block.
+                body = b""
+                final_url = ""
+                async with connector.get(url) as resp:
+                    body = await resp.content.read()
+                    final_url = str(resp.url)
+                if attempt > 0:
+                    _LOGGER.debug(
+                        "GET %s succeeded on attempt %d/%d",
+                        url,
+                        attempt + 1,
+                        max_tries,
+                    )
+                return body, final_url
+            except (
+                LoxoneServiceUnAvailableError,
+                ConnectionError,
+                OSError,
+                asyncio.TimeoutError,
+                TimeoutError,
+                aiohttp.ClientError,
+            ) as e:
+                last_exc = e
+                if attempt < max_tries - 1:
+                    # Exponential backoff with ±20% jitter, capped at
+                    # ``max_delay``.  ``random.uniform`` adds the
+                    # jitter; using a local random instance keeps
+                    # the helper deterministic in tests via
+                    # ``random.seed``.
+                    import random
+
+                    delay = min(base_delay * (2**attempt), max_delay)
+                    jitter = delay * 0.2 * (2 * random.random() - 1)
+                    sleep_for = max(0.0, delay + jitter)
+                    _LOGGER.debug(
+                        "GET %s failed (attempt %d/%d): %s; "
+                        "retrying in %.1fs",
+                        url,
+                        attempt + 1,
+                        max_tries,
+                        e,
+                        sleep_for,
+                    )
+                    await asyncio.sleep(sleep_for)
+                    continue
+                # Final attempt failed.
+                break
+        # All attempts exhausted.
+        assert last_exc is not None
+        raise last_exc
 
     async def open(
         self, session: aiohttp.ClientSession | None = None
@@ -1228,53 +1802,17 @@ class LoxoneConnection(LoxoneBaseConnection):
             )
             api_key_redirect: str | None = None
             api_key_data: bytes = b""
-            for attempt in range(RECONNECT_TRIES):
-                try:
-                    # ``async with`` releases the aiohttp response on
-                    # exit. We capture ``api_key_data`` (the body) and
-                    # ``api_key_redirect`` (the redirect URL) as locals
-                    # so we can use them after the block.
-                    async with connector.get(CMD_GET_API_KEY) as resp:
-                        api_key_data = await resp.content.read()
-                        api_key_redirect = str(resp.url)
-                    break  # connection successful
-                except (
-                    LoxoneServiceUnAvailableError,
-                    ConnectionError,
-                    OSError,
-                    TimeoutError,
-                ) as e:
-                    if attempt < RECONNECT_TRIES - 1:
-                        _LOGGER.debug(
-                            f"Connection error (attempt {attempt + 1}/{RECONNECT_TRIES}), retrying in {RECONNECT_DELAY} seconds: {e}"
-                        )
-                        await asyncio.sleep(RECONNECT_DELAY)
-                    else:
-                        _LOGGER.exception("Max connection tries exceeded. Stopping.")
-                        raise
-                except TimeoutError:
-                    if attempt < RECONNECT_TRIES - 1:
-                        _LOGGER.debug(
-                            f"TimeoutError, try again in {RECONNECT_DELAY} seconds..."
-                        )
-                        await asyncio.sleep(RECONNECT_DELAY)
-                    else:
-                        _LOGGER.error("Max tries exceeded. Stopping.")
-                        raise
-                except ConnectionError:
-                    if attempt < RECONNECT_TRIES - 1:
-                        _LOGGER.debug(
-                            f"ConnectionError, try again in {RECONNECT_DELAY} seconds..."
-                        )
-                        await asyncio.sleep(RECONNECT_DELAY)
-                    else:
-                        _LOGGER.error("Max tries exceeded. Stopping.")
-                        raise
-            # The loop ``break``s on the first successful ``async with``,
-            # so reaching here implies ``api_key_data`` and
-            # ``api_key_redirect`` are both populated (the body
-            # successfully read inside the ``async with``). No
-            # ``if api_resp:`` nullness guard is needed.
+            # Bounded exponential-backoff retry; transient network
+            # errors are retried with backoff ``min(base * 2**n, max)``
+            # plus ±20% jitter.  See :meth:`_get_with_retry`.
+            api_key_data, api_key_redirect = await self._get_with_retry(
+                CMD_GET_API_KEY, connector
+            )
+            # ``_get_with_retry`` returns the body bytes and the
+            # final URL after any redirect.  The previous inline loop
+            # used ``async with`` to release the aiohttp response, so
+            # by the time we reach here the body has been fully read
+            # and the response is closed.
             data = api_key_data
 
             try:
@@ -1320,13 +1858,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                 except Exception as e:
                     _LOGGER.warning(f"Failed to update URL for remote access: {e}")
 
-            # Get the structure file
-            try:
-                async with connector.get(LOXAPPPATH) as resp:
-                    data = await resp.content.read()
-            except Exception as e:
-                _LOGGER.error(f"Failed to get structure file: {e}", exc_info=True)
-                raise
+            # Get the structure file.  Use ``_get_with_retry`` so a
+            # transient network blip during the structure-file fetch
+            # doesn't fail the whole open().
+            data, _ = await self._get_with_retry(LOXAPPPATH, connector)
 
             try:
                 # ``LoxAPP3.json`` is the full Miniserver structure
@@ -1347,12 +1882,10 @@ class LoxoneConnection(LoxoneBaseConnection):
             except Exception as e:
                 raise RuntimeError(f"Failed to read structure file: {e}") from e
 
-            # Get the public key
-            try:
-                async with connector.get(CMD_GET_PUBLIC_KEY) as resp:
-                    pk_data_text = await resp.content.read()
-            except Exception as e:
-                raise RuntimeError(f"Failed to get public key: {e}") from e
+            # Get the public key.  Same retry helper as above.
+            pk_data_text, _ = await self._get_with_retry(
+                CMD_GET_PUBLIC_KEY, connector
+            )
 
             try:
                 pk = LLResponse(pk_data_text).value
@@ -1430,12 +1963,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             base_url = build_loxone_url(self.scheme, self.url)
 
             try:
-                websocket_options = {
-                    "open_timeout": self.timeout or TIMEOUT,
-                    "create_connection": LoxoneClientConnection,
-                    "compression": None,
-                    "max_size": MAX_WEBSOCKET_MESSAGE_SIZE,
-                }
+                websocket_options = self._build_websocket_options()
                 if ssl_context := self._websocket_ssl_context():
                     websocket_options["ssl"] = ssl_context
 
@@ -1464,14 +1992,75 @@ class LoxoneConnection(LoxoneBaseConnection):
             # without mutating ``self.connection`` (the previous value
             # stays — typically ``None``).
             self.connection = connection
+            # The connection is now confirmed working. The
+            # ``_note_connection_restored`` call below will then
+            # log INFO if we were in the middle of an outage
+            # (and stay silent for the very first connect).
+            self._confirmed_connected = True
+            self._note_connection_restored()
             return connection
 
         except Exception as e:
             _LOGGER.error(f"Failed to establish websocket connection: {e}")
             raise
 
-    async def close(self) -> None:
-        """Gracefully close the connection and drain message queues."""
+    def _spawn_task(self, coro, name: str) -> asyncio.Task:
+        """Schedule ``coro`` as a tracked background task.
+
+        The task is added to ``self._tasks`` (a set) and a done
+        callback is registered so:
+
+        1. When the task finishes, it's removed from the set.
+        2. If it raised an unhandled exception, that's logged at
+           WARNING (the previous bare ``asyncio.create_task`` calls
+           would silently swallow the exception).
+
+        Use this instead of ``asyncio.create_task`` for any
+        fire-and-forget coroutine. For long-lived coroutines that
+        the connection owns and waits on (the recv loop, the
+        keepalive loop, etc.) keep using ``self._pending_task`` —
+        those are awaited in ``close()`` and shut down
+        deterministically.
+        """
+        task = asyncio.create_task(coro, name=name)
+        self._tasks.add(task)
+        task.add_done_callback(self._on_task_done)
+        return task
+
+    def _on_task_done(self, task: asyncio.Task) -> None:
+        """Done callback for tasks spawned via :meth:`_spawn_task`.
+
+        Removes the task from ``self._tasks`` and logs any
+        unhandled exception. Without this, a fire-and-forget
+        coroutine that raised would have its exception swallowed
+        by the event loop and never surface in the integration
+        logs.
+        """
+        self._tasks.discard(task)
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is not None:
+            _LOGGER.warning(
+                "Background task %r raised: %s",
+                task.get_name(),
+                exc,
+                exc_info=exc,
+            )
+
+    async def close(self, _signal_shutdown: bool = True) -> None:
+        """Gracefully close the connection and drain message queues.
+
+        ``_signal_shutdown`` (default ``True``) controls whether
+        the shutdown event is set as part of the close. The
+        supervisor's :meth:`_safe_close` passes ``False`` so the
+        next iteration of its retry loop can run — the
+        shutdown event is "this is a real close, don't come
+        back" and the supervisor's close is "the previous
+        attempt died, prepare for the next one". The
+        ``_`` prefix marks it as private; the public
+        :func:`coordinator.async_cleanup` path uses the default.
+        """
         if self._closed:
             _LOGGER.debug("Connection already closed")
             return
@@ -1484,8 +2073,11 @@ class LoxoneConnection(LoxoneBaseConnection):
         # reused across a reconnect.
         self._secured_queue.clear()
 
-        # Signal shutdown to all tasks
-        self._shutdown_event.set()
+        if _signal_shutdown:
+            # Signal shutdown to all tasks. The supervisor's
+            # retry loop relies on this NOT being set so the
+            # next iteration can proceed.
+            self._shutdown_event.set()
 
         # Wait for message queue to drain (with timeout)
         if self._message_queue:
@@ -1520,6 +2112,29 @@ class LoxoneConnection(LoxoneBaseConnection):
             # clear pending tasks
             self._pending_task = []
 
+        # Cancel any tracked background tasks spawned via
+        # :meth:`_spawn_task`. These are fire-and-forget so
+        # ``_on_task_done`` will remove them once they unwind.
+        if self._tasks:
+            _LOGGER.debug(
+                f"Cancelling {len(self._tasks)} background tasks..."
+            )
+            for task in list(self._tasks):
+                try:
+                    if not task.done():
+                        task.cancel()
+                except Exception as e:
+                    _LOGGER.warning(f"Error cancelling background task: {e}")
+            # Wait briefly for the cancellations to complete.
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*self._tasks, return_exceptions=True),
+                    timeout=2.0,
+                )
+            except asyncio.TimeoutError:
+                _LOGGER.debug("Background tasks did not cancel within 2s")
+            self._tasks.clear()
+
         # Close websocket connection if present
         if self.connection:
             try:
@@ -1534,6 +2149,100 @@ class LoxoneConnection(LoxoneBaseConnection):
                 self.connection = None
 
         _LOGGER.debug("Connection closed successfully.")
+
+    async def run(
+        self,
+        on_state: Optional[Callable[..., Any]] = None,
+        callback: Optional[Callable[..., Any]] = None,
+        *,
+        base_delay: float = 1.0,
+        max_delay: float = 60.0,
+    ) -> None:
+        """Supervise the listen loop with bounded exponential backoff.
+
+        The previous design was: call ``start_listening()`` and
+        react to the Task's done-callback from outside. That
+        model forced the integration to reload the whole config
+        entry on every transient drop, which cost a few seconds
+        of "disconnected" entity state and a hard restart of
+        every Miniserver-side subscription.
+
+        This method owns the listen loop on the same instance
+        (a single websocket / RSA / token state) and
+        retries recoverable errors with exponential backoff:
+
+          - :class:`LoxoneUnauthorisedError` — propagates (the
+            integration will surface a config-entry error
+            instead of looping forever).
+          - :attr:`RETRYABLE_SESSION_ERRORS` — ``LoxoneException``,
+            ``LoxoneOutOfServiceException``,
+            ``LoxoneConnectionClosedOk``,
+            ``LoxoneConnectionError``, ``OSError``,
+            ``TimeoutError``, ``websockets.exceptions.ConnectionClosed``:
+            close, sleep ``min(base·2^n, max_delay)`` with ±20%
+            jitter, retry.
+          - Anything else — log ERROR, propagate.
+
+        ``on_state(state)`` (optional) is fired with one of
+        ``"connected"``, ``"disconnected"``, ``"failed"`` so
+        the integration can update entity availability without
+        a done callback. ``callback`` is forwarded to
+        :meth:`start_listening` as the per-message callback.
+
+        ``close()`` ends the loop cleanly (sets the shutdown
+        event). The next ``start_listening`` returning
+        normally (the clean-shutdown path) also exits
+        ``run()`` without retrying.
+        """
+        attempt = 0
+        while not self._shutdown_event.is_set():
+            try:
+                # ``start_listening`` calls ``open()`` if
+                # needed and blocks until the connection is
+                # closed. We pass ``callback`` straight through.
+                await self.start_listening(callback=callback)
+                # ``start_listening`` returned without raising
+                # — that means ``close()`` was called
+                # (shutdown). Exit the loop without retrying.
+                await self._signal_state(on_state, "disconnected")
+                return
+            except LoxoneUnauthorisedError as e:
+                _LOGGER.error(
+                    "Auth failed; not retrying: %s", e
+                )
+                await self._signal_state(on_state, "failed")
+                self._note_connection_lost(f"unauthorised: {e}")
+                raise
+            except self.RETRYABLE_SESSION_ERRORS as e:
+                self._note_connection_lost(
+                    f"session error: {e}"
+                )
+                await self._signal_state(on_state, "disconnected")
+                attempt += 1
+                delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
+                jitter = delay * 0.2 * (2 * random.random() - 1)
+                sleep_for = max(0.0, delay + jitter)
+                _LOGGER.debug(
+                    "run(): session error (attempt %d): %s; "
+                    "retrying in %.1fs",
+                    attempt, e, sleep_for,
+                )
+                await self._safe_close()
+                # Yield so the entity availability callback
+                # gets a chance to run before we sleep.
+                await asyncio.sleep(0)
+                await asyncio.sleep(sleep_for)
+                continue
+            except Exception as e:
+                _LOGGER.error(
+                    "run(): unexpected error: %s",
+                    e, exc_info=True,
+                )
+                await self._signal_state(on_state, "failed")
+                await self._safe_close()
+                raise
+        # Shutdown requested before the first attempt finished.
+        await self._signal_state(on_state, "disconnected")
 
     async def send_websocket_command(
         self, device_uuid: str, value: Union[str, int, float]
@@ -1681,6 +2390,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             elif isinstance(mess_obj, TextMessage) and "getkey2" in mess_obj.message:
                 _LOGGER.debug("Got get key2")
                 try:
+                    self._check_auth_response(mess_obj, "getkey2")
                     value_dict = mess_obj.value_as_dict
                     if not isinstance(value_dict, dict):
                         raise ValueError("value_as_dict is not a dictionary")
@@ -1727,6 +2437,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             elif isinstance(mess_obj, TextMessage) and "getkey" in mess_obj.message:
                 _LOGGER.debug("Got get getkey")
                 try:
+                    self._check_auth_response(mess_obj, "getkey")
                     value_dict = mess_obj.value_as_dict
                     if not isinstance(value_dict, dict):
                         raise ValueError("value_as_dict is not a dictionary")
@@ -1743,6 +2454,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 isinstance(mess_obj, TextMessage) and "getvisusalt" in mess_obj.message
             ):
                 try:
+                    self._check_auth_response(mess_obj, "getvisusalt")
                     value_dict = mess_obj.value_as_dict
                     if not isinstance(value_dict, dict):
                         raise ValueError("value_as_dict is not a dictionary")
@@ -1780,6 +2492,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                 "gettoken" in mess_obj.message or "getjwt" in mess_obj.message
             ):
                 try:
+                    self._check_auth_response(mess_obj, "gettoken")
                     value_dict = mess_obj.value_as_dict
                     if not isinstance(value_dict, dict):
                         raise ValueError("value_as_dict is not a dictionary")
@@ -1796,6 +2509,17 @@ class LoxoneConnection(LoxoneBaseConnection):
 
                     if not self._token.token:
                         raise ValueError("Received empty token")
+
+                    # Signal the refresh loop that the token is
+                    # now populated. ``check_refresh_token`` was
+                    # blocked on this event; it can now start its
+                    # 50%-of-lifetime countdown.
+                    self._authenticated_event.set()
+
+                    # Notify the integration (e.g. the HA
+                    # coordinator) that the token changed so it
+                    # can persist the new value.
+                    self._signal_token_changed()
 
                     await self._message_queue.put(
                         MessageForQueue(f"{CMD_ENABLE_UPDATES}", True)
@@ -1859,6 +2583,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                     _LOGGER.debug(
                         f"Token refreshed successfully, valid until: {valid_until}"
                     )
+
+                    # Notify the integration that the token
+                    # changed so the new value can be persisted.
+                    self._signal_token_changed()
 
                 except KeyError as e:
                     _LOGGER.error(

@@ -38,6 +38,31 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         self.miniserver: MiniServer | None = None
         self.listeners = []
 
+    async def _on_token_changed(self, token: dict) -> None:
+        """Persist a freshly-issued token into the ConfigEntry.
+
+        Called by :class:`LoxoneConnection` via the
+        ``token_change_callback`` whenever the Miniserver issues
+        a new token (initial auth or refresh). The token dict
+        is merged into ``ConfigEntry.data`` so a HA restart
+        can pick it up without re-prompting for credentials.
+
+        Errors are logged at WARNING — a persistence failure
+        must not break the live websocket path; the user just
+        has to re-authenticate on the next restart.
+        """
+        try:
+            new_data = {**self.config_entry.data, **token}
+            # ``async_update_entry`` is the supported way to
+            # mutate a ConfigEntry's data from a coordinator.
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data=new_data
+            )
+        except Exception as e:
+            _LOGGER.warning(
+                "Failed to persist updated token: %s", e, exc_info=True
+            )
+
     async def async_config_entry_first_refresh(self) -> None:
         _LOGGER.debug("async_config_entry_first_refresh")
         if self.api and self.api.connection:
@@ -57,6 +82,11 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 # keeps the event loop responsive while ``open()``
                 # is bootstrapping.
                 executor=self.hass.async_add_executor_job,
+                # ``_on_token_changed`` is async-aware and
+                # merges the new token into ConfigEntry.data
+                # so a HA restart can resume without a fresh
+                # username/password auth.
+                token_change_callback=self._on_token_changed,
             )
         else:
             self.api = LoxoneConnection(
@@ -66,6 +96,7 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 password=self._password,
                 verify_ssl=self._verify_ssl,
                 executor=self.hass.async_add_executor_job,
+                token_change_callback=self._on_token_changed,
             )
         try:
             session = async_get_clientsession(self.hass)
@@ -101,6 +132,17 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                     listener()
             self.listeners = []
 
-        # Close API connection
-        if hasattr(self, "api"):
-            await self.api.close()
+        # Close API connection. ``kill_token`` first — the
+        # Miniserver invalidates the JWT so a subsequent HA
+        # restart doesn't reuse a token the previous session
+        # already abandoned. Best-effort; we still call
+        # ``close()`` if the kill fails.
+        if hasattr(self, "api") and self.api is not None:
+            try:
+                await self.api.kill_token()
+            except Exception as e:  # noqa: BLE001
+                _LOGGER.debug("kill_token during cleanup failed: %s", e)
+            try:
+                await self.api.close()
+            except Exception as e:  # noqa: BLE001
+                _LOGGER.debug("api.close during cleanup failed: %s", e)

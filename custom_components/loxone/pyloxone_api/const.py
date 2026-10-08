@@ -9,11 +9,13 @@ from __future__ import annotations
 
 from typing import Final
 
-RECONNECT_DELAY = 5  # maximum delay in seconds
-RECONNECT_TRIES = 100  # number of tries to reconnect before giving up
+RECONNECT_DELAY = 5  # base delay in seconds for the exponential backoff
+RECONNECT_TRIES = 5  # number of tries before giving up on a bootstrap GET
+MAX_RECONNECT_DELAY = 60  # cap on the per-attempt sleep, in seconds
 
 # Loxone constants
 MAX_WEBSOCKET_MESSAGE_SIZE: Final = 5 * 1024 * 1024  # 5 megabytes = 5,242,880 bytes
+WEBSOCKET_CLOSE_TIMEOUT: Final = 10  # seconds to wait for a clean close
 DELAY_CHECK_TOKEN_REFRESH: Final = 20
 TIMEOUT: Final = 30
 KEEP_ALIVE_PERIOD: Final = 30
@@ -37,6 +39,7 @@ SALT_MAX_USE_COUNT: Final = 100
 TOKEN_PERMISSION: Final = 2  # 2=web, 4=app
 
 TOKEN_REFRESH_RETRY_COUNT: Final = 5
+TOKEN_REFRESH_MAX_FAILURES: Final = 10  # consecutive failures before raising
 # token will be refreshed 1 day before its expiration date
 TOKEN_REFRESH_SECONDS_BEFORE_EXPIRY: Final = (
     24 * 60 * 60
@@ -57,9 +60,17 @@ CMD_REQUEST_TOKEN_JSON_WEB: Final = "jdev/sys/getjwt"
 CMD_AUTH_WITH_TOKEN: Final = "authwithtoken/"
 CMD_REFRESH_TOKEN: Final = "jdev/sys/refreshtoken"
 CMD_REFRESH_TOKEN_JSON_WEB: Final = "jdev/sys/refreshjwt/"
+CMD_KILL_TOKEN: Final = "jdev/sys/killtoken"
 CMD_ENCRYPT_CMD: Final = "jdev/sys/enc/"
 CMD_ENABLE_UPDATES: Final = "jdev/sps/enablebinstatusupdate"
 CMD_GET_VISUAL_PASSWD: Final = "jdev/sys/getvisusalt/"
+
+# LL envelope codes that mean "credentials rejected". The
+# Miniserver returns 401 for the standard username/password
+# auth path and 4003 (legacy) for older Miniservers / firmware
+# variants. Any other non-200 code is logged at WARNING and the
+# auth flow continues — those are usually transient.
+LLRSP_UNAUTHORISED_CODES: Final = frozenset({401, 4003})
 
 DEFAULT_TOKEN_PERSIST_NAME: Final = "lox_token.cfg"
 LOX_CONFIG: Final = "loxconfig"
