@@ -47,3 +47,6 @@ config/*
 !config/configuration.yaml
 
 tmp*
+pyproject.toml
+uv.lock
+.python-version

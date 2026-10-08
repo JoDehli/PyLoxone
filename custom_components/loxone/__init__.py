@@ -393,7 +393,7 @@ async def async_setup_entry(hass, config_entry):
             entity_id = call.data.get(ATTR_DEVICE)
             entity = entity_registry.async_get(entity_id)
             entity_uuid = entity.unique_id
-        await coordinator.api.send_secured__websocket_command(entity_uuid, value, code)
+        await coordinator.api.send_secured_websocket_command(entity_uuid, value, code)
 
     async def sync_areas_with_loxone(data={}):
         create_areas = data.get(ATTR_AREA_CREATE, DEFAULT)
@@ -614,7 +614,7 @@ async def async_setup_entry(hass, config_entry):
                 if device_uuid is None:
                     device_uuid = DEFAULT
                 _ = asyncio.create_task(
-                    coordinator.api.send_secured__websocket_command(
+                    coordinator.api.send_secured_websocket_command(
                         device_uuid, value, code
                     )
                 )

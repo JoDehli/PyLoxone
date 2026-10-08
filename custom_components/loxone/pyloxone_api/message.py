@@ -5,7 +5,6 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/pyloxone-api
 """
 
-import hashlib
 import json
 import logging
 import math
@@ -20,11 +19,6 @@ from typing import Optional, Union
 from .exceptions import LoxoneException
 
 _LOGGER = logging.getLogger(__name__)
-
-# small in-memory cache for expensive encoding detection results
-_encoding_cache: dict[str, Optional[str]] = {}
-_DETECT_SAMPLE_SIZE = 512  # sample length used for detection & caching
-_DETECT_MAX_BYTES = 4096  # only run heavy detection for messages <= this size
 
 
 class AsyncTimer:
@@ -55,85 +49,35 @@ class SyncTimer:
         self.logger.debug("%s took %.6f s", self.label, elapsed)
 
 
-def detect_encoding(byte_string):
-    encodings = [
-        "utf-8",
-        "iso-8859-1",
-        "ascii",
-        "utf-16",
-        "utf-32",
-        "latin-1",
-        "cp1252",
-        "mac-roman",
-        "big5",
-        "shift_jis",
-        "euc-jp",
-        "gb2312",
-    ]
-
-    for encoding in encodings:
-        try:
-            byte_string.decode(encoding)
-            return encoding
-        except (
-                UnicodeDecodeError,
-                AttributeError
-        ):
-            continue
-    return None
-
-
 def check_and_decode_if_needed(message):
+    """Decode ``message`` (bytes / bytearray / str) to ``str``.
+
+    - ``str`` input is returned as-is.
+    - Bytes are decoded as UTF-8 first; if that fails (the bytes are
+      not valid UTF-8) the fallback is **latin-1**, which is defined
+      to map every byte 0-255 to a valid code point, so it can never
+      raise and never inserts ``U+FFFD`` replacement characters.
+
+    The latin-1 fallback replaces the previous multi-stage detector
+    that tried a dozen encodings and cached results by SHA-256 sample
+    hash. The detector was expensive on the recv path and the latin-1
+    fallback is byte-faithful — every byte is preserved exactly as
+    code point ``0x__``. ASCII bytes (which is what most Loxone
+    strings are) round-trip identically through UTF-8 and latin-1.
+    """
     if isinstance(message, str):
         return message
 
-    # ensure we handle bytearray too
+    # ``bytes(...)`` accepts both ``bytes`` and ``bytearray``; the
+    # explicit cast keeps the rest of the function uniform.
     b: bytes = bytes(message)
 
-    # fast happy-path: utf-8 works for most messages
     try:
         return b.decode("utf-8")
     except UnicodeDecodeError:
-        pass
-
-    # if ascii, decode cheaply (shouldn't usually get here)
-    if getattr(b, "isascii", lambda: False)():
-        return b.decode("ascii", errors="replace")
-
-    # try a few common single-byte encodings (cheap)
-    for enc in ("latin-1", "cp1252", "iso-8859-15"):
-        try:
-            return b.decode(enc)
-        except UnicodeDecodeError:
-            continue
-        except Exception:
-            # defensive: skip any unexpected errors from decoder
-            continue
-
-    # heavy detection: only for small messages, with a cache keyed on sample hash
-    if len(b) <= _DETECT_MAX_BYTES:
-        sample = b[:_DETECT_SAMPLE_SIZE]
-        key = hashlib.sha256(sample).hexdigest()
-        enc = _encoding_cache.get(key)
-        if enc is None and "detect_encoding" in globals():
-            try:
-                enc = detect_encoding(sample)  # may be expensive
-            except Exception:
-                enc = None
-            _encoding_cache[key] = enc  # cache even None to avoid repeated work
-
-        if enc:
-            try:
-                return b.decode(enc)
-            except Exception:
-                pass
-
-    # last resort: replace invalid characters (fast and safe)
-    _LOGGER.info(
-        "Decoding problem for message (len=%d). Falling back to replace invalid chars.",
-        len(b),
-    )
-    return b.decode("utf-8", errors="replace")
+        # UTF-8 failed — every byte has a valid latin-1 code point, so
+        # this fallback is total and loss-free.
+        return b.decode("latin-1")
 
 
 class MessageType(IntEnum):
@@ -197,19 +141,42 @@ class MessageHeader:
         #   BYTE cReserved;    // reserved
         #   UINT nLen;         // 32-Bit Unsigned Integer (little endian)
         # } PACKED WsBinHdr;
+        #
+        # ``MessageHeader`` always populates ``message_type``,
+        # ``estimated`` and ``payload_length``. For non-0x03
+        # frames (text-only or out-of-band events some Miniservers
+        # emit) the three are set to ``UNKNOWN`` / ``False`` /
+        # ``0`` so the recv state machine in ``_do_start_listening``
+        # can index them unconditionally.
         self.header = header
-        if not header[0] == 3:
-            self.message_type = MessageType.UNKNOWN
-        else:
-            try:
-                unpacked_data = struct.unpack("<cBccI", header)
-            except (struct.error, TypeError) as exc:
-                raise LoxoneException(f"Invalid header received: {exc} - {header}")
+        # Defaults for non-0x03 frames. These also cover the
+        # "header too short to unpack" guard below.
+        self.message_type: MessageType = MessageType.UNKNOWN
+        self.estimated: bool = False
+        self.payload_length: int = 0
 
-            self.message_type: MessageType = MessageType(unpacked_data[1])
-            # First bit indicates that length is only estimated
-            self.estimated: bool = ord(unpacked_data[2]) >> 7 == 1
-            self.payload_length: int = int(unpacked_data[4])
+        if header is None or len(header) < 8:
+            # Nothing to parse — treat as a bodyless unknown.
+            return
+        if header[0] != 3:
+            # Non-Loxone binary header. Some Miniserver firmware
+            # versions send short text-only events that begin with
+            # other bytes; treat them as bodyless UNKNOWN.
+            return
+
+        try:
+            unpacked_data = struct.unpack("<cBccI", bytes(header[:8]))
+        except (struct.error, TypeError) as exc:
+            raise LoxoneException(
+                f"Invalid header received: {exc} - {header!r}"
+            ) from exc
+
+        self.message_type = MessageType(unpacked_data[1])
+        # First bit of ``cInfo`` indicates that length is only
+        # estimated. ``unpacked_data[2]`` is a 1-byte ``bytes``
+        # object — index it to get the int value.
+        self.estimated = bool((unpacked_data[2][0] >> 7) & 0x01)
+        self.payload_length = int(unpacked_data[4])
 
 
 class BaseMessage:
@@ -272,15 +239,33 @@ class ValueStatesTable(BaseMessage):
     def as_dict(self):
         event_dict = {}
         length = len(self.message)
-        num = length / 24
+        # 24 bytes per record (16-byte uuid + 8-byte double). Floor-divide
+        # so we only iterate full records and never slice past the end of
+        # ``self.message``; the trailing partial record (if any) is
+        # logged at DEBUG instead of silently dropped — the previous
+        # ``int(length / 24)`` truncated in the same place but never
+        # reported it.
+        num_full = length // 24
+        remainder = length % 24
+        if remainder:
+            _LOGGER.debug(
+                "ValueStatesTable: trailing partial record of %d byte(s) "
+                "dropped (expected a multiple of 24)",
+                remainder,
+            )
+
         start = 0
         end = 24
-        for _ in range(int(num)):
+        for _ in range(num_full):
             packet = self.message[start:end]
             event_uuid = uuid.UUID(bytes_le=packet[0:16])
             fields = event_uuid.urn.replace("urn:uuid:", "").split("-")
             uuidstr = f"{fields[0]}-{fields[1]}-{fields[2]}-{fields[3]}{fields[4]}"
-            value = struct.unpack("d", packet[16:24])[0]
+            # Loxone sends the double in little-endian byte order; the
+            # native-order ``"d"`` format happens to match on x86 but
+            # breaks on big-endian systems (and is fragile in either
+            # case). Force ``"<d"`` explicitly.
+            value = struct.unpack("<d", packet[16:24])[0]
             event_dict[uuidstr] = value
             start += 24
             end += 24
@@ -372,9 +357,36 @@ def parse_header(header: bytes) -> MessageHeader:
     return MessageHeader(header)
 
 
+# Explicit per-``MessageType`` dispatch table. Replaces the previous
+# ``BaseMessage.__subclasses__()`` introspection — which was O(n),
+# relied on import-ordering quirks to register every subclass, and
+# silently dropped types for which no subclass existed (e.g.
+# ``MessageType.UNKNOWN``). The dict is built once at module load and
+# ``parse_message`` does an O(1) lookup against ``MessageType``.
+_MESSAGE_CLASSES: dict[MessageType, type[BaseMessage]] = {
+    MessageType.TEXT: TextMessage,
+    MessageType.BINARY: BinaryFile,
+    MessageType.VALUE_STATES: ValueStatesTable,
+    MessageType.TEXT_STATES: TextStatesTable,
+    MessageType.DAYTIMER_STATES: DaytimerStatesTable,
+    MessageType.OUT_OF_SERVICE: OutOfServiceIndicator,
+    MessageType.KEEPALIVE: Keepalive,
+    MessageType.WEATHER_STATES: WeatherStatesTable,
+}
+
+
 def parse_message(message: bytes | str, message_type: int) -> BaseMessage:
-    """Return an instance of the appropriate BaseMessage subclass"""
-    for klass in BaseMessage.__subclasses__():
-        if klass.message_type == message_type:
-            return klass(message)
-    raise LoxoneException(f"Unknown message type {message_type}")
+    """Return an instance of the ``BaseMessage`` subclass for ``message_type``.
+
+    ``MessageType.UNKNOWN`` (and any value not in
+    :data:`_MESSAGE_CLASSES`) raises :class:`LoxoneException`.
+    """
+    try:
+        mtype = MessageType(message_type)
+    except ValueError as exc:
+        raise LoxoneException(f"Unknown message type {message_type}") from exc
+
+    try:
+        return _MESSAGE_CLASSES[mtype](message)
+    except KeyError as exc:
+        raise LoxoneException(f"Unknown message type {mtype.name}") from exc

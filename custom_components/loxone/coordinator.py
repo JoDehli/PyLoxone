@@ -52,6 +52,11 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 password=self._password,
                 token=self.config_entry.data,
                 verify_ssl=self._verify_ssl,
+                # Off-load the (potentially multi-MB)
+                # ``LoxAPP3.json`` parse to HA's default executor —
+                # keeps the event loop responsive while ``open()``
+                # is bootstrapping.
+                executor=self.hass.async_add_executor_job,
             )
         else:
             self.api = LoxoneConnection(
@@ -60,6 +65,7 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 username=self._username,
                 password=self._password,
                 verify_ssl=self._verify_ssl,
+                executor=self.hass.async_add_executor_job,
             )
         try:
             session = async_get_clientsession(self.hass)
