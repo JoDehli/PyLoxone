@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import logging
+import os
 import struct
 from types import SimpleNamespace
 
 import pytest
 
+from custom_components.loxone.pyloxone_api import message as message_module
 from custom_components.loxone.pyloxone_api.connection import LoxoneConnection
 from custom_components.loxone.pyloxone_api.exceptions import (
     LoxoneException,
@@ -63,6 +65,21 @@ _UUID_BYTES = bytes.fromhex(
 def _value_record(uuid_bytes: bytes, value: float) -> bytes:
     """Build one 24-byte ValueStatesTable record: 16-byte uuid + 8-byte LE double."""
     return uuid_bytes + struct.pack("<d", value)
+
+
+def _compact_uuid(raw: bytes) -> str:
+    """Derive the reference event key: uuid urn minus prefix, last two groups joined."""
+    fields = __import__("uuid").UUID(bytes_le=raw).urn.replace("urn:uuid:", "").split("-")
+    return f"{fields[0]}-{fields[1]}-{fields[2]}-{fields[3]}{fields[4]}"
+
+
+def _text_record(event_uuid: bytes, icon_uuid: bytes, text: bytes) -> bytes:
+    """Build one TEXT_STATES record: event uuid + icon uuid + LE length + text."""
+    record = event_uuid + icon_uuid + struct.pack("<I", len(text)) + text
+    # The record "starts at multiple of 4" (protocol struct), and
+    # ``TextStatesTable.as_dict`` advances by exactly that amount —
+    # pad here so the parser walks over it unchanged.
+    return record.ljust((len(record) + 3) // 4 * 4, b"\x00")
 
 
 class TestValueStatesTable:
@@ -182,6 +199,119 @@ class TestValueStatesTable:
             "trailing partial record of 3 byte" in r.message
             for r in caplog.records
         )
+
+    def test_random_records_match_uuid_reference_keys(self) -> None:
+        """Keys come out in Loxone compact form for random uuids."""
+        # The reference is derived from ``uuid.UUID(bytes_le=...)`` —
+        # the same one the individual tests above use, but over
+        # random uuids so a formatting slip in either direction is
+        # caught.
+        records = [_value_record(os.urandom(16), float(i)) for i in range(8)]
+        result = ValueStatesTable(b"".join(records)).as_dict()
+
+        assert len(result) == len(records)
+        for i, record in enumerate(records):
+            assert result[_compact_uuid(record[:16])] == float(i)
+
+
+class TestUuidStringCache:
+    """Reproduce the historical event-key text byte-for-byte with ``_uuid_str``."""
+
+    def test_matches_uuid_reference_for_random_bytes(self) -> None:
+        """Match the ``uuid.UUID(bytes_le=...)``-derived key for random uuids."""
+        for _ in range(64):
+            raw = os.urandom(16)
+            assert message_module._uuid_str(raw) == _compact_uuid(raw)
+
+    def test_repeat_call_returns_cached_object(self) -> None:
+        """Serve a repeated uuid from the cache (same object back)."""
+        raw = os.urandom(16)
+
+        first = message_module._uuid_str(raw)
+        second = message_module._uuid_str(raw)
+
+        assert first == second
+        assert first is second
+
+    def test_cache_is_bounded(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Drop the cache wholesale once it passes the cap."""
+        cap = 4
+        monkeypatch.setattr(message_module, "_UUID_STR_CACHE", {})
+        monkeypatch.setattr(message_module, "_UUID_STR_CACHE_MAX", cap)
+
+        for i in range(20):
+            message_module._uuid_str(bytes([i]) * 16)
+
+        assert len(message_module._UUID_STR_CACHE) <= cap
+
+    def test_truncated_uuid_raises_uuid_value_error(self) -> None:
+        """Fail a short record exactly where it used to: same type and message."""
+        for size in (15, 17):
+            with pytest.raises(ValueError, match="bytes_le must be exactly 16 bytes long"):
+                message_module._uuid_str(b"\x00" * size)
+
+
+class TestTextStatesTable:
+    """Decode TEXT_STATES records while stepping over the icon uuid."""
+
+    def test_single_record_round_trip(self) -> None:
+        """Surface one record's text under its event uuid."""
+        payload = _text_record(_UUID_BYTES, bytes(range(16)), b"hello")
+
+        result = TextStatesTable(payload).as_dict()
+
+        assert result == {_compact_uuid(_UUID_BYTES): "hello"}
+
+    def test_two_records_with_different_icons_stay_aligned(self) -> None:
+        """Skip the icon uuid only: both keys and texts must land correctly."""
+        other_uuid = bytes.fromhex("ffeeddccbbaa99887766554433221100")
+        payload = _text_record(_UUID_BYTES, b"\xff" * 16, b"first") + _text_record(other_uuid, b"\x00" * 16, b"second")
+
+        result = TextStatesTable(payload).as_dict()
+
+        assert result == {
+            _compact_uuid(_UUID_BYTES): "first",
+            _compact_uuid(other_uuid): "second",
+        }
+
+    def test_key_comes_from_event_uuid_not_icon_uuid(self) -> None:
+        """Key on the event uuid, never on the icon uuid."""
+        icon = bytes.fromhex("ffeeddccbbaa99887766554433221100")
+
+        payload = _text_record(_UUID_BYTES, icon, b"x")
+        result = TextStatesTable(payload).as_dict()
+
+        assert _compact_uuid(_UUID_BYTES) in result
+        assert _compact_uuid(icon) not in result
+
+    def test_non_utf8_text_falls_back_to_latin1(self) -> None:
+        """Fall back to latin-1 when the text is not valid UTF-8."""
+        payload = _text_record(_UUID_BYTES, bytes(range(16)), b"\xe4\xf6\xfc")
+
+        result = TextStatesTable(payload).as_dict()
+
+        assert result[_compact_uuid(_UUID_BYTES)] == "\xe4\xf6\xfc"
+
+    def test_truncated_text_raises_struct_error(self) -> None:
+        """Fail loudly (struct.error) when the declared length runs past the payload."""
+        payload = _UUID_BYTES + bytes(range(16)) + struct.pack("<I", 64) + b"abc"
+
+        with pytest.raises(struct.error):
+            TextStatesTable(payload).as_dict()
+
+    def test_truncated_uuid_raises_uuid_value_error(self) -> None:
+        """Reject a payload cut off inside the leading uuid."""
+        with pytest.raises(ValueError, match="bytes_le must be exactly 16 bytes long"):
+            TextStatesTable(b"\x00" * 10).as_dict()
+
+    def test_str_payload_raises_loxone_exception(self) -> None:
+        """Reject a str payload with the documented LoxoneException."""
+        with pytest.raises(LoxoneException):
+            TextStatesTable("not bytes").as_dict()
+
+    def test_empty_payload(self) -> None:
+        """Map an empty payload to an empty dict."""
+        assert TextStatesTable(b"").as_dict() == {}
 
 
 class TestCheckAndDecodeIfNeeded:
