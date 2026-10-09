@@ -88,6 +88,17 @@ _DISPATCH_YIELD_BATCH = 64
 _EVENT_TASK_NAMES: dict = {mtype: f"loxone.event-{mtype.name}" for mtype in MessageType}
 _CALLBACK_TASK_NAMES: dict = {mtype: f"loxone.callback-{mtype.name}" for mtype in MessageType}
 
+# Message types whose parsed message ``_websocket_event`` does
+# anything with. Its chain only branches on TextMessage (key
+# exchange, getkey, token, ...); state tables, binary files and
+# keepalives fall through to ``else: pass``, so spawning a task for
+# them pays the full task creation for a no-op: skipping that spawn
+# measured +10.8% of receive throughput (interleaved A/B, 10 pairs,
+# no overlapping runs). Keep this in sync with the ``elif`` chain in
+# ``_websocket_event``: a new branch there needs its message type
+# added here, or it would silently never run.
+_EVENT_HANDLED_TYPES: frozenset = frozenset({MessageType.TEXT})
+
 
 def time_elapsed_in_seconds():
     return int(round(time.time()))
@@ -1627,13 +1638,23 @@ class LoxoneConnection(LoxoneBaseConnection):
             # the recv loop on every status update — at the
             # Miniserver's update rate that drops messages and
             # can starve the keepalive path. ``_spawn_task``
-            # preserves fire-and-forget scheduling and adds a
-            # done-callback to log unhandled exceptions. The
-            # recv loop yields in bounded batches below.
-            self._spawn_task(
-                self._websocket_event(parsed_message),
-                name=_EVENT_TASK_NAMES.get(msg_type, "loxone.event"),
-            )
+            # preserves fire-and-forget scheduling, tracks the
+            # task for bulk pruning and reports unhandled
+            # exceptions at WARNING. The recv loop yields in
+            # bounded batches below.
+            # Create the event task only for message types
+            # ``_websocket_event`` branches on: for everything
+            # else its coroutine runs straight into ``pass``, and
+            # spawning plus later pruning that no-op task is the
+            # most expensive thing left in this loop (+10.8%
+            # measured, see ``_EVENT_HANDLED_TYPES``). Gave
+            # ``_websocket_event`` a new branch? Add its message
+            # type to ``_EVENT_HANDLED_TYPES``.
+            if msg_type in _EVENT_HANDLED_TYPES:
+                self._spawn_task(
+                    self._websocket_event(parsed_message),
+                    name=_EVENT_TASK_NAMES.get(msg_type, "loxone.event"),
+                )
             if callback and msg_type in callback_types:
                 self._spawn_task(
                     _run_callback(parsed_message),
