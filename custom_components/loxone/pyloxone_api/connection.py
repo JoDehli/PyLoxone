@@ -71,6 +71,16 @@ warnings.filterwarnings(
 # large enough that pruning stays amortised O(1) per spawn.
 _TASK_PRUNE_THRESHOLD = 64
 
+# How many messages the recv loop dispatches before it yields to the
+# event loop. Every yield costs a scheduler round trip (~8 us over the
+# receive pipeline), while never yielding lets a buffered stream
+# accumulate unbounded pending tasks — the websocket read itself only
+# yields when it waits for new network data. 64 keeps both sides
+# bounded and cuts the yield overhead to a quarter of a batch of 16;
+# at Miniserver update rates that is still far below the 30 s
+# keepalive interval.
+_DISPATCH_YIELD_BATCH = 64
+
 # Pre-computed ``create_task`` names for the recv hot path. Building
 # them inline (``f"loxone.event-{msg_type.name}"``) costs an enum
 # attribute lookup plus an f-string per dispatched event; the lookup
@@ -1635,7 +1645,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             # unbounded pending tasks. The websocket read itself
             # naturally yields whenever it waits for network data.
             dispatched_since_yield += 1
-            if dispatched_since_yield >= 16:
+            if dispatched_since_yield >= _DISPATCH_YIELD_BATCH:
                 dispatched_since_yield = 0
                 await asyncio.sleep(0)
 
