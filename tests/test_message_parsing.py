@@ -912,9 +912,15 @@ class TestRecvLoopCleanClose:
     """
 
     @pytest.mark.asyncio
-    async def test_recv_loop_exits_with_closed_ok(self):
+    async def test_recv_loop_exits_with_closed_ok(self, caplog: pytest.LogCaptureFixture):
         """An empty async iterator (no frames) causes the recv
         loop to exit and raise ``LoxoneConnectionClosedOk``.
+
+        The clean close is deliberate control flow, so nothing may
+        be logged at ERROR: the supervisor turns it into a
+        reconnect. Previously it fell through to the catch-all and
+        produced "Unexpected error in listening loop" with a
+        traceback on every clean shutdown.
         """
         from types import SimpleNamespace
 
@@ -953,8 +959,17 @@ class TestRecvLoopCleanClose:
             password="password",
             port=8080,
         )
-        with pytest.raises(LoxoneConnectionClosedOk):
+        with (
+            caplog.at_level(
+                logging.DEBUG,
+                logger="custom_components.loxone.pyloxone_api.connection",
+            ),
+            pytest.raises(LoxoneConnectionClosedOk),
+        ):
             await conn._do_start_listening(callback, _EmptyConn())
+
+        errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert errors == [], [r.message for r in errors]
 
     @pytest.mark.asyncio
     async def test_recv_loop_keeps_processing_then_raises(self):

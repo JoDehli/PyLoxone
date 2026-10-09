@@ -1227,6 +1227,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                 except asyncio.CancelledError:
                     pass
                     # Don't raise, this is expected during shutdown
+                except LoxoneConnectionClosedOk:
+                    # Deliberate control flow, not a task failure.
+                    raise
                 except Exception as e:
                     _LOGGER.error(
                         f"Task {task} raised an exception: {e}", exc_info=True
@@ -1778,8 +1781,17 @@ class LoxoneConnection(LoxoneBaseConnection):
         except asyncio.CancelledError:
             _LOGGER.debug("Listening task cancelled")
             raise
-        except (LoxoneTokenError, LoxoneOutOfServiceException, LoxoneConnectionError):
-            # Re-raise expected Loxone exceptions
+        except (
+            LoxoneTokenError,
+            LoxoneOutOfServiceException,
+            LoxoneConnectionError,
+            LoxoneConnectionClosedOk,
+        ):
+            # Re-raise expected Loxone exceptions. The clean close is
+            # deliberate control flow (raised above): the supervisor
+            # turns it into a recoverable error and reconnects. Falling
+            # through to the catch-all would log an ERROR with a
+            # traceback on every clean shutdown, unload or reconnect.
             raise
         except Exception as e:
             _LOGGER.error(f"Unexpected error in listening loop: {e}", exc_info=True)
