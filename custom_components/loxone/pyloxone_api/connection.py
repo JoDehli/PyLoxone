@@ -772,15 +772,18 @@ class LoxoneBaseConnection:
     async def kill_token(self) -> None:
         """Invalidate the current token on the Miniserver.
 
-        Sends ``CMD_KILL_TOKEN`` (``jdev/sys/killtoken/...`` for
-        legacy tokens or ``jdev/sys/killtoken/<jwt>`` for JWTs).
-        The Miniserver drops the session so a subsequent HA
-        restart requires a fresh username/password auth instead
-        of reusing the killed token.
+        Sends ``jdev/sys/killtoken/<token>/<user>``. Both path
+        segments are required — without the user segment the
+        Miniserver answers ``400`` and keeps the token usable
+        (checked against a live Miniserver, JWT-era firmware).
+        The token is sent raw: this firmware wants the JWT
+        itself here, a getkey-hashed token is refused with
+        ``401``.
 
-        The JWT form of the command is the one that's actually
-        exercised in production (Miniserver >= 10.2). The legacy
-        form is best-effort. We log and swallow errors so
+        The Miniserver drops the session as part of the kill, so
+        no reply frame comes back and a subsequent HA restart
+        requires a fresh username/password auth instead of
+        reusing the killed token. We log and swallow errors so
         ``async_cleanup`` can still run ``close()`` after.
         """
         if not self._token or not self._token.token:
@@ -790,13 +793,13 @@ class LoxoneBaseConnection:
             return
         try:
             token = self._token.token
-            command = f"{CMD_KILL_TOKEN}/{token}"
+            command = f"{CMD_KILL_TOKEN}/{token}/{self._encoded_username}"
             _LOGGER.debug("kill_token: sending %s", command)
-            # Fire the kill on the wire. The Miniserver replies
-            # with a TEXT envelope; we don't wait for the reply
-            # because ``close()`` is about to drop the
-            # websocket. The ``try/except`` here guards against
-            # a closed-websocket race during teardown.
+            # Fire the kill on the wire. No reply frame comes
+            # back: the Miniserver drops the session as part of
+            # the kill, and ``close()`` follows straight away in
+            # ``async_cleanup`` anyway. The ``try/except`` guards
+            # against a closed-websocket race during teardown.
             await self._send_text_command(command, encrypted=False)
         except Exception as e:
             _LOGGER.warning("kill_token: failed to send: %s", e)

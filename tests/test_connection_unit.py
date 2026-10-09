@@ -1782,7 +1782,14 @@ class TestTokenChangeCallback:
     @pytest.mark.asyncio
     async def test_kill_token_sends_command(self, conn, monkeypatch):
         """With a token set, ``kill_token`` sends
-        ``jdev/sys/killtoken/<token>`` via ``_send_text_command``.
+        ``jdev/sys/killtoken/<token>/<user>`` via
+        ``_send_text_command``.
+
+        Both path segments matter: the Miniserver answers 400 and
+        keeps the token alive when the user segment is missing.
+        The user is the percent-encoded form used everywhere else
+        in the protocol layer, so a non-ASCII username must not
+        break the command path.
         """
         sent: list[str] = []
 
@@ -1798,11 +1805,14 @@ class TestTokenChangeCallback:
         monkeypatch.setattr(
             conn_mod.LoxoneConnection, "_send_text_command", fake_send
         )
+        # Percent-encoded, to prove ``kill_token`` sends the
+        # encoded username and not the raw one.
+        monkeypatch.setattr(conn, "_encoded_username", "b%C3%B6b")
 
         conn._token.token = "test-jwt-abc"
         await conn.kill_token()
         assert len(sent) == 1
-        assert sent[0][0] == "jdev/sys/killtoken/test-jwt-abc"
+        assert sent[0][0] == "jdev/sys/killtoken/test-jwt-abc/b%C3%B6b"
         # The kill is sent unencrypted so the Miniserver can
         # parse it before any auth state is touched.
         assert sent[0][1] is False
