@@ -39,10 +39,11 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     CMD_REQUEST_TOKEN_JSON_WEB, DELAY_CHECK_TOKEN_REFRESH,
                     IV_BYTES, KEEP_ALIVE_PERIOD, LLRSP_UNAUTHORISED_CODES,
                     LOXAPPPATH, MAX_RECONNECT_DELAY, MAX_REFRESH_DELAY,
-                    MAX_WEBSOCKET_MESSAGE_SIZE, RECONNECT_DELAY,
-                    RECONNECT_TRIES, SALT_BYTES, SALT_MAX_AGE_SECONDS,
-                    SALT_MAX_USE_COUNT, TIMEOUT, TOKEN_PERMISSION,
-                    TOKEN_REFRESH_MAX_FAILURES, WEBSOCKET_CLOSE_TIMEOUT)
+                    MAX_WEBSOCKET_MESSAGE_SIZE, MESSAGE_HEADER_SIZE,
+                    RECONNECT_DELAY, RECONNECT_TRIES, SALT_BYTES,
+                    SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT, TIMEOUT,
+                    TOKEN_PERMISSION, TOKEN_REFRESH_MAX_FAILURES,
+                    WEBSOCKET_CLOSE_TIMEOUT)
 from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
                          LoxoneException, LoxoneOutOfServiceException,
                          LoxoneServiceUnAvailableError, LoxoneTokenError,
@@ -63,6 +64,19 @@ warnings.filterwarnings(
     message="Detected blocking call to load_verify_locations",
     module="httpx._config",
 )
+
+# Number of tracked background tasks at which :meth:`_spawn_task`
+# prunes the finished ones (and reports their exceptions). Small
+# enough that a dead task is reported within a few dozen messages,
+# large enough that pruning stays amortised O(1) per spawn.
+_TASK_PRUNE_THRESHOLD = 64
+
+# Pre-computed ``create_task`` names for the recv hot path. Building
+# them inline (``f"loxone.event-{msg_type.name}"``) costs an enum
+# attribute lookup plus an f-string per dispatched event; the lookup
+# table turns that into one dict index.
+_EVENT_TASK_NAMES: dict = {mtype: f"loxone.event-{mtype.name}" for mtype in MessageType}
+_CALLBACK_TASK_NAMES: dict = {mtype: f"loxone.callback-{mtype.name}" for mtype in MessageType}
 
 
 def time_elapsed_in_seconds():
@@ -541,7 +555,10 @@ class LoxoneBaseConnection:
         for the queue plumbing).
 
         """
-        _LOGGER.debug(f"Send text command: {command}")
+        # Lazy %-args: this runs for every outgoing command, so the command
+        # string must not be built unless DEBUG is enabled (G004 bans the
+        # f-string variant).
+        _LOGGER.debug("Send text command: %s", command)
         if encrypted:
             if self._new_salt_needed():
                 old_salt = self._salt
@@ -1605,12 +1622,12 @@ class LoxoneConnection(LoxoneBaseConnection):
             # recv loop yields in bounded batches below.
             self._spawn_task(
                 self._websocket_event(parsed_message),
-                name=f"loxone.event-{msg_type.name}",
+                name=_EVENT_TASK_NAMES.get(msg_type, "loxone.event"),
             )
             if callback and msg_type in callback_types:
                 self._spawn_task(
                     _run_callback(parsed_message),
-                    name=f"loxone.callback-{msg_type.name}",
+                    name=_CALLBACK_TASK_NAMES.get(msg_type, "loxone.callback"),
                 )
             # Let handlers run in bounded batches: yielding on
             # every event adds scheduler overhead, while never
@@ -1653,7 +1670,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     # No body in progress. The frame must be a
                     # header (8 bytes). Anything else is an
                     # orphan.
-                    if message_length != 8:
+                    if message_length != MESSAGE_HEADER_SIZE:
                         _LOGGER.error(
                             "Orphan body chunk of %d bytes "
                             "(no header in progress)",
@@ -1675,14 +1692,27 @@ class LoxoneConnection(LoxoneBaseConnection):
                     continue
 
                 # Header in progress.
-                if message_length == 8:
+                if message_length == MESSAGE_HEADER_SIZE:
                     # An 8-byte frame arrived while body was in
                     # progress — it terminates the previous body
                     # and is the next header.
                     await _finalise_current_body_and_consume_next_header(message)
                     continue
 
-                # Body chunk: extend the buffer.
+                # Body chunk. Fast path first: the body arrived
+                # complete in one frame, which is the normal case
+                # (the Miniserver sends header and body as separate
+                # websocket messages). Dispatching the frame
+                # directly avoids a bytearray extend plus two
+                # slices plus a copy per event.
+                if not body_buffer and not last_header.estimated and len(message) == last_header.payload_length:
+                    await _dispatch_body(last_header, message)
+                    last_header = None
+                    continue
+
+                # Slow path: the body is split across frames (or
+                # the header length is only an estimate) — accumulate
+                # until the terminator arrives.
                 body_buffer.extend(message)
 
                 if (
@@ -2038,13 +2068,19 @@ class LoxoneConnection(LoxoneBaseConnection):
     def _spawn_task(self, coro, name: str) -> asyncio.Task:
         """Schedule ``coro`` as a tracked background task.
 
-        The task is added to ``self._tasks`` (a set) and a done
-        callback is registered so:
+        The task is added to ``self._tasks``; once the set grows past
+        :data:`_TASK_PRUNE_THRESHOLD` entries, :meth:`_prune_tasks`
+        drops the finished ones and logs any unhandled exception at
+        WARNING (a bare ``asyncio.create_task`` would silently
+        swallow it).
 
-        1. When the task finishes, it's removed from the set.
-        2. If it raised an unhandled exception, that's logged at
-           WARNING (the previous bare ``asyncio.create_task`` calls
-           would silently swallow the exception).
+        Bookkeeping is deliberately **bulk** and not a per-task
+        done callback. A done callback makes the event loop schedule
+        one extra callback per spawned task — ``call_soon`` + a
+        ``Handle`` + a ``Context.run`` — which on a busy Miniserver
+        (hundreds of spawned tasks per second) measured at ~10 % of
+        the total recv/dispatch throughput. Amortised pruning costs
+        a set membership test per spawn instead.
 
         Use this instead of ``asyncio.create_task`` for any
         fire-and-forget coroutine. For long-lived coroutines that
@@ -2055,29 +2091,37 @@ class LoxoneConnection(LoxoneBaseConnection):
         """
         task = asyncio.create_task(coro, name=name)
         self._tasks.add(task)
-        task.add_done_callback(self._on_task_done)
+        if len(self._tasks) > _TASK_PRUNE_THRESHOLD:
+            self._prune_tasks()
         return task
 
-    def _on_task_done(self, task: asyncio.Task) -> None:
-        """Done callback for tasks spawned via :meth:`_spawn_task`.
+    def _prune_tasks(self) -> None:
+        """Drop finished tasks from ``self._tasks``, logging their exceptions.
 
-        Removes the task from ``self._tasks`` and logs any
-        unhandled exception. Without this, a fire-and-forget
-        coroutine that raised would have its exception swallowed
-        by the event loop and never surface in the integration
-        logs.
+        Runs only when the set grows past :data:`_TASK_PRUNE_THRESHOLD`,
+        so the per-spawn cost stays O(1) amortised. Retrieving the
+        exception here is what keeps ``asyncio`` from later reporting
+        "Task exception was never retrieved"; ``close()`` prunes again
+        so nothing is left unreported on shutdown.
         """
-        self._tasks.discard(task)
-        if task.cancelled():
+        if not self._tasks:
             return
-        exc = task.exception()
-        if exc is not None:
-            _LOGGER.warning(
-                "Background task %r raised: %s",
-                task.get_name(),
-                exc,
-                exc_info=exc,
-            )
+        pending: set[asyncio.Task] = set()
+        for task in self._tasks:
+            if not task.done():
+                pending.add(task)
+                continue
+            if task.cancelled():
+                continue
+            exc = task.exception()
+            if exc is not None:
+                _LOGGER.warning(
+                    "Background task %r raised: %s",
+                    task.get_name(),
+                    exc,
+                    exc_info=exc,
+                )
+        self._tasks = pending
 
     async def close(self, _signal_shutdown: bool = True) -> None:
         """Gracefully close the connection and drain message queues.
@@ -2144,8 +2188,10 @@ class LoxoneConnection(LoxoneBaseConnection):
             self._pending_task = []
 
         # Cancel any tracked background tasks spawned via
-        # :meth:`_spawn_task`. These are fire-and-forget so
-        # ``_on_task_done`` will remove them once they unwind.
+        # :meth:`_spawn_task`. These are fire-and-forget; pruning
+        # first reports the exceptions of any that already finished
+        # so nothing is lost when the connection goes away.
+        self._prune_tasks()
         if self._tasks:
             _LOGGER.debug(
                 f"Cancelling {len(self._tasks)} background tasks..."
@@ -2319,7 +2365,8 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         try:
             command = f"{CMD_GET_VISUAL_PASSWD}{self._encoded_username}"
-            _LOGGER.debug(f"Call send_secured_websocket_command: {command}")
+            # Lazy %-args, same rationale as ``_send_text_command``.
+            _LOGGER.debug("Call send_secured_websocket_command: %s", command)
 
             # Stash the (device_uuid, value, code) tuple on the
             # secured-queue deque. The Miniserver's

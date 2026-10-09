@@ -16,6 +16,7 @@ from enum import IntEnum
 from functools import lru_cache
 from typing import Optional, Union
 
+from .const import MESSAGE_HEADER_SIZE
 from .exceptions import LoxoneException
 
 _LOGGER = logging.getLogger(__name__)
@@ -155,7 +156,7 @@ class MessageHeader:
         self.estimated: bool = False
         self.payload_length: int = 0
 
-        if header is None or len(header) < 8:
+        if header is None or len(header) < MESSAGE_HEADER_SIZE:
             # Nothing to parse — treat as a bodyless unknown.
             return
         if header[0] != 3:
@@ -165,7 +166,13 @@ class MessageHeader:
             return
 
         try:
-            unpacked_data = struct.unpack("<cBccI", bytes(header[:8]))
+            # ``header[:8]`` would copy; hand the buffer to
+            # ``struct.unpack`` as-is when it is exactly 8 bytes
+            # wide (it accepts any bytes-like object, and anything
+            # else — e.g. ``str`` — raises ``TypeError``, which is
+            # converted to ``LoxoneException`` below).
+            source = header if len(header) == MESSAGE_HEADER_SIZE else bytes(header[:MESSAGE_HEADER_SIZE])
+            unpacked_data = struct.unpack("<cBccI", source)
         except (struct.error, TypeError) as exc:
             raise LoxoneException(
                 f"Invalid header received: {exc} - {header!r}"
@@ -176,7 +183,7 @@ class MessageHeader:
         # estimated. ``unpacked_data[2]`` is a 1-byte ``bytes``
         # object — index it to get the int value.
         self.estimated = bool((unpacked_data[2][0] >> 7) & 0x01)
-        self.payload_length = int(unpacked_data[4])
+        self.payload_length = unpacked_data[4]
 
 
 class BaseMessage:
@@ -381,10 +388,15 @@ def parse_message(message: bytes | str, message_type: int) -> BaseMessage:
     ``MessageType.UNKNOWN`` (and any value not in
     :data:`_MESSAGE_CLASSES`) raises :class:`LoxoneException`.
     """
-    try:
-        mtype = MessageType(message_type)
-    except ValueError as exc:
-        raise LoxoneException(f"Unknown message type {message_type}") from exc
+    # ``MessageType(x)`` on an already-converted member is a wasted
+    # enum call: the recv loop hands over the header's
+    # ``MessageType`` directly, so only raw ints take the slow path.
+    mtype = message_type
+    if not isinstance(mtype, MessageType):
+        try:
+            mtype = MessageType(mtype)
+        except ValueError as exc:
+            raise LoxoneException(f"Unknown message type {message_type}") from exc
 
     try:
         return _MESSAGE_CLASSES[mtype](message)

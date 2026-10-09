@@ -1286,19 +1286,23 @@ class TestBuildWebsocketOptions:
 
 
 class TestSpawnTask:
-    """``_spawn_task`` / ``_on_task_done`` — tracked background tasks.
+    """``_spawn_task`` / ``_prune_tasks`` — tracked background tasks.
 
     A bare ``asyncio.create_task(...)`` swallows the task's
     exception if the coroutine raises and no one awaits the
-    resulting task. The two helpers below keep a set of in-flight
-    tasks, log any unhandled exception at WARNING, and let
-    ``close()`` cancel the lot.
+    resulting task. ``_spawn_task`` keeps a set of in-flight tasks;
+    ``_prune_tasks`` reports unhandled exceptions at WARNING and
+    lets ``close()`` cancel whatever is left. Pruning is done in
+    bulk rather than through a per-task done callback, because a
+    done callback costs one extra event-loop callback per spawned
+    task — measurable on the recv hot path.
     """
 
     @pytest.mark.asyncio
     async def test_spawn_task_returns_task(self):
         """``_spawn_task(coro, name)`` returns the created
-        ``asyncio.Task`` and the task is in ``self._tasks``.
+        ``asyncio.Task``, tracks it, and pruning removes it only
+        once it has finished.
         """
         conn = LoxoneConnection(
             host="192.0.2.1",
@@ -1316,32 +1320,53 @@ class TestSpawnTask:
             assert isinstance(task, asyncio.Task)
             assert task in conn._tasks
             assert task.get_name() == "test.noop"
-            # The task ran to completion and the done callback
-            # removed it from the set.
             result = await task
             assert result == 42
-            # ``_on_task_done`` runs on the loop after the task
-            # resolves — give it a tick to fire.
-            await asyncio.sleep(0)
+            # Removal happens in bulk, not in a done callback.
+            assert task in conn._tasks
+            conn._prune_tasks()
             assert task not in conn._tasks
         finally:
             # Defensive: clear anything that might still be tracked.
             conn._tasks.clear()
 
     @pytest.mark.asyncio
-    async def test_on_task_done_logs_unhandled_exception(self):
+    async def test_prune_spawns_automatically_past_threshold(self):
+        """Spawning past ``_TASK_PRUNE_THRESHOLD`` prunes the
+        finished tasks without an explicit call.
+        """
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+
+        conn = LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+
+        async def _ok():
+            return None
+
+        try:
+            for _ in range(conn_mod._TASK_PRUNE_THRESHOLD + 8):
+                conn._spawn_task(_ok(), name="test.ok")
+                await asyncio.sleep(0)
+            # Every task has finished and the set has been pruned
+            # down to at most the threshold.
+            assert len(conn._tasks) <= conn_mod._TASK_PRUNE_THRESHOLD
+            assert all(t.done() for t in conn._tasks)
+        finally:
+            conn._tasks.clear()
+
+    @pytest.mark.asyncio
+    async def test_prune_logs_unhandled_exception(self):
         """A background task that raises must log at WARNING —
         not silently swallow the exception.
 
-        We verify by inspecting the task itself: the done
-        callback must have removed the task from ``_tasks`` and
-        must have logged a WARNING. We can't reliably check
-        caplog (pytest-asyncio re-raises task exceptions before
-        the done callback has a chance to log), so we patch
-        ``_LOGGER.warning`` and count the calls AFTER explicitly
-        calling ``task.exception()`` to drain the task — which
-        the production code does inside ``_on_task_done`` before
-        the log call.
+        The report happens when the tracked set is pruned (bulk,
+        not per task), so the test asserts both halves: nothing is
+        logged while the set is untouched, and pruning removes the
+        task and emits the WARNING.
         """
         from unittest.mock import patch
 
@@ -1359,28 +1384,20 @@ class TestSpawnTask:
         async def _boom():
             raise RuntimeError("simulated background failure")
 
-        # We can't directly await the failing task without
-        # re-raising the exception out of the test, so we collect
-        # the task and verify state after we know the done
-        # callback has fired.
         with patch.object(conn_mod._LOGGER, "warning") as warn:
             task = conn._spawn_task(_boom(), name="test.boom")
+            assert task in conn._tasks
             # Wait for the task to finish.
             await asyncio.sleep(0)
-            # ``task.exception()`` is what ``_on_task_done`` calls
-            # to get the exception before logging it. We also
-            # call it here to drain the task — the production
-            # ``_on_task_done`` already did the same.
             assert task.done()
             exc = task.exception()
             assert isinstance(exc, RuntimeError)
             assert "simulated background failure" in str(exc)
-            # Allow the done callback to run.
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
-            # The task is no longer tracked.
-            assert task not in conn._tasks
+            # Not reported yet — pruning is what surfaces it.
+            assert not warn.called
+            conn._prune_tasks()
 
+        assert task not in conn._tasks
         assert warn.called, (
             "expected _LOGGER.warning to be called for a "
             "background task that raised"
@@ -1397,9 +1414,9 @@ class TestSpawnTask:
         )
 
     @pytest.mark.asyncio
-    async def test_on_task_done_silent_on_normal_completion(self):
+    async def test_prune_silent_on_normal_completion(self):
         """A task that completes normally produces no WARNING
-        (the common case).
+        (the common case), even when pruned.
         """
         from unittest.mock import patch
 
@@ -1424,7 +1441,9 @@ class TestSpawnTask:
                 if task.done():
                     break
             assert task.done()
+            conn._prune_tasks()
 
+        assert task not in conn._tasks
         assert not warn.called
 
     @pytest.mark.asyncio
@@ -1458,6 +1477,7 @@ class TestSpawnTask:
                 pass
             for _ in range(5):
                 await asyncio.sleep(0)
+            conn._prune_tasks()
 
         assert not warn.called
 

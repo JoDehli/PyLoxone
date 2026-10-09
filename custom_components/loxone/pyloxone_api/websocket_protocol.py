@@ -36,7 +36,10 @@ class LoxoneClientConnection(ClientConnection):
 
     async def recv(self, decode: bool | None = False) -> str | bytes:
         result = await super().recv(decode)
-        _LOGGER.debug(f"Received: {result[:80]!r}")
+        # Lazy %-args on purpose: this runs for **every** frame, so the
+        # slice/repr must not be built unless DEBUG is enabled. G004
+        # already bans the f-string variant — do not "simplify" it back.
+        _LOGGER.debug("Received: %r", result[:80])
         return result
 
     async def send(
@@ -44,7 +47,9 @@ class LoxoneClientConnection(ClientConnection):
         message: Data | Iterable[Data] | AsyncIterable[Data],
         text: bool | None = None,
     ) -> None:
-        _LOGGER.debug(f"Sent:{message}")
+        # Lazy %-args (see ``recv``): the whole payload must not be
+        # stringified per outgoing message; G004 bans the f-string form.
+        _LOGGER.debug("Sent:%s", message)
         result = await super().send(message, text=text)
         return result
 

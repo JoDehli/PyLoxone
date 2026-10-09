@@ -15,6 +15,9 @@ MAX_RECONNECT_DELAY = 60  # cap on the per-attempt sleep, in seconds
 
 # Loxone constants
 MAX_WEBSOCKET_MESSAGE_SIZE: Final = 5 * 1024 * 1024  # 5 megabytes = 5,242,880 bytes
+# Size of the binary frame header (``WsBinHdr``): cBinType, cIdentifier,
+# cInfo, cReserved and a 32-bit little-endian payload length.
+MESSAGE_HEADER_SIZE: Final = 8
 WEBSOCKET_CLOSE_TIMEOUT: Final = 10  # seconds to wait for a clean close
 DELAY_CHECK_TOKEN_REFRESH: Final = 20
 TIMEOUT: Final = 30

@@ -405,7 +405,10 @@ async def async_setup_entry(hass, config_entry):
 
     async def message_callback(message):
         """Fire message on HomeAssistant Bus."""
-        _LOGGER.debug(f"{message}")
+        # Lazy %-args — this runs for every Miniserver event, so the dict
+        # must not be stringified unless DEBUG is enabled. G004 already
+        # bans the f-string variant; do not "simplify" it back.
+        _LOGGER.debug("%s", message)
         hass.bus.async_fire(EVENT, message)
 
     async def handle_websocket_command(call):
