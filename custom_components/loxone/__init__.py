@@ -41,7 +41,8 @@ from .coordinator import LoxoneCoordinator
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
 from .pyloxone_api.connection import LoxoneConnection
-from .pyloxone_api.exceptions import (LoxoneConnectionClosedOk,
+from .pyloxone_api.exceptions import (LoxoneAuthEscalatedError,
+                                      LoxoneConnectionClosedOk,
                                       LoxoneConnectionError, LoxoneException,
                                       LoxoneOutOfServiceException,
                                       LoxoneServiceUnAvailableError,
@@ -101,6 +102,39 @@ async def _async_handle_refresh_token(hass: HomeAssistant, call) -> None:
         raise HomeAssistantError(
             f"Token refresh failed for '{config_entry.title}': {err}"
         ) from err
+
+
+async def async_remove_entry(hass, config_entry) -> None:
+    """Invalidate the Loxone token when the entry is removed for good.
+
+    Runs *after* ``async_unload_entry``, so the websocket is usually
+    already closed and ``kill_token`` becomes a no-op — the token then
+    simply expires on the Miniserver. A kill is attempted while the
+    connection is still open (e.g. a removal triggered from a
+    config-flow retry while the entry is loaded).
+    """
+    coordinator = None
+    for co in getattr(hass.data.get(DOMAIN, {}), "values", lambda: [])():
+        if (
+            hasattr(co, "config_entry")
+            and co.config_entry.entry_id == config_entry.entry_id
+        ):
+            coordinator = co
+            break
+
+    if coordinator is None or getattr(coordinator, "api", None) is None:
+        return
+
+    try:
+        if coordinator.api.is_connected:
+            await coordinator.api.kill_token()
+        else:
+            _LOGGER.debug(
+                "Token not invalidated: connection already closed. "
+                "The token expires on its own."
+            )
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.debug("kill_token on entry removal failed: %s", err)
 
 
 async def async_unload_entry(hass, config_entry):
@@ -377,6 +411,30 @@ async def async_setup_entry(hass, config_entry):
             )
             # Loxone-Integration neu laden
             hass.async_create_task(_reload_after_delay(1.0))
+        except (
+            LoxoneUnauthorisedError,
+            LoxoneAuthEscalatedError,
+        ) as e:
+            # Hard credential rejection (401/4003 in an auth response)
+            # or a token refresh that failed TOKEN_REFRESH_MAX_FAILURES
+            # times in a row. Both mean: the cached state is unusable —
+            # drop the token, reload and re-authenticate from scratch.
+            # A persistently wrong password ends up as a setup error on
+            # the reload instead of a silent retry loop.
+            _LOGGER.debug(
+                "Loxone credentials rejected (%s). Delete token and reload "
+                "Loxone integration.",
+                e,
+            )
+            hass.config_entries.async_update_entry(
+                config_entry,
+                data={
+                    "token": "",
+                    "hash_alg": "",
+                    "valid_until": "",
+                },
+            )
+            hass.async_create_task(_reload_after_delay(1.0))
         except LoxoneOutOfServiceException as e:
             _LOGGER.debug(
                 "Loxone LoxoneOutOfServiceException received. Try to reloading Loxone integration."
@@ -629,18 +687,35 @@ async def async_setup_entry(hass, config_entry):
             raise e
 
     def _on_connection_state(state: str) -> None:
-        """Forward the supervisor's state to HA's availability.
+        """Update entity availability on connection-state transitions.
 
-        Called by :meth:`LoxoneConnection.run` on every
-        connection-state transition. State is one of
-        ``"connected"``, ``"disconnected"``, ``"failed"``.
-        The integration updates entity availability here so
-        the user sees status changes without a full reload.
+        Called by :meth:`LoxoneConnection.run` whenever the supervisor
+        changes state: ``"connected"`` (websocket established),
+        ``"disconnected"`` (recoverable error, reconnect scheduled) or
+        ``"failed"`` (hard auth failure — the entry will be reloaded).
+
+        While the connection is down the entities report themselves
+        unavailable; the fresh values arriving after the reconnect
+        restore them. UA refresh is triggered explicitly, otherwise
+        the change would only be written with the next value update.
         """
-        # The ``on_state`` callback is sync from the
-        # supervisor's perspective — the supervisor does the
-        # actual entity-availability update on the HA bus.
+        coordinator.connection_available = state == "connected"
         _LOGGER.debug("Loxone connection state: %s", state)
+        try:
+            from homeassistant.helpers.entity_component import (
+                async_update_entity,
+            )
+
+            entity_registry = er.async_get(hass)
+            for entry in er.async_entries_for_config_entry(
+                entity_registry, config_entry.entry_id
+            ):
+                async_update_entity(hass, entry.entity_id)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug(
+                "Could not refresh entities on connection state change: %s",
+                err,
+            )
 
     async def stop_event(_):
         token = coordinator.api.get_token_dict()
@@ -765,6 +840,31 @@ class LoxoneEntity(Entity):
 
     async def event_handler(self, e):
         pass
+
+    def _connection_available(self) -> bool:
+        """Return False while the Loxone connection is down.
+
+        Reads the flag the ``run()`` supervisor maintains on the
+        coordinator (see ``_on_connection_state`` in ``__init__.py``).
+        Returns True when the coordinator cannot be determined (entity
+        not yet added, no registry entry) so availability is never
+        blocked by a lookup failure.
+        """
+        try:
+            coordinator = self.hass.data.get(DOMAIN, {}).get(
+                self.registry_entry.config_entry_id
+            )
+        except AttributeError:
+            # Not added to hass yet (or no registry entry available).
+            return True
+        if coordinator is None:
+            return True
+        return coordinator.connection_available
+
+    @property
+    def available(self) -> bool:
+        """Return True if the entity is available and the connection is up."""
+        return self._attr_available and self._connection_available()
 
     @cached_property
     def name(self):

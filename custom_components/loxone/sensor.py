@@ -491,7 +491,7 @@ class LoxoneSensor(LoxoneEntity, SensorEntity):
     @property
     def available(self) -> bool:
         """Return entity availability."""
-        return self.state is not None
+        return self.state is not None and self._connection_available()
 
     def _get_lox_rounded_value(self, value):
         try:

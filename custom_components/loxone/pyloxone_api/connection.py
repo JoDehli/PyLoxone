@@ -43,9 +43,11 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     RECONNECT_DELAY, RECONNECT_TRIES, SALT_BYTES,
                     SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT, TIMEOUT,
                     TOKEN_PERMISSION, TOKEN_REFRESH_MAX_FAILURES,
-                    WEBSOCKET_CLOSE_TIMEOUT)
-from .exceptions import (LoxoneConnectionClosedOk, LoxoneConnectionError,
-                         LoxoneException, LoxoneOutOfServiceException,
+                    WEBSOCKET_CLOSE_TIMEOUT, WEBSOCKET_READ_TIMEOUT)
+from .exceptions import (LoxoneAuthEscalatedError,
+                         LoxoneConnectionClosedOk, LoxoneConnectionError,
+                         LoxoneException, LoxoneMaxNumOfConnectionsError,
+                         LoxoneOutOfServiceException,
                          LoxoneServiceUnAvailableError, LoxoneTokenError,
                          LoxoneUnauthorisedError)
 from .loxone_http_client import LoxoneAsyncHttpClient
@@ -304,6 +306,25 @@ class LoxoneBaseConnection:
         self._token_refresh_lock = asyncio.Lock()
         self._token_refresh_event: asyncio.Event = asyncio.Event()
         self._token_refresh_error: Exception | None = None
+
+        # Monotonic timestamp of the last inbound websocket frame.
+        # Drives the receive watchdog in ``keep_alive()``: the
+        # ``websockets`` library's ping/pong liveness check is
+        # disabled on purpose (``_build_websocket_options``), so a
+        # connection that stopped delivering frames is only noticed
+        # through this marker.
+        self._last_frame_time: float = time.monotonic()
+
+        # Set when the Miniserver rejects our credentials (401 / 4003)
+        # and the raising exception never left the fire-and-forget
+        # event task. The recv loop and the keepalive loop re-raise it
+        # so it reaches the ``run()`` supervisor.
+        self._auth_failure: Optional[Exception] = None
+
+        # ``run()``'s on_state callback, kept on the instance so
+        # ``open()`` can signal "connected" without knowing about the
+        # supervisor. ``None`` (the default) means no state signalling.
+        self._on_state: Optional[Callable[..., Any]] = None
 
         # Optional callback invoked (possibly as a coroutine) when
         # the token changes. The integration passes
@@ -977,11 +998,21 @@ class LoxoneConnection(LoxoneBaseConnection):
     # Errors the :meth:`run` supervisor treats as recoverable
     # and retries with exponential backoff. Anything else
     # propagates to the caller.
+    #
+    # Deliberately explicit (no blanket ``LoxoneException`` entry):
+    # a token error stays in here because it is the expected first
+    # leg of the token-expiry self-heal — a reconnect re-authenticates
+    # with the password. Auth *escalations*
+    # (:class:`LoxoneAuthEscalatedError`) and credential rejections
+    # (:class:`LoxoneUnauthorisedError`) are handled in dedicated
+    # ``except`` clauses of :meth:`run` and must NOT be retried.
     RETRYABLE_SESSION_ERRORS = (
-        LoxoneException,
-        LoxoneOutOfServiceException,
         LoxoneConnectionClosedOk,
         LoxoneConnectionError,
+        LoxoneTokenError,
+        LoxoneOutOfServiceException,
+        LoxoneServiceUnAvailableError,
+        LoxoneMaxNumOfConnectionsError,
         OSError,
         TimeoutError,
         websockets.exceptions.ConnectionClosed,
@@ -1023,6 +1054,36 @@ class LoxoneConnection(LoxoneBaseConnection):
             try:
                 while True:
                     await asyncio.sleep(KEEP_ALIVE_PERIOD)
+                    # Receive watchdog: the Miniserver sends a
+                    # KEEPALIVE frame about every KEEP_ALIVE_PERIOD
+                    # seconds, so a connection that delivered no frame
+                    # at all for WEBSOCKET_READ_TIMEOUT is stale — a
+                    # half-open socket (roaming, pulled cable, frozen
+                    # Miniserver) still accepts our keepalive writes
+                    # for minutes, and the ``websockets`` ping/pong
+                    # check that used to catch this is disabled (see
+                    # ``_build_websocket_options``). Raise so the
+                    # supervisor tears the connection down and
+                    # reconnects; ``self.close()`` is deliberately NOT
+                    # called from here — it would await ourselves via
+                    # ``self._pending_task``.
+                    silence = time.monotonic() - self._last_frame_time
+                    if silence > WEBSOCKET_READ_TIMEOUT:
+                        reason = (
+                            f"no inbound frame for {int(silence)}s "
+                            f"(limit {WEBSOCKET_READ_TIMEOUT}s)"
+                        )
+                        self._note_connection_lost(reason)
+                        raise LoxoneConnectionError(reason)
+                    # A hard auth rejection (401/4003) recorded on the
+                    # fire-and-forget event task is escalated here as
+                    # well — the Miniserver answers a rejected token
+                    # with silence, so without this check we would wait
+                    # for the watchdog above.
+                    if self._auth_failure is not None:
+                        reason = f"auth rejected: {self._auth_failure}"
+                        self._note_connection_lost(reason)
+                        raise self._auth_failure
                     try:
                         # Direct ``await`` — no point wrapping a
                         # single coroutine in ``create_task`` and
@@ -1081,8 +1142,17 @@ class LoxoneConnection(LoxoneBaseConnection):
                             return f"{days}d {hours}h {minutes}m {seconds}s"
 
                         seconds_to_refresh = max(1, min(candidate, MAX_REFRESH_DELAY))
+                        # Log the *next refresh deadline*, not the token
+                        # validity: "Seconds to refresh token: 5h" is easily
+                        # misread as "token valid for 5h". Both numbers are
+                        # printed so the relation is obvious.
                         _LOGGER.debug(
-                            f"Seconds to refresh token: {generate_refresh_time_log(seconds_to_refresh)}"
+                            "Next token refresh in %s (token valid until %s; %s)",
+                            generate_refresh_time_log(seconds_to_refresh),
+                            self._token.valid_until,
+                            _format_loxone_token_expiration(
+                                self._token.valid_until
+                            ),
                         )
 
                         scheduled_valid_until = self._token.valid_until
@@ -1116,9 +1186,12 @@ class LoxoneConnection(LoxoneBaseConnection):
 
                     except asyncio.CancelledError:
                         raise
-                    except LoxoneTokenError:
-                        # Escalation from ``_maybe_escalate_auth``
-                        # — propagate to the supervisor.
+                    except (LoxoneTokenError, LoxoneAuthEscalatedError):
+                        # Token errors stay retryable for the
+                        # supervisor (token-expiry self-heal); an
+                        # escalation from ``_maybe_escalate_auth``
+                        # must propagate unchanged — propagate both to
+                        # the supervisor and let it decide.
                         raise
                     except Exception as e:
                         # Issue #514: transient cycle errors during the
@@ -1136,6 +1209,12 @@ class LoxoneConnection(LoxoneBaseConnection):
                 raise
             except LoxoneTokenError:
                 _LOGGER.warning("Token refresh task escalating to supervisor")
+                raise
+            except LoxoneAuthEscalatedError:
+                _LOGGER.warning(
+                    "Token refresh task escalating to supervisor "
+                    "(refresh failed repeatedly)"
+                )
                 raise
             except Exception as exc:
                 # Issue #514: see above. Demote to WARNING.
@@ -1230,6 +1309,24 @@ class LoxoneConnection(LoxoneBaseConnection):
                 except LoxoneConnectionClosedOk:
                     # Deliberate control flow, not a task failure.
                     raise
+                except (LoxoneUnauthorisedError, LoxoneAuthEscalatedError) as e:
+                    # Credential rejection / refresh escalation: the
+                    # ``run()`` supervisor propagates this to the
+                    # integration, which clears the token and reloads.
+                    # Do not log it as an ERROR with traceback — the
+                    # WARNING above (``_check_auth_response`` /
+                    # ``_maybe_escalate_auth``) is the user-facing message.
+                    _LOGGER.warning(
+                        "Loxone authentication failed, not retrying: %s", e
+                    )
+                    raise
+                except LoxoneConnectionError as e:
+                    # Expected control flow (recv loop noticed a closed
+                    # socket, or the keepalive watchdog declared the
+                    # connection stale): the supervisor reconnects with
+                    # backoff, so a traceback would only be noise.
+                    _LOGGER.warning("Loxone connection error: %s", e)
+                    raise
                 except Exception as e:
                     _LOGGER.error(
                         f"Task {task} raised an exception: {e}", exc_info=True
@@ -1252,23 +1349,27 @@ class LoxoneConnection(LoxoneBaseConnection):
                 await asyncio.gather(*self._pending_task, return_exceptions=True)
 
     async def _maybe_escalate_auth(self, consecutive_failures: int) -> None:
-        """Raise ``LoxoneTokenError`` after enough refresh failures.
+        """Raise after enough consecutive refresh failures.
 
         Called by the refresh loop on each failed cycle. The
-        counter is reset by the caller on a successful key
-        change. After ``TOKEN_REFRESH_MAX_FAILURES`` consecutive
-        failures we raise ``LoxoneTokenError``; the supervisor
-        treats that as a hard auth failure and stops
-        retrying — the integration surfaces a config-entry error
-        instead of looping forever.
+        counter is reset by the caller on a successful refresh.
+        After ``TOKEN_REFRESH_MAX_FAILURES`` consecutive failures we
+        raise :class:`LoxoneAuthEscalatedError`; the supervisor
+        treats that as a hard auth failure and stops retrying —
+        the integration clears the token and reloads instead of
+        refreshing forever.
+
+        It is intentionally *not* a :class:`LoxoneTokenError`: that
+        one stays retryable (token-expiry self-heal), while this one
+        has to be escalated.
         """
         if consecutive_failures >= TOKEN_REFRESH_MAX_FAILURES:
             _LOGGER.warning(
                 "Token refresh failed %d times in a row; "
-                "escalating to LoxoneTokenError",
+                "escalating to LoxoneAuthEscalatedError",
                 consecutive_failures,
             )
-            raise LoxoneTokenError(
+            raise LoxoneAuthEscalatedError(
                 f"Token refresh failed {consecutive_failures} times"
             )
 
@@ -1379,9 +1480,8 @@ class LoxoneConnection(LoxoneBaseConnection):
         except Exception as e:
             _LOGGER.debug("_safe_close: close() raised: %s", e)
 
-    @staticmethod
     def _check_auth_response(
-        mess_obj: Any, context: str
+        self, mess_obj: Any, context: str
     ) -> None:
         """Inspect an LL envelope code and raise on hard auth failure.
 
@@ -1401,6 +1501,12 @@ class LoxoneConnection(LoxoneBaseConnection):
           handler decides what to do (often nothing — those are
           transient).
         - ``code == 200`` (or missing) → no-op.
+
+        The raised error is also stored on ``self._auth_failure``
+        because the handlers run as fire-and-forget tasks: the
+        exception would otherwise never leave ``_websocket_event``.
+        The recv loop and the keepalive loop re-raise the stored
+        error so the ``run()`` supervisor sees it.
         """
         code = getattr(mess_obj, "code", None)
         if code is None or code == 200:
@@ -1412,9 +1518,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                 context,
                 code,
             )
-            raise LoxoneUnauthorisedError(
+            self._auth_failure = LoxoneUnauthorisedError(
                 f"{context}: unauthorised (code {code})"
             )
+            raise self._auth_failure
         _LOGGER.warning(
             "Auth response in %s returned non-ok code %d",
             context,
@@ -1701,6 +1808,20 @@ class LoxoneConnection(LoxoneBaseConnection):
                 if not connection or connection.state == connection.state.CLOSED:
                     raise LoxoneConnectionError("Connection is closed")
 
+                # Liveness marker for the receive watchdog in
+                # ``keep_alive()`` (the websockets ping/pong check is
+                # disabled, so this is the only inbound-liveness
+                # signal).
+                self._last_frame_time = time.monotonic()
+
+                # An auth handler may have recorded a hard credential
+                # rejection (401 / 4003) on the fire-and-forget event
+                # task, where it could not be propagated. Surface it
+                # here so it reaches the ``run()`` supervisor instead
+                # of being logged away inside ``_websocket_event``.
+                if self._auth_failure is not None:
+                    raise self._auth_failure
+
                 message_length = len(message)
 
                 if last_header is None:
@@ -1786,12 +1907,15 @@ class LoxoneConnection(LoxoneBaseConnection):
             LoxoneOutOfServiceException,
             LoxoneConnectionError,
             LoxoneConnectionClosedOk,
+            LoxoneUnauthorisedError,
         ):
             # Re-raise expected Loxone exceptions. The clean close is
             # deliberate control flow (raised above): the supervisor
-            # turns it into a recoverable error and reconnects. Falling
-            # through to the catch-all would log an ERROR with a
-            # traceback on every clean shutdown, unload or reconnect.
+            # turns it into a recoverable error and reconnects. The
+            # credential rejection is deliberate control flow too (the
+            # ``run()`` supervisor must see it to stop retrying).
+            # Falling through to the catch-all would log an ERROR with
+            # a traceback on every clean shutdown, unload or reconnect.
             raise
         except Exception as e:
             _LOGGER.error(f"Unexpected error in listening loop: {e}", exc_info=True)
@@ -2098,6 +2222,12 @@ class LoxoneConnection(LoxoneBaseConnection):
             # between here and the return propagates as an exception
             # without mutating ``self.connection`` (the previous value
             # stays — typically ``None``).
+            # Reset the receive watchdog *after* the websocket is up:
+            # a slow bootstrap (apiKey / LoxAPP3 / publicKey) must not
+            # look like a stale connection to the first keepalive
+            # cycle.
+            self._last_frame_time = time.monotonic()
+            self._auth_failure = None
             self.connection = connection
             # The connection is now confirmed working. The
             # ``_note_connection_restored`` call below will then
@@ -2105,6 +2235,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             # (and stay silent for the very first connect).
             self._confirmed_connected = True
             self._note_connection_restored()
+            await self._signal_state(self._on_state, "connected")
             return connection
 
         except Exception as e:
@@ -2297,11 +2428,14 @@ class LoxoneConnection(LoxoneBaseConnection):
           - :class:`LoxoneUnauthorisedError` — propagates (the
             integration will surface a config-entry error
             instead of looping forever).
-          - :attr:`RETRYABLE_SESSION_ERRORS` — ``LoxoneException``,
-            ``LoxoneOutOfServiceException``,
-            ``LoxoneConnectionClosedOk``,
-            ``LoxoneConnectionError``, ``OSError``,
-            ``TimeoutError``, ``websockets.exceptions.ConnectionClosed``:
+          - :class:`LoxoneAuthEscalatedError` — propagates after
+            ``TOKEN_REFRESH_MAX_FAILURES`` failed refresh cycles.
+          - :attr:`RETRYABLE_SESSION_ERRORS` — the explicit list
+            below (``LoxoneTokenError`` included: it is the expected
+            first leg of the token-expiry self-heal, where a
+            reconnect re-authenticates with the password),
+            ``OSError``, ``TimeoutError``,
+            ``websockets.exceptions.ConnectionClosed``:
             close, sleep ``min(base·2^n, max_delay)`` with ±20%
             jitter, retry.
           - Anything else — log ERROR, propagate.
@@ -2317,53 +2451,70 @@ class LoxoneConnection(LoxoneBaseConnection):
         normally (the clean-shutdown path) also exits
         ``run()`` without retrying.
         """
+        # Publish the callback so ``open()`` can signal "connected"
+        # as soon as the websocket is up (without knowing about us).
+        self._on_state = on_state
         attempt = 0
-        while not self._shutdown_event.is_set():
-            try:
-                # ``start_listening`` calls ``open()`` if
-                # needed and blocks until the connection is
-                # closed. We pass ``callback`` straight through.
-                await self.start_listening(callback=callback)
-                # ``start_listening`` returned without raising
-                # — that means ``close()`` was called
-                # (shutdown). Exit the loop without retrying.
-                await self._signal_state(on_state, "disconnected")
-                return
-            except LoxoneUnauthorisedError as e:
-                _LOGGER.error(
-                    "Auth failed; not retrying: %s", e
-                )
-                await self._signal_state(on_state, "failed")
-                self._note_connection_lost(f"unauthorised: {e}")
-                raise
-            except self.RETRYABLE_SESSION_ERRORS as e:
-                self._note_connection_lost(
-                    f"session error: {e}"
-                )
-                await self._signal_state(on_state, "disconnected")
-                attempt += 1
-                delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
-                jitter = delay * 0.2 * (2 * random.random() - 1)
-                sleep_for = max(0.0, delay + jitter)
-                _LOGGER.debug(
-                    "run(): session error (attempt %d): %s; "
-                    "retrying in %.1fs",
-                    attempt, e, sleep_for,
-                )
-                await self._safe_close()
-                # Yield so the entity availability callback
-                # gets a chance to run before we sleep.
-                await asyncio.sleep(0)
-                await asyncio.sleep(sleep_for)
-                continue
-            except Exception as e:
-                _LOGGER.error(
-                    "run(): unexpected error: %s",
-                    e, exc_info=True,
-                )
-                await self._signal_state(on_state, "failed")
-                await self._safe_close()
-                raise
+        try:
+            while not self._shutdown_event.is_set():
+                try:
+                    # ``start_listening`` calls ``open()`` if
+                    # needed and blocks until the connection is
+                    # closed. We pass ``callback`` straight through.
+                    await self.start_listening(callback=callback)
+                    # ``start_listening`` returned without raising
+                    # — that means ``close()`` was called
+                    # (shutdown). Exit the loop without retrying.
+                    await self._signal_state(on_state, "disconnected")
+                    return
+                except LoxoneUnauthorisedError as e:
+                    _LOGGER.error(
+                        "Auth failed; not retrying: %s", e
+                    )
+                    await self._signal_state(on_state, "failed")
+                    self._note_connection_lost(f"unauthorised: {e}")
+                    raise
+                except LoxoneAuthEscalatedError as e:
+                    _LOGGER.error(
+                        "Token refresh failed repeatedly; not retrying: %s",
+                        e,
+                    )
+                    await self._signal_state(on_state, "failed")
+                    self._note_connection_lost(f"auth escalated: {e}")
+                    raise
+                except self.RETRYABLE_SESSION_ERRORS as e:
+                    self._note_connection_lost(
+                        f"session error: {e}"
+                    )
+                    await self._signal_state(on_state, "disconnected")
+                    attempt += 1
+                    delay = min(base_delay * (2 ** (attempt - 1)), max_delay)
+                    jitter = delay * 0.2 * (2 * random.random() - 1)
+                    sleep_for = max(0.0, delay + jitter)
+                    _LOGGER.debug(
+                        "run(): session error (attempt %d): %s; "
+                        "retrying in %.1fs",
+                        attempt, e, sleep_for,
+                    )
+                    await self._safe_close()
+                    # Yield so the entity availability callback
+                    # gets a chance to run before we sleep.
+                    await asyncio.sleep(0)
+                    await asyncio.sleep(sleep_for)
+                    continue
+                except Exception as e:
+                    _LOGGER.error(
+                        "run(): unexpected error: %s",
+                        e, exc_info=True,
+                    )
+                    await self._signal_state(on_state, "failed")
+                    await self._safe_close()
+                    raise
+        finally:
+            # The callback is only valid for the lifetime of the
+            # supervisor loop; ``open()`` must not signal "connected"
+            # once ``run()`` has returned.
+            self._on_state = None
         # Shutdown requested before the first attempt finished.
         await self._signal_state(on_state, "disconnected")
 
@@ -2550,6 +2701,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                             command = f"{CMD_REQUEST_TOKEN_JSON_WEB}/{new_hash}/{self._encoded_username}/{TOKEN_PERMISSION}/edfc5f9a-df3f-4cad-9dddcdc42c732b82/pyloxone_api"
                         await self._message_queue.put(MessageForQueue(command, True))
 
+                except LoxoneUnauthorisedError:
+                    # Hard credential rejection — must reach the
+                    # ``run()`` supervisor, not just the log.
+                    raise
                 except KeyError as e:
                     _LOGGER.error(f"Missing key in getkey2 response: {e}")
                 except asyncio.TimeoutError:
@@ -2570,6 +2725,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                     if self._key_update_event is not None:
                         self._key_update_event.set()
 
+                except LoxoneUnauthorisedError:
+                    # Hard credential rejection — must reach the
+                    # ``run()`` supervisor, not just the log.
+                    raise
                 except Exception as e:
                     _LOGGER.error(f"Error processing getkey: {e}")
 
@@ -2608,6 +2767,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                     # directly testable without a live Miniserver.
                     await self._drain_secured_queue()
 
+                except LoxoneUnauthorisedError:
+                    # Hard credential rejection — must reach the
+                    # ``run()`` supervisor, not just the log.
+                    raise
                 except Exception as e:
                     _LOGGER.error(f"Error processing visual salt: {e}")
 
@@ -2649,6 +2812,10 @@ class LoxoneConnection(LoxoneBaseConnection):
                         MessageForQueue(f"{CMD_ENABLE_UPDATES}", True)
                     )
 
+                except LoxoneUnauthorisedError:
+                    # Hard credential rejection — must reach the
+                    # ``run()`` supervisor, not just the log.
+                    raise
                 except KeyError as e:
                     _LOGGER.error(f"Missing key in token response: {e}")
                 except asyncio.TimeoutError:
@@ -2723,6 +2890,13 @@ class LoxoneConnection(LoxoneBaseConnection):
                     self._token_refresh_error = None
                     self._token_refresh_event.set()
 
+                except LoxoneUnauthorisedError as e:
+                    # Hard credential rejection: unblock the awaiting
+                    # refresh with the error and escalate to the
+                    # supervisor instead of just logging it.
+                    self._token_refresh_error = e
+                    self._token_refresh_event.set()
+                    raise
                 except KeyError as e:
                     self._token_refresh_error = LoxoneTokenError(
                         f"Malformed token refresh response: {e}"
@@ -2751,6 +2925,13 @@ class LoxoneConnection(LoxoneBaseConnection):
                 pass
 
         except LoxoneTokenError:
+            raise
+
+        except (LoxoneUnauthorisedError, LoxoneAuthEscalatedError):
+            # Hard credential rejection — must reach the ``run()``
+            # supervisor (see ``_check_auth_response``). Without this
+            # clause the generic handler below would log it away and
+            # the connection would keep limping along unauthenticated.
             raise
 
         except Exception as e:

@@ -1,6 +1,5 @@
 # Runtime dependencies of the Loxone integration.
-# Keep in lock-step with `requirements` in custom_components/loxone/manifest.json
-# (tests/test_contracts.py checks that every name here is actually imported).
+# Keep in lock-step with `requirements` in custom_components/loxone/manifest.json.
 # Development and test dependencies live in requirements-dev.txt.
 websockets>=14,<16
 pycryptodome>=3.20

@@ -1553,14 +1553,15 @@ class TestAuthenticatedEvent:
 
     @pytest.mark.asyncio
     async def test_maybe_escalate_raises_after_max_failures(self):
-        """``_maybe_escalate_auth(N)`` raises ``LoxoneTokenError``
-        once N reaches ``TOKEN_REFRESH_MAX_FAILURES`` and is a
-        no-op below that.
+        """``_maybe_escalate_auth(N)`` raises
+        ``LoxoneAuthEscalatedError`` once N reaches
+        ``TOKEN_REFRESH_MAX_FAILURES`` and is a no-op below that.
         """
         from custom_components.loxone.pyloxone_api.const import (
             TOKEN_REFRESH_MAX_FAILURES,
         )
         from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneAuthEscalatedError,
             LoxoneTokenError,
         )
 
@@ -1575,11 +1576,17 @@ class TestAuthenticatedEvent:
         for n in range(1, TOKEN_REFRESH_MAX_FAILURES):
             await conn._maybe_escalate_auth(n)
 
-        # At the threshold — raises.
-        with pytest.raises(LoxoneTokenError):
+        # At the threshold — raises. It must NOT be a
+        # ``LoxoneTokenError``: the supervisor retries those (that is
+        # the token-expiry self-heal), while this one has to be
+        # escalated.
+        with pytest.raises(LoxoneAuthEscalatedError):
             await conn._maybe_escalate_auth(TOKEN_REFRESH_MAX_FAILURES)
+        assert not issubclass(
+            LoxoneAuthEscalatedError, LoxoneTokenError
+        )
         # And beyond.
-        with pytest.raises(LoxoneTokenError):
+        with pytest.raises(LoxoneAuthEscalatedError):
             await conn._maybe_escalate_auth(TOKEN_REFRESH_MAX_FAILURES + 5)
 
 
@@ -2602,3 +2609,542 @@ class TestLoxoneTokenExpiryFormatting:
         assert _format_loxone_token_expiration(60, now) == (
             "2009-01-01 00:01:00; ago 0d 0h 1m 0s"
         )
+
+
+class _BlockingWebsocket(_FakeWebsocket):
+    """A peer that never sends a frame (simulated stale connection).
+
+    ``async for`` blocks forever, which is what a half-open TCP
+    connection looks like from the receiving side: no frames, no
+    error, and our keepalive writes still succeed.
+    """
+
+    async def __anext__(self):
+        await asyncio.sleep(3600)
+
+
+class _KeepaliveWebsocket(_FakeWebsocket):
+    """A peer that keeps sending 8-byte KEEPALIVE headers forever."""
+
+    async def __anext__(self):
+        await asyncio.sleep(0.005)
+        # Loxone binary header for a bodyless KEEPALIVE:
+        # cBinType=0x03, cIdentifier=6 (KEEPALIVE), cInfo/cReserved=0,
+        # 32-bit payload length = 0.
+        return b"\x03\x06\x00\x00\x00\x00\x00\x00"
+
+
+class TestReceiveWatchdog:
+    """``WEBSOCKET_READ_TIMEOUT`` — stale-connection detection.
+
+    ``_build_websocket_options`` disables the ``websockets`` library's
+    ping/pong liveness check, so the only inbound-liveness signal is
+    the Loxone keepalive frame. A connection that stops delivering
+    frames must be torn down and reconnected instead of lingering
+    until the TCP retransmit timeout fires.
+    """
+
+    @pytest.fixture
+    def conn(self):
+        conn = LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+        # ``start_listening()`` refuses to run without a session key.
+        conn._session_key = b"AAAA"
+        return conn
+
+    def _patch_timers(self, monkeypatch):
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+
+        monkeypatch.setattr(conn_mod, "KEEP_ALIVE_PERIOD", 0.01)
+        monkeypatch.setattr(conn_mod, "WEBSOCKET_READ_TIMEOUT", 0.05)
+
+    @pytest.mark.asyncio
+    async def test_stale_connection_raises_after_read_timeout(
+        self, monkeypatch, conn
+    ):
+        """No inbound frame for WEBSOCKET_READ_TIMEOUT →
+        ``LoxoneConnectionError`` + one "connection lost" warning.
+        """
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionError,
+        )
+
+        self._patch_timers(monkeypatch)
+        conn.connection = _BlockingWebsocket()
+
+        with pytest.raises(LoxoneConnectionError):
+            await asyncio.wait_for(conn.start_listening(), timeout=5)
+
+        assert conn._outage_active is True
+
+    @pytest.mark.asyncio
+    async def test_frames_reset_the_watchdog(
+        self, monkeypatch, conn
+    ):
+        """A peer that keeps sending frames does NOT trigger the
+        watchdog, and the recv loop refreshes ``_last_frame_time``.
+        """
+        self._patch_timers(monkeypatch)
+        conn.connection = _KeepaliveWebsocket()
+
+        task = asyncio.create_task(conn.start_listening())
+        await asyncio.sleep(0.2)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert conn._outage_active is False
+        import time
+
+        assert time.monotonic() - conn._last_frame_time < 0.05
+
+    @pytest.mark.asyncio
+    async def test_open_resets_last_frame_time(self, monkeypatch):
+        """``open()`` must reset the watchdog: a slow bootstrap
+        (apiKey / LoxAPP3 / publicKey) must not look like a stale
+        connection to the first keepalive cycle.
+        """
+        import time
+
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+
+        fake_ws = _FakeWebsocket()
+
+        async def fake_connect(*args, **kwargs):
+            return fake_ws
+
+        monkeypatch.setattr(conn_mod.wslib, "connect", fake_connect)
+
+        from Crypto.PublicKey import RSA
+
+        rsa_key = RSA.generate(2048)
+        session = _FakeHttpSession(rsa_key.publickey().export_key().decode())
+
+        conn = LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+        # Pretend a previous attempt went stale a long time ago.
+        conn._last_frame_time = time.monotonic() - 10_000
+
+        await conn.open(session=session)
+
+        assert time.monotonic() - conn._last_frame_time < 5
+
+    @pytest.mark.asyncio
+    async def test_open_sends_connected_state(self, monkeypatch):
+        """``open()`` signals "connected" through the callback
+        ``run()`` published on ``self._on_state``.
+        """
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+
+        fake_ws = _FakeWebsocket()
+
+        async def fake_connect(*args, **kwargs):
+            return fake_ws
+
+        monkeypatch.setattr(conn_mod.wslib, "connect", fake_connect)
+
+        from Crypto.PublicKey import RSA
+
+        rsa_key = RSA.generate(2048)
+        session = _FakeHttpSession(rsa_key.publickey().export_key().decode())
+
+        conn = LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+        states = []
+        conn._on_state = states.append
+
+        await conn.open(session=session)
+
+        assert states == ["connected"]
+
+    def test_default_read_timeout_is_three_keepalives(self):
+        """The default timeout equals three missed keepalives."""
+        from custom_components.loxone.pyloxone_api.const import (
+            KEEP_ALIVE_PERIOD,
+            WEBSOCKET_READ_TIMEOUT,
+        )
+
+        assert WEBSOCKET_READ_TIMEOUT == 3 * KEEP_ALIVE_PERIOD
+
+
+class TestAuthEscalation:
+    """401/4003 must reach the ``run()`` supervisor (P2/P3).
+
+    Before: ``_check_auth_response`` raised inside the auth handlers,
+    where the enclosing ``except Exception`` logged it away — and the
+    handlers themselves run as fire-and-forget tasks. A wrong password
+    therefore produced a silent retry loop with unavailable entities
+    instead of a config-entry reload.
+    """
+
+    @pytest.fixture
+    def conn(self):
+        return LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+
+    def test_401_records_auth_failure_and_raises(self, conn):
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneUnauthorisedError,
+        )
+
+        with pytest.raises(LoxoneUnauthorisedError):
+            conn._check_auth_response(SimpleNamespace(code=401), "gettoken")
+        assert isinstance(conn._auth_failure, LoxoneUnauthorisedError)
+
+    def test_auth_failure_starts_unset(self, conn):
+        assert conn._auth_failure is None
+
+    @pytest.mark.asyncio
+    async def test_getkey_401_propagates_from_websocket_event(self, conn):
+        """A 401 in a ``getkey`` response escapes ``_websocket_event``
+        instead of being swallowed by the handler's ``except``.
+        """
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneUnauthorisedError,
+        )
+
+        message = TextMessage(
+            '{"LL": {"code": 401, "control": "jdev/sys/getkey", "value": ""}}'
+        )
+        with pytest.raises(LoxoneUnauthorisedError):
+            await conn._websocket_event(message)
+
+    @pytest.mark.asyncio
+    async def test_auth_failure_is_raised_by_recv_loop(self, monkeypatch, conn):
+        """The recv loop surfaces a recorded auth failure on the next
+        inbound frame, so the ``run()`` supervisor sees it.
+        """
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneUnauthorisedError,
+        )
+
+        message = TextMessage(
+            '{"LL": {"code": 401, "control": "jdev/sys/getkey", "value": ""}}'
+        )
+        # Fire-and-forget, exactly like ``_dispatch_body`` does it.
+        conn._spawn_task(conn._websocket_event(message), name="loxone.event")
+        # The text message sets the flag; the recv loop re-raises it.
+        for _ in range(5):
+            if conn._auth_failure is not None:
+                break
+            await asyncio.sleep(0)
+
+        assert conn._auth_failure is not None
+
+        conn.connection = _KeepaliveWebsocket()
+        conn._session_key = b"AAAA"
+        with pytest.raises(LoxoneUnauthorisedError):
+            await asyncio.wait_for(conn.start_listening(), timeout=5)
+
+    @pytest.mark.asyncio
+    async def test_run_propagates_auth_failure_without_retry(self, monkeypatch):
+        """``run()`` must not retry a credential rejection."""
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneUnauthorisedError,
+        )
+
+        conn = LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+        attempts = []
+
+        async def fake_start_listening(self, callback=None):
+            attempts.append(1)
+            raise LoxoneUnauthorisedError("bad credentials")
+
+        monkeypatch.setattr(
+            conn_mod.LoxoneConnection,
+            "start_listening",
+            fake_start_listening,
+        )
+        states = []
+        with pytest.raises(LoxoneUnauthorisedError):
+            await conn.run(on_state=states.append, base_delay=0, max_delay=0)
+
+        assert len(attempts) == 1
+        assert states == ["failed"]
+
+    @pytest.mark.asyncio
+    async def test_run_propagates_escalated_auth_without_retry(
+        self, monkeypatch
+    ):
+        """After TOKEN_REFRESH_MAX_FAILURES failed cycles ``run()``
+        stops retrying instead of looping forever.
+        """
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneAuthEscalatedError,
+        )
+
+        conn = LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+        attempts = []
+
+        async def fake_start_listening(self, callback=None):
+            attempts.append(1)
+            raise LoxoneAuthEscalatedError("gave up")
+
+        monkeypatch.setattr(
+            conn_mod.LoxoneConnection,
+            "start_listening",
+            fake_start_listening,
+        )
+        states = []
+        with pytest.raises(LoxoneAuthEscalatedError):
+            await conn.run(on_state=states.append, base_delay=0, max_delay=0)
+
+        assert len(attempts) == 1
+        assert states == ["failed"]
+
+    @pytest.mark.asyncio
+    async def test_run_still_retries_plain_token_error(self, monkeypatch):
+        """A ``LoxoneTokenError`` stays retryable — it is the expected
+        first leg of the token-expiry self-heal.
+        """
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneTokenError,
+        )
+
+        conn = LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+        attempts = []
+
+        async def fake_start_listening(self, callback=None):
+            attempts.append(len(attempts))
+            if len(attempts) < 3:
+                raise LoxoneTokenError("token expired")
+            return None
+
+        monkeypatch.setattr(
+            conn_mod.LoxoneConnection,
+            "start_listening",
+            fake_start_listening,
+        )
+        conn.connection = _FakeWebsocket()
+
+        await conn.run(base_delay=0, max_delay=0)
+
+        assert len(attempts) == 3
+
+    def test_retryable_errors_are_explicit(self):
+        """No blanket ``LoxoneException`` retry, and neither the
+        credential rejection nor the escalation is swallowed.
+        """
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneAuthEscalatedError,
+            LoxoneException,
+            LoxoneTokenError,
+            LoxoneUnauthorisedError,
+        )
+
+        retryable = LoxoneConnection.RETRYABLE_SESSION_ERRORS
+        assert not issubclass(LoxoneAuthEscalatedError, retryable)
+        assert not issubclass(LoxoneUnauthorisedError, retryable)
+        # Token errors stay retryable (token-expiry self-heal), but the
+        # blanket base class is gone.
+        assert issubclass(LoxoneTokenError, retryable)
+        assert LoxoneException not in retryable
+
+    @pytest.mark.asyncio
+    async def test_refresh_401_unblocks_awaiting_refresh(self, conn):
+        """The refresh handler unblocks an ``async_refresh_token``
+        caller with the auth error instead of leaving it hanging.
+        """
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneUnauthorisedError,
+        )
+
+        conn._authenticated_event.set()
+        conn._token.token = "existing-token"
+        conn._token.key = "key"
+        conn._token.hash_alg = "SHA1"
+        conn._token.valid_until = 999999999
+
+        refresh_message = TextMessage(
+            '{"LL": {"code": 401, "control": "jdev/sys/refreshjwt", "value": ""}}'
+        )
+
+        with pytest.raises(LoxoneUnauthorisedError):
+            await conn._websocket_event(refresh_message)
+
+        assert conn._token_refresh_event.is_set()
+        assert isinstance(conn._token_refresh_error, LoxoneUnauthorisedError)
+
+
+class TestCoordinatorTokenCleanup:
+    """``async_cleanup`` must not kill the persisted token (P4)."""
+
+    @pytest.mark.asyncio
+    async def test_cleanup_does_not_kill_token_by_default(self):
+        from custom_components.loxone.coordinator import LoxoneCoordinator
+
+        calls = []
+
+        class _FakeApi:
+            async def kill_token(self):
+                calls.append("kill")
+
+            async def close(self):
+                calls.append("close")
+
+        coordinator = LoxoneCoordinator.__new__(LoxoneCoordinator)
+        coordinator.listeners = []
+        coordinator.api = _FakeApi()
+
+        await coordinator.async_cleanup()
+
+        assert calls == ["close"]
+
+    @pytest.mark.asyncio
+    async def test_cleanup_kills_token_on_request(self):
+        from custom_components.loxone.coordinator import LoxoneCoordinator
+
+        calls = []
+
+        class _FakeApi:
+            async def kill_token(self):
+                calls.append("kill")
+
+            async def close(self):
+                calls.append("close")
+
+        coordinator = LoxoneCoordinator.__new__(LoxoneCoordinator)
+        coordinator.listeners = []
+        coordinator.api = _FakeApi()
+
+        await coordinator.async_cleanup(kill_token=True)
+
+        assert calls == ["kill", "close"]
+
+    @pytest.mark.asyncio
+    async def test_remove_entry_kills_token_while_connected(self):
+        """Removing the entry invalidates the token — but only while
+        the websocket is still open; after unload it is a no-op and
+        the token simply expires.
+        """
+        from types import SimpleNamespace as NS
+
+        from custom_components.loxone import async_remove_entry
+
+        calls = []
+
+        class _FakeApi:
+            is_connected = True
+
+            async def kill_token(self):
+                calls.append("kill")
+
+        coordinator = NS(
+            config_entry=NS(entry_id="abc"),
+            api=_FakeApi(),
+        )
+        hass = NS(data={"loxone": {"abc": coordinator}})
+
+        await async_remove_entry(hass, NS(entry_id="abc"))
+
+        assert calls == ["kill"]
+
+    @pytest.mark.asyncio
+    async def test_remove_entry_skips_kill_when_disconnected(self):
+        from types import SimpleNamespace as NS
+
+        from custom_components.loxone import async_remove_entry
+
+        calls = []
+
+        class _FakeApi:
+            is_connected = False
+
+            async def kill_token(self):
+                calls.append("kill")
+
+        coordinator = NS(
+            config_entry=NS(entry_id="abc"),
+            api=_FakeApi(),
+        )
+        hass = NS(data={"loxone": {"abc": coordinator}})
+
+        await async_remove_entry(hass, NS(entry_id="abc"))
+
+        assert calls == []
+
+
+class TestEntityAvailability:
+    """Entities follow the connection state (P5)."""
+
+    def test_entity_inherits_availability_property(self):
+        from custom_components.loxone import LoxoneEntity
+
+        # The base class must define an ``available`` property that
+        # ANDs the entity flag with the connection state; the sensor
+        # override must consult the same helper.
+        assert isinstance(LoxoneEntity.available, property)
+        assert hasattr(LoxoneEntity, "_connection_available")
+
+    def test_connection_available_defaults_to_true_without_coordinator(self):
+        from custom_components.loxone import LoxoneEntity
+
+        entity = LoxoneEntity.__new__(LoxoneEntity)
+        entity._attr_available = True
+        # No ``hass``/registry entry → must not block availability.
+        entity.hass = SimpleNamespace(data={})
+        assert entity._connection_available() is True
+
+    def test_connection_unavailable_marks_entity_unavailable(self):
+        from types import SimpleNamespace as NS
+
+        from custom_components.loxone import LoxoneEntity
+
+        class _Coordinator:
+            connection_available = False
+
+        entity = LoxoneEntity.__new__(LoxoneEntity)
+        entity._attr_available = True
+        entity.registry_entry = NS(config_entry_id="abc")
+        entity.hass = NS(data={"loxone": {"abc": _Coordinator()}})
+
+        assert entity.available is False
+
+    def test_connection_available_with_value(self):
+        from types import SimpleNamespace as NS
+
+        from custom_components.loxone import LoxoneEntity
+
+        class _Coordinator:
+            connection_available = True
+
+        entity = LoxoneEntity.__new__(LoxoneEntity)
+        entity._attr_available = True
+        entity.registry_entry = NS(config_entry_id="abc")
+        entity.hass = NS(data={"loxone": {"abc": _Coordinator()}})
+
+        assert entity.available is True

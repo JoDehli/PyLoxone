@@ -19,6 +19,15 @@ MAX_WEBSOCKET_MESSAGE_SIZE: Final = 5 * 1024 * 1024  # 5 megabytes = 5,242,880 b
 # cInfo, cReserved and a 32-bit little-endian payload length.
 MESSAGE_HEADER_SIZE: Final = 8
 WEBSOCKET_CLOSE_TIMEOUT: Final = 10  # seconds to wait for a clean close
+# Seconds without any inbound frame after which the websocket is considered
+# stale. The Miniserver sends a KEEPALIVE roughly every KEEP_ALIVE_PERIOD
+# (30) seconds, so this equals three missed keepalives. Needed because the
+# ``websockets`` library's own ping/pong liveness check is disabled (see
+# ``LoxoneConnection._build_websocket_options``) — the Loxone keepalive is
+# the single liveness channel, and a half-open TCP connection (roaming,
+# pulled cable, frozen Miniserver) would otherwise only be noticed when the
+# TCP retransmit timeout fires, i.e. minutes later.
+WEBSOCKET_READ_TIMEOUT: Final = 90
 DELAY_CHECK_TOKEN_REFRESH: Final = 20
 TIMEOUT: Final = 30
 KEEP_ALIVE_PERIOD: Final = 30

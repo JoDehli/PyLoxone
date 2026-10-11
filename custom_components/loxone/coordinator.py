@@ -37,6 +37,11 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         self.api: LoxoneConnection | None = None
         self.miniserver: MiniServer | None = None
         self.listeners = []
+        # False while the websocket connection is down. Entity
+        # availability consults this (see ``LoxoneEntity.available``);
+        # it is flipped by the ``run()`` supervisor's on_state
+        # callback in ``__init__.py``.
+        self.connection_available: bool = True
 
     def _on_token_changed(self, token: dict) -> None:
         """Persist a freshly-issued token into the ConfigEntry.
@@ -129,8 +134,15 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         print("_async_update_data")
         return None
 
-    async def async_cleanup(self):
-        """Clean up resources."""
+    async def async_cleanup(self, kill_token: bool = False) -> None:
+        """Clean up resources.
+
+        ``kill_token`` defaults to ``False``: an unload (reload, HA
+        restart) must keep the token valid so the value persisted by
+        ``_on_token_changed`` survives. Only removing the config entry
+        for good invalidates it on the Miniserver (see
+        ``async_remove_entry`` in ``__init__.py``).
+        """
         if hasattr(self, "listeners"):
             # Clean up all event listeners
             for listener in self.listeners:
@@ -138,16 +150,18 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                     listener()
             self.listeners = []
 
-        # Close API connection. ``kill_token`` first — the
-        # Miniserver invalidates the JWT so a subsequent HA
-        # restart doesn't reuse a token the previous session
-        # already abandoned. Best-effort; we still call
-        # ``close()`` if the kill fails.
+        # Close API connection.
         if hasattr(self, "api") and self.api is not None:
-            try:
-                await self.api.kill_token()
-            except Exception as e:  # noqa: BLE001
-                _LOGGER.debug("kill_token during cleanup failed: %s", e)
+            if kill_token:
+                # ``kill_token`` invalidates the JWT on the Miniserver
+                # so it cannot be reused. Only wanted when the entry is
+                # removed for good — otherwise the just-persisted token
+                # would be dead on the next start and every restart
+                # would have to fall back to username/password auth.
+                try:
+                    await self.api.kill_token()
+                except Exception as e:  # noqa: BLE001
+                    _LOGGER.debug("kill_token during cleanup failed: %s", e)
             try:
                 await self.api.close()
             except Exception as e:  # noqa: BLE001
