@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -37,6 +38,12 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         self.api: LoxoneConnection | None = None
         self.miniserver: MiniServer | None = None
         self.listeners = []
+        # Supervisor task running ``LoxoneConnection.run()``. Stored
+        # here (instead of a local in ``start_event``) so
+        # ``async_unload_entry`` can cancel it — this aborts the
+        # backoff sleep between retries, which ``api.close()`` alone
+        # would not interrupt.
+        self._listening_task: asyncio.Task | None = None
         # False while the websocket connection is down. Entity
         # availability consults this (see ``LoxoneEntity.available``);
         # it is flipped by the ``run()`` supervisor's on_state
@@ -144,10 +151,19 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         ``async_remove_entry`` in ``__init__.py``).
         """
         if hasattr(self, "listeners"):
-            # Clean up all event listeners
+            # Clean up all event listeners. One bad unsubscribe must
+            # not prevent the rest (or api.close() below) from running.
             for listener in self.listeners:
                 if listener is not None:
-                    listener()
+                    try:
+                        listener()
+                    except Exception as err:  # noqa: BLE001
+                        _LOGGER.warning(
+                            "Failed to unsubscribe Loxone listener %r: %s",
+                            listener,
+                            err,
+                            exc_info=True,
+                        )
             self.listeners = []
 
         # Close API connection.
@@ -160,9 +176,13 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 # would have to fall back to username/password auth.
                 try:
                     await self.api.kill_token()
-                except Exception as e:  # noqa: BLE001
-                    _LOGGER.debug("kill_token during cleanup failed: %s", e)
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.debug(
+                        "kill_token during cleanup failed: %s", err, exc_info=True
+                    )
             try:
                 await self.api.close()
-            except Exception as e:  # noqa: BLE001
-                _LOGGER.debug("api.close during cleanup failed: %s", e)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning(
+                    "api.close during cleanup failed: %s", err, exc_info=True
+                )

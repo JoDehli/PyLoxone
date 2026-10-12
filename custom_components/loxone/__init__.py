@@ -149,37 +149,32 @@ async def async_unload_entry(hass, config_entry):
             coordinator = co
             break
 
-    # Connection close
+    # Connection close. Cancel the supervisor task first: it may be
+    # sleeping in backoff between retries, which api.close() alone
+    # would not interrupt. Then close the API and drop listeners
+    # (owned by coordinator.async_cleanup).
     if coordinator is not None:
+        task = getattr(coordinator, "_listening_task", None)
+        if task is not None and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                _LOGGER.debug("Listening task cancelled during unload")
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning(
+                    "Error waiting for listening task to finish: %s",
+                    err,
+                    exc_info=True,
+                )
+        coordinator._listening_task = None
+
         try:
             await coordinator.async_cleanup()
-        except Exception as e:
-            _LOGGER.warning("Error closing connection: %s", e)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Error closing connection: %s", err, exc_info=True)
 
-            # Cancel and await the stored listening task (if any)
-        try:
-            task = getattr(coordinator, "_listening_task", None)
-            if task is not None and not task.done():
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-                except Exception as e:
-                    _LOGGER.debug(f"Error waiting for listening task to finish: {e}")
-
-            # Remove event listeners (if any still present)
-            if hasattr(coordinator, "listeners") and coordinator.listeners:
-                for listener in coordinator.listeners:
-                    try:
-                        listener()  # Unsubscribe the listener
-                    except Exception:
-                        pass
-                coordinator.listeners = []
-
-            hass.data[DOMAIN].pop(config_entry.entry_id, None)
-        except Exception as e:
-            raise e
+        hass.data[DOMAIN].pop(config_entry.entry_id, None)
 
     # Services deregistrieren beim Entladen
     hass.services.async_remove(DOMAIN, "event_websocket_command")
@@ -397,8 +392,11 @@ async def async_setup_entry(hass, config_entry):
         try:
             task.result()
         except LoxoneTokenError as e:
-            _LOGGER.debug(
-                "Token is not valid anymore. Delete token and try to reloading Loxone integration."
+            _LOGGER.warning(
+                "Token is not valid anymore (%s). Delete token and try "
+                "reloading Loxone integration.",
+                e,
+                exc_info=True,
             )
             # First we delete the invalid token then try to reload
             hass.config_entries.async_update_entry(
@@ -421,10 +419,11 @@ async def async_setup_entry(hass, config_entry):
             # drop the token, reload and re-authenticate from scratch.
             # A persistently wrong password ends up as a setup error on
             # the reload instead of a silent retry loop.
-            _LOGGER.debug(
+            _LOGGER.warning(
                 "Loxone credentials rejected (%s). Delete token and reload "
                 "Loxone integration.",
                 e,
+                exc_info=True,
             )
             hass.config_entries.async_update_entry(
                 config_entry,
@@ -436,14 +435,18 @@ async def async_setup_entry(hass, config_entry):
             )
             hass.async_create_task(_reload_after_delay(1.0))
         except LoxoneOutOfServiceException as e:
-            _LOGGER.debug(
-                "Loxone LoxoneOutOfServiceException received. Try to reloading Loxone integration."
+            _LOGGER.warning(
+                "Loxone out of service (%s). Reloading Loxone integration.",
+                e,
+                exc_info=True,
             )
             # Loxone-Integration neu laden
             hass.async_create_task(_reload_after_delay(1.0))
         except LoxoneConnectionError as e:
-            _LOGGER.debug(
-                "Loxone LoxoneConnectionError received. Try to reloading Loxone integration."
+            _LOGGER.warning(
+                "Loxone connection error (%s). Reloading Loxone integration.",
+                e,
+                exc_info=True,
             )
             # Loxone-Integration neu laden
             hass.async_create_task(_reload_after_delay(1.0))
@@ -451,15 +454,19 @@ async def async_setup_entry(hass, config_entry):
             LoxoneConnectionClosedOk,
             websockets.exceptions.ConnectionClosedOK,
         ) as e:
-            _LOGGER.debug(
-                "Loxone LoxoneConnectionClosedOk received. Mostly a timeout Problem. Try to reloading Loxone integration."
+            _LOGGER.warning(
+                "Loxone connection closed (%s). Mostly a timeout problem. "
+                "Reloading Loxone integration.",
+                e,
+                exc_info=True,
             )
             # Loxone-Integration neu laden
             hass.async_create_task(_reload_after_delay(1.0))
-        except asyncio.exceptions.CancelledError as e:
-            _LOGGER.error(e)
-        except Exception as e:
-            raise e
+        except asyncio.exceptions.CancelledError:
+            _LOGGER.debug("Loxone listening task cancelled")
+        except Exception:
+            _LOGGER.exception("Unexpected Loxone listening task failure")
+            raise
 
     async def message_callback(message):
         """Fire message on HomeAssistant Bus."""
@@ -665,26 +672,23 @@ async def async_setup_entry(hass, config_entry):
                     )
 
     async def start_event():
-        try:
-            # ``run()`` owns the listen loop with bounded
-            # exponential backoff — the previous
-            # ``start_listening + done_callback`` pattern
-            # forced a full integration reload on every
-            # transient drop. ``run()`` retries in-place and
-            # only propagates unrecoverable failures (auth,
-            # unexpected). The done-callback reload path is
-            # kept as a safety net for anything ``run()``
-            # itself can't handle.
-            listening_task = asyncio.create_task(
-                coordinator.api.run(
-                    on_state=_on_connection_state,
-                    callback=message_callback,
-                )
+        # ``run()`` owns the listen loop with bounded
+        # exponential backoff — the previous
+        # ``start_listening + done_callback`` pattern
+        # forced a full integration reload on every
+        # transient drop. ``run()`` retries in-place and
+        # only propagates unrecoverable failures (auth,
+        # unexpected). The done-callback reload path is
+        # kept as a safety net for anything ``run()``
+        # itself can't handle.
+        listening_task = asyncio.create_task(
+            coordinator.api.run(
+                on_state=_on_connection_state,
+                callback=message_callback,
             )
-            listening_task.add_done_callback(handle_task_result)
-
-        except Exception as e:
-            raise e
+        )
+        coordinator._listening_task = listening_task
+        listening_task.add_done_callback(handle_task_result)
 
     def _on_connection_state(state: str) -> None:
         """Update entity availability on connection-state transitions.
@@ -710,11 +714,18 @@ async def async_setup_entry(hass, config_entry):
             for entry in er.async_entries_for_config_entry(
                 entity_registry, config_entry.entry_id
             ):
-                async_update_entity(hass, entry.entity_id)
+                # ``async_update_entity`` is a coroutine — schedule it
+                # instead of calling it bare (which would create an
+                # un-awaited coroutine and never refresh the entity).
+                hass.async_create_task(
+                    async_update_entity(hass, entry.entity_id),
+                    name=f"loxone.refresh-{entry.entity_id}",
+                )
         except Exception as err:  # noqa: BLE001
-            _LOGGER.debug(
+            _LOGGER.warning(
                 "Could not refresh entities on connection state change: %s",
                 err,
+                exc_info=True,
             )
 
     async def stop_event(_):
