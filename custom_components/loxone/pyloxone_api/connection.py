@@ -423,6 +423,15 @@ class LoxoneBaseConnection:
         self._salt_time_stamp: int = 0
         self._salt: str = ""
         self._salt_used_count: int = 0
+        # Serializes the salt decision + generation in
+        # ``_send_text_command``. Several send tasks reach that point
+        # concurrently (the queue consumer spawns one per message, plus
+        # the direct callers in ``open()`` / token refresh), so the
+        # rotation must not be decided twice or built against an
+        # already-rotated ``_salt``. The lock is held only for the
+        # decision, never across the AES work or the websocket send —
+        # see the comment at the ``async with`` site.
+        self._salt_lock: asyncio.Lock = asyncio.Lock()
         self._visual_hash = None
         # Replace synchronous Queue with asyncio.Queue with bounded size
         self._message_queue: asyncio.Queue[MessageForQueue] = asyncio.Queue(
@@ -579,6 +588,13 @@ class LoxoneBaseConnection:
         (``\\x00``) after ``{command}`` is undocumented but
         required by the Miniserver's command parser.
 
+        The decision and the generation run under
+        ``self._salt_lock`` (see ``__init__``) because the send
+        path is concurrent: the queue consumer spawns one task per
+        message and ``open()`` / token refresh call this method
+        directly. The lock is released before the AES work and the
+        websocket send, so it never covers I/O.
+
         Hash algorithm fallback
         -----------------------
 
@@ -602,14 +618,24 @@ class LoxoneBaseConnection:
         # f-string variant).
         _LOGGER.debug("Send text command: %s", command)
         if encrypted:
-            if self._new_salt_needed():
-                old_salt = self._salt
-                self._generate_salt()
-                # The miniserver needs the text terminated with a zero byte,
-                # though this is not documented
-                command_string = f"nextSalt/{old_salt}/{self._salt}/{command}\x00"
-            else:
-                command_string = f"salt/{self._salt}/{command}\x00"
+            # Salt state (``_salt`` / ``_salt_used_count``) is shared
+            # across every concurrent send task, so decide + generate
+            # atomically. Without the lock a second sender could decide
+            # while a rotation is in flight and build its command with
+            # a salt the Miniserver has not (or already) switched to.
+            # Only the decision lives inside the lock: the AES work and
+            # the websocket send below stay outside, so the critical
+            # section never waits on I/O and the send pipeline keeps
+            # its fire-and-forget throughput.
+            async with self._salt_lock:
+                if self._new_salt_needed():
+                    old_salt = self._salt
+                    self._generate_salt()
+                    # The miniserver needs the text terminated with a zero byte,
+                    # though this is not documented
+                    command_string = f"nextSalt/{old_salt}/{self._salt}/{command}\x00"
+                else:
+                    command_string = f"salt/{self._salt}/{command}\x00"
             padded_bytes = Padding.pad(bytes(command_string, "utf-8"), 16)
             aes_cipher = AES.new(self._aes_key, AES.MODE_CBC, self._iv)
             cipher = b64encode(aes_cipher.encrypt(padded_bytes))

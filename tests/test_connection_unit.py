@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import urllib.parse
 from collections import deque
 from types import SimpleNamespace
 
@@ -3148,3 +3149,178 @@ class TestEntityAvailability:
         entity.hass = NS(data={"loxone": {"abc": _Coordinator()}})
 
         assert entity.available is True
+
+
+class TestSaltRotationLock:
+    """``_send_text_command`` must serialize the salt decision (3.3).
+
+    The send path is concurrent: ``_process_message`` spawns one
+    fire-and-forget task per queued message, and ``open()`` / token
+    refresh call ``_send_text_command`` directly. The salt
+    (``_salt``) plus its usage counters are shared instance state, so
+    deciding and generating must happen atomically — otherwise a
+    sender can build its ``nextSalt/`` command against a salt another
+    sender has already rotated past.
+
+    Two contract points are guarded here:
+
+    * the decision runs *under* ``_salt_lock`` (fails if the
+      ``async with`` is dropped),
+    * the lock is released before the AES work and the websocket send
+      (fails if someone wraps the whole send in the lock and starts
+      serializing I/O).
+    """
+
+    class _RecordingWebsocket(_FakeWebsocket):
+        """``_FakeWebsocket`` that records the payloads it is given."""
+
+        def __init__(self, on_send=None):
+            self.sent: list[str] = []
+            self._on_send = on_send
+
+        async def send(self, *args, **kwargs):
+            if self._on_send is not None:
+                self._on_send(*args)
+            self.sent.append(args[0] if args else "")
+
+    @staticmethod
+    def _plaintext(conn, sent: str) -> str:
+        """Undo ``jdev/sys/enc`` + percent-encoding on a recorded send."""
+        prefix = "jdev/sys/enc/"
+        assert sent.startswith(prefix), sent
+        # ``_decrypt`` expects the raw base64, so undo the URL quoting
+        # that ``_send_text_command`` applied on the way out.
+        quoted = sent[len(prefix) :]
+        return conn._decrypt(prefix + urllib.parse.unquote(quoted)).decode("utf-8")
+
+    @pytest.fixture
+    def conn(self):
+        return LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+
+    @pytest.mark.asyncio
+    async def test_salt_lock_exists_and_starts_released(self, conn):
+        assert isinstance(conn._salt_lock, asyncio.Lock)
+        assert not conn._salt_lock.locked()
+
+    @pytest.mark.asyncio
+    async def test_salt_decision_runs_under_lock(self, conn):
+        """The decision + rotation must execute while the lock is held."""
+        conn.connection = self._RecordingWebsocket()
+        observed: list[bool] = []
+
+        def spy():
+            observed.append(conn._salt_lock.locked())
+            return True  # force a rotation on this send
+
+        conn._new_salt_needed = spy
+        await conn._send_text_command("jdev/sys/hello", encrypted=True)
+
+        assert observed == [True], "salt decision ran without _salt_lock"
+        assert conn._salt, "the forced rotation must have produced a salt"
+        assert not conn._salt_lock.locked(), "lock must be released again"
+
+    @pytest.mark.asyncio
+    async def test_lock_released_before_aes_and_send(self, conn, monkeypatch):
+        """The critical section must stop before AES and websocket I/O."""
+        observed: dict[str, bool] = {}
+
+        conn.connection = self._RecordingWebsocket(
+            on_send=lambda *_: observed.update(send_locked=conn._salt_lock.locked())
+        )
+
+        def spy():
+            observed["decision_locked"] = conn._salt_lock.locked()
+            return True
+
+        conn._new_salt_needed = spy
+
+        import custom_components.loxone.pyloxone_api.connection as connection_module
+
+        real_aes = connection_module.AES
+
+        class _ProbeAES:
+            """Proxy that records whether the lock was held during ``AES.new``."""
+
+            def __init__(self, real):
+                self._real = real
+
+            def __getattr__(self, name):
+                return getattr(self._real, name)
+
+            def new(self, *args, **kwargs):
+                observed.setdefault("aes_locked", conn._salt_lock.locked())
+                return self._real.new(*args, **kwargs)
+
+        monkeypatch.setattr(connection_module, "AES", _ProbeAES(real_aes))
+
+        await conn._send_text_command("jdev/sys/hello", encrypted=True)
+
+        assert observed["decision_locked"] is True
+        assert observed["aes_locked"] is False, "AES must run outside the lock"
+        assert observed["send_locked"] is False, "send must run outside the lock"
+
+    @pytest.mark.asyncio
+    async def test_plain_commands_bypass_the_salt_state(self, conn):
+        """Unencrypted commands never touch the salt or the lock."""
+        conn.connection = self._RecordingWebsocket()
+
+        def boom():
+            raise AssertionError("plain commands must not consult the salt")
+
+        conn._new_salt_needed = boom
+        await conn._send_text_command("jdev/sys/plain", encrypted=False)
+
+        assert conn.connection.sent == ["jdev/sys/plain"]
+        assert not conn._salt_lock.locked()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_rotations_stay_chained(self, conn):
+        """Parallel encrypted sends must hand the salt on, never skip."""
+        conn.connection = self._RecordingWebsocket()
+        conn._generate_salt()  # known starting point
+        start_salt = conn._salt
+        # Force a rotation for every send so all 20 tasks race for it.
+        conn._new_salt_needed = lambda: True
+
+        await asyncio.gather(*(conn._send_text_command(f"jdev/sys/{i}", encrypted=True) for i in range(20)))
+
+        plaintexts = [self._plaintext(conn, s) for s in conn.connection.sent]
+        assert len(plaintexts) == 20
+        # Every payload must be a rotation in the nextSalt/<old>/<new>/<cmd>\0 form.
+        pairs = []
+        for text in plaintexts:
+            parts = text.rstrip("\x00").split("/")
+            assert parts[0] == "nextSalt", text
+            pairs.append((parts[1], parts[2]))
+
+        # old of the first rotation is the salt we started with, and each
+        # rotation's new salt is the next rotation's old salt.
+        assert pairs[0][0] == start_salt
+        assert all(pairs[i][1] == pairs[i + 1][0] for i in range(len(pairs) - 1))
+        assert pairs[-1][1] == conn._salt
+
+    @pytest.mark.asyncio
+    async def test_rotation_still_follows_use_count(self, conn, monkeypatch):
+        """The lock must not shift *when* a rotation is triggered."""
+        import custom_components.loxone.pyloxone_api.connection as connection_module
+
+        monkeypatch.setattr(connection_module, "SALT_MAX_USE_COUNT", 3)
+        conn.connection = self._RecordingWebsocket()
+        conn._generate_salt()
+        first_salt = conn._salt
+
+        for i in range(4):
+            await conn._send_text_command(f"cmd/{i}", encrypted=True)
+
+        plaintexts = [self._plaintext(conn, s) for s in conn.connection.sent]
+        kinds = [text.split("/")[0] for text in plaintexts]
+        # Uses 1..3 stay on the current salt, use 4 trips over the threshold.
+        assert kinds == ["salt", "salt", "salt", "nextSalt"]
+        # The rotation carries the previously used salt and installs a new one.
+        assert plaintexts[3].rstrip("\x00").split("/")[1] == first_salt
+        assert conn._salt != first_salt
