@@ -3279,6 +3279,30 @@ class TestSaltRotationLock:
         assert not conn._salt_lock.locked()
 
     @pytest.mark.asyncio
+    async def test_dead_connection_does_not_rotate_the_salt(self, conn):
+        """A command that provably cannot be sent must not burn a rotation.
+
+        The connection check now runs before the salt decision, so a
+        dead socket cannot advance ``_salt`` past the Miniserver's
+        (nor spend the AES work).
+        """
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionClosedOk,
+        )
+
+        conn.connection = None
+        conn._generate_salt()
+        conn._salt_used_count = 10_000  # would trip the rotation threshold
+        before = (conn._salt, conn._salt_used_count, conn._salt_time_stamp)
+
+        with pytest.raises(LoxoneConnectionClosedOk):
+            await conn._send_text_command("jdev/sys/hello", encrypted=True)
+
+        assert (conn._salt, conn._salt_used_count, conn._salt_time_stamp) == before, (
+            "the salt state must be untouched when the send is skipped"
+        )
+
+    @pytest.mark.asyncio
     async def test_concurrent_rotations_stay_chained(self, conn):
         """Parallel encrypted sends must hand the salt on, never skip."""
         conn.connection = self._RecordingWebsocket()

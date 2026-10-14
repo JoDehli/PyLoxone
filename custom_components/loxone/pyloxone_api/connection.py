@@ -617,6 +617,23 @@ class LoxoneBaseConnection:
         # string must not be built unless DEBUG is enabled (G004 bans the
         # f-string variant).
         _LOGGER.debug("Send text command: %s", command)
+        # Issue #514: during a normal token expiry the Miniserver closes the
+        # websocket (1000) and sends fail until the supervisor reconnects.
+        # Raising ``LoxoneConnectionClosedOk`` here lets the supervisor's
+        # DEBUG-level handler run the normal reconnect path instead of
+        # spamming ERROR logs at every command attempt.
+        #
+        # Checked *before* the salt decision on purpose: rotating for a
+        # command that provably cannot be sent would advance the local salt
+        # past the Miniserver's for nothing. (A reconnect recovers anyway —
+        # ``open()`` calls ``_generate_salt()`` — but there is no reason to
+        # desync while the socket is still up, nor to pay for the AES work.)
+        if not self.connection or not self.is_connected:
+            raise LoxoneConnectionClosedOk("Cannot send command - connection is not open")
+        # Snapshot the reference: ``close()`` runs in another task and nulls
+        # ``self.connection``, which is now further away because the salt
+        # decision and the AES work happen in between.
+        connection = self.connection
         if encrypted:
             # Salt state (``_salt`` / ``_salt_used_count``) is shared
             # across every concurrent send task, so decide + generate
@@ -641,18 +658,11 @@ class LoxoneBaseConnection:
             cipher = b64encode(aes_cipher.encrypt(padded_bytes))
             enc_cipher = urllib.parse.quote(cipher.decode())
             command = f"jdev/sys/enc/{enc_cipher}"
-        # Issue #514: during a normal token expiry the Miniserver closes the
-        # websocket (1000) and sends fail until the supervisor reconnects.
-        # Raising ``LoxoneConnectionClosedOk`` here lets the supervisor's
-        # DEBUG-level handler run the normal reconnect path instead of
-        # spamming ERROR logs at every command attempt.
-        if not self.connection or not self.is_connected:
-            raise LoxoneConnectionClosedOk("Cannot send command - connection is not open")
         try:
             # Send a plain str (not a list): websockets fragments the
             # payload when given a list, which the Loxone protocol does
             # not expect.
-            await self.connection.send(command)
+            await connection.send(command)
         except websockets.ConnectionClosedOK:
             raise LoxoneConnectionClosedOk(
                 "Connection closed normally while sending command"
