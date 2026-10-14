@@ -310,6 +310,40 @@ async def create_group_for_loxone_entities(hass, entities, name, object_id):
         )
 
 
+async def async_refresh_on_connection_state(
+    hass, config_entry, coordinator, state
+):
+    """Update entity availability on connection-state transitions.
+
+    Called by :meth:`LoxoneConnection.run` whenever the supervisor
+    changes state: ``"connected"`` (websocket established),
+    ``"disconnected"`` (recoverable error, reconnect scheduled) or
+    ``"failed"`` (hard auth failure — the entry will be reloaded).
+
+    While the connection is down the entities report themselves
+    unavailable; the fresh values arriving after the reconnect
+    restore them. UA refresh is triggered explicitly, otherwise
+    the change would only be written with the next value update.
+    """
+    coordinator.connection_available = state == "connected"
+    _LOGGER.debug("Loxone connection state: %s", state)
+    try:
+        from homeassistant.helpers.entity_component import (
+            async_update_entity,
+        )
+
+        entity_registry = er.async_get(hass)
+        for entry in er.async_entries_for_config_entry(
+            entity_registry, config_entry.entry_id
+        ):
+            await async_update_entity(hass, entry.entity_id)
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.debug(
+            "Could not refresh entities on connection state change: %s",
+            err,
+        )
+
+
 async def async_setup_entry(hass, config_entry):
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
@@ -686,36 +720,10 @@ async def async_setup_entry(hass, config_entry):
         except Exception as e:
             raise e
 
-    def _on_connection_state(state: str) -> None:
-        """Update entity availability on connection-state transitions.
-
-        Called by :meth:`LoxoneConnection.run` whenever the supervisor
-        changes state: ``"connected"`` (websocket established),
-        ``"disconnected"`` (recoverable error, reconnect scheduled) or
-        ``"failed"`` (hard auth failure — the entry will be reloaded).
-
-        While the connection is down the entities report themselves
-        unavailable; the fresh values arriving after the reconnect
-        restore them. UA refresh is triggered explicitly, otherwise
-        the change would only be written with the next value update.
-        """
-        coordinator.connection_available = state == "connected"
-        _LOGGER.debug("Loxone connection state: %s", state)
-        try:
-            from homeassistant.helpers.entity_component import (
-                async_update_entity,
-            )
-
-            entity_registry = er.async_get(hass)
-            for entry in er.async_entries_for_config_entry(
-                entity_registry, config_entry.entry_id
-            ):
-                async_update_entity(hass, entry.entity_id)
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.debug(
-                "Could not refresh entities on connection state change: %s",
-                err,
-            )
+    def _on_connection_state(state: str):
+        return async_refresh_on_connection_state(
+            hass, config_entry, coordinator, state
+        )
 
     async def stop_event(_):
         token = coordinator.api.get_token_dict()
