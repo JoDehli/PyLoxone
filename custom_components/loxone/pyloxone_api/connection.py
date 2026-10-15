@@ -54,8 +54,8 @@ from .exceptions import (LoxoneAuthEscalatedError,
 from .loxone_http_client import LoxoneAsyncHttpClient
 from .loxone_token import LOXONE_EPOCH, LoxoneToken, LxJsonKeySalt
 from .message import (BaseMessage, BinaryFile, Keepalive, LLResponse,
-                      MessageType, TextMessage, check_and_decode_if_needed,
-                      parse_header, parse_message)
+                      MessageHeader, MessageType, TextMessage,
+                      check_and_decode_if_needed, parse_header, parse_message)
 from .websocket_protocol import LoxoneClientConnection
 
 _LOGGER = logging.getLogger(__name__)
