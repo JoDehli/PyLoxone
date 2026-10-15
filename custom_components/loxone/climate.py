@@ -160,6 +160,19 @@ IRC_RESTRICTED_COOLING_ONLY = 1
 IRC_RESTRICTED_HEATING_ONLY = 2
 
 
+def _temperature_unit_from_format(format_str: str | None) -> str:
+    """Temperature unit from a Loxone format string such as ``%.1f°F``.
+
+    The Miniserver sends temperatures in the unit set in Loxone Config;
+    the format string carries it. Celsius when it is missing or unclear.
+    """
+    if format_str is None:
+        return UnitOfTemperature.CELSIUS
+    if "°F" in format_str or "F" in format_str:
+        return UnitOfTemperature.FAHRENHEIT
+    return UnitOfTemperature.CELSIUS
+
+
 def _irc_int(value) -> int | None:
     try:
         return int(value)
@@ -313,18 +326,7 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
     @property
     def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
-        format_str = self.details.get("format")
-
-        if format_str is None:
-            return UnitOfTemperature.CELSIUS
-
-        if "°F" in format_str or "F" in format_str:
-            return UnitOfTemperature.FAHRENHEIT
-
-        if "°C" in format_str or "C" in format_str:
-            return UnitOfTemperature.CELSIUS
-
-        return UnitOfTemperature.CELSIUS
+        return _temperature_unit_from_format(self.details.get("format"))
 
     @property
     def target_temperature_step(self) -> float | None:
@@ -500,18 +502,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         # format string for the room controller's input temperature sensor.
         # We assume that the format string contains the unit of temperature,
         # and default to Celsius if not.
-        format_str = self.details.get("format")
-
-        if format_str is None:
-            return UnitOfTemperature.CELSIUS
-
-        if "°F" in format_str or "F" in format_str:
-            return UnitOfTemperature.FAHRENHEIT
-
-        if "°C" in format_str or "C" in format_str:
-            return UnitOfTemperature.CELSIUS
-
-        return UnitOfTemperature.CELSIUS
+        return _temperature_unit_from_format(self.details.get("format"))
 
     @property
     def current_temperature(self):
@@ -909,11 +900,9 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
     @property
     def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
-        if "format" in self.details:
-            if self.details["format"].find("°"):
-                return UnitOfTemperature.CELSIUS
-            return UnitOfTemperature.FAHRENHEIT
-        return UnitOfTemperature.CELSIUS
+        # Was ``format.find("°")``, an index that is truthy for "%.1f°F"
+        # too, so Fahrenheit controls were reported as Celsius.
+        return _temperature_unit_from_format(self.details.get("format"))
 
     @property
     def target_temperature(self) -> float | None:

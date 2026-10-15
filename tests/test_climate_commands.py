@@ -138,3 +138,16 @@ def test_economy_range_from_comfort_and_offsets():
     )
     assert rc.target_temperature_low == 19.0
     assert rc.target_temperature_high == 27.0
+
+
+@pytest.mark.parametrize(
+    ("format_str", "expected"),
+    [("%.1f°F", "°F"), ("%.1f°C", "°C"), ("%.1f", "°C"), (None, "°C")],
+)
+def test_ac_control_temperature_unit(format_str, expected):
+    from custom_components.loxone.climate import LoxoneAcControl, UnitOfTemperature
+
+    ac = LoxoneAcControl.__new__(LoxoneAcControl)
+    ac.details = {} if format_str is None else {"format": format_str}
+    unit = UnitOfTemperature.FAHRENHEIT if expected == "°F" else UnitOfTemperature.CELSIUS
+    assert ac.temperature_unit == unit
