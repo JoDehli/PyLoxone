@@ -3717,3 +3717,37 @@ class TestFatalCloseCodes:
         assert not issubclass(
             LoxoneUnauthorisedError, LoxoneConnection.RETRYABLE_SESSION_ERRORS
         )
+
+
+class TestTokenSelfHealLogging:
+    """The token-expiry self-heal (authwithtoken 401 -> reconnect) is
+    expected control flow and must not log an ERROR.
+    """
+
+    @pytest.mark.asyncio
+    async def test_reconnect_request_raises_token_error_without_error_log(
+        self, caplog
+    ):
+        import logging
+
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneTokenError,
+        )
+
+        class _OpenWebsocket(_FakeWebsocket):
+            async def __anext__(self):
+                await asyncio.Event().wait()  # stays open
+
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        conn.connection = _OpenWebsocket()
+        conn._session_key = b"fake-session-key"
+        # What the authwithtoken 401 handler does.
+        conn._reconnect_event.set()
+
+        with caplog.at_level(logging.DEBUG):
+            with pytest.raises(LoxoneTokenError, match="re-authenticate"):
+                await asyncio.wait_for(conn.start_listening(), timeout=5)
+
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]

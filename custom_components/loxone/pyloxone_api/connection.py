@@ -1389,7 +1389,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                     # Reconnect requested -> clear event and raise to break listening
                     if self._reconnect_event.is_set():
                         self._reconnect_event.clear()
-                        raise LoxoneTokenError
+                        raise LoxoneTokenError(
+                            "token rejected; reconnecting to re-authenticate"
+                        )
             except asyncio.CancelledError:
                 # Task was canceled during shutdown
                 raise
@@ -1416,7 +1418,11 @@ class LoxoneConnection(LoxoneBaseConnection):
                     )
                     raise LoxoneConnectionClosedOk
                 except LoxoneTokenError as e:
-                    _LOGGER.error(f"Token error {e}")
+                    # Expected control flow: the token-expiry self-heal
+                    # (authwithtoken 401, logged at DEBUG) or the refresh
+                    # loop's escalation (logged at WARNING where it is
+                    # raised). ``run()`` reconnects; no ERROR here.
+                    _LOGGER.debug("Token error: %s", e)
                     raise
                 except LoxoneOutOfServiceException as e:
                     _LOGGER.error(f"Miniserver out of service: {e}")
