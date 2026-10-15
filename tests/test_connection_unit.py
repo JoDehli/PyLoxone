@@ -3657,3 +3657,63 @@ class TestReconnectResetsAuthentication:
 
         with pytest.raises(Exception, match="(?i)authenticat"):
             await conn.async_refresh_token(timeout=0.1)
+
+
+class TestFatalCloseCodes:
+    """Close codes 4003 (blocked) and 4006 (user disabled) are not
+    retried: reconnecting cannot succeed, and while blocked every
+    attempt can extend the block.
+    """
+
+    @staticmethod
+    def _closed(code: int):
+        from websockets.exceptions import ConnectionClosedError
+        from websockets.frames import Close
+
+        return ConnectionClosedError(Close(code, ""), None)
+
+    @pytest.mark.parametrize("code", [4003, 4006])
+    def test_fatal_codes_raise_unauthorised(self, code):
+        from custom_components.loxone.pyloxone_api.connection import (
+            _raise_if_fatal_close,
+        )
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneUnauthorisedError,
+        )
+
+        with pytest.raises(LoxoneUnauthorisedError, match=str(code)):
+            _raise_if_fatal_close(self._closed(code))
+
+    @pytest.mark.parametrize("code", [1006, 1011, 4007, 4008])
+    def test_other_codes_stay_retryable(self, code):
+        from custom_components.loxone.pyloxone_api.connection import (
+            _raise_if_fatal_close,
+        )
+
+        _raise_if_fatal_close(self._closed(code))  # must not raise
+
+    @pytest.mark.asyncio
+    async def test_blocked_on_key_exchange_is_not_retried(self):
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneUnauthorisedError,
+        )
+
+        closed = self._closed(4003)
+
+        class _BlockedWebsocket(_FakeWebsocket):
+            async def send(self, *args, **kwargs):
+                raise closed
+
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        conn.connection = _BlockedWebsocket()
+        conn._session_key = b"fake-session-key"
+
+        with pytest.raises(LoxoneUnauthorisedError):
+            await conn.start_listening()
+
+        # run() lets it through instead of retrying.
+        assert not issubclass(
+            LoxoneUnauthorisedError, LoxoneConnection.RETRYABLE_SESSION_ERRORS
+        )

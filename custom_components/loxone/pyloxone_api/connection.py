@@ -154,6 +154,31 @@ DEFAULT_PORTS: dict[str, int] = {
 }
 
 
+# Websocket close codes after which reconnecting cannot succeed
+# (spec "Communicating with the Miniserver": Websocket Close Codes and
+# "What can go wrong?"). Retrying them forever only spams the
+# Miniserver; while blocked (4003) every attempt can extend the block.
+FATAL_CLOSE_CODES: dict[int, str] = {
+    4003: "user is blocked after too many failed login attempts",
+    4006: "user is disabled",
+}
+
+
+def _raise_if_fatal_close(exc: websockets.exceptions.ConnectionClosed) -> None:
+    """Raise ``LoxoneUnauthorisedError`` for a close code in ``FATAL_CLOSE_CODES``.
+
+    The ``run()`` supervisor does not retry that error; the integration
+    reports the authentication failure instead of reconnecting forever.
+    """
+    rcvd = getattr(exc, "rcvd", None)
+    code = getattr(rcvd, "code", None)
+    if code in FATAL_CLOSE_CODES:
+        raise LoxoneUnauthorisedError(
+            f"Miniserver closed the connection: {FATAL_CLOSE_CODES[code]} "
+            f"(close code {code})"
+        ) from exc
+
+
 def _command_path_for_log(command: str) -> str:
     """Strip the arguments (tokens, hashes, values) from a command for logging.
 
@@ -1329,6 +1354,12 @@ class LoxoneConnection(LoxoneBaseConnection):
             await self.connection.send(
                 f"{CMD_KEY_EXCHANGE}{self._session_key.decode()}"
             )
+        except websockets.exceptions.ConnectionClosed as e:
+            # A blocked user (4003) is closed right after the socket
+            # opens, so this send is where it shows up first.
+            _raise_if_fatal_close(e)
+            _LOGGER.error(f"Failed to send key exchange: {e}")
+            raise
         except Exception as e:
             _LOGGER.error(f"Failed to send key exchange: {e}")
             raise
@@ -1391,6 +1422,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                     _LOGGER.error(f"Miniserver out of service: {e}")
                     raise
                 except websockets.exceptions.ConnectionClosedError as e:
+                    # 4003 / 4006 (blocked / user disabled) are final;
+                    # see ``_raise_if_fatal_close``.
+                    _raise_if_fatal_close(e)
                     # Issue #514: an abnormal websocket close is the trigger
                     # for the reconnect-and-self-heal path, not a hard
                     # failure. Log at WARNING and surface as
@@ -1400,6 +1434,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     )
                     raise LoxoneConnectionError
                 except websockets.exceptions.ConnectionClosed as e:
+                    _raise_if_fatal_close(e)
                     self._note_connection_lost(
                         f"websocket closed: {e}"
                     )
