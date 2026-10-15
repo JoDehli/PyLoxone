@@ -3886,3 +3886,99 @@ class TestOutageLogging:
         assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
         lost = [r for r in caplog.records if "Connection lost" in r.getMessage()]
         assert len(lost) == 1 and lost[0].levelno == logging.WARNING
+
+
+class TestShutdownRaces:
+    """A real ``close()`` must stick, and stale queued commands must not
+    leak into the next session.
+    """
+
+    @staticmethod
+    def _conn():
+        return LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+
+    @pytest.mark.asyncio
+    async def test_close_during_safe_close_still_signals_shutdown(self):
+        conn = self._conn()
+        conn._closed = True  # a supervisor _safe_close() is in progress
+
+        await conn.close()
+
+        assert conn._shutdown_event.is_set()
+
+    @pytest.mark.asyncio
+    async def test_close_during_bootstrap_is_not_undone(self):
+        """``close()`` while ``open()`` was still bootstrapping: the
+        socket opened afterwards is closed, nothing is listened on.
+        """
+        closed = []
+
+        class _Ws(_FakeWebsocket):
+            async def send(self, *args, **kwargs):
+                raise AssertionError("must not send after close()")
+
+            async def close(self, *args, **kwargs):
+                closed.append(True)
+
+        conn = self._conn()
+        conn._session_key = b"fake-session-key"
+        conn._shutdown_event.set()  # close() ran during open()
+        conn.connection = _Ws()  # socket open() created anyway
+
+        await asyncio.wait_for(conn.start_listening(), timeout=5)
+
+        assert closed == [True]
+        assert conn.connection is None
+        assert conn._shutdown_event.is_set()
+
+    @pytest.mark.asyncio
+    async def test_stale_commands_are_dropped_at_session_start(self, caplog):
+        import logging
+
+        sent: list[str] = []
+
+        class _Ws(_FakeWebsocket):
+            async def send(self, message, *args, **kwargs):
+                sent.append(message)
+
+        conn = self._conn()
+        conn._session_key = b"fake-session-key"
+        conn.connection = _Ws()
+        # Queued during the reconnect backoff.
+        conn._message_queue.put_nowait(MessageForQueue("jdev/sps/io/x/on", False))
+        conn._secured_queue.append(SecuredCommand("gate", "pulse", "1234"))
+
+        with caplog.at_level(logging.WARNING):
+            task = asyncio.create_task(conn.start_listening())
+            await asyncio.sleep(0.05)
+            task.cancel()
+            try:
+                await task
+            except BaseException:
+                pass
+
+        assert sent and sent[0].startswith("jdev/sys/keyexchange/")
+        assert "jdev/sps/io/x/on" not in sent
+        assert conn._secured_queue == deque()
+        assert "Dropped 1 queued command(s) and 1 secure command(s)" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_dead_socket_leftovers_are_not_sent(self, caplog):
+        import logging
+
+        conn = self._conn()
+        conn.connection = None  # socket already gone
+        consumer = asyncio.create_task(conn._process_message())
+        await asyncio.sleep(0)
+        for i in range(3):
+            conn._message_queue.put_nowait(MessageForQueue(f"cmd/{i}", False))
+
+        with caplog.at_level(logging.DEBUG):
+            consumer.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await consumer
+
+        assert conn._message_queue.empty()
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]

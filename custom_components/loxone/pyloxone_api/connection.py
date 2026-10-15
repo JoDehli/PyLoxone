@@ -1172,8 +1172,23 @@ class LoxoneConnection(LoxoneBaseConnection):
         else:
             _LOGGER.debug("Using existing connection.")
 
-        # Clear shutdown event when starting
-        self._shutdown_event.clear()
+        # The shutdown event is not cleared here: ``close()`` may have
+        # been called while ``open()`` was still bootstrapping (that can
+        # take minutes of HTTP retries). Clearing it revived a closed
+        # connection; instead close the socket that was opened anyway.
+        if self._shutdown_event.is_set():
+            _LOGGER.debug("Shutdown requested while connecting; not listening")
+            connection, self.connection = self.connection, None
+            if connection is not None:
+                await connection.close()
+            return
+
+        # Commands queued before this session (e.g. during the
+        # reconnect backoff) would reach the Miniserver right after the
+        # key exchange, before the login, and be rejected with 400.
+        self._discard_queued_messages(
+            "queued while disconnected", level=logging.WARNING
+        )
 
         async def keep_alive() -> None:
             """Send keep-alive messages to the Miniserver."""
@@ -1699,6 +1714,33 @@ class LoxoneConnection(LoxoneBaseConnection):
             code,
         )
 
+    def _discard_queued_messages(
+        self, reason: str, level: int = logging.DEBUG
+    ) -> int:
+        """Drop all queued outgoing commands (and pending secure commands).
+
+        Returns the number of dropped messages.
+        """
+        dropped = 0
+        while True:
+            try:
+                self._message_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            self._message_queue.task_done()
+            dropped += 1
+        dropped_secured = len(self._secured_queue)
+        self._secured_queue.clear()
+        if dropped or dropped_secured:
+            _LOGGER.log(
+                level,
+                "Dropped %d queued command(s) and %d secure command(s): %s",
+                dropped,
+                dropped_secured,
+                reason,
+            )
+        return dropped
+
     async def _process_message(self) -> NoReturn:
         """Process queued messages with graceful shutdown.
 
@@ -1767,6 +1809,12 @@ class LoxoneConnection(LoxoneBaseConnection):
             _LOGGER.debug(
                 "Message processing task cancelled - processing remaining messages"
             )
+
+            if not self.is_connected:
+                # Nothing can reach the Miniserver any more; sending
+                # would log one error per queued message.
+                self._discard_queued_messages("connection closed")
+                raise
 
             # Process any remaining messages before shutdown
             remaining_count = 0
@@ -2530,6 +2578,15 @@ class LoxoneConnection(LoxoneBaseConnection):
         ``_`` prefix marks it as private; the public
         :func:`coordinator.async_cleanup` path uses the default.
         """
+        if _signal_shutdown:
+            # Signal shutdown to all tasks first - also when a
+            # supervisor ``_safe_close()`` is already closing
+            # (``_closed`` set): returning early without it let the
+            # supervisor reset ``_closed`` and reconnect after a
+            # real close. The supervisor's retry loop relies on this
+            # NOT being set for its own ``_safe_close()``.
+            self._shutdown_event.set()
+
         if self._closed:
             _LOGGER.debug("Connection already closed")
             return
@@ -2545,14 +2602,10 @@ class LoxoneConnection(LoxoneBaseConnection):
         # reused across a reconnect.
         self._secured_queue.clear()
 
-        if _signal_shutdown:
-            # Signal shutdown to all tasks. The supervisor's
-            # retry loop relies on this NOT being set so the
-            # next iteration can proceed.
-            self._shutdown_event.set()
-
-        # Wait for message queue to drain (with timeout)
-        if self._message_queue:
+        # Wait for message queue to drain (with timeout) - only while
+        # the socket is still open; on a dead connection nothing can be
+        # sent and waiting only delays the teardown.
+        if self._message_queue and self.is_connected:
             queue_size = self._message_queue.qsize()
             if queue_size > 0:
                 _LOGGER.debug(f"Waiting for {queue_size} messages to be processed...")
