@@ -1563,10 +1563,22 @@ class LoxoneConnection(LoxoneBaseConnection):
         if self._confirmed_connected:
             _LOGGER.info("Connection restored")
         # ``_confirmed_connected`` is set on the first
-        # successful connect inside ``open()``; we don't flip
+        # successful login (``_on_authenticated``); we don't flip
         # it here because the first-ever restore is silent
         # (it would be confusing to see "Connection restored"
         # before any "Connection lost").
+
+    async def _on_authenticated(self) -> None:
+        """This session has logged in (authwithtoken / gettoken / getjwt).
+
+        Wakes the token refresh loop and reports the connection as
+        usable: ``on_state("connected")`` and, after an outage, a single
+        "Connection restored" INFO (the very first connect stays silent).
+        """
+        self._authenticated_event.set()
+        self._confirmed_connected = True
+        self._note_connection_restored()
+        await self._signal_state(self._on_state, "connected")
 
     async def _signal_state(
         self,
@@ -2416,13 +2428,11 @@ class LoxoneConnection(LoxoneBaseConnection):
             self._authenticated_event.clear()
             self.connection = connection
             self._websocket_deferred = False
-            # The connection is now confirmed working. The
-            # ``_note_connection_restored`` call below will then
-            # log INFO if we were in the middle of an outage
-            # (and stay silent for the very first connect).
-            self._confirmed_connected = True
-            self._note_connection_restored()
-            await self._signal_state(self._on_state, "connected")
+            # "connected" / "Connection restored" are reported only once
+            # this session has logged in (``_on_authenticated``): an open
+            # but unauthenticated socket is not usable yet, and reporting
+            # it made entities flip to available and back when the login
+            # then failed.
             return connection
 
         except Exception as e:
@@ -2997,7 +3007,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                     # now populated. ``check_refresh_token`` was
                     # blocked on this event; it can now start its
                     # 50%-of-lifetime countdown.
-                    self._authenticated_event.set()
+                    await self._on_authenticated()
 
                     # Notify the integration (e.g. the HA
                     # coordinator) that the token changed so it
@@ -3040,7 +3050,7 @@ class LoxoneConnection(LoxoneBaseConnection):
                         # loop and manual refresh service just as the
                         # gettoken/getjwt handler does.
                         if mess_obj.code == 200:
-                            self._authenticated_event.set()
+                            await self._on_authenticated()
                         await self._message_queue.put(
                             MessageForQueue(f"{CMD_ENABLE_UPDATES}", True)
                         )

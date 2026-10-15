@@ -2913,10 +2913,27 @@ class TestReceiveWatchdog:
 
         assert time.monotonic() - conn._last_frame_time < 5
 
+    @staticmethod
+    def _authwithtoken_reply(code: int):
+        return parse_message(
+            json.dumps(
+                {
+                    "LL": {
+                        "control": "authwithtoken/hash/user",
+                        "code": str(code),
+                        "value": {"validUntil": 500000000},
+                    }
+                }
+            ),
+            MessageType.TEXT,
+        )
+
     @pytest.mark.asyncio
-    async def test_open_sends_connected_state(self, monkeypatch):
-        """``open()`` signals "connected" through the callback
-        ``run()`` published on ``self._on_state``.
+    async def test_connected_state_only_after_login(self, monkeypatch):
+        """"connected" is signalled through the callback ``run()``
+        published on ``self._on_state`` once the session has logged
+        in — not when the websocket opens (a failed login would make
+        entities flip to available and back).
         """
         from custom_components.loxone.pyloxone_api import connection as conn_mod
 
@@ -2942,8 +2959,16 @@ class TestReceiveWatchdog:
         conn._on_state = states.append
 
         await conn.open(session=session)
+        assert states == []
 
+        # A rejected cached token is not a login.
+        await conn._websocket_event(self._authwithtoken_reply(401))
+        assert states == []
+        assert not conn._authenticated_event.is_set()
+
+        await conn._websocket_event(self._authwithtoken_reply(200))
         assert states == ["connected"]
+        assert conn._authenticated_event.is_set()
 
     def test_default_read_timeout_is_three_keepalives(self):
         """The default timeout equals three missed keepalives."""
