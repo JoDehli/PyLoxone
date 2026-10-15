@@ -212,3 +212,64 @@ def test_options_change_reloads_but_token_update_does_not():
     entry.options = {"host": "10.0.0.2"}
     asyncio.run(listener(hass, entry))
     assert reloads == ["a"]
+
+
+def _loaded_coordinator(entry_id: str, title: str, project: str):
+    miniserver = SimpleNamespace(
+        serial=f"SN-{entry_id}",
+        software_version=[15, 0],
+        lox_config=SimpleNamespace(
+            json={
+                "msInfo": {
+                    "projectName": project,
+                    "localUrl": "local",
+                    "remoteUrl": "remote",
+                }
+            }
+        ),
+    )
+    return SimpleNamespace(
+        config_entry=SimpleNamespace(entry_id=entry_id, title=title),
+        miniserver=miniserver,
+    )
+
+
+def test_diagnostics_returns_the_requested_entry():
+    from custom_components.loxone.diagnostics import \
+        async_get_config_entry_diagnostics
+
+    co_a = _loaded_coordinator("a", "A", "House A")
+    co_b = _loaded_coordinator("b", "B", "House B")
+    hass = SimpleNamespace(data={DOMAIN: {"a": co_a, "b": co_b}})
+
+    result = asyncio.run(
+        async_get_config_entry_diagnostics(hass, SimpleNamespace(entry_id="b"))
+    )
+    assert result["LoxAPP3.json"]["msInfo"]["projectName"] == "House B"
+
+    missing = asyncio.run(
+        async_get_config_entry_diagnostics(hass, SimpleNamespace(entry_id="x"))
+    )
+    assert "error" in missing
+
+
+def test_system_health_lists_every_miniserver():
+    from custom_components.loxone.system_health import system_health_info
+
+    one = SimpleNamespace(data={DOMAIN: {"a": _loaded_coordinator("a", "A", "House A")}})
+    assert asyncio.run(system_health_info(one))["Project Name"] == "House A"
+
+    two = SimpleNamespace(
+        data={
+            DOMAIN: {
+                "a": _loaded_coordinator("a", "A", "House A"),
+                "b": _loaded_coordinator("b", "B", "House B"),
+            }
+        }
+    )
+    info = asyncio.run(system_health_info(two))
+    assert info["Project Name (A)"] == "House A"
+    assert info["Project Name (B)"] == "House B"
+
+    none_loaded = SimpleNamespace(data={DOMAIN: {}})
+    assert asyncio.run(system_health_info(none_loaded))["Project Name"] == "Unavailable"
