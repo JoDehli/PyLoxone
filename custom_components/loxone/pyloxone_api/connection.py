@@ -1312,12 +1312,18 @@ class LoxoneConnection(LoxoneBaseConnection):
 
                     except asyncio.CancelledError:
                         raise
-                    except (LoxoneTokenError, LoxoneAuthEscalatedError):
+                    except (
+                        LoxoneTokenError,
+                        LoxoneAuthEscalatedError,
+                        LoxoneUnauthorisedError,
+                    ):
                         # Token errors stay retryable for the
                         # supervisor (token-expiry self-heal); an
                         # escalation from ``_maybe_escalate_auth``
-                        # must propagate unchanged — propagate both to
-                        # the supervisor and let it decide.
+                        # and a 401 on the refresh itself must
+                        # propagate unchanged — the catch-all below
+                        # would count the 401 as an ordinary failure
+                        # and keep refreshing with a rejected token.
                         raise
                     except Exception as e:
                         # Issue #514: transient cycle errors during the
@@ -1340,6 +1346,11 @@ class LoxoneConnection(LoxoneBaseConnection):
                 _LOGGER.warning(
                     "Token refresh task escalating to supervisor "
                     "(refresh failed repeatedly)"
+                )
+                raise
+            except LoxoneUnauthorisedError:
+                _LOGGER.warning(
+                    "Token refresh rejected by the Miniserver (unauthorised)"
                 )
                 raise
             except Exception as exc:

@@ -3751,3 +3751,45 @@ class TestTokenSelfHealLogging:
                 await asyncio.wait_for(conn.start_listening(), timeout=5)
 
         assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+
+class TestRefreshUnauthorisedEndsSession:
+    """A 401 on the token refresh must end the session at once, not be
+    counted as one of TOKEN_REFRESH_MAX_FAILURES ordinary failures.
+    """
+
+    @pytest.mark.asyncio
+    async def test_refresh_401_is_not_retried(self, monkeypatch):
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneUnauthorisedError,
+        )
+
+        class _OpenWebsocket(_FakeWebsocket):
+            async def __anext__(self):
+                await asyncio.Event().wait()  # stays open
+
+        calls = 0
+
+        async def rejected_refresh(self, timeout: float = 30.0):
+            nonlocal calls
+            calls += 1
+            raise LoxoneUnauthorisedError("refreshjwt: unauthorised (code 401)")
+
+        monkeypatch.setattr(
+            conn_mod.LoxoneConnection, "async_refresh_token", rejected_refresh
+        )
+
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        conn.connection = _OpenWebsocket()
+        conn._session_key = b"fake-session-key"
+        conn._token.token = "token"
+        conn._token.valid_until = 1  # long expired -> refresh after 1 s
+        conn._authenticated_event.set()
+
+        with pytest.raises(LoxoneUnauthorisedError):
+            await asyncio.wait_for(conn.start_listening(), timeout=10)
+
+        assert calls == 1
