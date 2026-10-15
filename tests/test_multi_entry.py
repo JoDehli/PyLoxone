@@ -127,3 +127,65 @@ def test_entity_listener_is_removed_with_the_entity():
     assert on_remove == [_unsub]
     on_remove[0]()
     assert unsubscribed == [True]
+
+
+class _Bus:
+    def __init__(self):
+        self.listeners: dict[str, list] = {}
+        self.removed: list[str] = []
+
+    def async_listen_once(self, event_type, listener):
+        self.listeners.setdefault(event_type, []).append(listener)
+
+        def unsub():
+            self.removed.append(event_type)
+
+        return unsub
+
+
+class _Entry:
+    def __init__(self):
+        self.on_unload: list = []
+
+    def async_on_unload(self, func):
+        self.on_unload.append(func)
+
+    def unload(self):
+        for func in self.on_unload:
+            func()
+
+
+def test_pending_listen_once_is_removed_on_unload():
+    from custom_components.loxone import _async_listen_once_until_unload
+
+    hass = SimpleNamespace(bus=_Bus())
+    entry = _Entry()
+
+    async def stop_event(_event):
+        raise AssertionError("must not run")
+
+    _async_listen_once_until_unload(hass, entry, "homeassistant_stop", stop_event)
+    entry.unload()
+
+    assert hass.bus.removed == ["homeassistant_stop"]
+
+
+def test_fired_listen_once_is_not_removed_again():
+    """HA logs an exception for the unsubscribe of an already fired
+    ``listen_once``; the helper must skip it.
+    """
+    from custom_components.loxone import _async_listen_once_until_unload
+
+    hass = SimpleNamespace(bus=_Bus())
+    entry = _Entry()
+    calls = []
+
+    async def started(event):
+        calls.append(event)
+
+    _async_listen_once_until_unload(hass, entry, "homeassistant_started", started)
+    asyncio.run(hass.bus.listeners["homeassistant_started"][0]("evt"))
+    entry.unload()
+
+    assert calls == ["evt"]
+    assert hass.bus.removed == []

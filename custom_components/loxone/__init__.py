@@ -106,6 +106,31 @@ async def _async_handle_refresh_token(hass: HomeAssistant, call) -> None:
         ) from err
 
 
+def _async_listen_once_until_unload(
+    hass: HomeAssistant, config_entry: ConfigEntry, event_type, listener
+) -> None:
+    """``hass.bus.async_listen_once`` that is removed when the entry unloads.
+
+    HA logs an exception when the unsubscribe of a ``listen_once`` is
+    called after the event has fired, so it is only called while the
+    listener is still pending.
+    """
+    fired = False
+
+    async def _once(event) -> None:
+        nonlocal fired
+        fired = True
+        await listener(event)
+
+    unsub = hass.bus.async_listen_once(event_type, _once)
+
+    def _remove() -> None:
+        if not fired:
+            unsub()
+
+    config_entry.async_on_unload(_remove)
+
+
 def _loaded_coordinators(hass: HomeAssistant) -> list[LoxoneCoordinator]:
     return [
         co
@@ -869,8 +894,15 @@ async def async_setup_entry(hass, config_entry):
         except Exception as e:
             _LOGGER.error(e)
 
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event)
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, loxone_discovered)
+    # Tied to this entry: after a reload the old listeners would keep
+    # the old coordinator alive and, at shutdown, write its stale token
+    # into the entry (also of an entry the user has disabled meanwhile).
+    _async_listen_once_until_unload(
+        hass, config_entry, EVENT_HOMEASSISTANT_STOP, stop_event
+    )
+    _async_listen_once_until_unload(
+        hass, config_entry, EVENT_HOMEASSISTANT_STARTED, loxone_discovered
+    )
 
     # Store listeners for cleanup
     coordinator.listeners = [
