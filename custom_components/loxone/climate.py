@@ -559,7 +559,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                                 dict(uuid=self.uuidAction, value=f"setecoplusmintemperature/{new_temp}"),
                             )
         else:
-            # Auto/single target — set comfort temp offset
+            # Auto/single target — temporarily adopt the comfort temperature
             if "temperature" in kwargs:
                 if active_mode == ActiveMode.FIXED_DYNAMIC:
                     self.hass.bus.fire(
@@ -567,13 +567,14 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                         dict(uuid=self.uuidAction, value=f"override/{(kwargs["temperature"] * 2560) + 112}//{kwargs["temperature"]}"),
                     )
                 else:
-                    comfort = self.get_state_value("comfortTemperature")
-                    if comfort is not None:
-                        new_offset = kwargs["temperature"] - comfort
-                        self.hass.bus.fire(
-                            SENDDOMAIN,
-                            dict(uuid=self.uuidAction, value=f"setComfortModeTemp/{new_offset}"),
-                        )
+                    # ``setComfortModeTemp/{temp}`` takes the new absolute
+                    # comfort temperature (spec: comfortTemperature +
+                    # comfortTemperatureOffset ± 0.5), not an offset: the
+                    # offset sent before asked e.g. for 1 °C instead of 22 °C.
+                    self.hass.bus.fire(
+                        SENDDOMAIN,
+                        dict(uuid=self.uuidAction, value=f"setComfortModeTemp/{kwargs['temperature']}"),
+                    )
 
         self.schedule_update_ha_state()
 
