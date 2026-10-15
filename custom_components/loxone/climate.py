@@ -632,11 +632,15 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         active = self.active_mode
         if mode in (OperatingMode.AUTO_HEAT_COOL, OperatingMode.MANUAL_HEAT_COOL):
             if active == ActiveMode.COMFORT:
-                offset = self.get_state_value("comfortTemperatureOffset")
                 return self.get_state_value("comfortTemperatureCool")
             elif active == ActiveMode.ECONOMY:
                 temp = self.get_state_value("comfortTemperatureCool")
                 offset = self.get_state_value("absentMaxOffset")
+                # comfortTemperatureCool exists since Miniserver 12.1, and
+                # both states may not have arrived yet: unknown, not a
+                # TypeError on every state write.
+                if temp is None or offset is None:
+                    return None
                 return temp + offset
             elif active == ActiveMode.BUILDING_PROTECT:
                 return self.get_state_value("heatProtectTemperature")
@@ -655,6 +659,8 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             elif active == ActiveMode.ECONOMY:
                 temp = self.get_state_value("comfortTemperature")
                 offset = self.get_state_value("absentMinOffset")
+                if temp is None or offset is None:
+                    return None
                 return temp - offset
             elif active == ActiveMode.BUILDING_PROTECT:
                 return self.get_state_value("frostProtectTemperature")

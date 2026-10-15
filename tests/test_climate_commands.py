@@ -110,3 +110,31 @@ def test_irc_hvac_modes_respect_restricted_to_mode():
     assert HVACMode.COOL not in _room_controller_v1([], {"restrictedToMode": 2}).hvac_modes
     assert HVACMode.HEAT not in _room_controller_v1([], {"restrictedToMode": 1}).hvac_modes
     assert HVACMode.HEAT_COOL not in _room_controller_v1([]).hvac_modes
+
+
+@pytest.mark.parametrize(
+    "states",
+    [
+        {},  # nothing received yet
+        {"comfortTemperature": 21.0},  # offsets missing
+        {"absentMinOffset": 2.0, "absentMaxOffset": 2.0},  # no comfortTemperatureCool (< 12.1)
+    ],
+)
+def test_economy_range_with_missing_states_is_unknown(states):
+    rc = _room_controller_v2([], OperatingMode.AUTO_HEAT_COOL, ActiveMode.ECONOMY, **states)
+    assert rc.target_temperature_high is None
+    assert rc.target_temperature_low is None
+
+
+def test_economy_range_from_comfort_and_offsets():
+    rc = _room_controller_v2(
+        [],
+        OperatingMode.AUTO_HEAT_COOL,
+        ActiveMode.ECONOMY,
+        comfortTemperature=21.0,
+        comfortTemperatureCool=24.0,
+        absentMinOffset=2.0,
+        absentMaxOffset=3.0,
+    )
+    assert rc.target_temperature_low == 19.0
+    assert rc.target_temperature_high == 27.0
