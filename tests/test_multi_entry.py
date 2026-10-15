@@ -189,3 +189,26 @@ def test_fired_listen_once_is_not_removed_again():
 
     assert calls == ["evt"]
     assert hass.bus.removed == []
+
+
+def test_options_change_reloads_but_token_update_does_not():
+    from custom_components.loxone import _reload_on_options_change
+
+    entry = SimpleNamespace(
+        entry_id="a", title="PyLoxone", options={"host": "10.0.0.1"}, data={}
+    )
+    reloads = []
+    hass = SimpleNamespace(
+        config_entries=SimpleNamespace(async_schedule_reload=reloads.append)
+    )
+    listener = _reload_on_options_change(entry)
+
+    # Token refresh: only ``data`` changes.
+    entry.data = {"token": "new"}
+    asyncio.run(listener(hass, entry))
+    assert reloads == []
+
+    # Options flow: host changed.
+    entry.options = {"host": "10.0.0.2"}
+    asyncio.run(listener(hass, entry))
+    assert reloads == ["a"]

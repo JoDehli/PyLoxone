@@ -406,13 +406,23 @@ async def async_set_options(hass, config_entry):
     )
 
 
-async def async_config_entry_updated(hass, entry) -> None:
-    """Handle signals of config entry being updated.
+def _reload_on_options_change(config_entry: ConfigEntry):
+    """Update listener that reloads the entry when its *options* changed.
 
-    This is a static method because a class method (bound method), can not be used with weak references.
-    Causes for this is either discovery updating host address or config entry options changing.
+    The options flow stores host, credentials, port etc. in the options,
+    but nothing applied them until the next restart. A plain update
+    listener would also reload on every token refresh (the token is
+    written to ``data``), so only an options change triggers the reload.
+    (``options_flow_reloads`` would do this too, but needs HA 2025.10.)
     """
-    pass
+    options_at_setup = dict(config_entry.options)
+
+    async def _listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+        if dict(entry.options) != options_at_setup:
+            _LOGGER.info("Loxone options changed; reloading %s", entry.title)
+            hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    return _listener
 
 
 async def create_group_for_loxone_entities(hass, entities, name, object_id):
@@ -887,6 +897,10 @@ async def async_setup_entry(hass, config_entry):
 
         except Exception as e:
             _LOGGER.error(e)
+
+    config_entry.async_on_unload(
+        config_entry.add_update_listener(_reload_on_options_change(config_entry))
+    )
 
     # Tied to this entry: after a reload the old listeners would keep
     # the old coordinator alive and, at shutdown, write its stale token
