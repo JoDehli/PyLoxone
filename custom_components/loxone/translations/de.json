@@ -31,7 +31,9 @@
   },
   "config": {
     "abort": {
-      "single_instance_allowed": "Bereits konfiguriert"
+      "single_instance_allowed": "Bereits konfiguriert",
+      "already_configured": "Dieser Miniserver ist bereits eingerichtet.",
+      "invalid_import": "Die loxone:-Konfiguration aus configuration.yaml konnte nicht importiert werden: Benutzername und Passwort müssen latin-1-kompatibel sein."
     },
     "step": {
       "user": {

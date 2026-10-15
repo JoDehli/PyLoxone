@@ -8,6 +8,7 @@ https://github.com/JoDehli/PyLoxone
 from typing import Any, Mapping, cast
 
 import voluptuous as vol
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  CONF_USERNAME)
 from homeassistant.helpers.schema_config_entry_flow import (
@@ -131,3 +132,23 @@ class LoxoneFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
         """Return config entry title."""
         host = options.get(CONF_HOST, "Loxone")
         return f"PyLoxone ({host})"
+
+    async def async_step_import(self, import_data: dict[str, Any]) -> ConfigFlowResult:
+        """Import ``loxone:`` from configuration.yaml.
+
+        ``async_setup`` starts this flow on every HA start, so an entry
+        for the same host and port is only created once. The values are
+        stored as options, like the ones entered in the UI.
+        """
+        for entry in self._async_current_entries():
+            if entry.options.get(CONF_HOST) == import_data.get(
+                CONF_HOST
+            ) and entry.options.get(CONF_PORT) == import_data.get(CONF_PORT):
+                return self.async_abort(reason="already_configured")
+        try:
+            options = await validate_loxone_setup(
+                cast(SchemaCommonFlowHandler, None), dict(import_data)
+            )
+        except SchemaFlowError:
+            return self.async_abort(reason="invalid_import")
+        return self.async_create_entry(options)
