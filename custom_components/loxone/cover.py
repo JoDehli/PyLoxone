@@ -340,10 +340,16 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         super().__init__(**kwargs)
         self.hass = kwargs["hass"]
 
-        if "autoInfoText" not in self.states:
-            self.states["autoInfoText"] = ""
-        if "autoState" not in self.states:
-            self.states["autoState"] = ""
+        # Automatic (sun automation) states per the structure file spec:
+        # "autoActive" and "infoText". The previously read "autoState" /
+        # "autoInfoText" are not in the spec and only kept as fallback, so
+        # the sun automation no longer shows "off" for every blind.
+        self._auto_state_uuid = self.states.get("autoActive") or self.states.get(
+            "autoState"
+        )
+        self._auto_text_uuid = self.states.get("infoText") or self.states.get(
+            "autoInfoText"
+        )
         self._position = 0
         self._position_loxone = -1
         self._tilt_position_loxone = 1
@@ -408,8 +414,8 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             or self.states["shadePosition"] in e.data
             or self.states["up"] in e.data
             or self.states["down"] in e.data
-            or self.states["autoInfoText"] in e.data
-            or self.states["autoState"] in e.data
+            or self._auto_text_uuid in e.data
+            or self._auto_state_uuid in e.data
             or (self._is_automatic and self.states["targetPosition"] in e.data)
         ):
             if self.states["position"] in e.data:
@@ -442,11 +448,11 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
             if self.states["down"] in e.data:
                 self._is_closing = e.data[self.states["down"]]
 
-            if self.states["autoInfoText"] in e.data:
-                self._auto_text = e.data[self.states["autoInfoText"]]
+            if self._auto_text_uuid in e.data:
+                self._auto_text = e.data[self._auto_text_uuid]
 
-            if self.states["autoState"] in e.data:
-                self._auto_state = e.data[self.states["autoState"]]
+            if self._auto_state_uuid in e.data:
+                self._auto_state = e.data[self._auto_state_uuid]
 
             self.schedule_update_ha_state()
 
