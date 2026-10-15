@@ -3611,3 +3611,49 @@ class TestRefreshTokenCommand:
         item = conn._message_queue.get_nowait()
         assert item.command == f"{prefix}abc123/user"
         assert item.flag is True
+
+
+class TestReconnectResetsAuthentication:
+    """A new websocket starts unauthenticated, so the token refresh
+    must wait for that session's login again.
+    """
+
+    @pytest.fixture
+    def fake_http_session(self):
+        from Crypto.PublicKey import RSA
+
+        rsa_key = RSA.generate(2048)
+        return _FakeHttpSession(rsa_key.publickey().export_key().decode())
+
+    @pytest.mark.asyncio
+    async def test_new_websocket_clears_authenticated_event(
+        self, monkeypatch, fake_http_session
+    ):
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+
+        async def fake_connect(*args, **kwargs):
+            return _FakeWebsocket()
+
+        monkeypatch.setattr(conn_mod.wslib, "connect", fake_connect)
+
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        await conn.open(session=fake_http_session, connect_websocket=False)
+        # Previous session had logged in.
+        conn._authenticated_event.set()
+
+        await conn._connect_websocket()
+
+        assert not conn._authenticated_event.is_set()
+
+    @pytest.mark.asyncio
+    async def test_manual_refresh_refused_before_login(self):
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        conn._token.token = "old-token"
+        conn._authenticated_event.clear()
+
+        with pytest.raises(Exception, match="(?i)authenticat"):
+            await conn.async_refresh_token(timeout=0.1)

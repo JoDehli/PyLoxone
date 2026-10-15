@@ -2355,6 +2355,13 @@ class LoxoneConnection(LoxoneBaseConnection):
             # cycle.
             self._last_frame_time = time.monotonic()
             self._auth_failure = None
+            # A new websocket is a new, unauthenticated session: the
+            # token refresh loop and ``async_refresh_token`` must wait
+            # for this session's authwithtoken / getjwt reply. Left set
+            # from the previous session, the refresh loop would send
+            # refreshjwt before the login (with an expired token after a
+            # long outage).
+            self._authenticated_event.clear()
             self.connection = connection
             self._websocket_deferred = False
             # The connection is now confirmed working. The
