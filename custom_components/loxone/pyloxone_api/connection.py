@@ -16,7 +16,7 @@ import urllib
 from base64 import b64decode, b64encode
 from collections import deque
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Any, NoReturn, Optional, Union
 from urllib.parse import urlparse
@@ -41,7 +41,8 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     LOXAPPPATH, MAX_RECONNECT_DELAY, MAX_REFRESH_DELAY,
                     MAX_WEBSOCKET_MESSAGE_SIZE, MESSAGE_HEADER_SIZE,
                     RECONNECT_DELAY, RECONNECT_TRIES, SALT_BYTES,
-                    SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT, TIMEOUT,
+                    SALT_MAX_AGE_SECONDS, SALT_MAX_USE_COUNT,
+                    SECURED_COMMAND_TIMEOUT, TIMEOUT,
                     TOKEN_PERMISSION, TOKEN_REFRESH_MAX_FAILURES,
                     WEBSOCKET_CLOSE_TIMEOUT, WEBSOCKET_READ_TIMEOUT)
 from .exceptions import (LoxoneAuthEscalatedError,
@@ -221,7 +222,7 @@ class SecuredCommand:
     with a ``getvisusalt`` text message carrying the AES key + salt.
     Until that reply arrives we cannot compute the per-command HMAC,
     so we just stash the (device_uuid, value, code) tuple and let
-    the drain helper build the wire command later.
+    ``_send_next_secured_command`` build the wire command later.
 
     Replaces the previous design which stored **coroutines** in an
     ``asyncio.Queue(maxsize=1)`` — those were opaque, capacity-bounded
@@ -231,6 +232,9 @@ class SecuredCommand:
     device_uuid: str
     value: Union[str, int, float]
     code: str
+    # ``time.monotonic()`` when queued; commands older than
+    # ``SECURED_COMMAND_TIMEOUT`` are dropped, never sent late.
+    created: float = field(default_factory=time.monotonic)
 
 
 class LoxoneBaseConnection:
@@ -916,8 +920,8 @@ class LoxoneBaseConnection:
 
         Pure function (no IO). Returns ``None`` if
         :attr:`_visual_hash` has not been populated yet (the
-        :class:`getvisusalt` response has not arrived); the drain
-        helper treats that as a no-op rather than an error.
+        :class:`getvisusalt` response has not arrived);
+        ``_send_next_secured_command`` then sends nothing.
 
         Also returns ``None`` for an unrecognised hash algorithm.
         """
@@ -952,39 +956,62 @@ class LoxoneBaseConnection:
         new_hash = digester.hexdigest()
         return f"jdev/sps/ios/{new_hash}/{device_uuid}/{value}"
 
-    async def _drain_secured_queue(self) -> int:
-        """Drain ``self._secured_queue`` into ``self._message_queue``.
+    def _pop_secured_command(self) -> Optional[SecuredCommand]:
+        """Pop the oldest pending secure command that has not expired.
 
-        Pops every :class:`SecuredCommand` in FIFO order, builds
-        the wire command text via
-        :meth:`_secured_command_text`, and puts the result on
-        ``_message_queue`` (the same queue the websocket send
-        loop consumes). Commands whose visual hash is not yet
-        populated (or whose hash algorithm is unrecognised) are
-        skipped — they were already logged by the helper.
-
-        Returns the number of commands drained and queued.
-        Extracted so tests can drive it directly without setting
-        up a live Miniserver.
+        Expired commands (older than ``SECURED_COMMAND_TIMEOUT``) are
+        dropped with a warning: their ``getvisusalt`` reply was lost
+        or failed, and sending them now would execute a secured
+        action long after the user asked for it.
         """
-        drained = 0
+        now = time.monotonic()
         while self._secured_queue:
             cmd = self._secured_queue.popleft()
-            try:
-                command_text = self._secured_command_text(
-                    cmd.device_uuid, cmd.value, cmd.code
-                )
-            except Exception as e:
-                _LOGGER.error(
-                    f"Error building secured command text for "
-                    f"{cmd.device_uuid}: {e}"
-                )
-                continue
-            if command_text is None:
-                continue
-            await self._message_queue.put(MessageForQueue(command_text, True))
-            drained += 1
-        return drained
+            if now - cmd.created <= SECURED_COMMAND_TIMEOUT:
+                return cmd
+            _LOGGER.warning(
+                "Secure command for %s dropped: no visual salt within %s s",
+                cmd.device_uuid,
+                SECURED_COMMAND_TIMEOUT,
+            )
+        return None
+
+    async def _send_next_secured_command(self) -> bool:
+        """Send the secure command that a ``getvisusalt`` reply belongs to.
+
+        Every ``send_secured_websocket_command`` sends exactly one
+        ``getvisusalt`` request, and the Miniserver answers them in
+        order, so each reply releases exactly one command (FIFO).
+        Draining the whole queue on one reply used to send commands
+        whose own request had failed together with the next one.
+
+        Returns True if a command was queued for sending.
+        """
+        cmd = self._pop_secured_command()
+        if cmd is None:
+            return False
+        try:
+            command_text = self._secured_command_text(
+                cmd.device_uuid, cmd.value, cmd.code
+            )
+        except Exception as e:
+            _LOGGER.error(
+                f"Error building secured command text for "
+                f"{cmd.device_uuid}: {e}"
+            )
+            return False
+        if command_text is None:
+            return False
+        await self._message_queue.put(MessageForQueue(command_text, True))
+        return True
+
+    def _drop_next_secured_command(self, reason: str) -> None:
+        """Discard the secure command a failed ``getvisusalt`` belongs to."""
+        cmd = self._pop_secured_command()
+        if cmd is not None:
+            _LOGGER.warning(
+                "Secure command for %s not sent: %s", cmd.device_uuid, reason
+            )
 
     async def _send_secure(self, device_uuid, value, code):
         """Send a single pre-built secure command to the Miniserver.
@@ -2646,7 +2673,7 @@ class LoxoneConnection(LoxoneBaseConnection):
 
             # Stash the (device_uuid, value, code) tuple on the
             # secured-queue deque. The Miniserver's
-            # ``getvisusalt`` response triggers the drain helper
+            # ``getvisusalt`` response releases it via ``_send_next_secured_command``,
             # which builds the wire command text using the
             # visual hash and forwards it to ``_message_queue``.
             # Replaces the previous opaque-coroutine-on-a-Queue
@@ -2817,6 +2844,9 @@ class LoxoneConnection(LoxoneBaseConnection):
             ):
                 try:
                     self._check_auth_response(mess_obj, "getvisusalt")
+                    code = getattr(mess_obj, "code", None)
+                    if code not in (None, 200):
+                        raise ValueError(f"getvisusalt returned code {code}")
                     value_dict = mess_obj.value_as_dict
                     if not isinstance(value_dict, dict):
                         raise ValueError("value_as_dict is not a dictionary")
@@ -2840,18 +2870,21 @@ class LoxoneConnection(LoxoneBaseConnection):
                     key_and_salt.time_elapsed_in_seconds = time_elapsed_in_seconds()
                     self._visual_hash = key_and_salt
 
-                    # Drain the secured queue now that we have a
-                    # visual hash. See ``_drain_secured_queue`` —
-                    # extracted so the FIFO / text-build logic is
-                    # directly testable without a live Miniserver.
-                    await self._drain_secured_queue()
-
                 except LoxoneUnauthorisedError:
                     # Hard credential rejection — must reach the
-                    # ``run()`` supervisor, not just the log.
+                    # ``run()`` supervisor, not just the log. The
+                    # command this reply belongs to is not sent.
+                    self._drop_next_secured_command("unauthorised")
                     raise
                 except Exception as e:
                     _LOGGER.error(f"Error processing visual salt: {e}")
+                    # This reply's command must not run later with
+                    # the next command's reply.
+                    self._drop_next_secured_command(str(e))
+                else:
+                    # One reply releases exactly one command; see
+                    # ``_send_next_secured_command``.
+                    await self._send_next_secured_command()
 
             # Handle token response
             elif isinstance(mess_obj, TextMessage) and (

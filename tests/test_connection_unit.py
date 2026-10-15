@@ -730,26 +730,25 @@ class TestSecuredQueueDrain:
         conn._visual_hash = kh
 
     @pytest.mark.asyncio
-    async def test_drain_empty_queue(self):
+    async def test_send_next_with_empty_queue(self):
         conn = self._make_conn()
+        self._set_visual_hash(conn)
         assert conn._secured_queue == deque()
-        drained = await conn._drain_secured_queue()
-        assert drained == 0
-        assert conn._secured_queue == deque()
+        assert await conn._send_next_secured_command() is False
+        assert conn._message_queue.qsize() == 0
 
     @pytest.mark.asyncio
-    async def test_drain_single_command(self):
+    async def test_send_next_single_command(self):
         conn = self._make_conn()
         self._set_visual_hash(conn)
 
         conn._secured_queue.append(
             SecuredCommand("dev-uuid-1", "value", "44")
         )
-        drained = await conn._drain_secured_queue()
-        assert drained == 1
+        assert await conn._send_next_secured_command() is True
         assert conn._secured_queue == deque()
 
-        # The drained command is on the message queue as a
+        # The command is on the message queue as a
         # MessageForQueue with flag=True.
         assert conn._message_queue.qsize() == 1
         item = conn._message_queue.get_nowait()
@@ -760,52 +759,43 @@ class TestSecuredQueueDrain:
         assert item.command.endswith("/dev-uuid-1/value")
 
     @pytest.mark.asyncio
-    async def test_drain_preserves_fifo_order(self):
-        conn = self._make_conn()
-        self._set_visual_hash(conn)
-
-        for i in range(5):
-            conn._secured_queue.append(
-                SecuredCommand(f"dev-{i}", f"v{i}", f"c{i}")
-            )
-
-        drained = await conn._drain_secured_queue()
-        assert drained == 5
-        assert conn._secured_queue == deque()
-
-        # Pop the message queue and assert FIFO order.
-        assert conn._message_queue.qsize() == 5
-        for i in range(5):
-            item = conn._message_queue.get_nowait()
-            assert item.command.endswith(f"/dev-{i}/v{i}")
-
-    @pytest.mark.asyncio
-    async def test_drain_without_visual_hash_skips(self):
-        """When ``_visual_hash is None``, every queued command is
-        skipped (the helper returns ``None``) and the deque is
-        drained. The skip is logged at DEBUG — verify the queue
-        ends up empty and the message queue is empty.
+    async def test_one_command_per_reply_in_fifo_order(self):
+        """Each call (= one getvisusalt reply) releases exactly one
+        command, oldest first.
         """
         conn = self._make_conn()
-        assert conn._visual_hash is None
+        self._set_visual_hash(conn)
 
         for i in range(3):
             conn._secured_queue.append(
                 SecuredCommand(f"dev-{i}", f"v{i}", f"c{i}")
             )
 
-        drained = await conn._drain_secured_queue()
-        assert drained == 0
+        for i in range(3):
+            assert await conn._send_next_secured_command() is True
+            assert len(conn._secured_queue) == 2 - i
+            item = conn._message_queue.get_nowait()
+            assert item.command.endswith(f"/dev-{i}/v{i}")
+
+    @pytest.mark.asyncio
+    async def test_send_next_without_visual_hash_consumes_command(self):
+        """Without a visual hash the command is consumed but nothing
+        is sent (logged at DEBUG by ``_secured_command_text``).
+        """
+        conn = self._make_conn()
+        assert conn._visual_hash is None
+        conn._secured_queue.append(SecuredCommand("dev-0", "v", "c"))
+
+        assert await conn._send_next_secured_command() is False
         assert conn._secured_queue == deque()
         assert conn._message_queue.qsize() == 0
 
     @pytest.mark.asyncio
-    async def test_drain_unknown_hash_alg_skips_individually(
+    async def test_send_next_unknown_hash_alg_sends_nothing(
         self, caplog: pytest.LogCaptureFixture
     ):
-        """An unrecognised hash algorithm skips that command (logged
-        at ERROR) but doesn't stop the drain — the deque ends empty
-        and zero commands reach the message queue.
+        """An unrecognised hash algorithm drops that command (logged
+        at ERROR) and nothing reaches the message queue.
         """
         import logging
 
@@ -822,13 +812,47 @@ class TestSecuredQueueDrain:
             logging.ERROR,
             logger="custom_components.loxone.pyloxone_api.connection",
         ):
-            drained = await conn._drain_secured_queue()
+            assert await conn._send_next_secured_command() is False
 
-        assert drained == 0
+        assert conn._message_queue.qsize() == 0
         assert any(
             "Unrecognised hash algorithm" in r.message
             for r in caplog.records
         )
+
+    @pytest.mark.asyncio
+    async def test_expired_command_is_dropped_not_sent(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """A command whose reply never came is not sent with a later
+        reply; the next fresh command is.
+        """
+        import logging
+        import time
+
+        from custom_components.loxone.pyloxone_api.const import (
+            SECURED_COMMAND_TIMEOUT,
+        )
+
+        conn = self._make_conn()
+        self._set_visual_hash(conn)
+        conn._secured_queue.append(
+            SecuredCommand(
+                "open-gate",
+                "pulse",
+                "1234",
+                created=time.monotonic() - SECURED_COMMAND_TIMEOUT - 1,
+            )
+        )
+        conn._secured_queue.append(SecuredCommand("disarm", "off", "1234"))
+
+        with caplog.at_level(logging.WARNING):
+            assert await conn._send_next_secured_command() is True
+
+        item = conn._message_queue.get_nowait()
+        assert item.command.endswith("/disarm/off")
+        assert conn._message_queue.qsize() == 0
+        assert "open-gate" in caplog.text
 
     def test_secured_queue_is_deque_not_queue(self):
         """Regression net: ``_secured_queue`` must be a ``deque`` of
@@ -3463,3 +3487,67 @@ class TestSaltRotationLock:
         # The rotation carries the previously used salt and installs a new one.
         assert plaintexts[3].rstrip("\x00").split("/")[1] == first_salt
         assert conn._salt != first_salt
+
+
+class TestGetvisusaltReleasesOneCommand:
+    """A ``getvisusalt`` reply belongs to exactly one secure command.
+
+    Previously one successful reply drained the whole queue, so a
+    command whose own request had failed ran together with the next
+    secure command (e.g. a failed "open gate" executing with a later
+    "disarm alarm").
+    """
+
+    @staticmethod
+    def _reply(code: int) -> str:
+        return json.dumps(
+            {
+                "LL": {
+                    "control": "jdev/sps/getvisusalt/user",
+                    "code": str(code),
+                    "value": {
+                        "key": "aa" * 32,
+                        "salt": "bb" * 16,
+                        "hashAlg": "SHA1",
+                    },
+                }
+            }
+        )
+
+    @pytest.mark.asyncio
+    async def test_failed_reply_drops_its_command(self):
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        conn._secured_queue.append(SecuredCommand("open-gate", "pulse", "1234"))
+        conn._secured_queue.append(SecuredCommand("disarm", "off", "1234"))
+
+        await conn._websocket_event(
+            parse_message(self._reply(500), MessageType.TEXT)
+        )
+        # The failed reply consumed "open-gate" without sending it.
+        assert [c.device_uuid for c in conn._secured_queue] == ["disarm"]
+        assert conn._message_queue.qsize() == 0
+
+        await conn._websocket_event(
+            parse_message(self._reply(200), MessageType.TEXT)
+        )
+        assert conn._secured_queue == deque()
+        assert conn._message_queue.qsize() == 1
+        assert conn._message_queue.get_nowait().command.endswith("/disarm/off")
+
+    @pytest.mark.asyncio
+    async def test_successful_reply_releases_only_one_command(self):
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        conn._secured_queue.append(SecuredCommand("dev-1", "on", "1234"))
+        conn._secured_queue.append(SecuredCommand("dev-2", "on", "1234"))
+
+        await conn._websocket_event(
+            parse_message(self._reply(200), MessageType.TEXT)
+        )
+
+        assert conn._message_queue.qsize() == 1
+        assert conn._message_queue.get_nowait().command.endswith("/dev-1/on")
+        assert [c.device_uuid for c in conn._secured_queue] == ["dev-2"]
