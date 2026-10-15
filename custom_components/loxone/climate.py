@@ -137,6 +137,36 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
+# IRoomController (legacy, V1) per the structure file spec. "mode" state and
+# command: 0 = automatic (by heating/cooling period), 1/2 = automatic,
+# currently heating/cooling (state only, not selectable), 3/4 = automatic
+# heating/cooling, 5/6 = manual heating/cooling. There is no "off" mode:
+# service mode 1 switches heating and cooling off.
+IRC_MODE_TO_HVAC = {
+    0: HVACMode.AUTO,
+    1: HVACMode.AUTO,
+    2: HVACMode.AUTO,
+    3: HVACMode.HEAT,
+    4: HVACMode.COOL,
+    5: HVACMode.HEAT,
+    6: HVACMode.COOL,
+}
+IRC_HVAC_TO_MODE = {HVACMode.AUTO: 0, HVACMode.HEAT: 3, HVACMode.COOL: 4}
+IRC_COOLING_MODES = (2, 4, 6)
+IRC_SERVICE_NORMAL = 0
+IRC_SERVICE_HEATING_COOLING_OFF = 1
+# details.restrictedToMode: 1 = cooling only, 2 = heating only
+IRC_RESTRICTED_COOLING_ONLY = 1
+IRC_RESTRICTED_HEATING_ONLY = 2
+
+
+def _irc_int(value) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller (legacy, non-V2)"""
 
@@ -222,24 +252,23 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
         if temp is None:
             return
 
-        # IRoomController uses setTemp with current temperature index
-        # Get the current active temperature index based on mode
-        mode = self.get_state_value("mode")
+        # ``settemp/{temperature id}/{value}`` changes the temperature the
+        # controller currently uses: the cooling index in the cooling modes
+        # (2, 4, 6), otherwise the heating index.
+        mode = _irc_int(self.get_state_value("mode"))
 
-        # Determine which temperature index to use
         temp_idx = self.get_state_value("currHeatTempIx")
-        if mode == 2:  # Cooling mode
+        if mode in IRC_COOLING_MODES:
             cool_idx = self.get_state_value("currCoolTempIx")
             if cool_idx is not None:
                 temp_idx = cool_idx
 
         if temp_idx is not None:
-            # Command format: setTemp/<index>/<value>
             self.hass.bus.fire(
                 SENDDOMAIN,
                 dict(
                     uuid=self.uuidAction,
-                    value=f"setTemp/{int(temp_idx)}/{temp}",
+                    value=f"settemp/{int(temp_idx)}/{temp}",
                 ),
             )
             self.schedule_update_ha_state()
@@ -262,31 +291,24 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
 
     @property
     def hvac_mode(self) -> HVACMode | None:
-        """Return hvac operation mode."""
-        mode = self.get_state_value("mode")
-
-        # mode: 0=Auto, 1=Heat, 2=Cool, 3=Heat/Cool, 4=Off
-        if mode == 0:
-            return HVACMode.AUTO
-        elif mode == 1:
-            return HVACMode.HEAT
-        elif mode == 2:
-            return HVACMode.COOL
-        elif mode == 3:
-            return HVACMode.HEAT_COOL
-        else:
+        """Return hvac operation mode (see ``IRC_MODE_TO_HVAC``)."""
+        if (
+            _irc_int(self.get_state_value("serviceMode"))
+            == IRC_SERVICE_HEATING_COOLING_OFF
+        ):
             return HVACMode.OFF
+        return IRC_MODE_TO_HVAC.get(_irc_int(self.get_state_value("mode")))
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
         """Return the list of available hvac operation modes."""
-        return [
-            HVACMode.OFF,
-            HVACMode.AUTO,
-            HVACMode.HEAT,
-            HVACMode.COOL,
-            HVACMode.HEAT_COOL,
-        ]
+        restricted = _irc_int(self.details.get("restrictedToMode"))
+        modes = [HVACMode.OFF, HVACMode.AUTO]
+        if restricted != IRC_RESTRICTED_COOLING_ONLY:
+            modes.append(HVACMode.HEAT)
+        if restricted != IRC_RESTRICTED_HEATING_ONLY:
+            modes.append(HVACMode.COOL)
+        return modes
 
     @property
     def temperature_unit(self) -> str:
@@ -320,22 +342,28 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
         return 35.0
 
     def set_hvac_mode(self, hvac_mode: str):
-        """Set new target hvac mode."""
-        # Map HVAC mode to Loxone mode
-        mode_map = {
-            HVACMode.OFF: 4,
-            HVACMode.AUTO: 0,
-            HVACMode.HEAT: 1,
-            HVACMode.COOL: 2,
-            HVACMode.HEAT_COOL: 3,
-        }
+        """Set new target hvac mode.
 
-        target_mode = mode_map.get(hvac_mode, 0)
+        OFF switches heating and cooling off with service mode 1 (the
+        controller has no "off" mode); any other mode leaves that service
+        mode first and then selects ``mode/{n}``.
+        """
+        def send(value: str) -> None:
+            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=value))
 
-        self.hass.bus.fire(
-            SENDDOMAIN,
-            dict(uuid=self.uuidAction, value=f"setMode/{target_mode}"),
-        )
+        if hvac_mode == HVACMode.OFF:
+            send(f"service/{IRC_SERVICE_HEATING_COOLING_OFF}")
+        else:
+            target_mode = IRC_HVAC_TO_MODE.get(hvac_mode)
+            if target_mode is None:
+                _LOGGER.warning("%s: unsupported hvac mode %s", self.name, hvac_mode)
+                return
+            if (
+                _irc_int(self.get_state_value("serviceMode"))
+                == IRC_SERVICE_HEATING_COOLING_OFF
+            ):
+                send(f"service/{IRC_SERVICE_NORMAL}")
+            send(f"mode/{target_mode}")
 
         self.schedule_update_ha_state()
 
