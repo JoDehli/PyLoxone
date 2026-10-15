@@ -3587,3 +3587,27 @@ class TestGetvisusaltReleasesOneCommand:
         assert conn._message_queue.qsize() == 1
         assert conn._message_queue.get_nowait().command.endswith("/dev-1/on")
         assert [c.device_uuid for c in conn._secured_queue] == ["dev-2"]
+
+
+class TestRefreshTokenCommand:
+    """``_refresh_token`` builds ``…/{tokenHash}/{user}`` for both the
+    legacy (< 10.2) and the JWT command.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("version", "prefix"),
+        [([10, 1], "jdev/sys/refreshtoken/"), ([12, 0], "jdev/sys/refreshjwt/")],
+    )
+    async def test_refresh_command_path(self, monkeypatch, version, prefix):
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        conn.miniserver_version = version
+        monkeypatch.setattr(conn, "_hash_token", lambda: "abc123")
+
+        await conn._refresh_token()
+
+        item = conn._message_queue.get_nowait()
+        assert item.command == f"{prefix}abc123/user"
+        assert item.flag is True
