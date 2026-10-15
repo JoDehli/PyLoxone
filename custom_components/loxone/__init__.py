@@ -797,11 +797,15 @@ async def async_setup_entry(hass, config_entry):
         # unexpected). The done-callback reload path is
         # kept as a safety net for anything ``run()``
         # itself can't handle.
-        listening_task = asyncio.create_task(
+        # Entry background task: HA cancels it on unload and shutdown
+        # and does not wait for it (it runs as long as the entry).
+        listening_task = config_entry.async_create_background_task(
+            hass,
             coordinator.api.run(
                 on_state=_on_connection_state,
                 callback=message_callback,
-            )
+            ),
+            name=f"loxone listener {config_entry.entry_id}",
         )
         coordinator._listening_task = listening_task
         listening_task.add_done_callback(handle_task_result)
@@ -857,6 +861,26 @@ async def async_setup_entry(hass, config_entry):
         )
         await coordinator.api.close()
 
+    def _send_in_background(device_uuid, send) -> None:
+        """Run a command send as a tracked entry task and log failures.
+
+        A bare ``asyncio.create_task`` kept no reference (the task could
+        be garbage collected) and nobody retrieved its exception, so a
+        failed command was silent.
+        """
+
+        async def _send() -> None:
+            try:
+                await send
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning(
+                    "Could not send command to %s: %s", device_uuid, err
+                )
+
+        config_entry.async_create_background_task(
+            hass, _send(), name=f"loxone send {device_uuid}"
+        )
+
     async def loxone_send(event):
         """Listen for change Events from Loxone Components"""
         try:
@@ -878,8 +902,9 @@ async def async_setup_entry(hass, config_entry):
                 if device_uuid is None:
                     device_uuid = DEFAULT
 
-                _ = asyncio.create_task(
-                    coordinator.api.send_websocket_command(device_uuid, value)
+                _send_in_background(
+                    device_uuid,
+                    coordinator.api.send_websocket_command(device_uuid, value),
                 )
 
             elif event.event_type == SECUREDSENDDOMAIN and isinstance(event.data, dict):
@@ -892,10 +917,11 @@ async def async_setup_entry(hass, config_entry):
                     value = DEFAULT
                 if device_uuid is None:
                     device_uuid = DEFAULT
-                _ = asyncio.create_task(
+                _send_in_background(
+                    device_uuid,
                     coordinator.api.send_secured_websocket_command(
                         device_uuid, value, code
-                    )
+                    ),
                 )
 
         except Exception as e:
