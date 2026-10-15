@@ -118,7 +118,11 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             )
         try:
             session = async_get_clientsession(self.hass)
-            await self.api.open(session)
+            # Bootstrap only: the websocket is opened by ``run()`` once
+            # the platforms are set up. Opened here, it would sit
+            # unauthenticated during platform setup and the Miniserver
+            # would close it (issue #527).
+            await self.api.open(session, connect_websocket=False)
         except LoxoneException as e:
             _LOGGER.error("Could not connect to Loxone Miniserver")
             raise e

@@ -447,6 +447,121 @@ class TestOpenStoresWebsocket:
         assert conn.connection is fake_ws
 
 
+class TestDeferredWebsocket:
+    """``open(connect_websocket=False)`` bootstraps over HTTP only;
+    the next ``start_listening()`` opens the websocket right before
+    the key exchange (issue #527: the Miniserver closes a websocket
+    that is not authenticated within a few seconds).
+    """
+
+    @pytest.fixture
+    def fake_http_session(self):
+        from Crypto.PublicKey import RSA
+
+        rsa_key = RSA.generate(2048)
+        public_pem = rsa_key.publickey().export_key().decode()
+        return _FakeHttpSession(public_pem)
+
+    @staticmethod
+    def _make_conn():
+        return LoxoneConnection(
+            host="192.0.2.1",
+            username="user",
+            password="password",
+            port=8080,
+        )
+
+    @pytest.mark.asyncio
+    async def test_open_without_websocket_skips_connect(
+        self, monkeypatch, fake_http_session
+    ):
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+
+        async def fail_connect(*args, **kwargs):
+            raise AssertionError("wslib.connect must not be called")
+
+        monkeypatch.setattr(conn_mod.wslib, "connect", fail_connect)
+
+        conn = self._make_conn()
+        result = await conn.open(
+            session=fake_http_session, connect_websocket=False
+        )
+
+        assert result is None
+        assert conn.connection is None
+        assert conn.structure_file
+        assert conn._session_key
+        assert conn._websocket_deferred is True
+
+    @pytest.mark.asyncio
+    async def test_start_listening_connects_deferred_websocket(
+        self, monkeypatch, fake_http_session
+    ):
+        """The deferred websocket is opened by ``start_listening``
+        without repeating the HTTP bootstrap, and the key exchange is
+        the first frame sent on it.
+        """
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+        from custom_components.loxone.pyloxone_api.const import (
+            CMD_KEY_EXCHANGE,
+        )
+
+        sent: list[str] = []
+
+        class _RecordingWebsocket(_FakeWebsocket):
+            async def send(self, message, *args, **kwargs):
+                sent.append(message)
+
+        fake_ws = _RecordingWebsocket()
+        connects = 0
+
+        async def fake_connect(*args, **kwargs):
+            nonlocal connects
+            connects += 1
+            return fake_ws
+
+        monkeypatch.setattr(conn_mod.wslib, "connect", fake_connect)
+
+        conn = self._make_conn()
+        await conn.open(session=fake_http_session, connect_websocket=False)
+        assert connects == 0
+
+        async def fail_open(self, *args, **kwargs):
+            raise AssertionError("open() must not run again")
+
+        monkeypatch.setattr(conn_mod.LoxoneConnection, "open", fail_open)
+
+        task = asyncio.create_task(conn.start_listening())
+        await asyncio.sleep(0.05)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            # The fake recv loop ends at once, which surfaces as a
+            # recoverable closed-connection error — not under test.
+            pass
+
+        assert connects == 1
+        assert sent and sent[0].startswith(CMD_KEY_EXCHANGE)
+        assert conn._websocket_deferred is False
+
+    @pytest.mark.asyncio
+    async def test_close_clears_deferred_flag(
+        self, monkeypatch, fake_http_session
+    ):
+        """After a close, a reconnect must run the full ``open()``
+        bootstrap again, not just the deferred websocket connect.
+        """
+        conn = self._make_conn()
+        await conn.open(session=fake_http_session, connect_websocket=False)
+
+        await conn.close()
+
+        assert conn._websocket_deferred is False
+
+
 class TestExecutorParam:
     """``LoxoneBaseConnection.__init__`` accepts an optional
     ``executor`` callable, and ``open()`` uses it to off-load the

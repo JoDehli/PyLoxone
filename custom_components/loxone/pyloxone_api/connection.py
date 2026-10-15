@@ -379,6 +379,12 @@ class LoxoneBaseConnection:
         self.miniserver_version: list[int] = []
         self.miniserver_serial: str = ""
         self.structure_file: dict = {}
+        # Set by ``open(connect_websocket=False)``: the HTTP bootstrap
+        # (apiKey / LoxAPP3 / publicKey / session key) is done, but the
+        # websocket is left for ``start_listening()`` to open right
+        # before the key exchange. Issue #527: the Miniserver closes a
+        # websocket that is not authenticated within a few seconds.
+        self._websocket_deferred: bool = False
 
         # Validate and initialize token
         try:
@@ -1070,7 +1076,14 @@ class LoxoneConnection(LoxoneBaseConnection):
     ) -> None:
         """Open, and start listening."""
 
-        if self.connection is None:
+        if self.connection is None and self._websocket_deferred:
+            # Bootstrap already done by ``open(connect_websocket=False)``;
+            # only the websocket is missing. Connecting it here, directly
+            # before the key exchange below, keeps the unauthenticated
+            # window short (issue #527).
+            _LOGGER.debug("Opening the deferred websocket connection.")
+            await self._connect_websocket()
+        elif self.connection is None:
             _LOGGER.debug("No existing connection found. Opening a new connection.")
             await self.open()
         else:
@@ -2051,8 +2064,22 @@ class LoxoneConnection(LoxoneBaseConnection):
         raise last_exc
 
     async def open(
-        self, session: aiohttp.ClientSession | None = None
-    ) -> LoxoneClientConnection:
+        self,
+        session: aiohttp.ClientSession | None = None,
+        *,
+        connect_websocket: bool = True,
+    ) -> LoxoneClientConnection | None:
+        """Bootstrap over HTTP and (by default) open the websocket.
+
+        With ``connect_websocket=False`` only the HTTP bootstrap and
+        the session-key generation run; ``structure_file`` is
+        available afterwards, and the websocket is opened by the next
+        :meth:`start_listening` right before the key exchange. Use
+        this when there is a delay between bootstrap and listening
+        (e.g. Home Assistant setting up its platforms): the Miniserver
+        closes a websocket that is not authenticated within a few
+        seconds (issue #527).
+        """
 
         if self._closed:
             raise RuntimeError("Cannot open a closed connection")
@@ -2218,6 +2245,18 @@ class LoxoneConnection(LoxoneBaseConnection):
             _LOGGER.error(f"Error generating session key: {exc}")
             raise LoxoneException(f"Session key generation failed: {exc}") from exc
 
+        if not connect_websocket:
+            self._websocket_deferred = True
+            return None
+        return await self._connect_websocket()
+
+    async def _connect_websocket(self) -> LoxoneClientConnection:
+        """Open the websocket after a completed :meth:`open` bootstrap.
+
+        The caller must send the key exchange right after this
+        returns; the Miniserver closes a websocket that is not
+        authenticated within a few seconds (issue #527).
+        """
         # generate first salt
         try:
             self._generate_salt()
@@ -2265,6 +2304,7 @@ class LoxoneConnection(LoxoneBaseConnection):
             self._last_frame_time = time.monotonic()
             self._auth_failure = None
             self.connection = connection
+            self._websocket_deferred = False
             # The connection is now confirmed working. The
             # ``_note_connection_restored`` call below will then
             # log INFO if we were in the middle of an outage
@@ -2355,6 +2395,9 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         _LOGGER.debug("Closing connection...")
         self._closed = True
+        # A reconnect after this close re-runs the full ``open()``
+        # bootstrap, as before the websocket could be deferred.
+        self._websocket_deferred = False
 
         # Drop any pending secure commands — they would never reach
         # the Miniserver and any stale visual hash should not be
