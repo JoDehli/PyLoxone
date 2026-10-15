@@ -8,8 +8,6 @@ https://github.com/JoDehli/PyLoxone
 import asyncio
 import logging
 import re
-import sys
-import traceback
 from functools import cached_property, partial
 
 import homeassistant.components.group as group
@@ -905,13 +903,21 @@ class LoxoneEntity(Entity):
                 else:
                     setattr(self, key, kwargs[key])
             else:
+                # A control attribute that cannot be set is skipped, never
+                # fatal: one odd control in the structure file must not
+                # take down the entity setup (this used to sys.exit the
+                # whole Home Assistant process). ``kwargs`` instead of
+                # ``self.name``: the name may not be set yet.
                 try:
                     setattr(self, key, kwargs[key])
                 except AttributeError:
-                    _LOGGER.error(f"Could set {key} for {self.name}")
-                except (Exception,):
-                    traceback.print_exc()
-                    sys.exit(-1)
+                    _LOGGER.error(
+                        "Could not set %s for %s", key, kwargs.get("name")
+                    )
+                except Exception:
+                    _LOGGER.exception(
+                        "Could not set %s for %s", key, kwargs.get("name")
+                    )
 
         self.listener = None
 
