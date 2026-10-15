@@ -118,6 +118,7 @@ def test_entity_listener_is_removed_with_the_entity():
     entity = LoxoneEntity.__new__(LoxoneEntity)
     on_remove = []
     entity.async_on_remove = on_remove.append
+    entity.registry_entry = None  # not in the registry: no connection signal
     entity.hass = SimpleNamespace(
         bus=SimpleNamespace(async_listen=lambda event, handler: _unsub)
     )
@@ -127,6 +128,36 @@ def test_entity_listener_is_removed_with_the_entity():
     assert on_remove == [_unsub]
     on_remove[0]()
     assert unsubscribed == [True]
+
+
+def test_entity_follows_the_connection_state_signal(monkeypatch):
+    """Connection changes reach loaded entities through a dispatcher
+    signal of their entry instead of one task per registry entry."""
+    import custom_components.loxone as loxone
+
+    connected = []
+
+    def fake_connect(hass, signal, target):
+        connected.append((signal, target))
+        return "unsub-signal"
+
+    monkeypatch.setattr(loxone, "async_dispatcher_connect", fake_connect)
+
+    entity = LoxoneEntity.__new__(LoxoneEntity)
+    on_remove = []
+    entity.async_on_remove = on_remove.append
+    entity.registry_entry = SimpleNamespace(config_entry_id="entry-a")
+    entity.async_write_ha_state = lambda: None
+    entity.hass = SimpleNamespace(
+        bus=SimpleNamespace(async_listen=lambda event, handler: "unsub-bus")
+    )
+
+    asyncio.run(entity.async_added_to_hass())
+
+    assert connected == [
+        (loxone.connection_state_signal("entry-a"), entity.async_write_ha_state)
+    ]
+    assert on_remove == ["unsub-bus", "unsub-signal"]
 
 
 class _Bus:
