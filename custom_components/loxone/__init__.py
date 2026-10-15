@@ -24,7 +24,6 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.helpers.discovery import async_load_platform
 from homeassistant.helpers.entity import Entity
 from homeassistant.setup import async_setup_component
 
@@ -514,17 +513,12 @@ async def async_setup_entry(hass, config_entry):
 
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
 
-    setup_tasks = []
+    # Config-entry platforms only. The extra ``async_load_platform``
+    # per platform (with the ConfigEntry passed as ``hass_config``) ran
+    # every ``async_setup_platform`` a second time with an empty config,
+    # where they do nothing; YAML-defined custom sensors are loaded by
+    # HA from YAML independently of this.
     await hass.config_entries.async_forward_entry_setups(config_entry, LOXONE_PLATFORMS)
-    for platform in LOXONE_PLATFORMS:
-        setup_tasks.append(
-            hass.async_create_task(
-                async_load_platform(hass, platform, DOMAIN, {}, config_entry)
-            )
-        )
-
-    if setup_tasks:
-        await asyncio.wait(setup_tasks)
 
     async def _reload_after_delay(delay: float) -> None:
         await coordinator.api.close()
