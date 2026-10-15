@@ -77,6 +77,10 @@ CONFIG_SCHEMA = vol.Schema(
 
 _UNDEF: dict = {}
 
+# Seconds to wait before reloading an entry whose listening task died
+# from an error ``run()`` does not retry itself.
+UNEXPECTED_FAILURE_RELOAD_DELAY = 30
+
 # TODO: get version and check for updates https://update.loxone.com/updatecheck.xml?serial=xxxxxxxxx
 
 
@@ -102,6 +106,113 @@ async def _async_handle_refresh_token(hass: HomeAssistant, call) -> None:
         raise HomeAssistantError(
             f"Token refresh failed for '{config_entry.title}': {err}"
         ) from err
+
+
+def _loaded_coordinators(hass: HomeAssistant) -> list[LoxoneCoordinator]:
+    return [
+        co
+        for co in hass.data.get(DOMAIN, {}).values()
+        if isinstance(co, LoxoneCoordinator)
+    ]
+
+
+def _coordinator_for_uuid(
+    hass: HomeAssistant, uuid: str
+) -> LoxoneCoordinator | None:
+    """Find the coordinator of the Miniserver that owns ``uuid``.
+
+    With a single Miniserver every UUID goes to it (also UUIDs that are
+    not in the structure file, as before). With several, the UUID must
+    belong to exactly that Miniserver's structure file.
+    """
+    coordinators = _loaded_coordinators(hass)
+    if len(coordinators) == 1:
+        return coordinators[0]
+    for co in coordinators:
+        if co.owns_uuid(uuid):
+            return co
+    return None
+
+
+def _resolve_command_target(
+    hass: HomeAssistant, call
+) -> tuple[LoxoneCoordinator, str]:
+    """Return (coordinator, uuid) for a websocket-command service call."""
+    entity_id = call.data.get(ATTR_DEVICE)
+    if entity_id is not None:
+        entity = er.async_get(hass).async_get(entity_id)
+        if entity is None:
+            raise HomeAssistantError(f"Unknown entity '{entity_id}'")
+        coordinator = hass.data.get(DOMAIN, {}).get(entity.config_entry_id)
+        if not isinstance(coordinator, LoxoneCoordinator):
+            raise HomeAssistantError(
+                f"The Loxone entry of '{entity_id}' is not loaded"
+            )
+        return coordinator, entity.unique_id
+
+    uuid = call.data.get(ATTR_UUID, DEFAULT)
+    coordinator = _coordinator_for_uuid(hass, uuid)
+    if coordinator is None:
+        raise HomeAssistantError(
+            f"No loaded Loxone Miniserver has a control with uuid '{uuid}'"
+        )
+    return coordinator, uuid
+
+
+async def _async_handle_websocket_command(hass: HomeAssistant, call) -> None:
+    """Handle websocket command services."""
+    value = call.data.get(ATTR_VALUE, DEFAULT)
+    coordinator, entity_uuid = _resolve_command_target(hass, call)
+    await coordinator.api.send_websocket_command(entity_uuid, value)
+
+
+async def _async_handle_secured_websocket_command(
+    hass: HomeAssistant, call
+) -> None:
+    """Handle secured websocket command services."""
+    value = call.data.get(ATTR_VALUE, DEFAULT)
+    code = call.data.get(ATTR_CODE, DEFAULT)
+    coordinator, entity_uuid = _resolve_command_target(hass, call)
+    await coordinator.api.send_secured_websocket_command(entity_uuid, value, code)
+
+
+async def _async_sync_areas_with_loxone(hass: HomeAssistant, data={}) -> None:
+    create_areas = data.get(ATTR_AREA_CREATE, DEFAULT)
+    if create_areas not in [True, False]:
+        create_areas = False
+    lox_items = []
+    er_registry = er.async_get(hass)
+    ar_registry = ar.async_get(hass)
+    for id, entry in er_registry.entities.items():
+        if entry.platform == DOMAIN:
+            state = hass.states.get(entry.entity_id)
+            if hasattr(state, "attributes") and "room" in state.attributes:
+                area = ar_registry.async_get_area_by_name(state.attributes["room"])
+                if area is None and create_areas:
+                    area = ar_registry.async_get_or_create(state.attributes["room"])
+                if area and entry.area_id is None:
+                    lox_items.append((entry.entity_id, area.id))
+
+    for _ in lox_items:
+        er_registry.async_update_entity(_[0], area_id=_[1])
+
+
+async def _async_handle_sync_areas_with_loxone(hass: HomeAssistant, call) -> None:
+    await _async_sync_areas_with_loxone(hass, call.data)
+
+
+async def _async_handle_reload(hass: HomeAssistant, call) -> None:
+    """Handle the service call to reload the integration."""
+    _LOGGER.info("Reloading Loxone integration via service call")
+    # ``async_reload`` unloads and sets up again; an extra unload
+    # beforehand would only unload every entry twice.
+    await asyncio.gather(
+        *(
+            hass.config_entries.async_reload(entry.entry_id)
+            for entry in hass.config_entries.async_entries(DOMAIN)
+        )
+    )
+    _LOGGER.info("Loxone integration reload complete")
 
 
 async def async_remove_entry(hass, config_entry) -> None:
@@ -176,14 +287,10 @@ async def async_unload_entry(hass, config_entry):
 
         hass.data[DOMAIN].pop(config_entry.entry_id, None)
 
-    # Services deregistrieren beim Entladen
-    hass.services.async_remove(DOMAIN, "event_websocket_command")
-    hass.services.async_remove(DOMAIN, "event_secured_websocket_command")
-    hass.services.async_remove(DOMAIN, "sync_areas")
-    hass.services.async_remove(DOMAIN, "quick_shade")
-    hass.services.async_remove(DOMAIN, "enable_sun_automation")
-    hass.services.async_remove(DOMAIN, "disable_sun_automation")
-    hass.services.async_remove(DOMAIN, "reload")
+    # Services are not removed here: the integration-wide ones are
+    # registered once in ``async_setup`` and route per call, and the
+    # cover entity services belong to the platform (HA manages them).
+    # Removing them would break every other loaded Miniserver.
 
     # Unload
     unload_ok = await hass.config_entries.async_unload_platforms(
@@ -207,6 +314,19 @@ async def async_setup(hass, config):
             partial(_async_handle_refresh_token, hass),
             schema=service_schema,
         )
+    # Integration-wide services, shared by all Miniservers: each call
+    # is routed to the entry that owns the target entity / uuid.
+    for service, handler in (
+        ("event_websocket_command", _async_handle_websocket_command),
+        (
+            "event_secured_websocket_command",
+            _async_handle_secured_websocket_command,
+        ),
+        ("sync_areas", _async_handle_sync_areas_with_loxone),
+        ("reload", _async_handle_reload),
+    ):
+        if not hass.services.has_service(DOMAIN, service):
+            hass.services.async_register(DOMAIN, service, partial(handler, hass))
 
     if DOMAIN in config:
         hass.async_create_task(
@@ -383,10 +503,24 @@ async def async_setup_entry(hass, config_entry):
     if setup_tasks:
         await asyncio.wait(setup_tasks)
 
-    async def _reload_after_delay(delay: float = 1.0) -> None:
+    async def _reload_after_delay(delay: float) -> None:
         await coordinator.api.close()
         await asyncio.sleep(delay)
-        await hass.services.async_call("loxone", "reload")
+        # Reload only this entry, and not through the ``loxone.reload``
+        # service: that reloads every Miniserver. ``async_schedule_reload``
+        # runs the reload in its own task — this one is an entry
+        # background task and would be cancelled by the reload's unload.
+        hass.config_entries.async_schedule_reload(config_entry.entry_id)
+
+    def _schedule_reload(delay: float = 1.0) -> None:
+        # Entry background task: cancelled automatically if the entry is
+        # unloaded during the delay, so no reload revives an entry the
+        # user just disabled or removed.
+        config_entry.async_create_background_task(
+            hass,
+            _reload_after_delay(delay),
+            name=f"loxone reload {config_entry.entry_id}",
+        )
 
     def handle_task_result(task: asyncio.Task) -> None:
         try:
@@ -408,7 +542,7 @@ async def async_setup_entry(hass, config_entry):
                 },
             )
             # Loxone-Integration neu laden
-            hass.async_create_task(_reload_after_delay(1.0))
+            _schedule_reload()
         except (
             LoxoneUnauthorisedError,
             LoxoneAuthEscalatedError,
@@ -433,7 +567,7 @@ async def async_setup_entry(hass, config_entry):
                     "valid_until": "",
                 },
             )
-            hass.async_create_task(_reload_after_delay(1.0))
+            _schedule_reload()
         except LoxoneOutOfServiceException as e:
             _LOGGER.warning(
                 "Loxone out of service (%s). Reloading Loxone integration.",
@@ -441,7 +575,7 @@ async def async_setup_entry(hass, config_entry):
                 exc_info=True,
             )
             # Loxone-Integration neu laden
-            hass.async_create_task(_reload_after_delay(1.0))
+            _schedule_reload()
         except LoxoneConnectionError as e:
             _LOGGER.warning(
                 "Loxone connection error (%s). Reloading Loxone integration.",
@@ -449,7 +583,7 @@ async def async_setup_entry(hass, config_entry):
                 exc_info=True,
             )
             # Loxone-Integration neu laden
-            hass.async_create_task(_reload_after_delay(1.0))
+            _schedule_reload()
         except (
             LoxoneConnectionClosedOk,
             websockets.exceptions.ConnectionClosedOK,
@@ -461,12 +595,24 @@ async def async_setup_entry(hass, config_entry):
                 exc_info=True,
             )
             # Loxone-Integration neu laden
-            hass.async_create_task(_reload_after_delay(1.0))
+            _schedule_reload()
         except asyncio.exceptions.CancelledError:
             _LOGGER.debug("Loxone listening task cancelled")
         except Exception:
-            _LOGGER.exception("Unexpected Loxone listening task failure")
-            raise
+            # ``run()`` re-runs the full ``open()`` bootstrap on every
+            # reconnect, so e.g. an HTTP 500 or a truncated LoxAPP3.json
+            # while the Miniserver reboots ends up here. Without a reload
+            # the entry would stay loaded with every entity unavailable.
+            # The longer delay keeps a persistent failure from turning
+            # into a tight reload loop; if the Miniserver is still down,
+            # setup raises ConfigEntryNotReady and HA's retry backoff
+            # takes over.
+            _LOGGER.exception(
+                "Unexpected Loxone listening task failure. Reloading "
+                "Loxone integration in %s s.",
+                UNEXPECTED_FAILURE_RELOAD_DELAY,
+            )
+            _schedule_reload(UNEXPECTED_FAILURE_RELOAD_DELAY)
 
     async def message_callback(message):
         """Fire message on HomeAssistant Bus."""
@@ -475,66 +621,6 @@ async def async_setup_entry(hass, config_entry):
         # bans the f-string variant; do not "simplify" it back.
         _LOGGER.debug("%s", message)
         hass.bus.async_fire(EVENT, message)
-
-    async def handle_websocket_command(call):
-        """Handle websocket command services."""
-        value = call.data.get(ATTR_VALUE, DEFAULT)
-        if call.data.get(ATTR_DEVICE) is None:
-            entity_uuid = call.data.get(ATTR_UUID, DEFAULT)
-        else:
-            entity_registry = er.async_get(hass)
-            entity_id = call.data.get(ATTR_DEVICE)
-            entity = entity_registry.async_get(entity_id)
-            entity_uuid = entity.unique_id
-        await coordinator.api.send_websocket_command(entity_uuid, value)
-
-    async def handle_secured_websocket_command(call):
-        """Handle websocket command services."""
-        value = call.data.get(ATTR_VALUE, DEFAULT)
-        code = call.data.get(ATTR_CODE, DEFAULT)
-        if call.data.get(ATTR_DEVICE) is None:
-            entity_uuid = call.data.get(ATTR_UUID, DEFAULT)
-        else:
-            entity_registry = er.async_get(hass)
-            entity_id = call.data.get(ATTR_DEVICE)
-            entity = entity_registry.async_get(entity_id)
-            entity_uuid = entity.unique_id
-        await coordinator.api.send_secured_websocket_command(entity_uuid, value, code)
-
-    async def sync_areas_with_loxone(data={}):
-        create_areas = data.get(ATTR_AREA_CREATE, DEFAULT)
-        if create_areas not in [True, False]:
-            create_areas = False
-        lox_items = []
-        er_registry = er.async_get(hass)
-        ar_registry = ar.async_get(hass)
-        for id, entry in er_registry.entities.items():
-            if entry.platform == DOMAIN:
-                state = hass.states.get(entry.entity_id)
-                if hasattr(state, "attributes") and "room" in state.attributes:
-                    area = ar_registry.async_get_area_by_name(state.attributes["room"])
-                    if area is None and create_areas:
-                        area = ar_registry.async_get_or_create(state.attributes["room"])
-                    if area and entry.area_id is None:
-                        lox_items.append((entry.entity_id, area.id))
-
-        for _ in lox_items:
-            er_registry.async_update_entity(_[0], area_id=_[1])
-
-    async def handle_sync_areas_with_loxone(call):
-        await sync_areas_with_loxone(call.data)
-
-    async def handle_reload(call):
-        """Handle the service call to reload the integration."""
-        _LOGGER.info("Reloading Loxone integration via service call")
-        entries = hass.config_entries.async_entries(DOMAIN)
-        unloads = [
-            hass.config_entries.async_unload(entry.entry_id) for entry in entries
-        ]
-        await asyncio.gather(*unloads)
-        loads = [hass.config_entries.async_reload(entry.entry_id) for entry in entries]
-        await asyncio.gather(*loads)
-        _LOGGER.info("Loxone integration reload complete")
 
     async def loxone_discovered(event):
         _LOGGER.info("Creating groups")
@@ -744,6 +830,16 @@ async def async_setup_entry(hass, config_entry):
     async def loxone_send(event):
         """Listen for change Events from Loxone Components"""
         try:
+            if not isinstance(event.data, dict):
+                return
+            # Every loaded Miniserver listens to these events; only the
+            # one that owns the control may send it, otherwise a command
+            # would go out on every Miniserver.
+            if (
+                _coordinator_for_uuid(hass, event.data.get(ATTR_UUID, DEFAULT))
+                is not coordinator
+            ):
+                return
             if event.event_type == SENDDOMAIN and isinstance(event.data, dict):
                 value = event.data.get(ATTR_VALUE, DEFAULT)
                 device_uuid = event.data.get(ATTR_UUID, DEFAULT)
@@ -774,16 +870,6 @@ async def async_setup_entry(hass, config_entry):
 
         except Exception as e:
             _LOGGER.error(e)
-
-    hass.services.async_register(
-        DOMAIN, "event_websocket_command", handle_websocket_command
-    )
-
-    hass.services.async_register(
-        DOMAIN, "event_secured_websocket_command", handle_secured_websocket_command
-    )
-    hass.services.async_register(DOMAIN, "sync_areas", handle_sync_areas_with_loxone)
-    hass.services.async_register(DOMAIN, "reload", handle_reload)
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, stop_event)
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, loxone_discovered)
@@ -843,7 +929,11 @@ class LoxoneEntity(Entity):
 
     async def async_added_to_hass(self):
         """Subscribe to device events."""
+        # ``async_on_remove`` unsubscribes when the entity is removed
+        # (unload / reload); otherwise every reload would leave one
+        # stale ``event_handler`` per entity on the bus.
         self.listener = self.hass.bus.async_listen(EVENT, self.event_handler)
+        self.async_on_remove(self.listener)
 
     async def async_will_remove_from_hass(self):
         """Disconnect callbacks."""

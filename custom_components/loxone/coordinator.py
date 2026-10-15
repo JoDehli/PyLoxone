@@ -15,6 +15,22 @@ from .pyloxone_api.connection import LoxoneConnection, LoxoneException
 _LOGGER = logging.getLogger(__name__)
 
 
+def _collect_control_uuids(structure_file: dict) -> frozenset[str]:
+    """Collect the UUIDs of all controls and subcontrols (``uuidAction``)."""
+    uuids: set[str] = set()
+    for key, control in (structure_file.get("controls") or {}).items():
+        uuids.add(key)
+        if not isinstance(control, dict):
+            continue
+        if control.get("uuidAction"):
+            uuids.add(control["uuidAction"])
+        for sub_key, sub in (control.get("subControls") or {}).items():
+            uuids.add(sub_key)
+            if isinstance(sub, dict) and sub.get("uuidAction"):
+                uuids.add(sub["uuidAction"])
+    return frozenset(uuids)
+
+
 class LoxoneCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from the Loxone Miniserver."""
 
@@ -38,6 +54,9 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         self.api: LoxoneConnection | None = None
         self.miniserver: MiniServer | None = None
         self.listeners = []
+        # Control and subcontrol UUIDs from the structure file; filled
+        # by ``async_config_entry_first_refresh``. See ``owns_uuid``.
+        self._control_uuids: frozenset[str] = frozenset()
         # Supervisor task running ``LoxoneConnection.run()``. Stored
         # here (instead of a local in ``start_event``) so
         # ``async_unload_entry`` can cancel it — this aborts the
@@ -133,8 +152,17 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         self.miniserver = MiniServer(
             self.hass, self.api.structure_file, self.config_entry
         )
+        self._control_uuids = _collect_control_uuids(self.api.structure_file)
 
         return None
+
+    def owns_uuid(self, uuid: str) -> bool:
+        """Return True if ``uuid`` is a control or subcontrol of this Miniserver.
+
+        Used to route commands when more than one Miniserver is set up:
+        services and the send events only carry the control UUID.
+        """
+        return uuid in self._control_uuids
 
     async def _async_update_data(self) -> None:
         """Fetch data from API endpoint.
