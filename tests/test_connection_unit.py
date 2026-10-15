@@ -3818,3 +3818,71 @@ class TestRefreshUnauthorisedEndsSession:
             await asyncio.wait_for(conn.start_listening(), timeout=10)
 
         assert calls == 1
+
+
+class TestOutageLogging:
+    """While the Miniserver is unreachable, reconnect attempts must not
+    log an ERROR (with traceback) each time; ``run()`` reports the
+    outage once as a WARNING.
+    """
+
+    class _UnreachableSession:
+        closed = False
+
+        def get(self, url, **kwargs):
+            import aiohttp
+
+            raise aiohttp.ClientConnectionError("Cannot connect to host")
+
+    @pytest.mark.asyncio
+    async def test_unreachable_miniserver_logs_no_error(self, monkeypatch, caplog):
+        import logging
+
+        from custom_components.loxone.pyloxone_api import connection as conn_mod
+
+        original = conn_mod.LoxoneConnection._get_with_retry
+
+        async def single_try(self, url, connector, **kwargs):
+            return await original(self, url, connector, max_tries=1)
+
+        monkeypatch.setattr(conn_mod.LoxoneConnection, "_get_with_retry", single_try)
+
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        with caplog.at_level(logging.DEBUG):
+            with pytest.raises(ConnectionError):
+                await conn.open(session=self._UnreachableSession())
+
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+    @pytest.mark.asyncio
+    async def test_network_drop_in_recv_loop_logs_no_error(self, caplog):
+        import logging
+
+        from websockets.exceptions import ConnectionClosedError
+        from websockets.frames import Close
+
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionError as LoxoneConnectionError_,
+        )
+
+        dropped = ConnectionClosedError(Close(1006, ""), None)
+
+        class _DroppingWebsocket(_FakeWebsocket):
+            async def __anext__(self):
+                raise dropped
+
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="password", port=8080
+        )
+        conn.connection = _DroppingWebsocket()
+        conn._session_key = b"fake-session-key"
+
+        with caplog.at_level(logging.DEBUG):
+            with pytest.raises(LoxoneConnectionError_):
+                await asyncio.wait_for(conn.start_listening(), timeout=5)
+
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+        lost = [r for r in caplog.records if "Connection lost" in r.getMessage()]
+        assert len(lost) == 1 and lost[0].levelno == logging.WARNING

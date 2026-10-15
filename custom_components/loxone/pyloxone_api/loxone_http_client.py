@@ -108,7 +108,8 @@ class LoxoneAsyncHttpClient:
                 yield response
 
         except asyncio.TimeoutError as err:
-            _LOGGER.error(f"Timeout error for {url}")
+            # Transient: the caller retries and reports it once.
+            _LOGGER.debug("Timeout error for %s", url)
             raise TimeoutError(
                 f"Request to {url} timed out after {self.timeout} seconds"
             ) from err
@@ -122,7 +123,8 @@ class LoxoneAsyncHttpClient:
         # pattern. They are subsumed by the single ``ClientError``
         # handler below.
         except aiohttp.ClientError as err:
-            _LOGGER.error(f"HTTP client error for {url}: {err}")
+            # Transient: the caller retries and reports it once.
+            _LOGGER.debug("HTTP client error for %s: %s", url, err)
             raise ConnectionError(
                 f"Failed to connect to Loxone Miniserver at {url}: {err}"
             ) from err

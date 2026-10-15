@@ -179,6 +179,12 @@ def _raise_if_fatal_close(exc: websockets.exceptions.ConnectionClosed) -> None:
         ) from exc
 
 
+# Network errors while (re)connecting: expected while the Miniserver
+# reboots or is unreachable, and reported once by the caller.
+# (``ConnectionError`` and ``TimeoutError`` are ``OSError`` subclasses.)
+_TRANSIENT_NETWORK_ERRORS = (OSError, LoxoneConnectionError)
+
+
 def _command_path_for_log(command: str) -> str:
     """Strip the arguments (tokens, hashes, values) from a command for logging.
 
@@ -2073,8 +2079,11 @@ class LoxoneConnection(LoxoneBaseConnection):
             LoxoneConnectionError,
             LoxoneConnectionClosedOk,
             LoxoneUnauthorisedError,
+            websockets.exceptions.ConnectionClosed,
         ):
-            # Re-raise expected Loxone exceptions. The clean close is
+            # Re-raise expected Loxone exceptions, and an abnormal close
+            # (e.g. 1006 on a network drop): ``start_listening`` maps it
+            # and the supervisor logs one WARNING per outage. The clean close is
             # deliberate control flow (raised above): the supervisor
             # turns it into a recoverable error and reconnects. The
             # credential rejection is deliberate control flow too (the
@@ -2311,6 +2320,13 @@ class LoxoneConnection(LoxoneBaseConnection):
             ).replace("-----END CERTIFICATE-----", "\n-----END PUBLIC KEY-----\n")
         except LoxoneServiceUnAvailableError:
             raise
+        except _TRANSIENT_NETWORK_ERRORS as e:
+            # Miniserver unreachable: expected while it reboots or the
+            # network is down. The caller reports it (setup: "Will retry
+            # automatically"; ``run()``: one "Connection lost" WARNING per
+            # outage) - an ERROR with traceback on every attempt is noise.
+            _LOGGER.debug("Failed to initialize connection: %s", e)
+            raise
         except Exception as e:
             _LOGGER.error(f"Failed to initialize connection: {e}", exc_info=True)
             raise
@@ -2435,6 +2451,10 @@ class LoxoneConnection(LoxoneBaseConnection):
             # then failed.
             return connection
 
+        except _TRANSIENT_NETWORK_ERRORS as e:
+            # See ``open()``: reported once by the caller.
+            _LOGGER.debug("Failed to establish websocket connection: %s", e)
+            raise
         except Exception as e:
             _LOGGER.error(f"Failed to establish websocket connection: {e}")
             raise
