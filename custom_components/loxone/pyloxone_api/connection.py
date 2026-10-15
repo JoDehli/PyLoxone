@@ -1860,13 +1860,11 @@ class LoxoneConnection(LoxoneBaseConnection):
         multiple websocket frames when the Miniserver chooses
         to chunk it.
 
-        For ``header.estimated=True`` the length is approximate;
-        the body terminates when the *next* 8-byte header arrives.
-        The bytes between the previous body start and that
-        terminator are the body of the estimated header — i.e.
-        the actual body length is "everything accumulated before
-        the next 8-byte header", which can exceed
-        ``payload_length``.
+        A header with ``estimated=True`` only announces an
+        approximate size; per the spec ("An Estimated-Header is
+        always followed by an exact Header") the exact header
+        follows directly and carries the body. Estimated headers
+        are therefore skipped.
 
         ``MessageHeader`` always populates ``message_type``,
         ``estimated`` and ``payload_length`` (zero-length body
@@ -1877,26 +1875,19 @@ class LoxoneConnection(LoxoneBaseConnection):
         -----------
 
         No header in progress:
-          - 8-byte frame → parse as header. If bodyless
+          - 8-byte frame → parse as header. Estimated: skip it
+            and wait for the exact header. If bodyless
             (payload_length == 0), dispatch immediately and stay
             "no header in progress". Otherwise enter
             "header in progress".
           - Non-8-byte frame → orphan; logged at ERROR, no state
             change.
 
-        Header in progress:
-          - Body chunk (any length) → append to ``body_buffer``.
-            For ``estimated=False``, dispatch as soon as
+        Header in progress (always an exact header):
+          - Any frame is a body chunk — also an 8-byte one, which
+            is a valid body (e.g. a short text) and must not be
+            mistaken for the next header. Dispatch as soon as
             ``len(body_buffer) >= payload_length``.
-          - 8-byte frame → the previous body ends here.
-            For ``estimated=True``, dispatch the accumulated
-            bytes as the body. Then process this 8-byte frame
-            as the next header (same rules as "no header in
-            progress" above). For ``estimated=False``, this is
-            a protocol violation (the Miniserver sent a header
-            before the body was complete) — we log at ERROR
-            and dispatch whatever we have, then process the
-            next header.
         """
         # Set for O(1) membership tests on the external callback.
         callback_types = {
@@ -1915,43 +1906,6 @@ class LoxoneConnection(LoxoneBaseConnection):
                 await callback(msg.as_dict())
             except Exception as e:
                 _LOGGER.error(f"Callback error: {e}", exc_info=True)
-
-        async def _finalise_current_body_and_consume_next_header(
-            next_header_bytes: bytes,
-        ) -> None:
-            """Dispatch the body in progress (if any) and parse the
-            next 8-byte frame as the new header. Used when an
-            8-byte frame arrives while a body is being received.
-            """
-            nonlocal last_header, body_buffer
-
-            if last_header is not None:
-                body = bytes(body_buffer)
-                body_buffer = bytearray()
-                if not last_header.estimated:
-                    # Non-estimated: the next 8-byte frame
-                    # arrived before ``payload_length`` bytes
-                    # were received. The protocol violation is
-                    # logged; we dispatch what we have.
-                    _LOGGER.error(
-                        "Received next header before body was "
-                        "complete (had %d bytes, expected %d)",
-                        len(body),
-                        last_header.payload_length,
-                    )
-                await _dispatch_body(last_header, body)
-                last_header = None
-
-            # Process the new header (this 8-byte frame).
-            new_header = parse_header(next_header_bytes)
-            if new_header.message_type == MessageType.OUT_OF_SERVICE:
-                raise LoxoneOutOfServiceException
-            if new_header.payload_length == 0:
-                await _dispatch_bodyless(new_header)
-                # Stay in "no header in progress" state.
-            else:
-                last_header = new_header
-                body_buffer = bytearray()
 
         async def _dispatch_body(header: MessageHeader, body: bytes) -> None:
             nonlocal dispatched_since_yield
@@ -2058,6 +2012,16 @@ class LoxoneConnection(LoxoneBaseConnection):
                     new_header = parse_header(message)
                     if new_header.message_type == MessageType.OUT_OF_SERVICE:
                         raise LoxoneOutOfServiceException
+                    if new_header.estimated:
+                        # Size announcement only; the exact header
+                        # follows and carries the body (spec).
+                        _LOGGER.debug(
+                            "Estimated header (%s, ~%d bytes); waiting "
+                            "for the exact header",
+                            new_header.message_type,
+                            new_header.payload_length,
+                        )
+                        continue
                     if new_header.payload_length == 0:
                         # Bodyless: KEEPALIVE / UNKNOWN with zero
                         # length — dispatch and stay in "no header
@@ -2068,34 +2032,24 @@ class LoxoneConnection(LoxoneBaseConnection):
                     body_buffer = bytearray()
                     continue
 
-                # Header in progress.
-                if message_length == MESSAGE_HEADER_SIZE:
-                    # An 8-byte frame arrived while body was in
-                    # progress — it terminates the previous body
-                    # and is the next header.
-                    await _finalise_current_body_and_consume_next_header(message)
-                    continue
-
-                # Body chunk. Fast path first: the body arrived
+                # Header in progress: this frame is (part of) its
+                # body, whatever its length - an 8-byte body is not
+                # the next header. Fast path first: the body arrived
                 # complete in one frame, which is the normal case
                 # (the Miniserver sends header and body as separate
                 # websocket messages). Dispatching the frame
                 # directly avoids a bytearray extend plus two
                 # slices plus a copy per event.
-                if not body_buffer and not last_header.estimated and len(message) == last_header.payload_length:
+                if not body_buffer and len(message) == last_header.payload_length:
                     await _dispatch_body(last_header, message)
                     last_header = None
                     continue
 
-                # Slow path: the body is split across frames (or
-                # the header length is only an estimate) — accumulate
-                # until the terminator arrives.
+                # Slow path: the body is split across frames —
+                # accumulate until ``payload_length`` bytes arrived.
                 body_buffer.extend(message)
 
-                if (
-                    not last_header.estimated
-                    and len(body_buffer) >= last_header.payload_length
-                ):
+                if len(body_buffer) >= last_header.payload_length:
                     body = bytes(body_buffer[:last_header.payload_length])
                     body_buffer = body_buffer[last_header.payload_length:]
                     await _dispatch_body(last_header, body)

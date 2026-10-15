@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import struct
@@ -770,37 +771,17 @@ class TestDoStartListeningStateMachine:
         assert len(fired) == 1
         assert fired[0]["control"] == "jdev/sps/io/abc"
 
-    @pytest.mark.asyncio
-    async def test_estimated_header_dispatches_on_next_header(
-        self, fake_connection_factory
-    ):
-        """An ``estimated=True`` header's body length is
-        approximate. The body terminates when the *next* 8-byte
-        header arrives — everything accumulated up to (but
-        excluding) that header is the body.
-        """
-        text_body = (
-            b'{"LL": {"control": "jdev/sps/io/abc", "value": "1", "code": "200"}}'
+    async def _run(self, connection_frames, fake_connection_factory, caplog=None):
+        """Feed frames to ``_do_start_listening``; return the callback data."""
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionClosedOk,
         )
-        first_hdr = _loxone_header(
-            MessageType.TEXT, len(text_body), estimated=True
-        )
-        # Second header (terminator + start of next event):
-        # KEEPALIVE. ``payload_length=0`` means it's bodyless.
-        second_hdr = _loxone_header(MessageType.KEEPALIVE, 0)
 
         fired: list[dict] = []
-        keepalive_fired: list[bool] = []
 
         async def callback(data: dict) -> None:
-            if data.get("control") == "jdev/sps/io/abc":
-                fired.append(data)
-            elif data.get("keep_alive") == "received":
-                keepalive_fired.append(True)
+            fired.append(data)
 
-        conn = fake_connection_factory(
-            [first_hdr, text_body, second_hdr]
-        )
         connection = LoxoneConnection(
             host="192.0.2.1",
             username="user",
@@ -808,16 +789,65 @@ class TestDoStartListeningStateMachine:
             port=8080,
         )
         # Clean close → ``LoxoneConnectionClosedOk``.
-        from custom_components.loxone.pyloxone_api.exceptions import (
-            LoxoneConnectionClosedOk,
-        )
-
         with pytest.raises(LoxoneConnectionClosedOk):
-            await connection._do_start_listening(callback, conn)
+            await connection._do_start_listening(
+                callback, fake_connection_factory(connection_frames)
+            )
+        # Let the fire-and-forget callback tasks run.
+        await asyncio.sleep(0)
+        return fired
 
-        assert len(fired) == 1
-        assert fired[0]["control"] == "jdev/sps/io/abc"
-        assert keepalive_fired == [True]
+    @pytest.mark.asyncio
+    async def test_estimated_header_is_followed_by_exact_header(
+        self, fake_connection_factory, caplog: pytest.LogCaptureFixture
+    ):
+        """Spec: "An Estimated-Header is always followed by an exact
+        Header". The estimated header only announces a size and is
+        skipped; the exact header carries the body. Previously the
+        estimated header was given the (empty) frames before the
+        exact header as its body, which failed to parse (ERROR).
+        """
+        text_body = (
+            b'{"LL": {"control": "jdev/sps/io/abc", "value": "1", "code": "200"}}'
+        )
+        estimated_hdr = _loxone_header(MessageType.TEXT, 100, estimated=True)
+        exact_hdr = _loxone_header(MessageType.TEXT, len(text_body))
+
+        with caplog.at_level(logging.DEBUG):
+            fired = await self._run(
+                [estimated_hdr, exact_hdr, text_body], fake_connection_factory
+            )
+
+        assert [d["control"] for d in fired] == ["jdev/sps/io/abc"]
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+    @pytest.mark.asyncio
+    async def test_eight_byte_body_is_not_taken_for_a_header(
+        self, fake_connection_factory, caplog: pytest.LogCaptureFixture
+    ):
+        """A body that happens to be 8 bytes long is the body of the
+        header in progress, not the next header.
+        """
+        body = b"12345678"
+        assert len(body) == 8
+        text_hdr = _loxone_header(MessageType.TEXT, len(body))
+        keepalive_hdr = _loxone_header(MessageType.KEEPALIVE, 0)
+
+        with caplog.at_level(logging.DEBUG):
+            fired = await self._run(
+                [text_hdr, body, keepalive_hdr], fake_connection_factory
+            )
+
+        # Previously the body was parsed as a header: "Received next
+        # header before body was complete" (ERROR).
+        assert not [
+            r for r in caplog.records
+            if r.levelno >= logging.ERROR and "next header" in r.getMessage()
+        ]
+        # The keepalive after the 8-byte body is still recognised:
+        # the state machine consumed the body and returned to
+        # "no header in progress".
+        assert any(d.get("keep_alive") == "received" for d in fired)
 
     @pytest.mark.asyncio
     async def test_orphan_body_chunk_is_logged(
