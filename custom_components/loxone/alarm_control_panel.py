@@ -71,12 +71,15 @@ class LoxoneAlarm(LoxoneEntity, AlarmControlPanelEntity):
         self._armed_delay_total_delay = 0.0
         self._armed_at = 0
         self._next_level_at = 0
-        # Setup-time facts from the structure file: a secured alarm needs a
-        # numeric arm/disarm code, an unsecured one needs none. They must not
-        # depend on ``code_arm_required`` being read first.
+        # Setup-time facts from the structure file: a secured alarm needs the
+        # user's visualisation password to arm/disarm, an unsecured one needs
+        # none. They must not depend on ``code_arm_required`` being read first.
+        # TEXT, not NUMBER: the visualisation password may contain letters
+        # (it is hashed as a string for jdev/sps/ios), and a numeric keypad
+        # locks those users out of the HA alarm card (as in 0.9.x).
         is_secured = bool(kwargs.get("isSecured"))
         self._attr_code_arm_required = is_secured
-        self._attr_code_format = CodeFormat.NUMBER if is_secured else None
+        self._attr_code_format = CodeFormat.TEXT if is_secured else None
         self._attr_device_info = get_or_create_device(
             self.unique_id, self.name, "Alarm", self.room
         )
