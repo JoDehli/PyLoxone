@@ -39,10 +39,10 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             logger=_LOGGER,
+            config_entry=config_entry,
             name="PyLoxone Coordinator",
             update_method=None,  # Not polling!
         )
-        self.config_entry = config_entry
         self._username = config_entry.options[CONF_USERNAME]
         self._password = config_entry.options[CONF_PASSWORD]
         self._host = config_entry.options[CONF_HOST]
