@@ -1,3 +1,4 @@
+import logging
 from collections import OrderedDict
 from functools import cached_property
 
@@ -10,7 +11,9 @@ from homeassistant.helpers.entity import DeviceInfo
 from .. import LoxoneEntity
 from ..const import DOMAIN, SENDDOMAIN, STATE_OFF
 from ..helpers import (get_or_create_device, hass_to_lox, lox2hass_mapped,
-                       lox_to_hass)
+                       lox_to_hass, parse_lox_json)
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
@@ -161,6 +164,16 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
         )
         self.async_schedule_update_ha_state()
 
+    def _parse_json_state(self, state: str, data: dict):
+        """Parse a JSON mood state; log and return None if it is invalid."""
+        try:
+            return parse_lox_json(data[self.states[state]])
+        except (TypeError, ValueError):
+            _LOGGER.warning(
+                "Ignoring invalid %s of %s: %r", state, self.name, data[self.states[state]]
+            )
+            return None
+
     async def event_handler(self, event):
         request_update = False
 
@@ -194,27 +207,31 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
                 )
             request_update = True
 
+        # The mood states are JSON (spec: Structure File, LightControllerV2).
+        # They used to be ``eval``'d, which ran Miniserver data as Python
+        # code, and the "true"->"True" rewrite also renamed moods whose
+        # name contains "true" / "false".
         if self.states["activeMoods"] in event.data:
-            self._active_moods = eval(event.data[self.states["activeMoods"]])
-            if self._active_moods != [778]:
-                self._attr_is_on = True
-            else:
-                self._attr_is_on = False
-            request_update = True
+            active_moods = self._parse_json_state("activeMoods", event.data)
+            if active_moods is not None:
+                self._active_moods = active_moods
+                if self._active_moods != [778]:
+                    self._attr_is_on = True
+                else:
+                    self._attr_is_on = False
+                request_update = True
 
         if self.states["moodList"] in event.data:
-            event.data[self.states["moodList"]] = event.data[
-                self.states["moodList"]
-            ].replace("true", "True")
-            event.data[self.states["moodList"]] = event.data[
-                self.states["moodList"]
-            ].replace("false", "False")
-            self._moodlist = eval(event.data[self.states["moodList"]])
-            request_update = True
+            moodlist = self._parse_json_state("moodList", event.data)
+            if moodlist is not None:
+                self._moodlist = moodlist
+                request_update = True
 
         if self.states["additionalMoods"] in event.data:
-            self._additional_moodlist = eval(event.data[self.states["additionalMoods"]])
-            request_update = True
+            additional = self._parse_json_state("additionalMoods", event.data)
+            if additional is not None:
+                self._additional_moodlist = additional
+                request_update = True
 
         if request_update:
             if not self._attr_available:
