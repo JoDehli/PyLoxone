@@ -154,6 +154,18 @@ DEFAULT_PORTS: dict[str, int] = {
 }
 
 
+def _command_path_for_log(command: str) -> str:
+    """Strip the arguments (tokens, hashes, values) from a command for logging.
+
+    ``jdev/sys/killtoken/<token>/<user>`` -> ``jdev/sys/killtoken/…``,
+    ``authwithtoken/<hash>/<user>`` -> ``authwithtoken/…``.
+    """
+    keep = 3 if command.startswith(("jdev/", "dev/")) else 1
+    parts = command.split("/")
+    path = "/".join(parts[:keep])
+    return f"{path}/…" if len(parts) > keep else path
+
+
 def parse_loxone_url(url: str) -> tuple[str, str]:
     """Parse a Loxone URL into ``(scheme, host[:port][/path])``.
 
@@ -626,7 +638,15 @@ class LoxoneBaseConnection:
         # Lazy %-args: this runs for every outgoing command, so the command
         # string must not be built unless DEBUG is enabled (G004 bans the
         # f-string variant).
-        _LOGGER.debug("Send text command: %s", command)
+        if encrypted:
+            # Encrypted commands carry secrets (raw token for killtoken,
+            # credential / token hashes, secured-command HMACs): log only
+            # the command path, never the plaintext.
+            _LOGGER.debug(
+                "Send encrypted command: %s", _command_path_for_log(command)
+            )
+        else:
+            _LOGGER.debug("Send text command: %s", command)
         # Issue #514: during a normal token expiry the Miniserver closes the
         # websocket (1000) and sends fail until the supervisor reconnects.
         # Raising ``LoxoneConnectionClosedOk`` here lets the supervisor's
@@ -845,7 +865,11 @@ class LoxoneBaseConnection:
         (checked against a live Miniserver, JWT-era firmware).
         The token is sent raw: this firmware wants the JWT
         itself here, a getkey-hashed token is refused with
-        ``401``.
+        ``401``. Because it is raw, the command goes through
+        command encryption (``jdev/sys/enc/``) like the other
+        token commands — sent plain, the token would cross the
+        network in clear text on an unencrypted ``ws://``
+        connection (Gen1 Miniserver).
 
         The Miniserver drops the session as part of the kill, so
         no reply frame comes back and a subsequent HA restart
@@ -861,13 +885,14 @@ class LoxoneBaseConnection:
         try:
             token = self._token.token
             command = f"{CMD_KILL_TOKEN}/{token}/{self._encoded_username}"
-            _LOGGER.debug("kill_token: sending %s", command)
+            # Never log the token itself.
+            _LOGGER.debug("kill_token: sending killtoken for %s", self.username)
             # Fire the kill on the wire. No reply frame comes
             # back: the Miniserver drops the session as part of
             # the kill, and ``close()`` follows straight away in
             # ``async_cleanup`` anyway. The ``try/except`` guards
             # against a closed-websocket race during teardown.
-            await self._send_text_command(command, encrypted=False)
+            await self._send_text_command(command, encrypted=True)
         except Exception as e:
             _LOGGER.warning("kill_token: failed to send: %s", e)
 

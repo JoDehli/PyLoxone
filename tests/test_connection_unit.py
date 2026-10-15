@@ -1960,9 +1960,45 @@ class TestTokenChangeCallback:
         await conn.kill_token()
         assert len(sent) == 1
         assert sent[0][0] == "jdev/sys/killtoken/test-jwt-abc/b%C3%B6b"
-        # The kill is sent unencrypted so the Miniserver can
-        # parse it before any auth state is touched.
-        assert sent[0][1] is False
+        # The raw token must not cross the network in clear text
+        # (ws:// on Gen1): the kill goes through command encryption.
+        assert sent[0][1] is True
+
+    @pytest.mark.asyncio
+    async def test_kill_token_never_logs_the_token(self, conn, monkeypatch, caplog):
+        """Neither ``kill_token`` nor ``_send_text_command`` may put
+        the raw token into the (DEBUG) log.
+        """
+        import logging
+
+        from custom_components.loxone.pyloxone_api import (
+            connection as conn_mod,
+        )
+
+        # Run the real ``_send_text_command`` up to the websocket send.
+        sent: list[str] = []
+
+        class _Ws:
+            async def send(self, message):
+                sent.append(message)
+
+        monkeypatch.setattr(
+            conn_mod.LoxoneConnection, "is_connected", property(lambda self: True)
+        )
+        conn.connection = _Ws()
+        conn._generate_salt()
+        conn._token.token = "secret-jwt-123"
+
+        with caplog.at_level(
+            logging.DEBUG, logger="custom_components.loxone.pyloxone_api.connection"
+        ):
+            await conn.kill_token()
+
+        assert len(sent) == 1
+        assert sent[0].startswith("jdev/sys/enc/")
+        assert "secret-jwt-123" not in sent[0]
+        assert "secret-jwt-123" not in caplog.text
+        assert "jdev/sys/killtoken/…" in caplog.text
 
     def test_coordinator_persists_token_without_logging_secret(self):
         """A refresh callback merges the new token into entry
