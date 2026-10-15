@@ -33,7 +33,8 @@
     "abort": {
       "single_instance_allowed": "Bereits konfiguriert",
       "already_configured": "Dieser Miniserver ist bereits eingerichtet.",
-      "invalid_import": "Die loxone:-Konfiguration aus configuration.yaml konnte nicht importiert werden: Benutzername und Passwort müssen latin-1-kompatibel sein."
+      "invalid_import": "Die loxone:-Konfiguration aus configuration.yaml konnte nicht importiert werden: Benutzername und Passwort müssen latin-1-kompatibel sein.",
+      "reauth_successful": "Die Zugangsdaten wurden aktualisiert."
     },
     "step": {
       "user": {
@@ -49,7 +50,18 @@
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Loxone erneut anmelden",
+        "description": "Der Miniserver hat Benutzername oder Passwort abgelehnt. Bitte die aktuellen Zugangsdaten eingeben.",
+        "data": {
+          "username": "Benutzer",
+          "password": "Passwort"
+        }
       }
+    },
+    "error": {
+      "invalid_credentials_encoding": "Benutzername und Passwort müssen latin-1-kompatibel sein."
     }
   },
   "options": {

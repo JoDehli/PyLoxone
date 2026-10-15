@@ -19,7 +19,8 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  EVENT_HOMEASSISTANT_STARTED,
                                  EVENT_HOMEASSISTANT_STOP, Platform)
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.exceptions import (ConfigEntryAuthFailed,
+                                      ConfigEntryNotReady, HomeAssistantError)
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
@@ -481,11 +482,13 @@ async def async_setup_entry(hass, config_entry):
             host,
         )
         raise ConfigEntryNotReady from err
-    except LoxoneUnauthorisedError:
-        _LOGGER.error(
-            "Could not connect to Loxone Miniserver. Unauthorised. Please check username and password."
-        )
-        return False
+    except LoxoneUnauthorisedError as err:
+        await coordinator.api.close()
+        # HA starts a reauth flow: the user can enter new credentials
+        # instead of deleting and re-adding the integration.
+        raise ConfigEntryAuthFailed(
+            "Loxone Miniserver rejected the username or password"
+        ) from err
     except OSError as err:
         await coordinator.api.close()
         _LOGGER.warning(

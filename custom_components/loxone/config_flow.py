@@ -106,6 +106,20 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
     }
 )
 
+DATA_SCHEMA_REAUTH = vol.Schema(
+    {
+        vol.Required(CONF_USERNAME): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.TEXT)
+        ),
+        vol.Required(CONF_PASSWORD): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+        ),
+    }
+)
+
+# Cleared on reauth: the cached token belongs to the old credentials.
+_EMPTY_TOKEN = {"token": "", "hash_alg": "", "valid_until": ""}
+
 CONFIG_FLOW = {
     "user": SchemaFlowFormStep(
         schema=DATA_SCHEMA_SETUP,
@@ -132,6 +146,40 @@ class LoxoneFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
         """Return config entry title."""
         host = options.get(CONF_HOST, "Loxone")
         return f"PyLoxone ({host})"
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """The Miniserver rejected the credentials (``ConfigEntryAuthFailed``)."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for new credentials and reload the entry with them."""
+        entry = self._get_reauth_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                user_input = await validate_loxone_setup(
+                    cast(SchemaCommonFlowHandler, None), dict(user_input)
+                )
+            except SchemaFlowError:
+                errors["base"] = "invalid_credentials_encoding"
+            else:
+                return self.async_update_reload_and_abort(
+                    entry,
+                    options={**entry.options, **user_input},
+                    data_updates=_EMPTY_TOKEN,
+                )
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=self.add_suggested_values_to_schema(
+                DATA_SCHEMA_REAUTH,
+                {CONF_USERNAME: entry.options.get(CONF_USERNAME, "")},
+            ),
+            errors=errors,
+        )
 
     async def async_step_import(self, import_data: dict[str, Any]) -> ConfigFlowResult:
         """Import ``loxone:`` from configuration.yaml.
