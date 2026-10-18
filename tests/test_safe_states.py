@@ -9,11 +9,13 @@ harness constructs the entity exactly like the platform setup does.
 
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 
 from custom_components.loxone.binary_sensor import LoxoneDigitalSensor
 from collections import OrderedDict
 from custom_components.loxone.button import LoxoneButton
+from custom_components.loxone.cover import LoxoneGate, LoxoneJalousie, LoxoneWindow
 from custom_components.loxone.select import LoxoneSelect
 from custom_components.loxone.sensor import LoxoneTextSensor
 from custom_components.loxone.switch import LoxoneSwitch
@@ -93,7 +95,7 @@ def test_switch_event_without_active_state():
     switch.schedule_update_ha_state = lambda: None
     switch.async_schedule_update_ha_state = lambda: None
 
-    switch.event_handler(SimpleNamespace(data={"uuid-other": 1.0}))
+    asyncio.run(switch.event_handler(SimpleNamespace(data={"uuid-other": 1.0})))
     attrs = switch.extra_state_attributes
 
     assert attrs["state_uuid"] is None
@@ -106,7 +108,7 @@ def test_select_event_without_states():
     )
     select.async_schedule_update_ha_state = lambda: None
 
-    select.event_handler(SimpleNamespace(data={"uuid-other": 1}))
+    asyncio.run(select.event_handler(SimpleNamespace(data={"uuid-other": 1})))
 
     attrs = select.extra_state_attributes
     assert attrs["state_uuid"] is None
@@ -155,3 +157,76 @@ def test_light_controller_event_without_mood_states():
     attrs = controller.extra_state_attributes
 
     assert controller._active_moods == []
+
+
+# --- cover: optional states (targetPosition only since MS 11.3; simple
+# --- Jalousie variants ship without any automatic-related states) -----------
+
+def _window():
+    window = LoxoneWindow.__new__(LoxoneWindow)
+    window._attr_extra_state_attributes = {}
+    window.states = {"position": "uuid-position"}
+    window.uuidAction = "uuid-action"
+    window._position = None
+    window._closed = True
+    window._direction = 0
+    window._target_position = None
+    window._is_automatic = False
+    window._auto_text_uuid = None
+    window._auto_state_uuid = None
+    window.schedule_update_ha_state = lambda: None
+    return window
+
+
+def _jalousie():
+    jalousie = LoxoneJalousie.__new__(LoxoneJalousie)
+    jalousie._attr_extra_state_attributes = {}
+    jalousie.states = {
+        "position": "uuid-position",
+        "shadePosition": "uuid-shade",
+        "up": "uuid-up",
+        "down": "uuid-down",
+    }
+    jalousie.uuidAction = "uuid-action"
+    jalousie._position_loxone = None
+    jalousie._position = None
+    jalousie._closed = True
+    jalousie._tilt_position_loxone = None
+    jalousie._tilt_position = None
+    jalousie._target_position = None
+    jalousie._target_position_tilt = None
+    jalousie._is_automatic = False
+    jalousie._auto_text_uuid = None
+    jalousie._auto_state_uuid = None
+    jalousie.schedule_update_ha_state = lambda: None
+    return jalousie
+
+
+def test_window_event_without_direction_and_target_position_states():
+    """Pre-11.3 structures carry no targetPosition state (spec: interface
+    optional); the event handler must then only process what exists."""
+    window = _window()
+
+    asyncio.run(window.event_handler(SimpleNamespace(data={"uuid-position": 0.5})))
+
+    assert window._position == 50.0
+    assert window._target_position is None
+
+
+def test_jalousie_event_without_target_position_and_automatic():
+    jalousie = _jalousie()
+
+    asyncio.run(jalousie.event_handler(SimpleNamespace(data={"uuid-position": 0.3})))
+
+    assert jalousie._position_loxone == 30.0
+    assert jalousie._target_position is None
+
+
+def test_jalousie_event_without_shade_position_state():
+    """Simple Jalousie variants may lack shadePosition entirely."""
+    jalousie = _jalousie()
+    jalousie.states = {"position": "uuid-position"}
+
+    asyncio.run(jalousie.event_handler(SimpleNamespace(data={"uuid-position": 0.3})))
+
+    assert jalousie._position_loxone == 30.0

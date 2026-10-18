@@ -105,8 +105,8 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.hass = kwargs["hass"]
-        self._position_uuid = kwargs["states"]["position"]
-        self._state_uuid = kwargs["states"]["active"]
+        self._position_uuid = kwargs["states"].get("position")
+        self._state_uuid = kwargs["states"].get("active")
         self._position = None
         self._is_opening = False
         self._is_closing = False
@@ -193,9 +193,13 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
         self.schedule_update_ha_state()
 
     async def event_handler(self, event):
-        if self.states["position"] in event.data or self._state_uuid in event.data:
-            if self.states["position"] in event.data:
-                self._position = float(event.data[self.states["position"]]) * 100.0
+        position_uuid = self.states.get("position")
+        if (
+            (position_uuid and position_uuid in event.data)
+            or self._state_uuid in event.data
+        ):
+            if position_uuid and position_uuid in event.data:
+                self._position = float(event.data[position_uuid]) * 100.0
                 if self._position == 0:
                     self._closed = True
                 else:
@@ -239,22 +243,26 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         )
 
     async def event_handler(self, e):
-        if (self.states["position"] in e.data 
-            or self.states["direction"] in e.data
-            or self.states["targetPosition"] in e.data
+        position_uuid = self.states.get("position")
+        direction_uuid = self.states.get("direction")
+        # Optional since Miniserver 11.3 - pre-11.3 structures omit it:
+        target_uuid = self.states.get("targetPosition")
+        if any(
+            uuid and uuid in e.data
+            for uuid in (position_uuid, direction_uuid, target_uuid)
         ):
-            if self.states["position"] in e.data:
-                self._position = float(e.data[self.states["position"]]) * 100.0
+            if position_uuid and position_uuid in e.data:
+                self._position = float(e.data[position_uuid]) * 100.0
                 if self._position == 0:
                     self._closed = True
                 else:
                     self._closed = False
 
-            if self.states["direction"] in e.data:
-                self._direction = e.data[self.states["direction"]]
+            if direction_uuid and direction_uuid in e.data:
+                self._direction = e.data[direction_uuid]
 
-            if self.states["targetPosition"] in e.data:
-                target_position_loxone = float(e.data[self.states["targetPosition"]]) * 100.0
+            if target_uuid and target_uuid in e.data:
+                target_position_loxone = float(e.data[target_uuid]) * 100.0
                 self._target_position = target_position_loxone
                 
             self.schedule_update_ha_state()
@@ -423,17 +431,23 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         return supported_features
 
     async def event_handler(self, e):
+        position_uuid = self.states.get("position")
+        shade_uuid = self.states.get("shadePosition")
+        up_uuid = self.states.get("up")
+        down_uuid = self.states.get("down")
+        # targetPosition only exists for automatic-capable Jalousies:
+        target_uuid = self.states.get("targetPosition")
         if (
-            self.states["position"] in e.data
-            or self.states["shadePosition"] in e.data
-            or self.states["up"] in e.data
-            or self.states["down"] in e.data
+            (position_uuid and position_uuid in e.data)
+            or (shade_uuid and shade_uuid in e.data)
+            or (up_uuid and up_uuid in e.data)
+            or (down_uuid and down_uuid in e.data)
             or self._auto_text_uuid in e.data
             or self._auto_state_uuid in e.data
-            or (self._is_automatic and self.states["targetPosition"] in e.data)
+            or (self._is_automatic and target_uuid and target_uuid in e.data)
         ):
-            if self.states["position"] in e.data:
-                self._position_loxone = float(e.data[self.states["position"]]) * 100.0
+            if position_uuid and position_uuid in e.data:
+                self._position_loxone = float(e.data[position_uuid]) * 100.0
                 self._position = map_range(self._position_loxone, 0, 100, 100, 0)
 
                 if self._position == 0:
@@ -441,26 +455,26 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
                 else:
                     self._closed = False
 
-            if self.states["shadePosition"] in e.data:
+            if shade_uuid and shade_uuid in e.data:
                 self._tilt_position_loxone = (
-                    float(e.data[self.states["shadePosition"]]) * 100.0
+                    float(e.data[shade_uuid]) * 100.0
                 )
                 self._tilt_position = map_range(
                     self._tilt_position_loxone, 0, 100, 100, 0
                 )
-            if self._is_automatic and self.states["targetPosition"] in e.data:
+            if self._is_automatic and target_uuid and target_uuid in e.data:
                 target_position_loxone = (
-                    float(e.data[self.states["targetPosition"]]) * 100.0
+                    float(e.data[target_uuid]) * 100.0
                 )
                 self._target_position = map_range(
                     target_position_loxone, 0, 100, 100, 0
                 )
 
-            if self.states["up"] in e.data:
-                self._is_opening = e.data[self.states["up"]]
+            if up_uuid and up_uuid in e.data:
+                self._is_opening = e.data[up_uuid]
 
-            if self.states["down"] in e.data:
-                self._is_closing = e.data[self.states["down"]]
+            if down_uuid and down_uuid in e.data:
+                self._is_closing = e.data[down_uuid]
 
             if self._auto_text_uuid in e.data:
                 self._auto_text = e.data[self._auto_text_uuid]
