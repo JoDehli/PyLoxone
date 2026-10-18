@@ -220,25 +220,6 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
     async def event_handler(self, event):
         request_update = False
 
-        if _LOGGER.isEnabledFor(logging.DEBUG):
-            relevant = [
-                key[-12:]
-                for key in (
-                    self._master_position_uuid,
-                    self._master_min_uuid,
-                    self._master_max_uuid,
-                )
-                if key and key in event.data
-            ]
-            if relevant:
-                _LOGGER.debug(
-                    "LightController %s: master state event %s (min=%r max=%r)",
-                    self.name,
-                    relevant,
-                    self._master_min,
-                    self._master_max,
-                )
-
         if self.uuidAction in event.data:
             self._attr_state = event.data[self.uuidAction]
             request_update = True
