@@ -182,14 +182,15 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
         self.schedule_update_ha_state()
 
     def stop_cover(self, **kwargs):
-        """Stop the cover."""
-        if self.is_closing:
-            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="open"))
-            return
+        """Stop the cover.
 
-        if self.is_opening:
-            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="close"))
-            return
+        Spec (Structure File, Gate): the unversioned `stop` command stops a
+        moving gate. The previous heuristic sent `open`/`close` depending on
+        the movement direction, which parked the gate at the opposite end
+        position instead of stopping in between.
+        """
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stop"))
+        self.schedule_update_ha_state()
 
     async def event_handler(self, event):
         if self.states["position"] in event.data or self._state_uuid in event.data:
@@ -313,11 +314,24 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="fullclose"))
 
     def stop_cover(self, **kwargs):
-        """Stop the cover."""
+        """Stop the cover movement.
 
+        Spec (Structure File, Window): an explicit `stop` command exists
+        since Miniserver 11.3. Every structure carrying a `targetPosition`
+        state is treated as >= 11.3 and gets the real stop; older
+        structures keep the previous fullopen/fullclose heuristic, which
+        was the only behaviour before.
+        """
+        if self.states.get("targetPosition") is not None or getattr(
+            self, "_target_position", None
+        ) is not None:
+            # targetPosition exists -> MS >= 11.3 -> 'stop' is available
+            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stop"))
+            self.schedule_update_ha_state()
+            return
+        # Fallback (MS < 11.3, no targetPosition state): old heuristic
         if self.is_closing:
             self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="fullopen"))
-
         elif self.is_opening:
             self.hass.bus.fire(
                 SENDDOMAIN, dict(uuid=self.uuidAction, value="fullclose")
