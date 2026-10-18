@@ -249,7 +249,10 @@ async def async_setup_entry(
         for state_key, name_suffix, format_key in [
             ("actual", "Actual", "actualFormat"),
             ("total", "Total", "totalFormat"),
-            ("totalNeg", "Total Neg", "totalFormat"),
+            # Spec (Structure File, Meter): "totalFormatNeg" - unavailable for
+            # unidirectional meters, "available since 13.01". Fall back to
+            # "totalFormat" for structures where the detail is missing.
+            ("totalNeg", "Total Neg", "totalFormatNeg"),
             ("storage", "Level", "storageFormat"),
         ]:
             if state_key in sensor["states"]:
@@ -261,7 +264,9 @@ async def async_setup_entry(
                     "room": sensor.get("room", ""),
                     "cat": sensor.get("cat", ""),
                     "name": f"{sensor['name']} {name_suffix}",
-                    "details": {"format": sensor["details"][format_key]},
+                    "details": {"format": sensor["details"].get(
+                        format_key, sensor["details"]["totalFormat"])
+                    },
                     "async_add_devices": async_add_entities,
                     "config_entry": config_entry,
                 }
