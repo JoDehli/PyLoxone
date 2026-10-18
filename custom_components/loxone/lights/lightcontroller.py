@@ -9,7 +9,7 @@ from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers.entity import DeviceInfo
 
 from .. import LoxoneEntity
-from ..const import DOMAIN, SENDDOMAIN, STATE_OFF
+from ..const import DOMAIN, SENDDOMAIN
 from ..helpers import (get_or_create_device, hass_to_lox, lox2hass_mapped,
                        lox_to_hass, parse_lox_json)
 
@@ -41,6 +41,7 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
         self._master_max_uuid = None
         self._master_min = STATE_UNKNOWN
         self._master_max = STATE_UNKNOWN
+        self._master_position_loxone = None
         self._async_add_devices = kwargs["async_add_devices"]
 
         self.kwargs = kwargs
@@ -152,9 +153,36 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
                 ),
             )
         elif kwargs == {}:
-            if self.state == STATE_OFF:
-                self.hass.bus.async_fire(
-                    SENDDOMAIN, dict(uuid=self.uuidAction, value="changeTo/99")
+            if self._attr_is_on is not True:
+                # "changeTo/99" was a runtime convention of one installation
+                # and is not in the spec (only mood id 0 is always off).
+                # Plain turn-on without further input activates the first
+                # known mood; without any mood list, plus (spec: next mood).
+                first_mood_id = next(
+                    (
+                        mood["id"]
+                        for mood in self._moodlist
+                        if isinstance(mood, dict) and "id" in mood
+                    ),
+                    None,
+                )
+                if first_mood_id is not None:
+                    self.hass.bus.async_fire(
+                        SENDDOMAIN,
+                        dict(
+                            uuid=self.uuidAction,
+                            value="changeTo/{}".format(first_mood_id),
+                        ),
+                    )
+                else:
+                    self.hass.bus.async_fire(
+                        SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
+                    )
+            else:
+                # Already on: no command - a plain turn-on must not steal
+                # the running mood or brightness.
+                _LOGGER.debug(
+                    "Light %s is already on; ignoring plain turn_on", self.name
                 )
         self.async_schedule_update_ha_state()
 
@@ -174,8 +202,42 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             )
             return None
 
+    def _update_is_on(self) -> None:
+        """Derive is_on from the mood state and the master value.
+
+        Spec: mood id 0 is always off. Observed on this installation:
+        778 is the static "Aus" mood. An empty activeMoods list is NOT
+        off - moving the master directly clears the moods ("Stimmung
+        Manuell") and the circuits stay lit, so the master value decides.
+        """
+        if any(mood_id not in (0, 778) for mood_id in self._active_moods):
+            self._attr_is_on = True
+        elif self._active_moods:
+            self._attr_is_on = False
+        else:
+            self._attr_is_on = (self._master_position_loxone or 0) > 0
+
     async def event_handler(self, event):
         request_update = False
+
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            relevant = [
+                key[-12:]
+                for key in (
+                    self._master_position_uuid,
+                    self._master_min_uuid,
+                    self._master_max_uuid,
+                )
+                if key and key in event.data
+            ]
+            if relevant:
+                _LOGGER.debug(
+                    "LightController %s: master state event %s (min=%r max=%r)",
+                    self.name,
+                    relevant,
+                    self._master_min,
+                    self._master_max,
+                )
 
         if self.uuidAction in event.data:
             self._attr_state = event.data[self.uuidAction]
@@ -190,6 +252,7 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             request_update = True
 
         if self._master_position_uuid and self._master_position_uuid in event.data:
+            self._master_position_loxone = event.data[self._master_position_uuid]
             if (
                 self._master_min is not None
                 and self._master_max is not None
@@ -216,10 +279,6 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             active_moods = self._parse_json_state("activeMoods", event.data)
             if active_moods is not None:
                 self._active_moods = active_moods
-                if self._active_moods != [778]:
-                    self._attr_is_on = True
-                else:
-                    self._attr_is_on = False
                 request_update = True
 
         moodlist_uuid = self.states.get("moodList")
@@ -236,7 +295,19 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
                 self._additional_moodlist = additional
                 request_update = True
 
+        if self.uuidAction in event.data:
+            # The spec lists no simple value state for this block - the
+            # light state lives in the JSON mood states. Unexpected event
+            # for the own uuid; keep it observable but do not write it
+            # into _attr_state (verify empirically).
+            _LOGGER.debug(
+                "LightControllerV2 %s: unexpected own-uuid event %r",
+                self.name,
+                event.data[self.uuidAction],
+            )
+
         if request_update:
+            self._update_is_on()
             if not self._attr_available:
                 attr_is_on_is_not_unknown = self._attr_is_on == True or self._attr_is_on == False
                 both_master_values_are_not_unknown = self._master_min != STATE_UNKNOWN and self._master_max != STATE_UNKNOWN
