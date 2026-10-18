@@ -427,8 +427,9 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
         self._state = STATE_UNKNOWN
 
     async def event_handler(self, e):
-        if self.states["text"] in e.data:
-            self._state = str(e.data[self.states["text"]])
+        text_uuid = self.states.get("text")
+        if text_uuid and text_uuid in e.data:
+            self._state = str(e.data[text_uuid])
             self.async_schedule_update_ha_state()
 
     @property

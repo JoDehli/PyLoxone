@@ -111,7 +111,7 @@ class LoxoneText(LoxoneEntity, TextEntity):
         """
         return {
             **self._attr_extra_state_attributes,
-            "state_uuid": self.states["text"],
+            "state_uuid": self.states.get("text"),
             "device_type": self.type,
         }
 

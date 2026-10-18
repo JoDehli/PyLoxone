@@ -77,7 +77,7 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
 
     @property
     def mood_list_uuid(self):
-        return self.states["moodList"]
+        return self.states.get("moodList")
 
     def get_moodname_by_id(self, _id):
         for mood in self._moodlist:
@@ -211,7 +211,8 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
         # They used to be ``eval``'d, which ran Miniserver data as Python
         # code, and the "true"->"True" rewrite also renamed moods whose
         # name contains "true" / "false".
-        if self.states["activeMoods"] in event.data:
+        active_moods_uuid = self.states.get("activeMoods")
+        if active_moods_uuid and active_moods_uuid in event.data:
             active_moods = self._parse_json_state("activeMoods", event.data)
             if active_moods is not None:
                 self._active_moods = active_moods
@@ -221,13 +222,15 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
                     self._attr_is_on = False
                 request_update = True
 
-        if self.states["moodList"] in event.data:
+        moodlist_uuid = self.states.get("moodList")
+        if moodlist_uuid and moodlist_uuid in event.data:
             moodlist = self._parse_json_state("moodList", event.data)
             if moodlist is not None:
                 self._moodlist = moodlist
                 request_update = True
 
-        if self.states["additionalMoods"] in event.data:
+        additional_uuid = self.states.get("additionalMoods")
+        if additional_uuid and additional_uuid in event.data:
             additional = self._parse_json_state("additionalMoods", event.data)
             if additional is not None:
                 self._additional_moodlist = additional
