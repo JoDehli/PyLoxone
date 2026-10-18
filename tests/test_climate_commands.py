@@ -10,6 +10,7 @@ from custom_components.loxone.climate import (ActiveMode, ActiveState, HVACMode,
                                               LoxoneRoomController,
                                               LoxoneRoomControllerV2,
                                               OperatingMode)
+from custom_components.loxone.const import PRESET_SCHEDULE
 
 
 def _room_controller_v2(sent: list, operating_mode, active_mode, **state_values):
@@ -25,6 +26,36 @@ def _room_controller_v2(sent: list, operating_mode, active_mode, **state_values)
     rc._state_attr_values = {f"uuid-{name}": v for name, v in state_values.items()}
     rc.schedule_update_ha_state = lambda: None
     return rc
+
+
+def test_irc_v2_schedule_preset_without_override_switches_to_automatic():
+    """Bug: the fallback sent 'setOperationMode/0' - a typo, this command
+    does not exist in the spec, so the Miniserver ignores it and the
+    "Schedule" preset silently did nothing.
+
+    Spec (Intelligent Room Controller v2): `setOperatingMode/{opMode}`,
+    0 = automatic, heating and cooling allowed."""
+    sent: list = []
+    rc = _room_controller_v2(
+        sent, OperatingMode.AUTO_HEAT_COOL, ActiveMode.COMFORT, overrideReason=0
+    )
+    rc._modeList = [{"id": "stop", "name": PRESET_SCHEDULE}]
+
+    rc.set_preset_mode(PRESET_SCHEDULE)
+
+    assert sent == ["setOperatingMode/0"]
+
+
+def test_irc_v2_schedule_preset_while_overridden_stops_override():
+    sent: list = []
+    rc = _room_controller_v2(
+        sent, OperatingMode.AUTO_HEAT_COOL, ActiveMode.COMFORT, overrideReason=3
+    )
+    rc._modeList = [{"id": "stop", "name": PRESET_SCHEDULE}]
+
+    rc.set_preset_mode(PRESET_SCHEDULE)
+
+    assert sent == ["stopOverride"]
 
 
 def test_comfort_mode_temp_is_the_absolute_temperature():

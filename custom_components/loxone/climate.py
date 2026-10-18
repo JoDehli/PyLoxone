@@ -752,7 +752,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                 )
             elif mode_id == "stop":
                 self.hass.bus.fire(
-                    SENDDOMAIN, dict(uuid=self.uuidAction, value="setOperationMode/0")
+                    SENDDOMAIN, dict(uuid=self.uuidAction, value="setOperatingMode/0")
                 )
             else:
                 self.hass.bus.fire(
