@@ -22,7 +22,7 @@ _COLOR_VALUE_COUNT = {"hsv": 3, "temp": 2}
 def _color_temp_range(details: dict) -> tuple[int, int]:
     """Kelvin range from details.TWMin/TWMax (spec default 2700/6500)."""
     details = details or {}
-    return int(details.get("TWMin", 2700)), int(details.get("TWMax", 6500))
+    return int(details.get("TWMin") or 2700), int(details.get("TWMax") or 6500)
 
 
 def _parse_color(text: str, name) -> list[int | float] | None:
@@ -119,7 +119,13 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
             )
         else:
             self.hass.bus.async_fire(
-                SENDDOMAIN, dict(uuid=self.uuidAction, value="setBrightness/100")
+                SENDDOMAIN,
+                dict(
+                    uuid=self.uuidAction,
+                    value="setBrightness/{:g}".format(
+                        hass_to_lox(self._attr_brightness or 255)
+                    ),
+                ),
             )
 
     async def event_handler(self, e):

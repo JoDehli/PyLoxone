@@ -265,7 +265,7 @@ async def async_setup_entry(
                     "cat": sensor.get("cat", ""),
                     "name": f"{sensor['name']} {name_suffix}",
                     "details": {"format": sensor["details"].get(
-                        format_key, sensor["details"]["totalFormat"])
+                        format_key, sensor["details"].get("totalFormat"))
                     },
                     "async_add_devices": async_add_entities,
                     "config_entry": config_entry,
