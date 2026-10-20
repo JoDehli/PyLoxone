@@ -15,6 +15,10 @@ from ..helpers import (get_or_create_device, hass_to_lox, lox2hass_mapped,
 
 _LOGGER = logging.getLogger(__name__)
 
+# Mood ids that mean "off": 0 is spec-defined, 778 is the static "Aus" mood
+# on the installation this was observed on. Not in the structure file.
+OFF_MOOD_IDS = (0, 778)
+
 
 class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
     """Representation of a Light Controller V2."""
@@ -154,15 +158,15 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             )
         elif kwargs == {}:
             if self._attr_is_on is not True:
-                # "changeTo/99" was a runtime convention of one installation
-                # and is not in the spec (only mood id 0 is always off).
-                # Plain turn-on without further input activates the first
-                # known mood; without any mood list, plus (spec: next mood).
+                # Plain turn-on activates the first mood that is not an off
+                # mood; without any such mood, plus (spec: next mood).
                 first_mood_id = next(
                     (
                         mood["id"]
                         for mood in self._moodlist
-                        if isinstance(mood, dict) and "id" in mood
+                        if isinstance(mood, dict)
+                        and "id" in mood
+                        and mood["id"] not in OFF_MOOD_IDS
                     ),
                     None,
                 )
@@ -205,12 +209,11 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
     def _update_is_on(self) -> None:
         """Derive is_on from the mood state and the master value.
 
-        Spec: mood id 0 is always off. Observed on this installation:
-        778 is the static "Aus" mood. An empty activeMoods list is NOT
-        off - moving the master directly clears the moods ("Stimmung
-        Manuell") and the circuits stay lit, so the master value decides.
+        An empty activeMoods list is NOT off - moving the master directly
+        clears the moods ("Stimmung Manuell") and the circuits stay lit,
+        so the master value decides.
         """
-        if any(mood_id not in (0, 778) for mood_id in self._active_moods):
+        if any(mood_id not in OFF_MOOD_IDS for mood_id in self._active_moods):
             self._attr_is_on = True
         elif self._active_moods:
             self._attr_is_on = False
