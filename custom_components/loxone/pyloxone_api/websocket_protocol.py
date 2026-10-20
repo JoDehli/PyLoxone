@@ -78,9 +78,9 @@ class LoxoneClientConnection(ClientConnection):
         #
         # And:
         #
-        # a keepalive header is sent by itself. No message body follows it. We
-        # don't need to worry about that here, because keepalive messages are
-        # handled in their own coroutine
+        # a keepalive header is sent by itself. No message body follows it.
+        # The Miniserver's answer to our keepalive arrives here too, so reading
+        # a body after it would swallow the next message's header.
 
         header_data = await self.recv()
         await asyncio.sleep(0)
@@ -97,6 +97,11 @@ class LoxoneClientConnection(ClientConnection):
         self._last_header = header
         if header.message_type is MessageType.OUT_OF_SERVICE:
             raise LoxoneOutOfServiceException
+        if header.message_type is MessageType.KEEPALIVE:
+            return parse_message(b"keepalive", MessageType.KEEPALIVE)
+        if header.estimated:
+            # The exact header follows, then the body.
+            return await self.recv_message()
         # get the message body
         message_data = await self.recv()
         await asyncio.sleep(0)
