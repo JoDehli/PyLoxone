@@ -153,6 +153,9 @@ IRC_MODE_TO_HVAC = {
 }
 IRC_HVAC_TO_MODE = {HVACMode.AUTO: 0, HVACMode.HEAT: 3, HVACMode.COOL: 4}
 IRC_COOLING_MODES = (2, 4, 6)
+# Structure file (IRoomController): command ``service/{0-4}`` and state
+# ``serviceMode`` 0 = off, 1 = heating and cooling off. ``service/0`` therefore
+# turns the service mode off, i.e. back to normal automatic operation.
 IRC_SERVICE_NORMAL = 0
 IRC_SERVICE_HEATING_COOLING_OFF = 1
 # details.restrictedToMode: 1 = cooling only, 2 = heating only
