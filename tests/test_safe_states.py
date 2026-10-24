@@ -38,24 +38,58 @@ def _digital_sensor(**kwargs) -> LoxoneDigitalSensor:
     return LoxoneDigitalSensor(**kwargs)
 
 
-# --- SmokeAlarm: areAlarmSignalsOff is optional (spec, since 10.3) ----------
+# --- SmokeAlarm: read the smoke level, not the muted-signal flag ------------
 
 
-def test_smoke_sensor_without_are_alarm_signals_off_state():
-    """Bug: ``states['areAlarmSignalsOff']`` crashed the setup whenever the
-    structure file omitted the optional state (0 occurrences in this
-    installation's real structure)."""
+def test_smoke_sensor_without_level_uses_uuid_action():
+    """PS-04: smoke reads the alarm level. Without it (optional in the
+    structure file) the echoed uuidAction keeps the entity inert."""
     sensor = _digital_sensor(type="smoke")
 
-    assert sensor._state_uuid is None
+    assert sensor._state_uuid == "uuid-action"
 
 
-def test_smoke_sensor_with_are_alarm_signals_off_state():
+def test_smoke_sensor_uses_level_not_are_alarm_signals_off():
+    """areAlarmSignalsOff tells whether the beeper is muted - a different
+    signal than the alarm level."""
     sensor = _digital_sensor(
-        type="smoke", states={"areAlarmSignalsOff": "uuid-signals-off"}
+        type="smoke",
+        states={"level": "uuid-level", "areAlarmSignalsOff": "uuid-signals-off"},
     )
 
-    assert sensor._state_uuid == "uuid-signals-off"
+    assert sensor._state_uuid == "uuid-level"
+
+
+def test_smoke_alarm_on_any_level_above_zero():
+    """A level of 0.5 or 2 is a smoke event too; only 0 means off."""
+    sensor = _digital_sensor(
+        type="smoke", states={"level": "uuid-level", "areAlarmSignalsOff": "uuid-signals-off"}
+    )
+    sensor.async_schedule_update_ha_state = lambda: None
+
+    asyncio.run(sensor.event_handler(SimpleNamespace(data={"uuid-level": 0.5})))
+    assert sensor.is_on is True
+
+    asyncio.run(sensor.event_handler(SimpleNamespace(data={"uuid-level": 2.0})))
+    assert sensor.is_on is True
+
+    asyncio.run(sensor.event_handler(SimpleNamespace(data={"uuid-level": 0.0})))
+    assert sensor.is_on is False
+
+
+def test_smoke_alarm_ignores_are_alarm_signals_off_state():
+    sensor = _digital_sensor(
+        type="smoke", states={"level": "uuid-level", "areAlarmSignalsOff": "uuid-signals-off"}
+    )
+    sensor.async_schedule_update_ha_state = lambda: None
+
+    asyncio.run(
+        sensor.event_handler(
+            SimpleNamespace(data={"uuid-level": 0.0, "uuid-signals-off": 1.0})
+        )
+    )
+
+    assert sensor.is_on is False
 
 
 def test_smoke_sensor_without_state_ignores_events():

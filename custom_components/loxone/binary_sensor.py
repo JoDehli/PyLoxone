@@ -115,10 +115,12 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
         ):
             self._from_loxone_config = True
             if self.type == "smoke":
-                # Optional since Miniserver 10.3: structure files without
-                # the state must not crash the setup (a missing key then
-                # simply never matches an event → the sensor stays unknown).
-                self._state_uuid = self.states.get("areAlarmSignalsOff")
+                # PS-04: read the smoke *level* (any level > 0 is a smoke
+                # event). `areAlarmSignalsOff` is a different signal: it
+                # tells whether the alarm signals (beeper) are muted. Falls
+                # back to the echoed uuidAction when `level` is absent, so
+                # the platform cannot abort on a missing key.
+                self._state_uuid = self.states.get("level") or self.uuidAction
             elif self.type == "presence":
                 self._state_uuid = self.states.get("active")
             elif "active" in self.states:
@@ -164,11 +166,19 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
 
     async def event_handler(self, e):
         if self._state_uuid in e.data:
-            self._state = e.data[self._state_uuid]
-            if self._state == 1.0:
-                self._state = self._on_state
+            value = e.data[self._state_uuid]
+            # A smoke *level* (and any sibling state) above zero is an
+            # alarm: a non-1.0 value such as a fractional or a level of 2
+            # used to read as "off".
+            if isinstance(value, bool):
+                on = value
+            elif isinstance(value, (int, float)):
+                on = value > 0
+            elif isinstance(value, str) and value.strip() != "":
+                on = value.strip().lower() != "off"
             else:
-                self._state = self._off_state
+                on = False
+            self._state = self._on_state if on else self._off_state
             if not self._attr_available:
                 self._attr_available = True
             self.async_schedule_update_ha_state()
