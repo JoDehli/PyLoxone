@@ -14,16 +14,20 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
                                  CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
                                  STATE_OFF, STATE_ON, STATE_UNKNOWN)
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
-from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
+from .const import CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
+from .window_monitor import (LoxoneWindowContactSensor,
+                             LoxoneWindowLockSensor, WindowContact,
+                             has_lock_info, window_contacts)
 
 _LOGGER = logging.getLogger(__name__)
 NEW_SENSOR = "binairy_sensors"
@@ -80,6 +84,15 @@ async def async_setup_entry(
         sensor.update({"type": "smoke"})
         entities.append(LoxoneDigitalSensor(**sensor))
 
+    # #524: one window binary sensor per WindowMonitor contact, plus a lock
+    # binary sensor for the contacts that turn out to have a lock input.
+    try:
+        contacts = window_contacts(loxconfig)
+        entities.extend(LoxoneWindowContactSensor(contact) for contact in contacts)
+        entities.extend(_setup_window_locks(hass, config_entry, contacts, async_add_entities))
+    except Exception:
+        _LOGGER.exception("Skipping WindowMonitor controls")
+
     @callback
     def async_add_binary_sensors(_):
         async_add_entities(_, True)
@@ -92,6 +105,53 @@ async def async_setup_entry(
         )
     )
     async_add_entities(entities)
+
+
+def _setup_window_locks(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    contacts: list[WindowContact],
+    async_add_entities: AddEntitiesCallback,
+) -> list[LoxoneWindowLockSensor]:
+    """
+    Lock binary sensors for WindowMonitor contacts (#524).
+
+    The structure file does not say which contacts have a lock input, so a
+    lock entity is added the first time a contact reports a lock bit (8/16)
+    in its monitor's ``windowStates``.  Contacts whose lock entity is already
+    in the entity registry get it immediately, so a restart does not leave it
+    unavailable until the first value.
+    """
+    registry = er.async_get(hass)
+    created: set[str] = set()
+    immediate: list[LoxoneWindowLockSensor] = []
+    by_stream: dict[str, list[WindowContact]] = {}
+    for contact in contacts:
+        by_stream.setdefault(contact.feed.states_uuid, []).append(contact)
+        if registry.async_get_entity_id("binary_sensor", DOMAIN, f"{contact.uuid}-lock"):
+            created.add(contact.uuid)
+            immediate.append(LoxoneWindowLockSensor(contact))
+
+    @callback
+    def _on_event(e: Event) -> None:
+        new: list[LoxoneWindowLockSensor] = []
+        for states_uuid, group in by_stream.items():
+            if states_uuid not in e.data:
+                continue
+            values = group[0].feed.values(e.data[states_uuid])
+            if not values:
+                continue
+            for contact in group:
+                if contact.uuid in created or contact.index >= len(values):
+                    continue
+                if has_lock_info(values[contact.index]):
+                    created.add(contact.uuid)
+                    new.append(LoxoneWindowLockSensor(contact, initial=values))
+        if new:
+            async_add_entities(new)
+
+    config_entry.async_on_unload(hass.bus.async_listen(EVENT, _on_event))
+    return immediate
 
 
 class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):

@@ -26,6 +26,13 @@
           "overridden_by_source": "Overridden by source",
           "fixed": "Fixed Setpoint"
         }
+      },
+      "window_state": {
+        "state": {
+          "closed": "Closed",
+          "tilted": "Tilted",
+          "open": "Open"
+        }
       }
     }
   },

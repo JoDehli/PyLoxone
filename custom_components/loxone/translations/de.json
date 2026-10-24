@@ -26,6 +26,13 @@
           "overridden_by_source": "Von Quelle übersteuert",
           "fixed": "Fester Sollwert"
         }
+      },
+      "window_state": {
+        "state": {
+          "closed": "Geschlossen",
+          "tilted": "Gekippt",
+          "open": "Offen"
+        }
       }
     }
   },
