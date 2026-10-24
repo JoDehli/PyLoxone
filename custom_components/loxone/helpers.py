@@ -6,10 +6,39 @@ https://home-assistant.io/components/loxone/
 """
 
 import datetime
+import json
 import re
 
 from .const import DOMAIN, cfmt
 from homeassistant.util import dt as dt_util
+
+_COLOR_RE = re.compile(r"^\s*(hsv|temp)\s*\(([^()]*)\)\s*$")
+
+
+def parse_lox_json(text):
+    """Parse a JSON text state (e.g. ``moodList``, ``activeMoods``).
+
+    Miniserver data is never evaluated as Python code. Raises
+    ``ValueError`` if ``text`` is not valid JSON.
+    """
+    return json.loads(text)
+
+
+def parse_lox_color(text: str) -> tuple[str, list[int | float]]:
+    """Parse ``hsv(h,s,v)`` / ``temp(brightness,kelvin)`` color states.
+
+    Returns the kind (``"hsv"`` or ``"temp"``) and the numbers.
+    Raises ``ValueError`` for anything else.
+    """
+    match = _COLOR_RE.match(text)
+    if match is None:
+        raise ValueError(f"Not a Loxone color: {text!r}")
+    numbers = json.loads(f"[{match.group(2)}]")
+    if not numbers or not all(
+        isinstance(n, (int, float)) and not isinstance(n, bool) for n in numbers
+    ):
+        raise ValueError(f"Not a Loxone color: {text!r}")
+    return match.group(1), numbers
 
 # Initialize a device registry
 device_registry = {}

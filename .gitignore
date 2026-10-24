@@ -47,3 +47,10 @@ config/*
 !config/configuration.yaml
 
 tmp*
+pyproject.toml
+uv.lock
+.python-version
+
+# Dedicated test virtualenv (see scripts/test). .venv stays reserved
+# for the local Home Assistant runtime used for live Miniserver tests.
+.venv-test/

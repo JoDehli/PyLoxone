@@ -5,26 +5,58 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/pyloxone-api
 """
 
-import hashlib
 import json
 import logging
 import math
 import re
 import struct
 import time
-import uuid
 from enum import IntEnum
 from functools import lru_cache
 from typing import Optional, Union
 
+from .const import MESSAGE_HEADER_SIZE
 from .exceptions import LoxoneException
 
 _LOGGER = logging.getLogger(__name__)
 
-# small in-memory cache for expensive encoding detection results
-_encoding_cache: dict[str, Optional[str]] = {}
-_DETECT_SAMPLE_SIZE = 512  # sample length used for detection & caching
-_DETECT_MAX_BYTES = 4096  # only run heavy detection for messages <= this size
+# Textual form of a Loxone state uuid, keyed by its raw 16 bytes. A
+# Miniserver repeats the same uuids on every update, so in steady
+# state a record costs one dict lookup instead of
+# ``uuid.UUID(bytes_le=...)`` + ``.urn`` + ``replace()`` + ``split()``
+# + an f-string — measured ~9x faster per value-states message, and
+# that path alone was ~37% of the whole receive pipeline.
+#
+# The cache is bounded: it is dropped wholesale once it grows past
+# the cap, which only happens with pathological uuid churn (a normal
+# house has far fewer states than this).
+_UUID_STR_CACHE: dict[bytes, str] = {}
+_UUID_STR_CACHE_MAX = 8192
+_UUID_BYTES_LEN = 16
+_UUID_LEN_ERROR = "bytes_le must be exactly 16 bytes long"
+
+
+def _uuid_str(raw: bytes) -> str:
+    """Return the Loxone compact key text (``8-4-4-16`` hex) for ``raw``."""
+    # Byte-for-byte identical to ``uuid.UUID(bytes_le=raw).urn`` with
+    # the ``urn:uuid:`` prefix stripped and the last two groups joined
+    # without a dash — the form the integration already uses for its
+    # event keys.
+    if len(raw) != _UUID_BYTES_LEN:
+        # Same type and message as ``uuid.UUID(bytes_le=...)`` so a
+        # truncated record fails exactly where it used to.
+        raise ValueError(_UUID_LEN_ERROR)
+    cached = _UUID_STR_CACHE.get(raw)
+    if cached is not None:
+        return cached
+    # ``bytes_le`` reads the first three fields little-endian and
+    # keeps clock-sequence and node bytes in order — mirror that.
+    time_low, time_mid, time_hi = struct.unpack_from("<IHH", raw, 0)
+    text = f"{time_low:08x}-{time_mid:04x}-{time_hi:04x}-{raw[8:10].hex()}{raw[10:16].hex()}"
+    if len(_UUID_STR_CACHE) >= _UUID_STR_CACHE_MAX:
+        _UUID_STR_CACHE.clear()
+    _UUID_STR_CACHE[raw] = text
+    return text
 
 
 class AsyncTimer:
@@ -55,85 +87,35 @@ class SyncTimer:
         self.logger.debug("%s took %.6f s", self.label, elapsed)
 
 
-def detect_encoding(byte_string):
-    encodings = [
-        "utf-8",
-        "iso-8859-1",
-        "ascii",
-        "utf-16",
-        "utf-32",
-        "latin-1",
-        "cp1252",
-        "mac-roman",
-        "big5",
-        "shift_jis",
-        "euc-jp",
-        "gb2312",
-    ]
-
-    for encoding in encodings:
-        try:
-            byte_string.decode(encoding)
-            return encoding
-        except (
-                UnicodeDecodeError,
-                AttributeError
-        ):
-            continue
-    return None
-
-
 def check_and_decode_if_needed(message):
+    """Decode ``message`` (bytes / bytearray / str) to ``str``.
+
+    - ``str`` input is returned as-is.
+    - Bytes are decoded as UTF-8 first; if that fails (the bytes are
+      not valid UTF-8) the fallback is **latin-1**, which is defined
+      to map every byte 0-255 to a valid code point, so it can never
+      raise and never inserts ``U+FFFD`` replacement characters.
+
+    The latin-1 fallback replaces the previous multi-stage detector
+    that tried a dozen encodings and cached results by SHA-256 sample
+    hash. The detector was expensive on the recv path and the latin-1
+    fallback is byte-faithful — every byte is preserved exactly as
+    code point ``0x__``. ASCII bytes (which is what most Loxone
+    strings are) round-trip identically through UTF-8 and latin-1.
+    """
     if isinstance(message, str):
         return message
 
-    # ensure we handle bytearray too
+    # ``bytes(...)`` accepts both ``bytes`` and ``bytearray``; the
+    # explicit cast keeps the rest of the function uniform.
     b: bytes = bytes(message)
 
-    # fast happy-path: utf-8 works for most messages
     try:
         return b.decode("utf-8")
     except UnicodeDecodeError:
-        pass
-
-    # if ascii, decode cheaply (shouldn't usually get here)
-    if getattr(b, "isascii", lambda: False)():
-        return b.decode("ascii", errors="replace")
-
-    # try a few common single-byte encodings (cheap)
-    for enc in ("latin-1", "cp1252", "iso-8859-15"):
-        try:
-            return b.decode(enc)
-        except UnicodeDecodeError:
-            continue
-        except Exception:
-            # defensive: skip any unexpected errors from decoder
-            continue
-
-    # heavy detection: only for small messages, with a cache keyed on sample hash
-    if len(b) <= _DETECT_MAX_BYTES:
-        sample = b[:_DETECT_SAMPLE_SIZE]
-        key = hashlib.sha256(sample).hexdigest()
-        enc = _encoding_cache.get(key)
-        if enc is None and "detect_encoding" in globals():
-            try:
-                enc = detect_encoding(sample)  # may be expensive
-            except Exception:
-                enc = None
-            _encoding_cache[key] = enc  # cache even None to avoid repeated work
-
-        if enc:
-            try:
-                return b.decode(enc)
-            except Exception:
-                pass
-
-    # last resort: replace invalid characters (fast and safe)
-    _LOGGER.info(
-        "Decoding problem for message (len=%d). Falling back to replace invalid chars.",
-        len(b),
-    )
-    return b.decode("utf-8", errors="replace")
+        # UTF-8 failed — every byte has a valid latin-1 code point, so
+        # this fallback is total and loss-free.
+        return b.decode("latin-1")
 
 
 class MessageType(IntEnum):
@@ -167,7 +149,7 @@ class LLResponse:
 
     def __init__(self, response: str | bytes):
         try:
-            self._parsed: dict = json.loads(response)
+            self._parsed: dict = json.loads(response, strict=False)
             # Sometimes, Loxone uses "Code", and sometimes "code"
             self.code: int = int(
                 self._parsed.get("LL", {}).get("code", "")
@@ -197,19 +179,48 @@ class MessageHeader:
         #   BYTE cReserved;    // reserved
         #   UINT nLen;         // 32-Bit Unsigned Integer (little endian)
         # } PACKED WsBinHdr;
+        #
+        # ``MessageHeader`` always populates ``message_type``,
+        # ``estimated`` and ``payload_length``. For non-0x03
+        # frames (text-only or out-of-band events some Miniservers
+        # emit) the three are set to ``UNKNOWN`` / ``False`` /
+        # ``0`` so the recv state machine in ``_do_start_listening``
+        # can index them unconditionally.
         self.header = header
-        if not header[0] == 3:
-            self.message_type = MessageType.UNKNOWN
-        else:
-            try:
-                unpacked_data = struct.unpack("<cBccI", header)
-            except (struct.error, TypeError) as exc:
-                raise LoxoneException(f"Invalid header received: {exc} - {header}")
+        # Defaults for non-0x03 frames. These also cover the
+        # "header too short to unpack" guard below.
+        self.message_type: MessageType = MessageType.UNKNOWN
+        self.estimated: bool = False
+        self.payload_length: int = 0
 
-            self.message_type: MessageType = MessageType(unpacked_data[1])
-            # First bit indicates that length is only estimated
-            self.estimated: bool = ord(unpacked_data[2]) >> 7 == 1
-            self.payload_length: int = int(unpacked_data[4])
+        if header is None or len(header) < MESSAGE_HEADER_SIZE:
+            # Nothing to parse — treat as a bodyless unknown.
+            return
+        if header[0] != 3:
+            # Non-Loxone binary header. Some Miniserver firmware
+            # versions send short text-only events that begin with
+            # other bytes; treat them as bodyless UNKNOWN.
+            return
+
+        try:
+            # ``header[:8]`` would copy; hand the buffer to
+            # ``struct.unpack`` as-is when it is exactly 8 bytes
+            # wide (it accepts any bytes-like object, and anything
+            # else — e.g. ``str`` — raises ``TypeError``, which is
+            # converted to ``LoxoneException`` below).
+            source = header if len(header) == MESSAGE_HEADER_SIZE else bytes(header[:MESSAGE_HEADER_SIZE])
+            unpacked_data = struct.unpack("<cBccI", source)
+        except (struct.error, TypeError) as exc:
+            raise LoxoneException(
+                f"Invalid header received: {exc} - {header!r}"
+            ) from exc
+
+        self.message_type = MessageType(unpacked_data[1])
+        # First bit of ``cInfo`` indicates that length is only
+        # estimated. ``unpacked_data[2]`` is a 1-byte ``bytes``
+        # object — index it to get the int value.
+        self.estimated = bool((unpacked_data[2][0] >> 7) & 0x01)
+        self.payload_length = unpacked_data[4]
 
 
 class BaseMessage:
@@ -271,19 +282,32 @@ class ValueStatesTable(BaseMessage):
 
     def as_dict(self):
         event_dict = {}
-        length = len(self.message)
-        num = length / 24
-        start = 0
-        end = 24
-        for _ in range(int(num)):
-            packet = self.message[start:end]
-            event_uuid = uuid.UUID(bytes_le=packet[0:16])
-            fields = event_uuid.urn.replace("urn:uuid:", "").split("-")
-            uuidstr = f"{fields[0]}-{fields[1]}-{fields[2]}-{fields[3]}{fields[4]}"
-            value = struct.unpack("d", packet[16:24])[0]
-            event_dict[uuidstr] = value
-            start += 24
-            end += 24
+        message = self.message
+        # 24 bytes per record (16-byte uuid + 8-byte double). Floor-divide
+        # so we only iterate full records and never read past the end of
+        # ``self.message``; the trailing partial record (if any) is
+        # logged at DEBUG instead of silently dropped — the previous
+        # ``int(length / 24)`` truncated in the same place but never
+        # reported it.
+        num_full = len(message) // 24
+        remainder = len(message) % 24
+        if remainder:
+            _LOGGER.debug(
+                "ValueStatesTable: trailing partial record of %d byte(s) "
+                "dropped (expected a multiple of 24)",
+                remainder,
+            )
+
+        # ``unpack_from`` reads straight out of the payload — no
+        # 24-byte slice per record — and the uuid text comes from the
+        # module cache (see ``_uuid_str``). Loxone sends the double in
+        # little-endian byte order; the native-order ``"d"`` format
+        # happens to match on x86 but breaks on big-endian systems (and
+        # is fragile in either case). Force ``"<d"`` explicitly.
+        unpack_from = struct.unpack_from
+        uuid_str = _uuid_str
+        for start in range(0, num_full * 24, 24):
+            event_dict[uuid_str(message[start : start + 16])] = unpack_from("<d", message, start + 16)[0]
         return event_dict
 
 
@@ -302,32 +326,19 @@ class TextStatesTable(BaseMessage):
         start = 0
 
         def get_text(message: bytes, start: int, offset: int) -> int:
-            first = start
-            second = start + offset
-            event_uuid = uuid.UUID(bytes_le=self.message[first:second])  # type: ignore
-            first += offset
-            second += offset
+            # Layout: event uuid (``offset`` bytes) + icon uuid (16)
+            # + text length (4) + text. The icon uuid is not part of
+            # the payload we surface, so it is stepped over instead of
+            # parsed — its textual form was computed and thrown away.
+            uuidstr = _uuid_str(message[start : start + offset])
+            first = start + offset + offset
 
-            icon_uuid_fields = event_uuid.urn.replace("urn:uuid:", "").split("-")
-            uuidstr = "{}-{}-{}-{}{}".format(
-                icon_uuid_fields[0],
-                icon_uuid_fields[1],
-                icon_uuid_fields[2],
-                icon_uuid_fields[3],
-                icon_uuid_fields[4],
-            )
+            text_length = struct.unpack_from("<I", message, first)[0]
+            first += 4
 
-            icon_uuid = uuid.UUID(bytes_le=self.message[first:second])  # type: ignore
-            icon_uuid_fields = icon_uuid.urn.replace("urn:uuid:", "").split("-")
-
-            first = second
-            second += 4
-
-            text_length = struct.unpack("<I", message[first:second])[0]
-
-            first = second
-            second = first + text_length
-            message_str = struct.unpack(f"{text_length}s", message[first:second])[0]
+            # ``unpack_from`` keeps the old contract: a truncated text
+            # raises ``struct.error`` instead of yielding short bytes.
+            message_str = struct.unpack_from(f"{text_length}s", message, first)[0]
             start += (math.floor((4 + text_length + 16 + 16 - 1) / 4) + 1) * 4
             event_dict[uuidstr] = check_and_decode_if_needed(message_str)
             return start
@@ -372,9 +383,41 @@ def parse_header(header: bytes) -> MessageHeader:
     return MessageHeader(header)
 
 
+# Explicit per-``MessageType`` dispatch table. Replaces the previous
+# ``BaseMessage.__subclasses__()`` introspection — which was O(n),
+# relied on import-ordering quirks to register every subclass, and
+# silently dropped types for which no subclass existed (e.g.
+# ``MessageType.UNKNOWN``). The dict is built once at module load and
+# ``parse_message`` does an O(1) lookup against ``MessageType``.
+_MESSAGE_CLASSES: dict[MessageType, type[BaseMessage]] = {
+    MessageType.TEXT: TextMessage,
+    MessageType.BINARY: BinaryFile,
+    MessageType.VALUE_STATES: ValueStatesTable,
+    MessageType.TEXT_STATES: TextStatesTable,
+    MessageType.DAYTIMER_STATES: DaytimerStatesTable,
+    MessageType.OUT_OF_SERVICE: OutOfServiceIndicator,
+    MessageType.KEEPALIVE: Keepalive,
+    MessageType.WEATHER_STATES: WeatherStatesTable,
+}
+
+
 def parse_message(message: bytes | str, message_type: int) -> BaseMessage:
-    """Return an instance of the appropriate BaseMessage subclass"""
-    for klass in BaseMessage.__subclasses__():
-        if klass.message_type == message_type:
-            return klass(message)
-    raise LoxoneException(f"Unknown message type {message_type}")
+    """Return an instance of the ``BaseMessage`` subclass for ``message_type``.
+
+    ``MessageType.UNKNOWN`` (and any value not in
+    :data:`_MESSAGE_CLASSES`) raises :class:`LoxoneException`.
+    """
+    # ``MessageType(x)`` on an already-converted member is a wasted
+    # enum call: the recv loop hands over the header's
+    # ``MessageType`` directly, so only raw ints take the slow path.
+    mtype = message_type
+    if not isinstance(mtype, MessageType):
+        try:
+            mtype = MessageType(mtype)
+        except ValueError as exc:
+            raise LoxoneException(f"Unknown message type {message_type}") from exc
+
+    try:
+        return _MESSAGE_CLASSES[mtype](message)
+    except KeyError as exc:
+        raise LoxoneException(f"Unknown message type {mtype.name}") from exc

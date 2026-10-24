@@ -40,6 +40,17 @@ class LoxoneTokenError(LoxoneRequestError):
     """Unauthorised web request. Incorrect credentials"""
 
 
+class LoxoneAuthEscalatedError(LoxoneException):
+    """Raised after TOKEN_REFRESH_MAX_FAILURES consecutive failures.
+
+    Deliberately NOT a ``LoxoneTokenError`` subclass: the supervisor
+    retries plain token errors (that is the token-expiry self-heal
+    path, where a reconnect re-authenticates with the password), but
+    this one has to be escalated — retrying it forever would hide a
+    persistently failing refresh from the user.
+    """
+
+
 class LoxoneCommandError(LoxoneException):
     """An exception raised when a command is sent to the miniserver"""
 

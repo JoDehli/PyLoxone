@@ -150,8 +150,9 @@ class LoxoneSelect(LoxoneEntity, SelectEntity):
         return self._attr_current_option
 
     async def event_handler(self, e):
-        if self.states["activeOutput"] in e.data:
-            value = e.data[self.states["activeOutput"]]
+        active_uuid = self.states.get("activeOutput")
+        if active_uuid and active_uuid in e.data:
+            value = e.data[active_uuid]
             try:
                 number = int(float(value))
             except (TypeError, ValueError):
@@ -180,7 +181,7 @@ class LoxoneSelect(LoxoneEntity, SelectEntity):
         """Return device specific state attributes."""
         return {
             **self._attr_extra_state_attributes,
-            "state_uuid": self.states["activeOutput"],
+            "state_uuid": self.states.get("activeOutput"),
             "device_type": self.type,
             "platform": "loxone",
             "locked": self._locked,

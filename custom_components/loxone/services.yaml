@@ -70,6 +70,20 @@ reload:
     changes in Loxone Config or when connection issues occur. All current 
     entity states will be re\-synchronized from the Miniserver.
 
+refresh_token:
+  name: Refresh Miniserver token
+  description: >
+    Immediately refreshes the authentication token for the selected Loxone
+    config entry and waits for the Miniserver to confirm the new token.
+  fields:
+    config_entry_id:
+      name: Loxone config entry
+      description: Select which configured Miniserver should refresh its token.
+      required: true
+      selector:
+        config_entry:
+          integration: loxone
+
 enable_sun_automation:
   description: Enable Sun automation for Loxone Jalousie
   target:

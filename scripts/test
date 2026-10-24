@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# Run the Loxone integration test suite.
+#
+# The tests live in their own virtualenv (``.venv-test``) and NOT in
+# ``.venv``: ``.venv`` doubles as the local Home Assistant runtime
+# (for connecting a live Miniserver), and the test requirements pin
+# Home Assistant via ``pytest-homeassistant-custom-component``. Sharing
+# one environment means the next HA upgrade silently reintroduces the
+# pinned version — or, when HA was upgraded in between, breaks the test
+# run with a missing pytest.
+#
+# The venv is created on first use. To recreate it from scratch:
+#   rm -rf .venv-test && ./scripts/test
+#
+# Extra arguments are passed to pytest, e.g.:
+#   ./scripts/test -q
+#   ./scripts/test tests/test_connection_unit.py -k watchdog -x
+#   ./scripts/test --collect-only
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+REPO_ROOT="$PWD"
+TEST_VENV="${LOXONE_TEST_VENV:-$REPO_ROOT/.venv-test}"
+PYTHON="${LOXONE_PYTHON:-python3}"
+
+if [ ! -x "$TEST_VENV/bin/python" ]; then
+    echo "Creating test virtualenv at $TEST_VENV ..."
+    "$PYTHON" -m venv "$TEST_VENV"
+    "$TEST_VENV/bin/python" -m pip install --quiet --upgrade pip
+    "$TEST_VENV/bin/python" -m pip install --quiet \
+        -r requirements.txt -r requirements-dev.txt
+    echo "Test virtualenv ready."
+fi
+
+if ! "$TEST_VENV/bin/python" -c "import pytest" >/dev/null 2>&1; then
+    cat >&2 <<'MSG'
+ERROR: pytest is not importable in the test virtualenv.
+
+The test dependencies are missing (usually because the venv was created
+for a different purpose). Recreate it:
+
+    rm -rf .venv-test && ./scripts/test
+MSG
+    exit 1
+fi
+
+exec "$TEST_VENV/bin/python" -m pytest "$@"

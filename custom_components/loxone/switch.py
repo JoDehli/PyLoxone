@@ -237,11 +237,12 @@ class LoxoneSwitch(LoxoneEntity, SwitchEntity):
             self.schedule_update_ha_state()
 
     async def event_handler(self, event):
-        if self.uuidAction in event.data or self.states["active"] in event.data:
+        active_uuid = self.states.get("active")
+        if self.uuidAction in event.data or (active_uuid and active_uuid in event.data):
             if not self._attr_available:
                 self.async_schedule_update_ha_state()
-            if self.states["active"] in event.data:
-                self._attr_is_on = event.data[self.states["active"]]
+            if active_uuid and active_uuid in event.data:
+                self._attr_is_on = event.data[active_uuid]
 
             if not self._attr_available:
                 self._attr_available = True
@@ -287,7 +288,7 @@ class LoxoneIntercomSubControl(LoxoneSwitch):
         """
         return {
             "uuid": self.uuidAction,
-            "state_uuid": self.states["active"],
+            "state_uuid": self.states.get("active"),
             "room": self.room,
             "category": self.cat,
             "device_type": self.type,

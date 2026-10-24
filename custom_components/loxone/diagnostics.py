@@ -14,8 +14,12 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, config_entry: ConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    for k, v in hass.data[DOMAIN].items():
-        return {
-            "LoxAPP3.json": v.miniserver.lox_config.json,
-        }
-    return None
+    # The structure file of *this* entry: with several Miniservers the
+    # first loaded one used to be returned for every entry.
+    coordinator = hass.data.get(DOMAIN, {}).get(config_entry.entry_id)
+    miniserver = getattr(coordinator, "miniserver", None)
+    if miniserver is None:
+        return {"error": "Config entry is not loaded"}
+    return {
+        "LoxAPP3.json": miniserver.lox_config.json,
+    }

@@ -105,8 +105,8 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.hass = kwargs["hass"]
-        self._position_uuid = kwargs["states"]["position"]
-        self._state_uuid = kwargs["states"]["active"]
+        self._position_uuid = kwargs["states"].get("position")
+        self._state_uuid = kwargs["states"].get("active")
         self._position = None
         self._is_opening = False
         self._is_closing = False
@@ -182,19 +182,24 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
         self.schedule_update_ha_state()
 
     def stop_cover(self, **kwargs):
-        """Stop the cover."""
-        if self.is_closing:
-            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="open"))
-            return
+        """Stop the cover.
 
-        if self.is_opening:
-            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="close"))
-            return
+        Spec (Structure File, Gate): the unversioned `stop` command stops a
+        moving gate. The previous heuristic sent `open`/`close` depending on
+        the movement direction, which parked the gate at the opposite end
+        position instead of stopping in between.
+        """
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stop"))
+        self.schedule_update_ha_state()
 
     async def event_handler(self, event):
-        if self.states["position"] in event.data or self._state_uuid in event.data:
-            if self.states["position"] in event.data:
-                self._position = float(event.data[self.states["position"]]) * 100.0
+        position_uuid = self.states.get("position")
+        if (
+            (position_uuid and position_uuid in event.data)
+            or self._state_uuid in event.data
+        ):
+            if position_uuid and position_uuid in event.data:
+                self._position = float(event.data[position_uuid]) * 100.0
                 if self._position == 0:
                     self._closed = True
                 else:
@@ -238,22 +243,26 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         )
 
     async def event_handler(self, e):
-        if (self.states["position"] in e.data 
-            or self.states["direction"] in e.data
-            or self.states["targetPosition"] in e.data
+        position_uuid = self.states.get("position")
+        direction_uuid = self.states.get("direction")
+        # Optional since Miniserver 11.3 - pre-11.3 structures omit it:
+        target_uuid = self.states.get("targetPosition")
+        if any(
+            uuid and uuid in e.data
+            for uuid in (position_uuid, direction_uuid, target_uuid)
         ):
-            if self.states["position"] in e.data:
-                self._position = float(e.data[self.states["position"]]) * 100.0
+            if position_uuid and position_uuid in e.data:
+                self._position = float(e.data[position_uuid]) * 100.0
                 if self._position == 0:
                     self._closed = True
                 else:
                     self._closed = False
 
-            if self.states["direction"] in e.data:
-                self._direction = e.data[self.states["direction"]]
+            if direction_uuid and direction_uuid in e.data:
+                self._direction = e.data[direction_uuid]
 
-            if self.states["targetPosition"] in e.data:
-                target_position_loxone = float(e.data[self.states["targetPosition"]]) * 100.0
+            if target_uuid and target_uuid in e.data:
+                target_position_loxone = float(e.data[target_uuid]) * 100.0
                 self._target_position = target_position_loxone
                 
             self.schedule_update_ha_state()
@@ -313,11 +322,24 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="fullclose"))
 
     def stop_cover(self, **kwargs):
-        """Stop the cover."""
+        """Stop the cover movement.
 
+        Spec (Structure File, Window): an explicit `stop` command exists
+        since Miniserver 11.3. Every structure carrying a `targetPosition`
+        state is treated as >= 11.3 and gets the real stop; older
+        structures keep the previous fullopen/fullclose heuristic, which
+        was the only behaviour before.
+        """
+        if self.states.get("targetPosition") is not None or getattr(
+            self, "_target_position", None
+        ) is not None:
+            # targetPosition exists -> MS >= 11.3 -> 'stop' is available
+            self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="stop"))
+            self.schedule_update_ha_state()
+            return
+        # Fallback (MS < 11.3, no targetPosition state): old heuristic
         if self.is_closing:
             self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="fullopen"))
-
         elif self.is_opening:
             self.hass.bus.fire(
                 SENDDOMAIN, dict(uuid=self.uuidAction, value="fullclose")
@@ -340,10 +362,16 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         super().__init__(**kwargs)
         self.hass = kwargs["hass"]
 
-        if "autoInfoText" not in self.states:
-            self.states["autoInfoText"] = ""
-        if "autoState" not in self.states:
-            self.states["autoState"] = ""
+        # Automatic (sun automation) states per the structure file spec:
+        # "autoActive" and "infoText". The previously read "autoState" /
+        # "autoInfoText" are not in the spec and only kept as fallback, so
+        # the sun automation no longer shows "off" for every blind.
+        self._auto_state_uuid = self.states.get("autoActive") or self.states.get(
+            "autoState"
+        )
+        self._auto_text_uuid = self.states.get("infoText") or self.states.get(
+            "autoInfoText"
+        )
         self._position = 0
         self._position_loxone = -1
         self._tilt_position_loxone = 1
@@ -403,17 +431,23 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
         return supported_features
 
     async def event_handler(self, e):
+        position_uuid = self.states.get("position")
+        shade_uuid = self.states.get("shadePosition")
+        up_uuid = self.states.get("up")
+        down_uuid = self.states.get("down")
+        # targetPosition only exists for automatic-capable Jalousies:
+        target_uuid = self.states.get("targetPosition")
         if (
-            self.states["position"] in e.data
-            or self.states["shadePosition"] in e.data
-            or self.states["up"] in e.data
-            or self.states["down"] in e.data
-            or self.states["autoInfoText"] in e.data
-            or self.states["autoState"] in e.data
-            or (self._is_automatic and self.states["targetPosition"] in e.data)
+            (position_uuid and position_uuid in e.data)
+            or (shade_uuid and shade_uuid in e.data)
+            or (up_uuid and up_uuid in e.data)
+            or (down_uuid and down_uuid in e.data)
+            or self._auto_text_uuid in e.data
+            or self._auto_state_uuid in e.data
+            or (self._is_automatic and target_uuid and target_uuid in e.data)
         ):
-            if self.states["position"] in e.data:
-                self._position_loxone = float(e.data[self.states["position"]]) * 100.0
+            if position_uuid and position_uuid in e.data:
+                self._position_loxone = float(e.data[position_uuid]) * 100.0
                 self._position = map_range(self._position_loxone, 0, 100, 100, 0)
 
                 if self._position == 0:
@@ -421,32 +455,32 @@ class LoxoneJalousie(LoxoneEntity, CoverEntity):
                 else:
                     self._closed = False
 
-            if self.states["shadePosition"] in e.data:
+            if shade_uuid and shade_uuid in e.data:
                 self._tilt_position_loxone = (
-                    float(e.data[self.states["shadePosition"]]) * 100.0
+                    float(e.data[shade_uuid]) * 100.0
                 )
                 self._tilt_position = map_range(
                     self._tilt_position_loxone, 0, 100, 100, 0
                 )
-            if self._is_automatic and self.states["targetPosition"] in e.data:
+            if self._is_automatic and target_uuid and target_uuid in e.data:
                 target_position_loxone = (
-                    float(e.data[self.states["targetPosition"]]) * 100.0
+                    float(e.data[target_uuid]) * 100.0
                 )
                 self._target_position = map_range(
                     target_position_loxone, 0, 100, 100, 0
                 )
 
-            if self.states["up"] in e.data:
-                self._is_opening = e.data[self.states["up"]]
+            if up_uuid and up_uuid in e.data:
+                self._is_opening = e.data[up_uuid]
 
-            if self.states["down"] in e.data:
-                self._is_closing = e.data[self.states["down"]]
+            if down_uuid and down_uuid in e.data:
+                self._is_closing = e.data[down_uuid]
 
-            if self.states["autoInfoText"] in e.data:
-                self._auto_text = e.data[self.states["autoInfoText"]]
+            if self._auto_text_uuid in e.data:
+                self._auto_text = e.data[self._auto_text_uuid]
 
-            if self.states["autoState"] in e.data:
-                self._auto_state = e.data[self.states["autoState"]]
+            if self._auto_state_uuid in e.data:
+                self._auto_state = e.data[self._auto_state_uuid]
 
             self.schedule_update_ha_state()
 
