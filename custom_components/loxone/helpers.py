@@ -38,6 +38,39 @@ def parse_lox_color(text: str) -> tuple[str, list[int | float]]:
         raise ValueError(f"Not a Loxone color: {text!r}")
     return match.group(1), numbers
 
+
+LOCKED_BY = {1: "visualisation", 2: "logic"}
+
+
+def parse_control_lock(value) -> tuple[int, str]:
+    """Decode a control's ``jLocked`` state into ``(locked, reason)``.
+
+    Structure file v16, "Locking controls": a text state holding JSON
+    ``{"locked": 0|1|2, "reason": "..."}`` (0 = not locked, 1 = by the
+    visualisation, 2 = by logic); an empty string means not locked. A
+    plain number is accepted as the ``locked`` value. Anything unreadable
+    reads as not locked, so a parse problem never blocks a control.
+    """
+    if value is None or value == "":
+        return 0, ""
+    if isinstance(value, (int, float)):
+        return (int(value) if int(value) in (0, 1, 2) else 0), ""
+    if isinstance(value, str):
+        try:
+            data = json.loads(value)
+        except ValueError:
+            return 0, ""
+        if isinstance(data, dict):
+            try:
+                locked = int(data.get("locked", 0))
+            except (TypeError, ValueError):
+                locked = 0
+            reason = data.get("reason")
+            return (locked if locked in (0, 1, 2) else 0), (reason if isinstance(reason, str) else "")
+        if isinstance(data, (int, float)):
+            return parse_control_lock(data)
+    return 0, ""
+
 # Initialize a device registry
 device_registry = {}
 
