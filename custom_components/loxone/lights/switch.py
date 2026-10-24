@@ -22,7 +22,7 @@ class LoxoneLightSwitch(LoxoneEntity, LightEntity):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._attr_state = STATE_UNKNOWN
-        self._attr_is_on = STATE_UNKNOWN
+        self._attr_is_on = None
         self._attr_unique_id = self.uuidAction
         self._async_add_devices = kwargs["async_add_devices"]
         self._light_controller_id = kwargs.get("lightcontroller_id", None)
