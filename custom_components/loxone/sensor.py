@@ -53,6 +53,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
+# IRoomControllerV2 overrideReason (structure file spec: overrideEntries.reason).
 OVERRIDE_REASONS = {
     0: "None",
     1: "Presence",
@@ -63,7 +64,18 @@ OVERRIDE_REASONS = {
     6: "Prepare State Heat Up",
     7: "Prepare State Cool Down",
     8: "Overridden by source",
-    14: "Fixed",
+    9: "Cooling Forbidden",
+    10: "Heating Forbidden",
+    11: "Manual",
+    12: "No Cooling Available",
+    13: "No Heating Available",
+    14: "Low request",
+    15: "Pause timer",
+    16: "Different mode",
+    17: "Load shedding",
+    18: "Locked",
+    19: "Device offline",
+    20: "Different mode than central",
 }
 
 class LoxoneEntityDescription(SensorEntityDescription, frozen_or_thawed=True):
@@ -237,7 +249,10 @@ async def async_setup_entry(
         for state_key, name_suffix, format_key in [
             ("actual", "Actual", "actualFormat"),
             ("total", "Total", "totalFormat"),
-            ("totalNeg", "Total Neg", "totalFormat"),
+            # Spec (Structure File, Meter): "totalFormatNeg" - unavailable for
+            # unidirectional meters, "available since 13.01". Fall back to
+            # "totalFormat" for structures where the detail is missing.
+            ("totalNeg", "Total Neg", "totalFormatNeg"),
             ("storage", "Level", "storageFormat"),
         ]:
             if state_key in sensor["states"]:
@@ -249,7 +264,9 @@ async def async_setup_entry(
                     "room": sensor.get("room", ""),
                     "cat": sensor.get("cat", ""),
                     "name": f"{sensor['name']} {name_suffix}",
-                    "details": {"format": sensor["details"][format_key]},
+                    "details": {"format": sensor["details"].get(
+                        format_key, sensor["details"].get("totalFormat"))
+                    },
                     "async_add_devices": async_add_entities,
                     "config_entry": config_entry,
                 }
@@ -410,8 +427,9 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
         self._state = STATE_UNKNOWN
 
     async def event_handler(self, e):
-        if self.states["text"] in e.data:
-            self._state = str(e.data[self.states["text"]])
+        text_uuid = self.states.get("text")
+        if text_uuid and text_uuid in e.data:
+            self._state = str(e.data[text_uuid])
             self.async_schedule_update_ha_state()
 
     @property
@@ -584,8 +602,8 @@ class LoxoneRoomControllerOverrideSensor(SensorEntity):
 
     async def event_handler(self, e):
         if self._uuid in e.data:
+            # No clamping: reasons above 14 used to be reported as 14.
             reason_code = int(e.data[self._uuid])
-            reason_code = 14 if reason_code > 14 else reason_code
             self._attr_native_value = OVERRIDE_REASONS.get(reason_code, f"Unknown ({reason_code})")
             if self._attr_native_value.startswith("Unknown") and self._attr_native_value not in self._attr_options:
                 self._attr_options.append(self._attr_native_value)

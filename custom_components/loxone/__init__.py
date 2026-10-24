@@ -25,6 +25,8 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.dispatcher import (async_dispatcher_connect,
+                                              async_dispatcher_send)
 from homeassistant.helpers.entity import Entity
 from homeassistant.setup import async_setup_component
 
@@ -104,6 +106,11 @@ async def _async_handle_refresh_token(hass: HomeAssistant, call) -> None:
         raise HomeAssistantError(
             f"Token refresh failed for '{config_entry.title}': {err}"
         ) from err
+
+
+def connection_state_signal(entry_id: str) -> str:
+    """Dispatcher signal sent when the entry's connection goes up or down."""
+    return f"{DOMAIN}_connection_state_{entry_id}"
 
 
 def _async_listen_once_until_unload(
@@ -825,28 +832,11 @@ async def async_setup_entry(hass, config_entry):
         """
         coordinator.connection_available = state == "connected"
         _LOGGER.debug("Loxone connection state: %s", state)
-        try:
-            from homeassistant.helpers.entity_component import (
-                async_update_entity,
-            )
-
-            entity_registry = er.async_get(hass)
-            for entry in er.async_entries_for_config_entry(
-                entity_registry, config_entry.entry_id
-            ):
-                # ``async_update_entity`` is a coroutine — schedule it
-                # instead of calling it bare (which would create an
-                # un-awaited coroutine and never refresh the entity).
-                hass.async_create_task(
-                    async_update_entity(hass, entry.entity_id),
-                    name=f"loxone.refresh-{entry.entity_id}",
-                )
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.warning(
-                "Could not refresh entities on connection state change: %s",
-                err,
-                exc_info=True,
-            )
+        # Every loaded LoxoneEntity of this entry rewrites its state (see
+        # ``LoxoneEntity.async_added_to_hass``). Previously one
+        # ``async_update_entity`` task was created per registry entry -
+        # disabled entities included, which HA then reported as not found.
+        async_dispatcher_send(hass, connection_state_signal(config_entry.entry_id))
 
     async def stop_event(_):
         token = coordinator.api.get_token_dict()
@@ -1009,6 +999,17 @@ class LoxoneEntity(Entity):
         # stale ``event_handler`` per entity on the bus.
         self.listener = self.hass.bus.async_listen(EVENT, self.event_handler)
         self.async_on_remove(self.listener)
+        # Rewrite the state when the connection goes up or down, so
+        # ``available`` follows it without waiting for the next value.
+        registry_entry = getattr(self, "registry_entry", None)
+        if registry_entry is not None and registry_entry.config_entry_id:
+            self.async_on_remove(
+                async_dispatcher_connect(
+                    self.hass,
+                    connection_state_signal(registry_entry.config_entry_id),
+                    self.async_write_ha_state,
+                )
+            )
 
     async def async_will_remove_from_hass(self):
         """Disconnect callbacks."""

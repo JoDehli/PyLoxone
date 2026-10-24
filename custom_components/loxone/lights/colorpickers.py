@@ -19,6 +19,12 @@ _LOGGER = logging.getLogger(__name__)
 _COLOR_VALUE_COUNT = {"hsv": 3, "temp": 2}
 
 
+def _color_temp_range(details: dict) -> tuple[int, int]:
+    """Kelvin range from details.TWMin/TWMax (spec default 2700/6500)."""
+    details = details or {}
+    return int(details.get("TWMin") or 2700), int(details.get("TWMax") or 6500)
+
+
 def _parse_color(text: str, name) -> list[int | float] | None:
     """Parse an ``hsv(...)`` / ``temp(...)`` state; None (and a warning) if invalid.
 
@@ -51,6 +57,10 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
         self._attr_unique_id = self.uuidAction
         self._attr_color_mode = ColorMode.UNKNOWN
         self._color_uuid = kwargs.get("states", {}).get("color", None)
+        (
+            self._attr_min_color_temp_kelvin,
+            self._attr_max_color_temp_kelvin,
+        ) = _color_temp_range(kwargs.get("details"))
 
         self._async_add_devices = kwargs["async_add_devices"]
         self._light_controller_id = kwargs.get("lightcontroller_id", None)
@@ -90,28 +100,33 @@ class TunableWhiteLight(LoxoneEntity, LightEntity):
     async def async_turn_on(self, **kwargs) -> None:
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             self._attr_color_temp_kelvin = kwargs[ATTR_COLOR_TEMP_KELVIN]
-            self.hass.bus.async_fire(
-                SENDDOMAIN,
-                dict(
-                    uuid=self.uuidAction,
-                    value="temp({},{})".format(
-                        hass_to_lox(self._attr_brightness), self._attr_color_temp_kelvin
-                    ),
-                ),
-            )
-        elif ATTR_BRIGHTNESS in kwargs:
+        if ATTR_BRIGHTNESS in kwargs:
             self._attr_brightness = kwargs[ATTR_BRIGHTNESS]
+        if ATTR_COLOR_TEMP_KELVIN in kwargs or ATTR_BRIGHTNESS in kwargs:
+            # temp() needs both parts - no Kelvin value received yet means
+            # the range minimum, never None.
+            kelvin = (
+                getattr(self, "_attr_color_temp_kelvin", None)
+                or self._attr_min_color_temp_kelvin
+            )
+            brightness = self._attr_brightness or 255
             self.hass.bus.async_fire(
                 SENDDOMAIN,
                 dict(
                     uuid=self.uuidAction,
-                    value="temp({},{})".format(
-                        hass_to_lox(self._attr_brightness), self._attr_color_temp_kelvin
-                    ),
+                    value="temp({:g},{})".format(hass_to_lox(brightness), kelvin),
                 ),
             )
         else:
-            self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="On"))
+            self.hass.bus.async_fire(
+                SENDDOMAIN,
+                dict(
+                    uuid=self.uuidAction,
+                    value="setBrightness/{:g}".format(
+                        hass_to_lox(self._attr_brightness or 255)
+                    ),
+                ),
+            )
 
     async def event_handler(self, e):
         request_update = False
@@ -163,6 +178,10 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
         self._attr_color_mode = ColorMode.UNKNOWN
         self._color_uuid = kwargs.get("states", {}).get("color", None)
         self._sequence_uuid = kwargs.get("states", {}).get("sequence", None)
+        (
+            self._attr_min_color_temp_kelvin,
+            self._attr_max_color_temp_kelvin,
+        ) = _color_temp_range(kwargs.get("details"))
 
         self._async_add_devices = kwargs["async_add_devices"]
         self._light_controller_id = kwargs.get("lightcontroller_id", None)
@@ -251,6 +270,17 @@ class RGBColorPicker(LoxoneEntity, LightEntity):
                         value="temp({},{})".format(
                             hass_to_lox(self._attr_brightness),
                             self._attr_color_temp_kelvin,
+                        ),
+                    ),
+                )
+            else:
+                # No colour context yet: pure brightness, nothing else.
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(
+                        uuid=self.uuidAction,
+                        value="setBrightness/{:g}".format(
+                            hass_to_lox(self._attr_brightness)
                         ),
                     ),
                 )

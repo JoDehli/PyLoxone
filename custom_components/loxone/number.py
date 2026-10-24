@@ -140,7 +140,7 @@ class LoxoneNumber(LoxoneEntity, NumberEntity):
         """
         return {
             **self._attr_extra_state_attributes,
-            "state_uuid": self.states["value"],
+            "state_uuid": self.states.get("value"),
             "device_type": self.type,
             "platform": "loxone",
         }
