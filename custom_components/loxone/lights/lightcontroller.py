@@ -1,3 +1,4 @@
+import logging
 from collections import OrderedDict
 from functools import cached_property
 
@@ -8,9 +9,15 @@ from homeassistant.const import STATE_UNKNOWN
 from homeassistant.helpers.entity import DeviceInfo
 
 from .. import LoxoneEntity
-from ..const import DOMAIN, SENDDOMAIN, STATE_OFF
+from ..const import DOMAIN, SENDDOMAIN
 from ..helpers import (get_or_create_device, hass_to_lox, lox2hass_mapped,
-                       lox_to_hass)
+                       lox_to_hass, parse_lox_json)
+
+_LOGGER = logging.getLogger(__name__)
+
+# Mood ids that mean "off": 0 is spec-defined, 778 is the static "Aus" mood
+# on the installation this was observed on. Not in the structure file.
+OFF_MOOD_IDS = (0, 778)
 
 
 class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
@@ -38,6 +45,7 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
         self._master_max_uuid = None
         self._master_min = STATE_UNKNOWN
         self._master_max = STATE_UNKNOWN
+        self._master_position_loxone = None
         self._async_add_devices = kwargs["async_add_devices"]
 
         self.kwargs = kwargs
@@ -74,7 +82,7 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
 
     @property
     def mood_list_uuid(self):
-        return self.states["moodList"]
+        return self.states.get("moodList")
 
     def get_moodname_by_id(self, _id):
         for mood in self._moodlist:
@@ -149,9 +157,36 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
                 ),
             )
         elif kwargs == {}:
-            if self.state == STATE_OFF:
-                self.hass.bus.async_fire(
-                    SENDDOMAIN, dict(uuid=self.uuidAction, value="changeTo/99")
+            if self._attr_is_on is not True:
+                # Plain turn-on activates the first mood that is not an off
+                # mood; without any such mood, plus (spec: next mood).
+                first_mood_id = next(
+                    (
+                        mood["id"]
+                        for mood in self._moodlist
+                        if isinstance(mood, dict)
+                        and "id" in mood
+                        and mood["id"] not in OFF_MOOD_IDS
+                    ),
+                    None,
+                )
+                if first_mood_id is not None:
+                    self.hass.bus.async_fire(
+                        SENDDOMAIN,
+                        dict(
+                            uuid=self.uuidAction,
+                            value="changeTo/{}".format(first_mood_id),
+                        ),
+                    )
+                else:
+                    self.hass.bus.async_fire(
+                        SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
+                    )
+            else:
+                # Already on: no command - a plain turn-on must not steal
+                # the running mood or brightness.
+                _LOGGER.debug(
+                    "Light %s is already on; ignoring plain turn_on", self.name
                 )
         self.async_schedule_update_ha_state()
 
@@ -160,6 +195,30 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             SENDDOMAIN, dict(uuid=self.uuidAction, value="changeTo/0")
         )
         self.async_schedule_update_ha_state()
+
+    def _parse_json_state(self, state: str, data: dict):
+        """Parse a JSON mood state; log and return None if it is invalid."""
+        try:
+            return parse_lox_json(data[self.states[state]])
+        except (TypeError, ValueError):
+            _LOGGER.warning(
+                "Ignoring invalid %s of %s: %r", state, self.name, data[self.states[state]]
+            )
+            return None
+
+    def _update_is_on(self) -> None:
+        """Derive is_on from the mood state and the master value.
+
+        An empty activeMoods list is NOT off - moving the master directly
+        clears the moods ("Stimmung Manuell") and the circuits stay lit,
+        so the master value decides.
+        """
+        if any(mood_id not in OFF_MOOD_IDS for mood_id in self._active_moods):
+            self._attr_is_on = True
+        elif self._active_moods:
+            self._attr_is_on = False
+        else:
+            self._attr_is_on = (self._master_position_loxone or 0) > 0
 
     async def event_handler(self, event):
         request_update = False
@@ -177,6 +236,7 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             request_update = True
 
         if self._master_position_uuid and self._master_position_uuid in event.data:
+            self._master_position_loxone = event.data[self._master_position_uuid]
             if (
                 self._master_min is not None
                 and self._master_max is not None
@@ -194,29 +254,44 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
                 )
             request_update = True
 
-        if self.states["activeMoods"] in event.data:
-            self._active_moods = eval(event.data[self.states["activeMoods"]])
-            if self._active_moods != [778]:
-                self._attr_is_on = True
-            else:
-                self._attr_is_on = False
-            request_update = True
+        # The mood states are JSON (spec: Structure File, LightControllerV2).
+        # They used to be ``eval``'d, which ran Miniserver data as Python
+        # code, and the "true"->"True" rewrite also renamed moods whose
+        # name contains "true" / "false".
+        active_moods_uuid = self.states.get("activeMoods")
+        if active_moods_uuid and active_moods_uuid in event.data:
+            active_moods = self._parse_json_state("activeMoods", event.data)
+            if active_moods is not None:
+                self._active_moods = active_moods
+                request_update = True
 
-        if self.states["moodList"] in event.data:
-            event.data[self.states["moodList"]] = event.data[
-                self.states["moodList"]
-            ].replace("true", "True")
-            event.data[self.states["moodList"]] = event.data[
-                self.states["moodList"]
-            ].replace("false", "False")
-            self._moodlist = eval(event.data[self.states["moodList"]])
-            request_update = True
+        moodlist_uuid = self.states.get("moodList")
+        if moodlist_uuid and moodlist_uuid in event.data:
+            moodlist = self._parse_json_state("moodList", event.data)
+            if moodlist is not None:
+                self._moodlist = moodlist
+                request_update = True
 
-        if self.states["additionalMoods"] in event.data:
-            self._additional_moodlist = eval(event.data[self.states["additionalMoods"]])
-            request_update = True
+        additional_uuid = self.states.get("additionalMoods")
+        if additional_uuid and additional_uuid in event.data:
+            additional = self._parse_json_state("additionalMoods", event.data)
+            if additional is not None:
+                self._additional_moodlist = additional
+                request_update = True
+
+        if self.uuidAction in event.data:
+            # The spec lists no simple value state for this block - the
+            # light state lives in the JSON mood states. Unexpected event
+            # for the own uuid; keep it observable but do not write it
+            # into _attr_state (verify empirically).
+            _LOGGER.debug(
+                "LightControllerV2 %s: unexpected own-uuid event %r",
+                self.name,
+                event.data[self.uuidAction],
+            )
 
         if request_update:
+            self._update_is_on()
             if not self._attr_available:
                 attr_is_on_is_not_unknown = self._attr_is_on == True or self._attr_is_on == False
                 both_master_values_are_not_unknown = self._master_min != STATE_UNKNOWN and self._master_max != STATE_UNKNOWN

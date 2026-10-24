@@ -115,9 +115,12 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
         ):
             self._from_loxone_config = True
             if self.type == "smoke":
-                self._state_uuid = self.states["areAlarmSignalsOff"]
-            if self.type == "presence":
-                self._state_uuid = self.states["active"]
+                # Optional since Miniserver 10.3: structure files without
+                # the state must not crash the setup (a missing key then
+                # simply never matches an event → the sensor stays unknown).
+                self._state_uuid = self.states.get("areAlarmSignalsOff")
+            elif self.type == "presence":
+                self._state_uuid = self.states.get("active")
             elif "active" in self.states:
                 self._state_uuid = self.uuidAction
         else:
@@ -134,16 +137,15 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
         else:
             self._attr_device_class = None
 
-        if self._parent_id:
-            self.uuidAction = self._parent_id
+        device_uuid = self._parent_id or self.unique_id
 
         if self._from_loxone_config:
             self._attr_device_info = get_or_create_device(
-                self.unique_id, self.name, self.type, self.room
+                device_uuid, self.name, self.type, self.room
             )
         else:
             self._attr_device_info = get_or_create_device(
-                self.unique_id, self.name, self.type, ""
+                device_uuid, self.name, self.type, ""
             )
 
         if self._from_loxone_config:

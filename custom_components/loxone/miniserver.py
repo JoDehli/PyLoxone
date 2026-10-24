@@ -9,7 +9,6 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
 
-# from .api import LoxApp, LoxWs
 from .helpers import get_miniserver_type
 
 _LOGGER = logging.getLogger(__name__)

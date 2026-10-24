@@ -1,10 +1,5 @@
-colorlog==6.10.1
-homeassistant==2026.8.1
-pip>=21.3.1
-ruff==0.15.20
-websockets>=14
-pycryptodome
-pytest
-httpx
-debugpy
-pre-commit
+# Runtime dependencies of the Loxone integration.
+# Keep in lock-step with `requirements` in custom_components/loxone/manifest.json.
+# Development and test dependencies live in requirements-dev.txt.
+websockets>=14,<16
+pycryptodome>=3.20

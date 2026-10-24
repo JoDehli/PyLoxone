@@ -31,7 +31,10 @@
   },
   "config": {
     "abort": {
-      "single_instance_allowed": "Bereits konfiguriert"
+      "single_instance_allowed": "Bereits konfiguriert",
+      "already_configured": "Dieser Miniserver ist bereits eingerichtet.",
+      "invalid_import": "Die loxone:-Konfiguration aus configuration.yaml konnte nicht importiert werden: Benutzername und Passwort müssen latin-1-kompatibel sein.",
+      "reauth_successful": "Die Zugangsdaten wurden aktualisiert."
     },
     "step": {
       "user": {
@@ -47,7 +50,18 @@
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Loxone erneut anmelden",
+        "description": "Der Miniserver hat Benutzername oder Passwort abgelehnt. Bitte die aktuellen Zugangsdaten eingeben.",
+        "data": {
+          "username": "Benutzer",
+          "password": "Passwort"
+        }
       }
+    },
+    "error": {
+      "invalid_credentials_encoding": "Benutzername und Passwort müssen latin-1-kompatibel sein."
     }
   },
   "options": {
@@ -72,6 +86,16 @@
     "reload": {
       "name": "Pyloxone Reload",
       "description": "Lädt die Loxone-Integration neu, indem eine erneute Verbindung zum Miniserver hergestellt und alle Entitäten aktualisiert werden. Dies ist nützlich nach Konfigurationsänderungen in Loxone Config oder bei Verbindungsproblemen. Alle aktuellen Entitätszustände werden vom Miniserver neu synchronisiert."
+    },
+    "refresh_token": {
+      "name": "Miniserver-Token aktualisieren",
+      "description": "Aktualisiert das Authentifizierungstoken des ausgewählten Loxone-Konfigurationseintrags und wartet auf die Bestätigung des Miniservers.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Loxone-Konfigurationseintrag",
+          "description": "Wähle aus, für welchen konfigurierten Miniserver das Token aktualisiert werden soll."
+        }
+      }
     },
     "event_websocket_command": {
       "name": "Websocket Kommando an Server senden",

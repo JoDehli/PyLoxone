@@ -1,0 +1,29 @@
+# Development and test environment for the PyLoxone integration.
+#
+# Install on top of the runtime dependencies:
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# `pytest-homeassistant-custom-component` pins Home Assistant (2026.9.1) and brings
+# in the full HA test harness: pytest, pytest-asyncio, pytest-cov, respx,
+# python-dotenv and the `enable_custom_integrations` fixture.
+# Run the suite with ``./scripts/test`` (e.g. ``./scripts/test -q``).
+#
+# Tests run in their own virtualenv (``.venv-test``, see scripts/test) and
+# NOT in ``.venv``: ``.venv`` doubles as the local Home Assistant runtime
+# (live Miniserver tests), and this package pins Home Assistant. Sharing one
+# environment means the next HA upgrade silently reinstalls the pinned
+# version here — or, when HA moved on in between, the test run dies with a
+# missing pytest. Keeping them apart keeps both usable at the same time.
+pytest-homeassistant-custom-component==0.13.364
+
+# Linting / formatting (kept in lock-step with the version enforced in CI).
+ruff==0.15.20
+
+# Git hooks (see .pre-commit-config.yaml).
+pre-commit
+
+# Local debugging in the dev container.
+debugpy
+
+# Coloured logging for the connected devcontainer / scripts.
+colorlog

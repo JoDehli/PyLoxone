@@ -24,6 +24,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.BUTTON,
     Platform.SCENE,
     Platform.SELECT,
+    Platform.TEXT,
 ]
 
 LOXONE_DEFAULT_PORT = 8080
@@ -69,6 +70,7 @@ SUPPORT_QUICK_SHADE = 2048
 SERVICE_ENABLE_SUN_AUTOMATION = "enable_sun_automation"
 SERVICE_DISABLE_SUN_AUTOMATION = "disable_sun_automation"
 SERVICE_QUICK_SHADE = "quick_shade"
+SERVICE_REFRESH_TOKEN = "refresh_token"
 
 CONF_HVAC_AUTO_MODE = "hvac_auto_mode"
 

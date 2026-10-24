@@ -7,7 +7,8 @@ https://github.com/JoDehli/pyloxone-api
 
 import asyncio
 import logging
-import warnings
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
 import aiohttp
 
@@ -61,7 +62,21 @@ class LoxoneAsyncHttpClient:
         self.password = password
         self._closed = False
 
-    async def get(self, endpoint):
+    @asynccontextmanager
+    async def get(
+        self, endpoint: str
+    ) -> AsyncIterator[aiohttp.ClientResponse]:
+        """Yield the ``aiohttp.ClientResponse`` for ``endpoint``.
+
+        The response is yielded inside an ``async with`` block that
+        wraps the underlying ``self.session.get(...)`` call, so the
+        aiohttp response and its connection-pool slot are released
+        as soon as the caller exits the block — no leaks, no manual
+        ``response.close()`` calls. Non-200 statuses raise before the
+        yield (see :meth:`_handle_error`); the caller's body-read
+        inside the ``async with`` is therefore guaranteed to be on a
+        200-status response.
+        """
         if self._closed:
             raise RuntimeError("HTTP client has been closed")
 
@@ -73,63 +88,46 @@ class LoxoneAsyncHttpClient:
             endpoint = f"/{endpoint}"
 
         url = f"{self.base_url}{endpoint}"
-        response = None
+        _LOGGER.debug(f"Making GET request to: {url}")
+        request_kwargs = {
+            "auth": aiohttp.BasicAuth(self.username, self.password, encoding="utf-8"),
+            "timeout": aiohttp.ClientTimeout(total=self.timeout),
+        }
+        if self.scheme == "https":
+            request_kwargs["ssl"] = self.verify_ssl
 
         try:
-            _LOGGER.debug(f"Making GET request to: {url}")
-            request_kwargs = {
-                "auth": aiohttp.BasicAuth(self.username, self.password, encoding="utf-8"),
-                "timeout": aiohttp.ClientTimeout(total=self.timeout),
-            }
-            if self.scheme == "https":
-                request_kwargs["ssl"] = self.verify_ssl
-
-            response = await self.session.get(url, **request_kwargs)
-
-            if response.status != 200:
-                await self._handle_error(response)
-
-            return response
-
-        except aiohttp.ClientConnectionError as err:
-            _LOGGER.error(f"Connection error to {url}: {err}")
-            raise ConnectionError(
-                f"Failed to connect to Loxone Miniserver at {url}: {err}"
-            ) from err
-
-        except aiohttp.ClientConnectorError as err:
-            _LOGGER.error(f"Connector error to {url}: {err}")
-            raise ConnectionError(f"Cannot resolve or connect to {url}: {err}") from err
+            # ``async with`` releases the aiohttp response and its
+            # connection-pool slot on block exit. The caller reads
+            # ``response.content`` inside the block and may also use
+            # ``response.url`` (e.g. for the Cloud-DNS redirect
+            # detection in ``connection.py``).
+            async with self.session.get(url, **request_kwargs) as response:
+                if response.status != 200:
+                    await self._handle_error(response)
+                yield response
 
         except asyncio.TimeoutError as err:
-            _LOGGER.error(f"Timeout error for {url}")
+            # Transient: the caller retries and reports it once.
+            _LOGGER.debug("Timeout error for %s", url)
             raise TimeoutError(
                 f"Request to {url} timed out after {self.timeout} seconds"
             ) from err
 
-        except aiohttp.ClientSSLError as err:
-            _LOGGER.error(f"SSL error for {url}: {err}")
-            raise ConnectionError(f"SSL/TLS error connecting to {url}: {err}") from err
-
-        except aiohttp.ClientProxyConnectionError as err:
-            _LOGGER.error(f"Proxy connection error for {url}: {err}")
-            raise ConnectionError(f"Proxy connection error: {err}") from err
-
-        except aiohttp.ServerDisconnectedError as err:
-            _LOGGER.error(f"Server disconnected for {url}: {err}")
-            raise ConnectionError(f"Server disconnected unexpectedly: {err}") from err
-
-        except aiohttp.ClientPayloadError as err:
-            _LOGGER.error(f"Payload error for {url}: {err}")
-            raise ValueError(f"Invalid response payload from server: {err}") from err
-
-        except aiohttp.ClientResponseError as err:
-            _LOGGER.error(f"Response error for {url}: {err}")
-            raise RuntimeError(f"HTTP response error: {err}") from err
-
+        # The previous implementation listed seven specific
+        # ``aiohttp.ClientError`` subclasses (ClientConnectionError,
+        # ClientConnectorError, ClientSSLError, ClientProxyConnectionError,
+        # ServerDisconnectedError, ClientPayloadError,
+        # ClientResponseError) — all of which are subclasses of
+        # ``ClientError`` and produced the same ERROR-log + re-raise
+        # pattern. They are subsumed by the single ``ClientError``
+        # handler below.
         except aiohttp.ClientError as err:
-            _LOGGER.error(f"Client error for {url}: {err}")
-            raise RuntimeError(f"HTTP client error: {err}") from err
+            # Transient: the caller retries and reports it once.
+            _LOGGER.debug("HTTP client error for %s: %s", url, err)
+            raise ConnectionError(
+                f"Failed to connect to Loxone Miniserver at {url}: {err}"
+            ) from err
 
         except (
             LoxoneUnauthorisedError,
@@ -137,12 +135,17 @@ class LoxoneAsyncHttpClient:
             LoxoneServiceUnAvailableError,
             LoxoneMaxNumOfConnectionsError,
         ):
-            # Re-raise Loxone-specific errors without wrapping
+            # Re-raise Loxone-specific errors without wrapping — these
+            # are raised inside ``_handle_error`` and are meaningful
+            # to the caller (e.g. supervisor reload on
+            # ``LoxoneUnauthorisedError``).
             raise
 
         except Exception as err:
             _LOGGER.exception(f"Unexpected error during GET request to {url}")
-            raise RuntimeError(f"Unexpected error during HTTP request: {err}") from err
+            raise RuntimeError(
+                f"Unexpected error during HTTP request: {err}"
+            ) from err
 
     async def close(self):
         if self._closed:
