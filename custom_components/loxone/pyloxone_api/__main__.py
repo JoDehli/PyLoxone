@@ -75,7 +75,12 @@ class RawFormatter(Formatter):
 
 
 class PrettyFormatter(Formatter):
-    """One timestamped line per state; command replies show the command only."""
+    """One timestamped line per state; other messages as single lines.
+
+    Command replies are printed in full: the connection no longer
+    forwards auth command responses (keys, tokens), so what reaches the
+    formatter carries no sensitive material.
+    """
 
     def connection(self, connected: bool) -> None:
         self._line("connected" if connected else "disconnected")
@@ -84,10 +89,9 @@ class PrettyFormatter(Formatter):
         if not isinstance(data, dict):
             self._line(str(data))
         elif "control" in data:
-            # Replies can carry keys, hashes and tokens in their path: show the
-            # command name (jdev/sys/getjwt) and the code only.
-            command = "/".join(str(data.get("control", "")).split("/")[:3])
-            self._line(f"reply     {command}  code={data.get('Code')}")
+            self._line(
+                f"reply     {data.get('control')}  {_text(data.get('value'))}  code={data.get('Code')}"
+            )
         elif "keep_alive" in data:
             self._line("keep-alive")
         else:
