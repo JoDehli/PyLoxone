@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal, final
+from typing import Literal
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -104,7 +104,7 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._attr_state = STATE_UNKNOWN
-        self._attr_is_on = STATE_UNKNOWN
+        self._attr_is_on = None
         self._from_loxone_config = False
 
         if (
@@ -173,17 +173,14 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
                 self._attr_available = True
             self.async_schedule_update_ha_state()
 
-    @final
-    @property
-    def state(self) -> Literal["on", "off"] | None:
-        """Return the state of the binary sensor."""
-        if (is_on := self.is_on) is None:
-            return None
-        return STATE_ON if is_on else STATE_OFF
-
     @property
     def is_on(self) -> bool | None:
         """Return true if sensor is on."""
+        # STATE_UNKNOWN until the first event: no value to report yet, so
+        # neither on nor off. The final BinarySensorEntity.state derives
+        # on/off from this and stays None while we return None.
+        if self._state == STATE_UNKNOWN:
+            return None
         return self._state == self._on_state
 
 
@@ -203,14 +200,12 @@ class LoxoneCustomBinarySensor(LoxoneEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         """Return true if sensor is on."""
-        return self._state == self._on_state
-
-    @property
-    def state(self) -> Literal["on", "off"] | None:
-        """Return the state of the binary sensor."""
-        if (is_on := self.is_on) is None:
+        # STATE_UNKNOWN until the first event: no value to report yet, so
+        # neither on nor off. The final BinarySensorEntity.state derives
+        # on/off from this and stays None while we return None.
+        if self._state == STATE_UNKNOWN:
             return None
-        return STATE_ON if is_on else STATE_OFF
+        return self._state == self._on_state
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:

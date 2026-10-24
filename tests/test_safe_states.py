@@ -13,6 +13,7 @@ import asyncio
 from types import SimpleNamespace
 
 from custom_components.loxone.binary_sensor import LoxoneDigitalSensor
+from homeassistant.const import STATE_OFF, STATE_ON
 from collections import OrderedDict
 from custom_components.loxone.button import LoxoneButton
 from custom_components.loxone.cover import LoxoneGate, LoxoneJalousie, LoxoneWindow
@@ -69,6 +70,30 @@ def test_presence_sensor_without_active_state():
     sensor = _digital_sensor(type="presence")
 
     assert sensor._state_uuid is None
+
+
+# --- initial state: unknown until the first event ---------------------------
+
+
+def test_digital_sensor_is_on_is_none_before_first_event():
+    """The sensor must report 'unknown' until an event arrives, not 'off'."""
+    sensor = _digital_sensor(states={"active": "uuid-active"})
+
+    assert sensor.is_on is None
+    assert sensor.state is None
+
+
+def test_digital_sensor_is_on_after_events():
+    sensor = _digital_sensor(states={"active": "uuid-active"})
+    sensor.async_schedule_update_ha_state = lambda: None
+
+    asyncio.run(sensor.event_handler(SimpleNamespace(data={"uuid-action": 1.0})))
+    assert sensor.is_on is True
+    assert sensor.state == STATE_ON
+
+    asyncio.run(sensor.event_handler(SimpleNamespace(data={"uuid-action": 0.0})))
+    assert sensor.is_on is False
+    assert sensor.state == STATE_OFF
 
 
 # --- button / select / switch / text sensor / light controller ---------------
