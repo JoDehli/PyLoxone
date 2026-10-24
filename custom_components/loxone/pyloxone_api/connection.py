@@ -8,6 +8,7 @@ https://github.com/JoDehli/pyloxone-api
 import asyncio
 import datetime
 import hashlib
+import inspect
 import json
 import logging
 import ssl
@@ -1903,7 +1904,9 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         async def _run_callback(msg):
             try:
-                await callback(msg.as_dict())
+                result = callback(msg.as_dict())
+                if inspect.isawaitable(result):
+                    await result
             except Exception as e:
                 _LOGGER.error(f"Callback error: {e}", exc_info=True)
 
