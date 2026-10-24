@@ -474,7 +474,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         # extra = {}
         # for key in set(self._states.keys()):
         #     extra[key] = self.get_state_value(key)
-        return {
+        attrs = {
             **self._attr_extra_state_attributes,
             "is_overridden": self.is_overridden,
             "demand": self._demand,
@@ -489,6 +489,28 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             # "mode_list": self._modeList,
             # **extra,
         }
+        # CO2 in ppm, only added if the controller delivers a valid value
+        # (controllers without a CO2 sensor deliver no meaningful value).
+        co2 = self._positive_value("co2", 10000)
+        if co2 is not None:
+            attrs["co2"] = co2
+        co2_target = self._positive_value("co2Target", 10000)
+        if co2_target is not None:
+            attrs["co2_target"] = co2_target
+        return attrs
+
+    def _positive_value(self, name, maximum):
+        """Return a state as float, or None if missing, invalid, 0 or above maximum.
+
+        A missing sensor input delivers no meaningful value (0 or nothing at all).
+        Values above the maximum are no plausible room values but transmission errors.
+        """
+        value = self.get_state_value(name)
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return None
+        return value if 0 < value <= maximum else None
 
     @property
     def is_overridden(self) -> bool:
@@ -511,6 +533,11 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     def current_temperature(self):
         """Return the current temperature."""
         return self.get_state_value("tempActual")
+
+    @property
+    def current_humidity(self) -> float | None:
+        """Return the current humidity (state humidityActual)."""
+        return self._positive_value("humidityActual", 100)
 
     def set_temperature(self, **kwargs):
         """Set new target temperature."""
