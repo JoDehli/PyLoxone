@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import struct
 import urllib.parse
 from collections import deque
 from types import SimpleNamespace
@@ -28,6 +29,7 @@ from custom_components.loxone.pyloxone_api.connection import (
     MessageForQueue,
     SecuredCommand,
     build_loxone_url,
+    is_auth_response,
     parse_loxone_url,
 )
 from custom_components.loxone.pyloxone_api.message import (
@@ -3982,3 +3984,84 @@ class TestShutdownRaces:
 
         assert conn._message_queue.empty()
         assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+
+class TestAuthReplyFilter:
+    """Auth command responses never reach the message callback."""
+
+    # --- is_auth_response ---------------------------------------------------
+
+    def test_auth_commands_are_matched_by_control_path(self):
+        for control in (
+            "jdev/sys/getjwt/<hash>/admin/2/uuid/pyloxone_api",
+            "jdev/sys/getkey2/admin",
+            "dev/sys/getkey",
+            "jdev/sps/getvisusalt/user",
+            "jdev/sys/keyexchange/<pubkey>",
+            "gettoken/<user>",
+            "authwithtoken/<hash>/<user>",
+            "killtoken",
+        ):
+            message = TextMessage(json.dumps(
+                {"LL": {"code": 200, "control": control, "value": ""}}
+            ))
+            assert is_auth_response(message) is True, control
+
+    def test_plain_state_messages_are_not_auth_responses(self):
+        for control in (
+            "jdev/sps/io/<uuid>",
+            "dev/cfg/apiKey",
+            "jdev/sps/enablebinstatusupdate",
+            "",
+        ):
+            message = TextMessage(json.dumps(
+                {"LL": {"code": 200, "control": control, "value": ""}}
+            ))
+            assert is_auth_response(message) is False, control
+
+    def test_non_text_messages_are_never_auth_responses(self):
+        assert is_auth_response(None) is False
+
+    # --- the recv loop leaves them out of the callback ----------------------
+
+    @staticmethod
+    def _frames(message_type: MessageType, body: bytes) -> list[bytes]:
+        """Header frame + body frame as the recv loop expects them."""
+        header = struct.pack("<cBccI", b"\x03", int(message_type), b"\x00", b"\x00", len(body))
+        return [header, body]
+
+    async def test_callback_never_sees_auth_replies(self):
+        from custom_components.loxone.pyloxone_api.exceptions import (
+            LoxoneConnectionClosedOk,
+        )
+
+        received = []
+
+        class _FramesWebsocket(_FakeWebsocket):
+            def __init__(self, frames):
+                self._frames = list(frames)
+
+            async def __anext__(self):
+                if not self._frames:
+                    raise StopAsyncIteration
+                return self._frames.pop(0)
+
+        conn = LoxoneConnection(
+            host="192.0.2.1", username="user", password="pw", port=8080
+        )
+        token = json.dumps({"LL": {"code": 200, "control": "jdev/sys/getjwt/x", "value": "<token>"}})
+        state = json.dumps({"LL": {"code": 200, "control": "jdev/sps/io/<uuid>", "value": "1"}})
+        ws = _FramesWebsocket(
+            self._frames(MessageType.TEXT, token.encode())
+            + self._frames(MessageType.TEXT, state.encode())
+        )
+        # A cleanly ending recv loop surfaces as this sentinel error.
+        with pytest.raises(LoxoneConnectionClosedOk):
+            await asyncio.wait_for(
+                conn._do_start_listening(received.append, ws), timeout=5
+            )
+
+        # The getjwt reply must not be forwarded; the plain io reply must.
+        assert received == [
+            {"control": "jdev/sps/io/<uuid>", "value": "1", "Code": 200}
+        ]

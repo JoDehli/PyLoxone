@@ -8,6 +8,7 @@ https://github.com/JoDehli/pyloxone-api
 import asyncio
 import datetime
 import hashlib
+import inspect
 import json
 import logging
 import ssl
@@ -83,6 +84,38 @@ _TASK_PRUNE_THRESHOLD = 64
 # at Miniserver update rates that is still far below the 30 s
 # keepalive interval.
 _DISPATCH_YIELD_BATCH = 64
+
+# Commands whose responses carry authentication material: the raw token
+# (getjwt/gettoken/refreshjwt), the token HMAC key and user salt (getkey2,
+# getkey), the visual-password key and salt (getvisusalt). Their responses
+# are protocol traffic for the connection itself, never state for the
+# message callback, which fires them on the Home Assistant event bus.
+_AUTH_COMMANDS = frozenset(
+    {
+        "keyexchange",
+        "getkey",
+        "getkey2",
+        "getvisusalt",
+        "getjwt",
+        "gettoken",
+        "refreshjwt",
+        "refreshtoken",
+        "authwithtoken",
+        "killtoken",
+    }
+)
+
+
+def is_auth_response(message: BaseMessage) -> bool:
+    """True for a text response to one of the :data:`_AUTH_COMMANDS`."""
+    if not isinstance(message, TextMessage):
+        return False
+    control = message.control
+    if isinstance(control, (bytes, bytearray)):
+        control = control.decode("utf-8", errors="replace")
+    # jdev/sys/<cmd>/..., dev/sys/<cmd>/... or a bare <cmd>/... (authwithtoken)
+    return not _AUTH_COMMANDS.isdisjoint(str(control).split("/")[:3])
+
 
 # Pre-computed ``create_task`` names for the recv hot path. Building
 # them inline (``f"loxone.event-{msg_type.name}"``) costs an enum
@@ -1903,7 +1936,9 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         async def _run_callback(msg):
             try:
-                await callback(msg.as_dict())
+                result = callback(msg.as_dict())
+                if inspect.isawaitable(result):
+                    await result
             except Exception as e:
                 _LOGGER.error(f"Callback error: {e}", exc_info=True)
 
@@ -1941,7 +1976,13 @@ class LoxoneConnection(LoxoneBaseConnection):
                     self._websocket_event(parsed_message),
                     name=_EVENT_TASK_NAMES.get(msg_type, "loxone.event"),
                 )
-            if callback and msg_type in callback_types:
+            if (
+                callback
+                and msg_type in callback_types
+                # Auth replies carry keys and tokens: the connection consumes
+                # them itself, they are never state for the callback.
+                and not is_auth_response(parsed_message)
+            ):
                 self._spawn_task(
                     _run_callback(parsed_message),
                     name=_CALLBACK_TASK_NAMES.get(msg_type, "loxone.callback"),

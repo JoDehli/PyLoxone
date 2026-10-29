@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""
+Run the pyloxone_api client stand-alone (see pyloxone_api/__main__.py).
+
+The package is loaded under the top-level name ``pyloxone_api`` straight
+from its directory. Putting ``custom_components/loxone`` on ``sys.path``
+instead would make the integration's ``select.py`` shadow the standard
+library's ``select``, and ``python -m custom_components.loxone.pyloxone_api``
+would import Home Assistant. Needs ``aiohttp``, ``websockets`` and
+``pycryptodome`` (Home Assistant normally provides ``aiohttp``).
+"""
+
+import importlib.util
+import runpy
+import sys
+from pathlib import Path
+
+PACKAGE = Path(__file__).resolve().parent.parent / "custom_components" / "loxone" / "pyloxone_api"
+
+spec = importlib.util.spec_from_file_location(
+    "pyloxone_api", PACKAGE / "__init__.py", submodule_search_locations=[str(PACKAGE)]
+)
+module = importlib.util.module_from_spec(spec)
+sys.modules["pyloxone_api"] = module
+spec.loader.exec_module(module)
+runpy.run_module("pyloxone_api.__main__", run_name="__main__", alter_sys=True)
