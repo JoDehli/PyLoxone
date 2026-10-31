@@ -1,5 +1,10 @@
 {
   "entity": {
+    "switch": {
+      "audio_diagnostics": {
+        "name": "Audio diagnostics"
+      }
+    },
     "climate": {
       "room_controller_v2": {
         "state_attributes": {
@@ -55,6 +60,8 @@
           "host": "Miniserver Ip",
           "password": "Password",
           "verify_ssl": "Verify the Miniserver TLS certificate",
+          "audioserver_host": "Audioserver host (optional; port 7091)",
+          "audioserver_playback": "Use Audio Server player play/pause (experimental; off by default)",
           "generate_scenes": "generate scenes",
           "generate_lightcontroller_subcontrols": "Enable LightControllerV2 subcontrols by default",
           "generate_scenes_delay": "Delay for the scene generation if enabled"
@@ -70,10 +77,16 @@
       }
     },
     "error": {
-      "invalid_credentials_encoding": "Username and password must be latin-1 compatible."
+      "invalid_credentials_encoding": "Username and password must be latin-1 compatible.",
+      "invalid_audioserver_host": "Enter a bare Audioserver hostname or IP address without a port, URL, path or credentials.",
+      "audioserver_playback_requires_host": "Set the Audioserver host before enabling player play/pause."
     }
   },
   "options": {
+    "error": {
+      "invalid_audioserver_host": "Enter a bare Audioserver hostname or IP address without a port, URL, path or credentials.",
+      "audioserver_playback_requires_host": "Set the Audioserver host before enabling player play/pause."
+    },
     "step": {
       "init": {
         "data": {
@@ -82,6 +95,8 @@
           "host": "Miniserver Ip",
           "password": "Password",
           "verify_ssl": "Verify the Miniserver TLS certificate",
+          "audioserver_host": "Audioserver host (optional; port 7091)",
+          "audioserver_playback": "Use Audio Server player play/pause (experimental; off by default)",
           "generate_scenes": "Generate scenes",
           "generate_lightcontroller_subcontrols": "Enable LightControllerV2 subcontrols by default",
           "generate_scenes_delay": "Delay for the scene generation if enabled"
@@ -167,6 +182,26 @@
     "quick_shade": {
       "name": "Quick shade",
       "description": "Move Loxone Jalousie to shade position. Position is set by Loxone depends on multiple values."
+    }
+  },
+  "exceptions": {
+    "audioserver_announcement_unavailable": {
+      "message": "Audio Server announcements are unavailable or a previous request is still unresolved. No new announcement was sent."
+    },
+    "audioserver_announcement_failed": {
+      "message": "The Audio Server announcement did not complete reliably. Playback may have occurred. No automatic retry was sent."
+    },
+    "audioserver_seek_unavailable": {
+      "message": "Seeking is unavailable for this track or position."
+    },
+    "audioserver_seek_failed": {
+      "message": "The seek was not confirmed for the current track. No retry or playback start was sent."
+    },
+    "audioserver_playback_failed": {
+      "message": "Audio Server playback was not confirmed. No fallback or automatic retry was sent."
+    },
+    "audioserver_playback_unavailable": {
+      "message": "Audio Server playback is unavailable. No room-start fallback was sent."
     }
   }
 }

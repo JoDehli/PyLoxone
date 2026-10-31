@@ -17,7 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from . import LoxoneEntity
-from .const import SENDDOMAIN
+from .const import DOMAIN, SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
@@ -44,6 +44,9 @@ async def async_setup_entry(
     miniserver = get_miniserver_from_hass(hass, config_entry)
     loxconfig = miniserver.lox_config.json
     entities = []
+    diagnostics = getattr(hass.data[DOMAIN][config_entry.entry_id], "audio_diagnostics", None)
+    if diagnostics is not None:
+        entities.append(AudioDiagnosticsSwitch(config_entry, diagnostics))
 
     for switch_entity in get_all(loxconfig, ["Switch", "TimedSwitch", "Intercom", "IRoomControllerV2", "LightControllerV2"]):
         switch_entity = add_room_and_cat_to_value_values(loxconfig, switch_entity)
@@ -83,6 +86,52 @@ async def async_setup_entry(
                 override_kwargs = {**switch_entity, "type": "PresenceDetectionSwitch"}
                 entities.append(LoxoneLightPresenceSwitch(**override_kwargs))
     async_add_entities(entities)
+
+
+class AudioDiagnosticsSwitch(SwitchEntity):
+    """Explicit local collection preference; never a household control."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Audio diagnostics"
+    _attr_translation_key = "audio_diagnostics"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_visible_default = False
+    _attr_should_poll = False
+    _attr_icon = "mdi:bug-outline"
+
+    def __init__(self, entry, diagnostics):
+        self._attr_unique_id = entry.entry_id + "_audio_diagnostics"
+        self.diagnostics = diagnostics
+
+    @property
+    def is_on(self):
+        return self.diagnostics.enabled
+
+    @property
+    def available(self):
+        return not self.diagnostics.closed
+
+    @property
+    def extra_state_attributes(self):
+        return {"retention_hours":24, "collection_status":self.diagnostics.status,
+                "dropped_queue":self.diagnostics.dropped_queue,
+                "pending_preference":self.diagnostics.pending_preference,
+                "preference_restart_risk":self.diagnostics.preference_restart_risk,
+                "storage_failures":self.diagnostics.storage_failures}
+
+    async def async_added_to_hass(self):
+        self.diagnostics.on_change = self.async_write_ha_state
+
+    async def async_will_remove_from_hass(self):
+        self.diagnostics.on_change = None
+
+    async def async_turn_on(self, **kwargs):
+        await self.diagnostics.async_set_enabled(True)
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs):
+        await self.diagnostics.async_set_enabled(False)
+        self.async_write_ha_state()
 
 
 class LoxoneTimedSwitch(LoxoneEntity, SwitchEntity):

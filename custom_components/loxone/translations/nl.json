@@ -1,0 +1,194 @@
+{
+  "entity": {
+    "switch": {"audio_diagnostics": {"name": "Audiodiagnostiek"}},
+    "climate": {
+      "room_controller_v2": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "schedule": "Schema",
+              "paused_door_window": "Gepauzeerd (deur/raam)"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "override_reason": {
+        "state": {
+          "none": "Geen",
+          "presence": "Aanwezigheid",
+          "window_open": "Raam open",
+          "comfort_override": "Comfort-overschrijving",
+          "eco_override": "Eco-overschrijving",
+          "eco_plus_override": "Eco+-overschrijving",
+          "prepare_heat_up": "Voorbereiding opwarmfase",
+          "prepare_cool_down": "Voorbereiding koelfase",
+          "overridden_by_source": "Overschreven door bron",
+          "fixed": "Vast instelpunt"
+        }
+      }
+    }
+  },
+  "config": {
+    "abort": {
+      "single_instance_allowed": "Al geconfigureerd. Slechts één configuratie mogelijk.",
+      "already_configured": "Deze Miniserver is al geconfigureerd.",
+      "invalid_import": "De loxone:-configuratie in configuration.yaml kon niet worden geïmporteerd: gebruikersnaam en wachtwoord moeten latin-1-compatibel zijn.",
+      "reauth_successful": "De inloggegevens zijn bijgewerkt."
+    },
+    "step": {
+      "user": {
+        "title": "Loxone instellen",
+        "description": "Configureer de verbinding met je Loxone Miniserver",
+        "data": {
+          "username": "Gebruiker",
+          "port": "Poort",
+          "host": "Miniserver-IP",
+          "password": "Wachtwoord",
+          "verify_ssl": "TLS-certificaat van de Miniserver verifiëren",
+          "audioserver_host": "Audioserver-host (optioneel; poort 7091)",
+          "audioserver_playback": "Afspelen/pauzeren via Audio Server-speler gebruiken (experimenteel; standaard uit)",
+          "generate_scenes": "Scènes genereren",
+          "generate_lightcontroller_subcontrols": "LightControllerV2-subcontrols standaard inschakelen",
+          "generate_scenes_delay": "Vertraging voor scène-generatie indien ingeschakeld"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Loxone opnieuw authenticeren",
+        "description": "De Miniserver heeft de gebruikersnaam of het wachtwoord geweigerd. Voer de huidige inloggegevens in.",
+        "data": {
+          "username": "Gebruiker",
+          "password": "Wachtwoord"
+        }
+      }
+    },
+    "error": {
+      "invalid_credentials_encoding": "Gebruikersnaam en wachtwoord moeten latin-1-compatibel zijn.",
+      "invalid_audioserver_host": "Voer alleen een Audioserver-hostnaam of IP-adres in, zonder poort, URL, pad of inloggegevens.",
+      "audioserver_playback_requires_host": "Stel de Audioserver-host in voordat afspelen/pauzeren wordt ingeschakeld."
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_audioserver_host": "Voer alleen een Audioserver-hostnaam of IP-adres in, zonder poort, URL, pad of inloggegevens.",
+      "audioserver_playback_requires_host": "Stel de Audioserver-host in voordat afspelen/pauzeren wordt ingeschakeld."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "username": "Gebruiker",
+          "port": "Poort",
+          "host": "Miniserver-IP",
+          "password": "Wachtwoord",
+          "verify_ssl": "TLS-certificaat van de Miniserver verifiëren",
+          "audioserver_host": "Audioserver-host (optioneel; poort 7091)",
+          "audioserver_playback": "Afspelen/pauzeren via Audio Server-speler gebruiken (experimenteel; standaard uit)",
+          "generate_scenes": "Scènes genereren",
+          "generate_lightcontroller_subcontrols": "LightControllerV2-subcontrols standaard inschakelen",
+          "generate_scenes_delay": "Vertraging voor scène-generatie indien ingeschakeld"
+        },
+        "description": "PyLoxone-instellingen bewerken:",
+        "title": "PyLoxone-instellingen"
+      }
+    }
+  },
+  "services": {
+    "reload": {
+      "name": "PyLoxone herladen",
+      "description": "Herlaadt de Loxone-integratie door opnieuw verbinding te maken met de Miniserver en alle entiteiten bij te werken. Dit is handig na configuratiewijzigingen in Loxone Config of bij verbindingsproblemen. Alle huidige entiteitstatussen worden opnieuw gesynchroniseerd vanaf de Miniserver."
+    },
+    "refresh_token": {
+      "name": "Miniserver-token vernieuwen",
+      "description": "Vernieuwt direct het authenticatietoken voor de geselecteerde Loxone-configuratie en wacht tot de Miniserver het nieuwe token bevestigt.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Loxone-configuratie",
+          "description": "Kies welke geconfigureerde Miniserver zijn token moet vernieuwen."
+        }
+      }
+    },
+    "event_websocket_command": {
+      "name": "WebSocket-commando verzenden",
+      "description": "Verzend WebSocket-commando's naar de Loxone-server. Je kunt een commando naar de Miniserver sturen via een entiteit of via een UUID. Als je beide opgeeft, wordt het commando naar de entiteit gestuurd. Meer informatie en commando's vind je op de Loxone-website.",
+      "fields": {
+        "uuid": {
+          "name": "UUID",
+          "description": "UUID van de entiteit waarnaar je een commando wilt sturen."
+        },
+        "device": {
+          "name": "Entiteit",
+          "description": "Apparaat waarnaar je een commando wilt sturen."
+        },
+        "value": {
+          "name": "Commando",
+          "description": "Commando dat je wilt verzenden."
+        }
+      }
+    },
+    "event_secured_websocket_command": {
+      "name": "Beveiligd WebSocket-commando verzenden",
+      "description": "Verzend WebSocket-commando's naar de Loxone-server. Je kunt een commando naar de Miniserver sturen via een entiteit of via een UUID. Als je beide opgeeft, wordt het commando naar de entiteit gestuurd. Meer informatie en commando's vind je op de Loxone-website.",
+      "fields": {
+        "uuid": {
+          "name": "UUID",
+          "description": "UUID van de entiteit waarnaar je een commando wilt sturen."
+        },
+        "device": {
+          "name": "Entiteit",
+          "description": "Apparaat waarnaar je een commando wilt sturen."
+        },
+        "value": {
+          "name": "Commando",
+          "description": "Commando dat je wilt verzenden."
+        },
+        "code": {
+          "name": "Wachtwoord",
+          "description": "Visueel wachtwoord voor deze entiteit."
+        }
+      }
+    },
+    "sync_areas": {
+      "name": "Ruimtes synchroniseren",
+      "description": "Past ruimtes toe op de Loxone-entiteiten op basis van de ruimte in Loxone. Als een ruimte niet bestaat, worden de entiteiten niet gewijzigd.",
+      "fields": {
+        "create_areas": {
+          "name": "Ruimtes aanmaken",
+          "description": "Forceer het aanmaken van ruimtes als ze niet in Home Assistant bestaan."
+        }
+      }
+    },
+    "enable_sun_automation": {
+      "name": "Zon-automatisering inschakelen",
+      "description": "Schakel zon-automatisering in voor Loxone Jalousie."
+    },
+    "disable_sun_automation": {
+      "name": "Zon-automatisering uitschakelen",
+      "description": "Schakel zon-automatisering uit voor Loxone Jalousie."
+    },
+    "quick_shade": {
+      "name": "Snel schaduw",
+      "description": "Breng de Loxone Jalousie naar de schaduwpositie. De positie wordt door Loxone bepaald op basis van meerdere waarden."
+    }
+  },
+  "exceptions": {
+    "audioserver_announcement_unavailable": {
+      "message": "Audio Server-meldingen zijn niet beschikbaar of een eerdere aanvraag is nog onopgelost. Er is geen nieuwe melding verzonden."
+    },
+    "audioserver_announcement_failed": {
+      "message": "De Audio Server-melding is niet betrouwbaar voltooid. Het geluid kan zijn afgespeeld. Er is niet automatisch opnieuw geprobeerd."
+    },
+    "audioserver_seek_unavailable": {
+      "message": "Zoeken is niet beschikbaar voor dit nummer of deze positie."
+    },
+    "audioserver_seek_failed": {
+      "message": "De nieuwe positie voor het huidige nummer is niet bevestigd. Er is geen nieuwe poging of afspeelopdracht verzonden."
+    },
+    "audioserver_playback_failed": {
+      "message": "Het afspelen via Audio Server is niet bevestigd. Er is geen alternatieve opdracht of automatische nieuwe poging verzonden."
+    },
+    "audioserver_playback_unavailable": {
+      "message": "Afspelen via Audio Server is niet beschikbaar. Er is geen opdracht verzonden om de standaardbron van de ruimte te starten."
+    }
+  }
+}

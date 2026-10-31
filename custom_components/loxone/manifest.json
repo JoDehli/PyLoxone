@@ -1,7 +1,9 @@
 {
   "domain": "loxone",
   "name": "PyLoxone",
-  "codeowners": ["@JoDehli"],
+  "codeowners": [
+    "@JoDehli"
+  ],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/JoDehli/PyLoxone",
@@ -9,7 +11,8 @@
   "issue_tracker": "https://github.com/JoDehli/PyLoxone/issues",
   "requirements": [
     "websockets>=14,<16",
-    "pycryptodome>=3.20"
+    "pycryptodome>=3.20",
+    "PyLoxone-Audio==0.1.1"
   ],
   "version": "0.10.2"
 }

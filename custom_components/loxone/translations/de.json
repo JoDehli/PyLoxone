@@ -1,5 +1,6 @@
 {
   "entity": {
+    "switch": {"audio_diagnostics": {"name": "Audiodiagnose"}},
     "climate": {
       "room_controller_v2": {
         "state_attributes": {
@@ -57,7 +58,9 @@
           "verify_ssl": "TLS-Zertifikat des Miniservers prüfen",
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
-          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)",
+          "audioserver_host": "Audioserver-Host (optional; Port 7091)",
+          "audioserver_playback": "Play/Pause des Audio Server Players verwenden (experimentell; standardmäßig deaktiviert)"
         }
       },
       "reauth_confirm": {
@@ -70,7 +73,9 @@
       }
     },
     "error": {
-      "invalid_credentials_encoding": "Benutzername und Passwort müssen latin-1-kompatibel sein."
+      "invalid_credentials_encoding": "Benutzername und Passwort müssen latin-1-kompatibel sein.",
+      "invalid_audioserver_host": "Geben Sie einen einfachen Audioserver-Hostnamen oder eine IP-Adresse ohne Port, URL, Pfad oder Zugangsdaten ein.",
+      "audioserver_playback_requires_host": "Legen Sie den Audioserver-Host fest, bevor Play/Pause des Players aktiviert wird."
     }
   },
   "options": {
@@ -84,11 +89,17 @@
           "verify_ssl": "TLS-Zertifikat des Miniservers prüfen",
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
-          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)",
+          "audioserver_host": "Audioserver-Host (optional; Port 7091)",
+          "audioserver_playback": "Play/Pause des Audio Server Players verwenden (experimentell; standardmäßig deaktiviert)"
         },
         "description": "PyLoxone Einstellungen editieren:",
         "title": "PyLoxone Einstellungen"
       }
+    },
+    "error": {
+      "invalid_audioserver_host": "Geben Sie einen einfachen Audioserver-Hostnamen oder eine IP-Adresse ohne Port, URL, Pfad oder Zugangsdaten ein.",
+      "audioserver_playback_requires_host": "Legen Sie den Audioserver-Host fest, bevor Play/Pause des Players aktiviert wird."
     }
   },
   "services": {
@@ -157,6 +168,26 @@
     "quick_shade": {
       "name": "Beschattung ",
       "description": "Loxone Jalousie in Schattenposition bringen. Position wird von Loxone abhängig von mehreren Werten festgelegt."
+    }
+  },
+  "exceptions": {
+    "audioserver_announcement_unavailable": {
+      "message": "Audio Server-Durchsagen sind nicht verfügbar oder eine frühere Anfrage ist noch ungeklärt. Es wurde keine neue Durchsage gesendet."
+    },
+    "audioserver_announcement_failed": {
+      "message": "Die Audio Server-Durchsage wurde nicht zuverlässig abgeschlossen. Eine Wiedergabe kann erfolgt sein. Es wurde nicht automatisch erneut versucht."
+    },
+    "audioserver_seek_unavailable": {
+      "message": "Suchen ist für diesen Titel oder diese Position nicht verfügbar."
+    },
+    "audioserver_seek_failed": {
+      "message": "Die neue Position wurde für den aktuellen Titel nicht bestätigt. Es wurde weder erneut versucht noch die Wiedergabe gestartet."
+    },
+    "audioserver_playback_failed": {
+      "message": "Die Wiedergabe über den Audio Server wurde nicht bestätigt. Es wurde weder auf eine andere Quelle ausgewichen noch automatisch erneut versucht."
+    },
+    "audioserver_playback_unavailable": {
+      "message": "Die Wiedergabe über den Audio Server ist nicht verfügbar. Es wurde kein Startbefehl für die Raum-Standardquelle gesendet."
     }
   }
 }

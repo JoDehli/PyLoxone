@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
@@ -11,6 +12,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
 from .miniserver import MiniServer
 from .pyloxone_api.connection import LoxoneConnection, LoxoneException
+
+if TYPE_CHECKING:
+    from .audio import AudioMetadataCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,8 +56,11 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         )
 
         self.api: LoxoneConnection | None = None
+        self.audio_commands = None
+        self.audio_diagnostics = None
         self.miniserver: MiniServer | None = None
         self.listeners = []
+        self.audio_metadata: AudioMetadataCoordinator | None = None
         # Control and subcontrol UUIDs from the structure file; filled
         # by ``async_config_entry_first_refresh``. See ``owns_uuid``.
         self._control_uuids: frozenset[str] = frozenset()
@@ -198,6 +205,19 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                         )
             self.listeners = []
 
+        await _async_close_audio_commands(self)
+
+        # Optional metadata must not outlive the entry or prevent API cleanup.
+        if audio_metadata := getattr(self, "audio_metadata", None):
+            try:
+                await audio_metadata.async_stop()
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("Audioserver metadata cleanup failed (%s)", type(err).__name__)
+            finally:
+                self.audio_metadata = None
+        if diagnostics := getattr(self, "audio_diagnostics", None):
+            await diagnostics.async_close()
+            self.audio_diagnostics = None
         # Close API connection.
         if hasattr(self, "api") and self.api is not None:
             if kill_token:
@@ -218,3 +238,15 @@ class LoxoneCoordinator(DataUpdateCoordinator):
                 _LOGGER.warning(
                     "api.close during cleanup failed: %s", err, exc_info=True
                 )
+
+
+async def _async_close_audio_commands(coordinator: LoxoneCoordinator) -> None:
+    """Close optional playback without preventing native API cleanup."""
+    # Opt-in command connections must close before their token owner.
+    if audio_commands := getattr(coordinator, "audio_commands", None):
+        try:
+            await audio_commands.async_close()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Audioserver playback cleanup failed (%s)", type(err).__name__)
+        finally:
+            coordinator.audio_commands = None

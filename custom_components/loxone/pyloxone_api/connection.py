@@ -6,6 +6,7 @@ https://github.com/JoDehli/pyloxone-api
 """
 
 import asyncio
+from pyloxone_audio.diagnostic_events import diagnostics_enabled, diagnostic_event
 import datetime
 import hashlib
 import inspect
@@ -724,6 +725,13 @@ class LoxoneBaseConnection:
         # desync while the socket is still up, nor to pay for the AES work.)
         if not self.connection or not self.is_connected:
             raise LoxoneConnectionClosedOk("Cannot send command - connection is not open")
+        observer = getattr(self, 'audio_diagnostics', None)
+        evidence = None
+        if diagnostics_enabled(observer):
+            try:
+                evidence = observer.prepare_miniserver(command)
+            except Exception:
+                pass
         # Snapshot the reference: ``close()`` runs in another task and nulls
         # ``self.connection``, which is now further away because the salt
         # decision and the AES work happen in between.
@@ -756,12 +764,24 @@ class LoxoneBaseConnection:
             # Send a plain str (not a list): websockets fragments the
             # payload when given a list, which the Loxone protocol does
             # not expect.
+            if evidence is not None:
+                diagnostic_event(observer, 'send_attempt', **evidence)
             await connection.send(command)
+            if evidence is not None:
+                diagnostic_event(observer, 'send_completed', **evidence)
+        except asyncio.CancelledError:
+            if evidence is not None:
+                diagnostic_event(observer, 'cancelled', **evidence)
+            raise
         except websockets.ConnectionClosedOK:
+            if evidence is not None:
+                diagnostic_event(observer, 'disconnected', **evidence)
             raise LoxoneConnectionClosedOk(
                 "Connection closed normally while sending command"
             )
         except Exception as e:
+            if evidence is not None:
+                diagnostic_event(observer, 'error', **evidence)
             _LOGGER.debug("Error while sending: %s", e)
             raise
 

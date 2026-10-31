@@ -533,6 +533,13 @@ async def async_setup_entry(hass, config_entry):
 
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
 
+    # Local opt-in evidence belongs to this existing entry, not another setup.
+    from .audio_diagnostics import EntryAudioDiagnostics
+    coordinator.audio_diagnostics = EntryAudioDiagnostics(
+        hass, config_entry, coordinator.miniserver.lox_config.json)
+    await coordinator.audio_diagnostics.async_start()
+    coordinator.api.audio_diagnostics = coordinator.audio_diagnostics
+
     # Config-entry platforms only. The extra ``async_load_platform``
     # per platform (with the ConfigEntry passed as ``hass_config``) ran
     # every ``async_setup_platform`` a second time with an empty config,
@@ -653,6 +660,11 @@ async def async_setup_entry(hass, config_entry):
 
     async def message_callback(message):
         """Fire message on HomeAssistant Bus."""
+        try:
+            if coordinator.audio_diagnostics is not None and coordinator.audio_diagnostics.enabled:
+                coordinator.audio_diagnostics.miniserver_feedback(message)
+        except Exception:
+            pass  # Optional evidence cannot interrupt the existing feedback path.
         # Lazy %-args — this runs for every Miniserver event, so the dict
         # must not be stringified unless DEBUG is enabled. G004 already
         # bans the f-string variant; do not "simplify" it back.

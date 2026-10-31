@@ -20,10 +20,13 @@ from homeassistant.helpers.selector import (BooleanSelector, NumberSelector,
                                             TextSelectorConfig,
                                             TextSelectorType)
 
-from .const import (CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
+from .const import (CONF_AUDIOSERVER_HOST, CONF_AUDIOSERVER_PLAYBACK,
+                    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
                     CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL,
                     DEFAULT_DELAY_SCENE, DEFAULT_IP, DEFAULT_PORT,
                     DEFAULT_VERIFY_SSL, DOMAIN)
+from .pyloxone_api.audioserver import audioserver_uri
+
 
 
 async def validate_loxone_setup(
@@ -53,6 +56,18 @@ async def validate_loxone_setup(
     if CONF_SCENE_GEN_DELAY in user_input:
         user_input[CONF_SCENE_GEN_DELAY] = int(user_input[CONF_SCENE_GEN_DELAY])
 
+    if host := user_input.get(CONF_AUDIOSERVER_HOST):
+        try:
+            audioserver_uri(host)
+        except ValueError as err:
+            message = "invalid_audioserver_host"
+            raise SchemaFlowError(message) from err
+
+    if user_input.get(CONF_AUDIOSERVER_PLAYBACK) and not user_input.get(CONF_AUDIOSERVER_HOST):
+        message = "audioserver_playback_requires_host"
+        raise SchemaFlowError(message)
+
+
     return user_input
 
 
@@ -71,6 +86,10 @@ DATA_SCHEMA_SETUP = vol.Schema(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
         ),
         vol.Required(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL): BooleanSelector(),
+        vol.Optional(CONF_AUDIOSERVER_HOST, default=""): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.TEXT)
+        ),
+        vol.Optional(CONF_AUDIOSERVER_PLAYBACK, default=False): BooleanSelector(),
         vol.Required(CONF_SCENE_GEN, default=True): BooleanSelector(),
         vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=3)
@@ -96,6 +115,10 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
         ),
         vol.Required(CONF_VERIFY_SSL, default=DEFAULT_VERIFY_SSL): BooleanSelector(),
+        vol.Optional(CONF_AUDIOSERVER_HOST, default=""): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.TEXT)
+        ),
+        vol.Optional(CONF_AUDIOSERVER_PLAYBACK, default=False): BooleanSelector(),
         vol.Required(CONF_SCENE_GEN, default=True): BooleanSelector(),
         vol.Optional(CONF_SCENE_GEN_DELAY, default=DEFAULT_DELAY_SCENE): NumberSelector(
             NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=3)

@@ -20,6 +20,15 @@ async def async_get_config_entry_diagnostics(
     miniserver = getattr(coordinator, "miniserver", None)
     if miniserver is None:
         return {"error": "Config entry is not loaded"}
-    return {
-        "LoxAPP3.json": miniserver.lox_config.json,
-    }
+    diagnostics = getattr(coordinator, "audio_diagnostics", None)
+    if diagnostics is None or diagnostics.closed:
+        return {"error": "Audio diagnostics unavailable"}
+    from importlib.metadata import version
+    from homeassistant.const import __version__ as ha_version
+    return {"audio": await diagnostics.async_export(),
+            "environment": {"home_assistant": ha_version, "pyloxone": "0.10.2",
+                            "pyloxone_audio": version("PyLoxone-Audio")},
+            "evidence_limits": ["No commands from before opt-in", "Socket send is not device execution",
+                                "Numeric position replies are echoes, not physical movement",
+                                "No audio, titles, private announcement text or raw house configuration"]}
+

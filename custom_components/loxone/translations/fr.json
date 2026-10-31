@@ -1,0 +1,194 @@
+{
+  "entity": {
+    "switch": {"audio_diagnostics": {"name": "Diagnostics audio"}},
+    "climate": {
+      "room_controller_v2": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "schedule": "Programme",
+              "paused_door_window": "En pause (Portes/Fenêtres)"
+            }
+          }
+        }
+      }
+    },
+    "sensor": {
+      "override_reason": {
+        "state": {
+          "none": "Aucun",
+          "presence": "Présence",
+          "window_open": "Fenêtre ouverte",
+          "comfort_override": "Priorité confort",
+          "eco_override": "Priorité éco",
+          "eco_plus_override": "Priorité Eco+",
+          "prepare_heat_up": "Préparation chauffage",
+          "prepare_cool_down": "Préparation refroidissement",
+          "overridden_by_source": "Remplacé par la source",
+          "fixed": "Consigne fixe"
+        }
+      }
+    }
+  },
+  "config": {
+    "abort": {
+      "single_instance_allowed": "Déjà configuré. Une seule configuration est possible.",
+      "already_configured": "Ce Miniserver est déjà configuré.",
+      "invalid_import": "La configuration loxone: dans configuration.yaml n'a pas pu être importée : le nom d'utilisateur et le mot de passe doivent être compatibles latin-1.",
+      "reauth_successful": "Les identifiants ont été mis à jour."
+    },
+    "step": {
+      "user": {
+        "title": "Configurer Loxone",
+        "description": "Configurez la connexion à votre Miniserver Loxone",
+        "data": {
+          "username": "Utilisateur",
+          "port": "Port",
+          "host": "IP du Miniserver",
+          "password": "Mot de passe",
+          "verify_ssl": "Vérifier le certificat TLS du Miniserver",
+          "audioserver_host": "Hôte Audioserver (facultatif ; port 7091)",
+          "audioserver_playback": "Utiliser lecture/pause du lecteur Audio Server (expérimental ; désactivé par défaut)",
+          "generate_scenes": "générer les scènes",
+          "generate_lightcontroller_subcontrols": "Activer par défaut les sous-commandes LightControllerV2",
+          "generate_scenes_delay": "Délai pour la génération des scènes si activée"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ré-authentifier Loxone",
+        "description": "Le Miniserver a rejeté le nom d'utilisateur ou le mot de passe. Saisissez les identifiants actuels.",
+        "data": {
+          "username": "Utilisateur",
+          "password": "Mot de passe"
+        }
+      }
+    },
+    "error": {
+      "invalid_credentials_encoding": "Le nom d'utilisateur et le mot de passe doivent être compatibles latin-1.",
+      "invalid_audioserver_host": "Saisissez un nom d'hôte ou une adresse IP Audioserver sans port, URL, chemin ou identifiants.",
+      "audioserver_playback_requires_host": "Définissez l'hôte Audioserver avant d'activer la lecture/pause du lecteur."
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_audioserver_host": "Saisissez un nom d'hôte ou une adresse IP Audioserver sans port, URL, chemin ou identifiants.",
+      "audioserver_playback_requires_host": "Définissez l'hôte Audioserver avant d'activer la lecture/pause du lecteur."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "username": "Utilisateur",
+          "port": "Port",
+          "host": "IP du Miniserver",
+          "password": "Mot de passe",
+          "verify_ssl": "Vérifier le certificat TLS du Miniserver",
+          "audioserver_host": "Hôte Audioserver (facultatif ; port 7091)",
+          "audioserver_playback": "Utiliser lecture/pause du lecteur Audio Server (expérimental ; désactivé par défaut)",
+          "generate_scenes": "Générer les scènes",
+          "generate_lightcontroller_subcontrols": "Activer par défaut les sous-commandes LightControllerV2",
+          "generate_scenes_delay": "Délai pour la génération des scènes si activée"
+        },
+        "description": "Modifier les paramètres PyLoxone :",
+        "title": "Paramètres PyLoxone"
+      }
+    }
+  },
+  "services": {
+    "reload": {
+      "name": "Recharger PyLoxone",
+      "description": "Recharge l'intégration Loxone en se reconnectant au Miniserver et en actualisant toutes les entités. Utile après des modifications de configuration dans Loxone Config ou en cas de problèmes de connexion. Tous les états actuels des entités seront resynchronisés depuis le Miniserver."
+    },
+    "refresh_token": {
+      "name": "Actualiser le jeton du Miniserver",
+      "description": "Actualise immédiatement le jeton d'authentification pour l'entrée de configuration Loxone sélectionnée et attend la confirmation du nouveau jeton par le Miniserver.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Entrée de configuration Loxone",
+          "description": "Sélectionnez quel Miniserver configuré doit actualiser son jeton."
+        }
+      }
+    },
+    "event_websocket_command": {
+      "name": "Envoyer une commande Websocket",
+      "description": "Envoyez des commandes websocket au serveur loxone. Vous pouvez envoyer une commande au Miniserver à l'aide d'une entité ou d'un UUID. Si vous indiquez les deux, la commande sera envoyée à l'entité. Plus d'informations et de commandes sont disponibles sur le site Loxone.",
+      "fields": {
+        "uuid": {
+          "name": "UUID",
+          "description": "UUID de l'entité à laquelle vous souhaitez envoyer une commande."
+        },
+        "device": {
+          "name": "Entité",
+          "description": "Appareil auquel vous souhaitez envoyer une commande"
+        },
+        "value": {
+          "name": "Commande",
+          "description": "Commande que vous souhaitez envoyer"
+        }
+      }
+    },
+    "event_secured_websocket_command": {
+      "name": "Envoyer une commande websocket sécurisée",
+      "description": "Envoyez des commandes websocket au serveur loxone. Vous pouvez envoyer une commande au Miniserver à l'aide d'une entité ou d'un UUID. Si vous indiquez les deux, la commande sera envoyée à l'entité. Plus d'informations et de commandes sont disponibles sur le site Loxone.",
+      "fields": {
+        "uuid": {
+          "name": "UUID",
+          "description": "UUID de l'entité à laquelle vous souhaitez envoyer une commande."
+        },
+        "device": {
+          "name": "Entité",
+          "description": "Appareil auquel vous souhaitez envoyer une commande"
+        },
+        "value": {
+          "name": "Commande",
+          "description": "Commande que vous souhaitez envoyer"
+        },
+        "code": {
+          "name": "Mot de passe",
+          "description": "Mot de passe visuel pour cette entité."
+        }
+      }
+    },
+    "sync_areas": {
+      "name": "Synchroniser les zones",
+      "description": "Applique les zones aux entités loxone en fonction des pièces de Loxone. Si une zone n'existe pas, les entités ne seront pas modifiées.",
+      "fields": {
+        "create_areas": {
+          "name": "Créer des zones",
+          "description": "Forcer la création des zones si elles n'existent pas dans HA"
+        }
+      }
+    },
+    "enable_sun_automation": {
+      "name": "Activer l'automatisation solaire",
+      "description": "Activer l'automatisation solaire pour les Jalousies Loxone"
+    },
+    "disable_sun_automation": {
+      "name": "Désactiver l'automatisation solaire",
+      "description": "Désactiver l'automatisation solaire pour les Jalousies Loxone"
+    },
+    "quick_shade": {
+      "name": "Ombrage rapide",
+      "description": "Déplacer la Jalousie Loxone vers la position d'ombrage. La position est définie par Loxone en fonction de plusieurs valeurs."
+    }
+  },
+  "exceptions": {
+    "audioserver_announcement_unavailable": {
+      "message": "Les annonces Audio Server sont indisponibles ou une demande précédente reste non résolue. Aucune nouvelle annonce n’a été envoyée."
+    },
+    "audioserver_announcement_failed": {
+      "message": "L’annonce Audio Server ne s’est pas terminée de façon fiable. Elle a pu être diffusée. Aucun nouvel essai automatique n’a été envoyé."
+    },
+    "audioserver_seek_unavailable": {
+      "message": "Le déplacement est indisponible pour cette piste ou cette position."
+    },
+    "audioserver_seek_failed": {
+      "message": "La nouvelle position de la piste actuelle n’a pas été confirmée. Aucun nouvel essai ni démarrage de lecture n’a été envoyé."
+    },
+    "audioserver_playback_failed": {
+      "message": "La lecture Audio Server n'a pas été confirmée. Aucune commande vers une autre source ni nouvelle tentative automatique n'a été envoyée."
+    },
+    "audioserver_playback_unavailable": {
+      "message": "La lecture Audio Server est indisponible. Aucune commande de démarrage de la source par défaut de la pièce n'a été envoyée."
+    }
+  }
+}

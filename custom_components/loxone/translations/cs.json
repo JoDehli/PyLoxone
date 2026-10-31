@@ -1,5 +1,6 @@
 {
   "entity": {
+    "switch": {"audio_diagnostics": {"name": "Diagnostika zvuku"}},
     "climate": {
       "room_controller_v2": {
         "state_attributes": {
@@ -36,6 +37,54 @@
           "unlocked": "Odemčeno"
         }
       }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "audioserver_host": "Hostitel Audioserveru (volitelné; port 7091)",
+          "audioserver_playback": "Použít play/pause přehrávače Audio Server (experimentální; ve výchozím nastavení vypnuto)"
+        }
+      }
+    },
+    "error": {
+      "invalid_audioserver_host": "Zadejte název hostitele nebo IP adresu Audioserveru bez portu, URL, cesty nebo přihlašovacích údajů.",
+      "audioserver_playback_requires_host": "Před povolením play/pause přehrávače nastavte hostitele Audioserveru."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "audioserver_host": "Hostitel Audioserveru (volitelné; port 7091)",
+          "audioserver_playback": "Použít play/pause přehrávače Audio Server (experimentální; ve výchozím nastavení vypnuto)"
+        }
+      }
+    },
+    "error": {
+      "invalid_audioserver_host": "Zadejte název hostitele nebo IP adresu Audioserveru bez portu, URL, cesty nebo přihlašovacích údajů.",
+      "audioserver_playback_requires_host": "Před povolením play/pause přehrávače nastavte hostitele Audioserveru."
+    }
+  },
+  "exceptions": {
+    "audioserver_announcement_unavailable": {
+      "message": "Hlášení Audio Server nejsou dostupná nebo předchozí požadavek není vyřešen. Nové hlášení nebylo odesláno."
+    },
+    "audioserver_announcement_failed": {
+      "message": "Hlášení Audio Server nebylo spolehlivě dokončeno. Zvuk mohl být přehrán. Automatické opakování nebylo odesláno."
+    },
+    "audioserver_seek_unavailable": {
+      "message": "Posun není pro tuto stopu nebo pozici dostupný."
+    },
+    "audioserver_seek_failed": {
+      "message": "Nová pozice aktuální stopy nebyla potvrzena. Nebyl odeslán další pokus ani spuštění přehrávání."
+    },
+    "audioserver_playback_failed": {
+      "message": "Přehrávání přes Audio Server nebylo potvrzeno. Nebyl spuštěn náhradní zdroj ani odeslán automatický opakovaný pokus."
+    },
+    "audioserver_playback_unavailable": {
+      "message": "Přehrávání přes Audio Server není dostupné. Nebyl odeslán příkaz ke spuštění výchozího zdroje místnosti."
     }
   }
 }
