@@ -20,7 +20,9 @@ Expected values are literals read from the fixture and the issue.
 
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 
 import pytest
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
@@ -29,10 +31,15 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.loxone.window_monitor import (
+    LoxoneWindowContactSensor,
+    LoxoneWindowPositionSensor,
     parse_window_states,
+    window_contacts,
     window_position,
-    window_unlocked,
+    window_state,
 )
+
+FIXTURE = Path(__file__).parent / "fixtures" / "LoxAPP3.json"
 
 ROOM_STATES = "1efaa7ad-0217-ede4-ffff5b41adbf0217"
 CENTRAL_STATES = "1efaa7ad-0227-ede4-ffff5b41adbf0227"
@@ -104,9 +111,15 @@ async def test_setup_creates_one_entity_set_per_contact(
     assert state.attributes["device_class"] == "window"
     assert state.attributes["install_place"] == "North wall"
     assert state.attributes["monitor"] == "Window and Door Monitoring"
-    assert hass.states.get("sensor.office_office_window_state").attributes["options"] == ["closed", "tilted", "open"]
+    assert hass.states.get("sensor.office_office_window_state").attributes["options"] == [
+        "closed",
+        "tilted",
+        "open",
+        "locked",
+        "unlocked",
+    ]
 
-    # No lock entity before any contact has reported a lock bit.
+    # The lock state lives in the enum sensor: no separate lock entity.
     assert not [e for e in registry.entities.values() if e.unique_id.endswith("-lock")]
 
     await _unload(hass, mock_entry)
@@ -120,12 +133,18 @@ async def test_window_states_decode_in_list_order(hass, mock_connection, mock_en
     mock_connection.feed(CENTRAL_STATES, "4,2,1,16,8")
     await hass.async_block_till_done()
 
-    assert hass.states.get("binary_sensor.office_office_window").state == STATE_ON  # tilted counts as open
+    office = hass.states.get("binary_sensor.office_office_window")
+    assert office.state == STATE_ON  # tilted counts as open
+    assert office.attributes["position"] == "tilted"
+    assert office.attributes["icon"] == "mdi:window-open-variant"
     assert hass.states.get("sensor.office_office_window_state").state == "tilted"
     assert hass.states.get("binary_sensor.hall_main_door_contact").state == STATE_OFF  # 16 = closed
-    assert hass.states.get("sensor.hall_main_door_state").state == "closed"
-    assert hass.states.get("binary_sensor.garden_garden_door").state == STATE_OFF  # 8 = closed
-    assert hass.states.get("sensor.garden_garden_door_state").state == "closed"
+    assert hass.states.get("sensor.hall_main_door_state").state == "unlocked"
+    garden = hass.states.get("binary_sensor.garden_garden_door")
+    assert garden.state == STATE_OFF  # 8 = closed
+    assert garden.attributes["position"] == "locked"
+    assert garden.attributes["icon"] == "mdi:window-closed-variant"
+    assert hass.states.get("sensor.garden_garden_door_state").state == "locked"
     assert hass.states.get("binary_sensor.bathroom_fenster_bad").state == STATE_UNKNOWN
 
     mock_connection.feed(ROOM_STATES, "4")
@@ -137,57 +156,25 @@ async def test_window_states_decode_in_list_order(hass, mock_connection, mock_en
     await _unload(hass, mock_entry)
 
 
-async def test_lock_entities_appear_for_contacts_with_lock_bits(
-    hass, mock_connection, mock_entry, enable_custom_integrations
-):
+async def test_lockable_door_reports_locked_and_unlocked(hass, mock_connection, mock_entry, enable_custom_integrations):
     await _setup(hass, mock_entry)
 
-    mock_connection.feed(CENTRAL_STATES, "1,1,1,16,8")
-    await hass.async_block_till_done()
-
-    main_lock = _entity(hass, "binary_sensor", f"{MAIN_DOOR}-lock")
-    garden_lock = _entity(hass, "binary_sensor", f"{GARDEN_DOOR}-lock")
-    assert main_lock == "binary_sensor.hall_main_door_lock"
-    assert garden_lock == "binary_sensor.garden_garden_door_lock"
-    assert _entity(hass, "binary_sensor", f"{OFFICE_WINDOW}-lock") is None
-    assert hass.states.get(main_lock).attributes["device_class"] == "lock"
-    assert hass.states.get(main_lock).state == STATE_ON  # 16 = unlocked
-    assert hass.states.get(garden_lock).state == STATE_OFF  # 8 = locked
-
-    # The reporter's garden-door sequence 8 -> 16 -> 4 -> 16 -> 8.
-    for raw, contact, lock in (
-        ("16", STATE_OFF, STATE_ON),
-        ("4", STATE_ON, STATE_ON),
-        ("16", STATE_OFF, STATE_ON),
-        ("8", STATE_OFF, STATE_OFF),
+    # The reporter's garden-door sequence 8 -> 16 -> 4 -> 16 -> 8
+    # (lock, unlock, open, close, lock).
+    for raw, contact, state, icon in (
+        ("8", STATE_OFF, "locked", "mdi:window-closed-variant"),
+        ("16", STATE_OFF, "unlocked", None),
+        ("4", STATE_ON, "open", None),
+        ("16", STATE_OFF, "unlocked", None),
+        ("8", STATE_OFF, "locked", "mdi:window-closed-variant"),
     ):
         mock_connection.feed(CENTRAL_STATES, f"1,1,1,16,{raw}")
         await hass.async_block_till_done()
-        assert hass.states.get("binary_sensor.garden_garden_door").state == contact, raw
-        assert hass.states.get(garden_lock).state == lock, raw
-
-    await _unload(hass, mock_entry)
-
-
-async def test_known_lock_entity_is_created_at_setup(hass, mock_connection, mock_entry, enable_custom_integrations):
-    """A lock seen in an earlier run comes back with the platform, not later."""
-    mock_entry.add_to_hass(hass)
-    er.async_get(hass).async_get_or_create(
-        "binary_sensor",
-        "loxone",
-        f"{GARDEN_DOOR}-lock",
-        config_entry=mock_entry,
-        suggested_object_id="garden_door_lock",
-    )
-    assert await hass.config_entries.async_setup(mock_entry.entry_id)
-    await hass.async_block_till_done()
-
-    entity_id = _entity(hass, "binary_sensor", f"{GARDEN_DOOR}-lock")
-    assert hass.states.get(entity_id).state == STATE_UNKNOWN  # provided, no value yet
-
-    mock_connection.feed(CENTRAL_STATES, "1,1,1,1,8")
-    await hass.async_block_till_done()
-    assert hass.states.get(entity_id).state == STATE_OFF
+        door = hass.states.get("binary_sensor.garden_garden_door")
+        assert door.state == contact, raw
+        assert door.attributes["position"] == state, raw
+        assert door.attributes.get("icon") == icon, raw
+        assert hass.states.get("sensor.garden_garden_door_state").state == state, raw
 
     await _unload(hass, mock_entry)
 
@@ -264,20 +251,45 @@ def test_parse_window_states(raw, expected):
 
 
 @pytest.mark.parametrize(
-    ("value", "position", "unlocked"),
+    ("value", "position", "state"),
     [
         (0, None, None),
         (None, None, None),
-        (1, "closed", None),
-        (2, "tilted", True),
-        (4, "open", True),
-        (8, "closed", False),
-        (16, "closed", True),
-        (9, "closed", False),
-        (17, "closed", True),
+        (1, "closed", "closed"),
+        (2, "tilted", "tilted"),
+        (4, "open", "open"),
+        (8, "closed", "locked"),
+        (16, "closed", "unlocked"),
+        (9, "closed", "locked"),
+        (17, "closed", "unlocked"),
+        (12, "open", "open"),  # an open door cannot be locked
         (32, None, None),
     ],
 )
-def test_window_value_decoding(value, position, unlocked):
+def test_window_value_decoding(value, position, state):
     assert window_position(value) == position
-    assert window_unlocked(value) == unlocked
+    assert window_state(value) == state
+
+
+def test_contact_entities_have_a_name():
+    """
+    Every contact entity must answer ``name`` without raising.
+
+    ``LoxoneEntity.name`` returns ``_attr_name``; a contact that is not a
+    control of its own used to leave it unset, which raised AttributeError
+    and dropped the whole binary_sensor platform setup for that contact.
+    """
+    contacts = window_contacts(json.loads(FIXTURE.read_text(encoding="utf-8")))
+    names = {}
+    for contact in contacts:
+        window = LoxoneWindowContactSensor(contact)
+        state = LoxoneWindowPositionSensor(contact)
+        assert window.has_entity_name
+        assert state.has_entity_name
+        names[contact.uuid] = (window.name, state.name)
+    assert names == {
+        FENSTER_BAD: (None, "State"),
+        OFFICE_WINDOW: (None, "State"),
+        MAIN_DOOR: ("Contact", "State"),
+        GARDEN_DOOR: (None, "State"),
+    }

@@ -17,11 +17,16 @@ still mean "closed" (reporter-observed sequence ``8 → 16 → 4 → 16 → 8``)
 Entities, per contact (deduplicated by the contact's uuid across monitors,
 because a central monitor repeats every room monitor's contacts):
 
-* ``binary_sensor`` device class ``window``, on when tilted or open;
-* ``sensor`` device class ``enum`` (``closed`` / ``tilted`` / ``open``);
-* ``binary_sensor`` device class ``lock`` (on = unlocked), created only once
-  the contact has reported a lock bit, because the structure file does not say
-  which contacts have a lock input.
+* ``binary_sensor`` device class ``window``, on when tilted or open.  It is
+  the device's main entity (named after the contact) and carries the full
+  state as the ``position`` attribute; its icon follows the state (tilted and
+  locked get their own icon).
+* ``sensor`` device class ``enum`` with every state a contact can report:
+  ``closed`` / ``tilted`` / ``open``, and for contacts with a lock input
+  ``locked`` (8) / ``unlocked`` (16, closed but not locked).  A separate lock
+  entity is not needed: the structure file does not say which contacts have a
+  lock input, and a lockable door simply reports ``locked`` / ``unlocked``
+  instead of ``closed``.
 
 Per monitor: the ``num*`` counters as measurement sensors.
 
@@ -31,7 +36,7 @@ position state.
 
 The contact's uuid can be a real control that is already an entity (an
 ``InfoOnlyDigital`` contact with "Use" ticked), so every entity here uses a
-suffixed unique id: ``<uuid>-window``, ``<uuid>-state``, ``<uuid>-lock``.
+suffixed unique id: ``<uuid>-window``, ``<uuid>-state``.
 """
 
 from __future__ import annotations
@@ -61,7 +66,22 @@ BIT_UNLOCKED = 16
 POSITION_CLOSED = "closed"
 POSITION_TILTED = "tilted"
 POSITION_OPEN = "open"
-POSITION_OPTIONS = [POSITION_CLOSED, POSITION_TILTED, POSITION_OPEN]
+
+# Full state of a contact (enum sensor options, ``position`` attribute).
+# ``locked`` / ``unlocked`` are closed doors with a lock input (8 / 16).
+STATE_CLOSED = POSITION_CLOSED
+STATE_TILTED = POSITION_TILTED
+STATE_OPEN = POSITION_OPEN
+STATE_LOCKED = "locked"
+STATE_UNLOCKED = "unlocked"
+STATE_OPTIONS = [STATE_CLOSED, STATE_TILTED, STATE_OPEN, STATE_LOCKED, STATE_UNLOCKED]
+
+# Binary sensor icons per state.  ``None`` keeps Home Assistant's default for
+# the window device class (window-open / window-closed).
+STATE_ICONS: dict[str, str] = {
+    STATE_TILTED: "mdi:window-open-variant",
+    STATE_LOCKED: "mdi:window-closed-variant",
+}
 
 # Control types that already become a cover with their own position state.
 COVER_CONTROL_TYPES = frozenset({"Jalousie", "Gate", "Window"})
@@ -129,27 +149,22 @@ def window_position(value: int | None) -> str | None:
     return None
 
 
-def window_unlocked(value: int | None) -> bool | None:
+def window_state(value: int | None) -> str | None:
     """
-    Lock state of one contact value: ``True`` = unlocked, ``False`` = locked.
+    Full state of one contact value, or ``None``.
 
-    An open or tilted door cannot be locked, so it reads as unlocked.  ``None``
-    when the value carries no lock information.
+    ``open`` / ``tilted`` win over the lock bits (an open door cannot be
+    locked).  A closed contact with a lock input reports ``locked`` (8) or
+    ``unlocked`` (16); one without a lock input reports ``closed`` (1).
     """
-    if not value:
-        return None
-    if value & BIT_UNLOCKED:
-        return True
+    position = window_position(value)
+    if position != POSITION_CLOSED:
+        return position
     if value & BIT_LOCKED:
-        return False
-    if value & (BIT_OPEN | BIT_TILTED):
-        return True
-    return None
-
-
-def has_lock_info(value: int | None) -> bool:
-    """True when a contact value carries a lock bit (8 or 16)."""
-    return bool(value) and bool(value & (BIT_LOCKED | BIT_UNLOCKED))
+        return STATE_LOCKED
+    if value & BIT_UNLOCKED:
+        return STATE_UNLOCKED
+    return STATE_CLOSED
 
 
 # --------------------------------------------------------------------------- #
@@ -309,6 +324,7 @@ def window_contacts(loxconfig: Any) -> list[WindowContact]:
 class _WindowContactEntity(LoxoneEntity):
     """Reads one contact's value out of its monitor's ``windowStates``."""
 
+    _attr_has_entity_name = True
     _unique_id_suffix = ""
 
     def __init__(self, contact: WindowContact, initial: list[int | None] | None = None) -> None:
@@ -370,11 +386,20 @@ class LoxoneWindowContactSensor(_WindowContactEntity, BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.WINDOW
 
     def __init__(self, contact: WindowContact, initial: list[int | None] | None = None) -> None:
-        super().__init__(contact, initial)
         if contact.shared_device:
             # The device already has a primary entity (the contact's own
             # control); a second nameless one would collide with it.
             self._attr_name = "Contact"
+        else:
+            # The device's main entity: it takes the device (contact) name.
+            # Must be set explicitly: ``LoxoneEntity.name`` reads
+            # ``_attr_name`` and raises when it was never assigned.
+            self._attr_name = None
+        super().__init__(contact, initial)
+
+    def _apply(self, values: list[int | None]) -> None:
+        super()._apply(values)
+        self._attr_extra_state_attributes["position"] = window_state(self._value)
 
     @property
     def is_on(self) -> bool | None:
@@ -383,29 +408,20 @@ class LoxoneWindowContactSensor(_WindowContactEntity, BinarySensorEntity):
             return None
         return position != POSITION_CLOSED
 
-
-class LoxoneWindowLockSensor(_WindowContactEntity, BinarySensorEntity):
-    """The contact's lock input; on = unlocked (HA ``lock`` convention)."""
-
-    _unique_id_suffix = "lock"
-    _attr_device_class = BinarySensorDeviceClass.LOCK
-
-    def __init__(self, contact: WindowContact, initial: list[int | None] | None = None) -> None:
-        super().__init__(contact, initial)
-        self._attr_name = "Lock"
-
     @property
-    def is_on(self) -> bool | None:
-        return window_unlocked(self._value)
+    def icon(self) -> str | None:
+        """Own icon for tilted and locked; the device-class default otherwise."""
+        state = window_state(self._value)
+        return STATE_ICONS.get(state) if state is not None else None
 
 
 class LoxoneWindowPositionSensor(_WindowContactEntity, SensorEntity):
-    """The contact's real three-way position."""
+    """The contact's full state: closed / tilted / open / locked / unlocked."""
 
     _unique_id_suffix = "state"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_translation_key = "window_state"
-    _attr_options = POSITION_OPTIONS
+    _attr_options = STATE_OPTIONS
 
     def __init__(self, contact: WindowContact, initial: list[int | None] | None = None) -> None:
         super().__init__(contact, initial)
@@ -413,12 +429,13 @@ class LoxoneWindowPositionSensor(_WindowContactEntity, SensorEntity):
 
     @property
     def native_value(self) -> str | None:
-        return window_position(self._value)
+        return window_state(self._value)
 
 
 class LoxoneWindowMonitorCountSensor(LoxoneEntity, SensorEntity):
     """One of a monitor's ``num*`` counters."""
 
+    _attr_has_entity_name = True
     _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, monitor: WindowMonitorControl, state_key: str) -> None:

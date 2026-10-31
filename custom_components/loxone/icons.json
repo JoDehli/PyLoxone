@@ -1,0 +1,16 @@
+{
+  "entity": {
+    "sensor": {
+      "window_state": {
+        "default": "mdi:window-closed",
+        "state": {
+          "closed": "mdi:window-closed",
+          "tilted": "mdi:window-open-variant",
+          "open": "mdi:window-open",
+          "locked": "mdi:lock",
+          "unlocked": "mdi:lock-open-variant"
+        }
+      }
+    }
+  }
+}

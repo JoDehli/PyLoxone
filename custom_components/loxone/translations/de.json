@@ -31,7 +31,9 @@
         "state": {
           "closed": "Geschlossen",
           "tilted": "Gekippt",
-          "open": "Offen"
+          "open": "Offen",
+          "locked": "Abgeschlossen",
+          "unlocked": "Aufgeschlossen"
         }
       }
     }

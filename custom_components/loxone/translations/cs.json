@@ -31,7 +31,9 @@
         "state": {
           "closed": "Zavřeno",
           "tilted": "Vyklopeno",
-          "open": "Otevřeno"
+          "open": "Otevřeno",
+          "locked": "Zamčeno",
+          "unlocked": "Odemčeno"
         }
       }
     }
