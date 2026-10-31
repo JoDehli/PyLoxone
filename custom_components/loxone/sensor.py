@@ -36,6 +36,9 @@ from .const import CLIMATE_EVENT, CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN, THRO
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
+from .window_monitor import (LoxoneWindowPositionSensor,
+                             window_contacts, window_monitor_controls,
+                             window_monitor_count_sensors)
 
 NEW_SENSOR = "sensors"
 
@@ -310,6 +313,15 @@ async def async_setup_entry(
                 device_info=device_info,
                 parent_uuid=irc["uuidAction"],
             ))
+
+    # #524: WindowMonitor — a three-way position sensor per contact and the
+    # monitor's counters (the window/lock binary sensors live on the
+    # binary_sensor platform).
+    try:
+        entities.extend(LoxoneWindowPositionSensor(contact) for contact in window_contacts(loxconfig))
+        entities.extend(window_monitor_count_sensors(window_monitor_controls(loxconfig)))
+    except Exception:
+        _LOGGER.exception("Skipping WindowMonitor controls")
 
     @callback
     def async_add_sensors(_):

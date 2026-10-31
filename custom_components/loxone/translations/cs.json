@@ -26,6 +26,15 @@
           "overridden_by_source": "Řízeno nadřazeným zdrojem",
           "fixed": "Pevná žádaná hodnota"
         }
+      },
+      "window_state": {
+        "state": {
+          "closed": "Zavřeno",
+          "tilted": "Vyklopeno",
+          "open": "Otevřeno",
+          "locked": "Zamčeno",
+          "unlocked": "Odemčeno"
+        }
       }
     }
   }

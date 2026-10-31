@@ -24,6 +24,7 @@ from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
+from .window_monitor import LoxoneWindowContactSensor, window_contacts
 
 _LOGGER = logging.getLogger(__name__)
 NEW_SENSOR = "binairy_sensors"
@@ -79,6 +80,13 @@ async def async_setup_entry(
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         sensor.update({"type": "smoke"})
         entities.append(LoxoneDigitalSensor(**sensor))
+
+    # #524: one window binary sensor per WindowMonitor contact (the lock
+    # state is part of the contact's enum sensor, see window_monitor.py).
+    try:
+        entities.extend(LoxoneWindowContactSensor(contact) for contact in window_contacts(loxconfig))
+    except Exception:
+        _LOGGER.exception("Skipping WindowMonitor controls")
 
     @callback
     def async_add_binary_sensors(_):
