@@ -204,6 +204,8 @@ def test_light_controller_event_without_mood_states():
     controller._master_max_uuid = None
     controller._master_min = None
     controller._master_max = None
+    controller._circuit_state_uuids = {}
+    controller._circuit_states = {}
     controller.subcontrols = {}
     controller._sub_controls = OrderedDict({})
     controller.type = "LightControllerV2"

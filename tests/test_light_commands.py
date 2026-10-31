@@ -45,6 +45,8 @@ def _controller(moodlist=None, active_moods=None) -> tuple:
     controller._master_max = None
     controller._sub_controls = {}
     controller._uuid_dict = {}
+    controller._circuit_state_uuids = {}
+    controller._circuit_states = {}
     controller.schedule_update_ha_state = lambda: None
     controller.async_schedule_update_ha_state = lambda: None
     return controller, sent
@@ -53,13 +55,17 @@ def _controller(moodlist=None, active_moods=None) -> tuple:
 # --- is_on semantics --------------------------------------------------------
 
 
-def test_event_empty_active_moods_is_off():
+def test_event_empty_active_moods_without_any_state_is_on():
+    """Manual mood without a master dimmer and without any received
+    circuit state: <= 0.9.24 reported on - entering the manual mood
+    means the circuits were touched (JoDehli/PyLoxone#536). It must not
+    fall back to a never-seen master position (stays None -> "off")."""
     controller, sent = _controller()
     controller.states = {"activeMoods": "uuid-activemoods"}
 
     asyncio.run(controller.event_handler(SimpleNamespace(data={"uuid-activemoods": "[]"})))
 
-    assert controller._attr_is_on is False
+    assert controller._attr_is_on is True
 
 
 def test_event_spec_off_mood_0_is_off():
@@ -184,3 +190,107 @@ def test_master_position_change_alone_switches_manual_mode_off():
     asyncio.run(controller.event_handler(SimpleNamespace(data={"uuid-master": 0.0})))
 
     assert controller._attr_is_on is False
+
+
+# --- manual mood via push button (#536): the per-circuit subcontrol
+# --- states (Switch "active", Dimmer "position") decide ------------------
+
+
+def _circuit_controller():
+    """Manual-mode controller with one Switch and one Dimmer circuit."""
+    controller = _manual_controller()
+    controller._circuit_state_uuids = {
+        "uuid-circuit-switch-active": "active",
+        "uuid-circuit-dimmer-position": "position",
+    }
+    return controller
+
+
+def test_pushbutton_switched_circuit_in_manual_mode_is_on():
+    """Regression for JoDehli/PyLoxone#536: a push button on the
+    controller's input enters the manual mood (activeMoods = []) with a
+    lit Switch circuit - without a master dimmer the entity showed off."""
+    controller = _circuit_controller()
+
+    asyncio.run(controller.event_handler(SimpleNamespace(data={
+        "uuid-activemoods": "[]",
+        "uuid-circuit-switch-active": 1.0,
+    })))
+
+    assert controller._attr_is_on is True
+
+
+def test_manual_mode_with_all_circuits_off_is_off():
+    controller = _circuit_controller()
+
+    asyncio.run(controller.event_handler(SimpleNamespace(data={
+        "uuid-activemoods": "[]",
+        "uuid-circuit-switch-active": 0.0,
+        "uuid-circuit-dimmer-position": 0.0,
+    })))
+
+    assert controller._attr_is_on is False
+
+
+def test_manual_mode_with_lit_dimmer_circuit_is_on():
+    controller = _circuit_controller()
+
+    asyncio.run(controller.event_handler(SimpleNamespace(data={
+        "uuid-activemoods": "[]",
+        "uuid-circuit-switch-active": 0.0,
+        "uuid-circuit-dimmer-position": 42.0,
+    })))
+
+    assert controller._attr_is_on is True
+
+
+def test_circuit_event_in_mood_mode_only_updates_the_state():
+    """Subcontrol state events outside the manual mood must not flip
+    is_on - the active moods decide."""
+    controller = _circuit_controller()
+    controller.states = {"activeMoods": "uuid-activemoods"}
+
+    asyncio.run(controller.event_handler(SimpleNamespace(data={
+        "uuid-activemoods": "[3]",
+        "uuid-circuit-switch-active": 0.0,
+    })))
+
+    assert controller._attr_is_on is True
+
+
+# --- init: collect the per-circuit subcontrol state uuids ----------------
+
+
+def test_init_collects_circuit_state_uuids_and_skips_master():
+    """The master value keeps its dedicated handling (#e43301f); only the
+    real circuits (Switch "active", Dimmer "position") are tracked for
+    the manual mood (#536)."""
+    controller = LoxoneLightControllerV2(
+        uuidAction="lc-uuid",
+        name="Licht",
+        states={"activeMoods": "uuid-activemoods"},
+        room="", cat="", details={},
+        async_add_devices=lambda *args, **kwargs: None,
+        subControls={
+            "lc-uuid/masterValue": {
+                "uuidAction": "lc-uuid/masterValue",
+                "name": "Master", "type": "Dimmer",
+                "states": {"position": "uuid-master-pos", "min": "uuid-min", "max": "uuid-max"},
+            },
+            "lc-uuid/1": {
+                "name": "Kreis 1", "type": "Switch",
+                "states": {"active": "uuid-circuit-1-active"},
+            },
+            "lc-uuid/2": {
+                "name": "Kreis 2", "type": "Dimmer",
+                "states": {"active": "uuid-circuit-2-active", "position": "uuid-circuit-2-pos"},
+            },
+        },
+    )
+
+    assert controller._circuit_state_uuids == {
+        "uuid-circuit-1-active": "active",
+        "uuid-circuit-2-active": "active",
+        "uuid-circuit-2-pos": "position",
+    }
+    assert controller._master_value_uuid == "lc-uuid/masterValue"
