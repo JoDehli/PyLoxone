@@ -40,8 +40,8 @@ from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
 from .coordinator import LoxoneCoordinator
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
-from .pyloxone_api.connection import LoxoneConnection
-from .pyloxone_api.exceptions import (LoxoneAuthEscalatedError,
+from pyloxone_api.connection import LoxoneConnection
+from pyloxone_api.exceptions import (LoxoneAuthEscalatedError,
                                       LoxoneConnectionClosedOk,
                                       LoxoneConnectionError, LoxoneException,
                                       LoxoneOutOfServiceException,

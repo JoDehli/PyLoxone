@@ -1,5 +1,5 @@
 # Runtime dependencies of the Loxone integration.
+# Provided by the pyloxone-api package (https://github.com/JoDehli/pyloxone-api).
 # Keep in lock-step with `requirements` in custom_components/loxone/manifest.json.
 # Development and test dependencies live in requirements-dev.txt.
-websockets>=14,<16
-pycryptodome>=3.20
+pyloxone-api==0.3.0
