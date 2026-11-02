@@ -19,6 +19,11 @@ _LOGGER = logging.getLogger(__name__)
 # on the installation this was observed on. Not in the structure file.
 OFF_MOOD_IDS = (0, 778)
 
+# Per-circuit subcontrol states that carry the circuit state in manual
+# mode ("Stimmung Manuell"): a plain Switch circuit reports "active",
+# Dimmer/EIBDimmer circuits report "position" (0-100).
+CIRCUIT_STATE_KINDS = ("active", "position")
+
 
 class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
     """Representation of a Light Controller V2."""
@@ -46,6 +51,13 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
         self._master_min = STATE_UNKNOWN
         self._master_max = STATE_UNKNOWN
         self._master_position_loxone = None
+        # state uuid -> "active"/"position" for every per-circuit
+        # subcontrol (the master value is handled separately), plus the
+        # last value seen for each. These decide is_on in manual mode
+        # for controllers without a master (#536).
+        self._circuit_state_uuids = {}
+        self._circuit_states = {}
+
         self._async_add_devices = kwargs["async_add_devices"]
 
         self.kwargs = kwargs
@@ -59,6 +71,11 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             }
             if "masterValue" in uuid and control.get("type") in ["Dimmer", "EIBDimmer"]:
                 self._master_value = control
+            elif "masterValue" not in uuid:
+                for kind in CIRCUIT_STATE_KINDS:
+                    state_uuid = (control.get("states") or {}).get(kind)
+                    if state_uuid:
+                        self._circuit_state_uuids[state_uuid] = kind
 
         if self._master_value:
             self._master_value_uuid = self._master_value.get("uuidAction")
@@ -207,18 +224,51 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             return None
 
     def _update_is_on(self) -> None:
-        """Derive is_on from the mood state and the master value.
+        """Derive is_on from the mood state, the circuits and the master value.
 
-        An empty activeMoods list is NOT off - moving the master directly
-        clears the moods ("Stimmung Manuell") and the circuits stay lit,
-        so the master value decides.
+        Spec: mood id 0 is always off. Observed on this installation: 778
+        is the static "Aus" mood. An empty activeMoods list is NOT off -
+        it is the manual mood ("Stimmung Manuell"), also entered when a
+        push button wired to the controller's input switches a circuit
+        (JoDehli/PyLoxone#536).
         """
         if any(mood_id not in OFF_MOOD_IDS for mood_id in self._active_moods):
             self._attr_is_on = True
         elif self._active_moods:
             self._attr_is_on = False
         else:
-            self._attr_is_on = (self._master_position_loxone or 0) > 0
+            self._attr_is_on = self._manual_mode_is_on()
+
+    def _manual_mode_is_on(self) -> bool:
+        """Return is_on for the manual mood (empty activeMoods).
+
+        The circuits keep their state in manual mode - only the mood list
+        is cleared. As soon as a per-circuit subcontrol state has been
+        seen (Switch "active", Dimmer "position" - #536), those decide.
+        A controller moved directly over the master reports the master
+        value instead. Without a master dimmer and without any circuit
+        state, <= 0.9.24 reported on, which is the historically correct
+        fallback (manual mood means the circuits were touched).
+        """
+        if self._circuit_states:
+            return self._any_circuit_on()
+        if self._master_position_uuid:
+            return (self._master_position_loxone or 0) > 0
+        return True
+
+    def _any_circuit_on(self) -> bool:
+        """Return True if any tracked circuit state is lit."""
+        for state_uuid, value in self._circuit_states.items():
+            kind = self._circuit_state_uuids.get(state_uuid, "active")
+            if kind == "position":
+                try:
+                    if float(value) > 0:
+                        return True
+                except (TypeError, ValueError):
+                    continue
+            elif value:
+                return True
+        return False
 
     async def event_handler(self, event):
         request_update = False
@@ -253,6 +303,16 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
                     event.data[self._master_position_uuid]
                 )
             request_update = True
+
+        # Per-circuit subcontrol states (Switch "active", Dimmer
+        # "position") - they decide is_on in manual mode (#536). The
+        # Miniserver updates are enabled globally
+        # (jdev/sps/enablebinstatusupdate), so these state uuids arrive
+        # on the bus like the master position does.
+        for state_uuid in self._circuit_state_uuids:
+            if state_uuid in event.data:
+                self._circuit_states[state_uuid] = event.data[state_uuid]
+                request_update = True
 
         # The mood states are JSON (spec: Structure File, LightControllerV2).
         # They used to be ``eval``'d, which ran Miniserver data as Python
