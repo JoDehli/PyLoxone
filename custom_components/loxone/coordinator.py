@@ -10,6 +10,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
 from .miniserver import MiniServer
+from .intercom.device import intercom_state_uuids
 from .pyloxone_api.connection import LoxoneConnection, LoxoneException
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,6 +69,11 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         # it is flipped by the ``run()`` supervisor's on_state
         # callback in ``__init__.py``.
         self.connection_available: bool = True
+        # Keep public states for Intercom entities enabled after the initial
+        # push. Never reuse values from a disconnected Miniserver session.
+        self.intercom_state_values: dict[str, object] = {}
+        self._intercom_state_uuids: frozenset[str] = frozenset()
+        self.intercom_tokens = None
 
     def _on_token_changed(self, token: dict) -> None:
         """Persist a freshly-issued token into the ConfigEntry.
@@ -153,8 +159,17 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             self.hass, self.api.structure_file, self.config_entry
         )
         self._control_uuids = _collect_control_uuids(self.api.structure_file)
+        self._intercom_state_uuids = intercom_state_uuids(self.api.structure_file)
+        self.intercom_state_values.clear()
 
         return None
+
+    def update_intercom_states(self, message: dict) -> None:
+        """Cache public feedback for entities enabled after the initial push."""
+        self.intercom_state_values.update(
+            (uuid, value) for uuid, value in message.items()
+            if uuid in self._intercom_state_uuids
+        )
 
     def owns_uuid(self, uuid: str) -> bool:
         """Return True if ``uuid`` is a control or subcontrol of this Miniserver.
@@ -182,6 +197,8 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         for good invalidates it on the Miniserver (see
         ``async_remove_entry`` in ``__init__.py``).
         """
+        if getattr(self, "intercom_tokens", None) is not None:
+            await self.intercom_tokens.async_close()
         if hasattr(self, "listeners"):
             # Clean up all event listeners. One bad unsubscribe must
             # not prevent the rest (or api.close() below) from running.

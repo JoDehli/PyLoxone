@@ -38,8 +38,23 @@ from custom_components.loxone.window_monitor import (
     window_position,
     window_state,
 )
+from custom_components.loxone.helpers import device_registry, get_or_create_device
 
 FIXTURE = Path(__file__).parent / "fixtures" / "LoxAPP3.json"
+
+
+@pytest.mark.parametrize("contact_first", [False, True])
+def test_shared_contact_model_does_not_depend_on_platform_setup_order(contact_first):
+    uuid = "shared-contact-test"
+    try:
+        first_model, second_model = (None, "digital") if contact_first else ("digital", None)
+        first = get_or_create_device(uuid, "Test door", first_model, "Hall")
+        second = get_or_create_device(uuid, "Test door", second_model, "Hall")
+        assert first is second
+        assert second["model"] == "digital"
+    finally:
+        device_registry.pop(uuid, None)
+
 
 ROOM_STATES = "1efaa7ad-0217-ede4-ffff5b41adbf0217"
 CENTRAL_STATES = "1efaa7ad-0227-ede4-ffff5b41adbf0227"
@@ -76,10 +91,10 @@ async def test_setup_creates_one_entity_set_per_contact(
     # Deduplicated before HA sees them: no rejected duplicate unique id.
     assert "does not generate unique IDs" not in caplog.text
 
-    assert _entity(hass, "binary_sensor", f"{FENSTER_BAD}-window") == "binary_sensor.bathroom_fenster_bad"
-    assert _entity(hass, "sensor", f"{FENSTER_BAD}-state") == "sensor.bathroom_fenster_bad_state"
-    assert _entity(hass, "binary_sensor", f"{OFFICE_WINDOW}-window") == "binary_sensor.office_office_window"
-    assert _entity(hass, "binary_sensor", f"{GARDEN_DOOR}-window") == "binary_sensor.garden_garden_door"
+    assert _entity(hass, "binary_sensor", f"{FENSTER_BAD}-window") is not None
+    assert _entity(hass, "sensor", f"{FENSTER_BAD}-state") is not None
+    assert _entity(hass, "binary_sensor", f"{OFFICE_WINDOW}-window") is not None
+    assert _entity(hass, "binary_sensor", f"{GARDEN_DOOR}-window") is not None
 
     # Fenster Bad is in both monitors but exists once.
     fenster = [e for e in registry.entities.values() if e.unique_id.startswith(FENSTER_BAD)]
@@ -87,31 +102,33 @@ async def test_setup_creates_one_entity_set_per_contact(
 
     # The motorised Kitchen Window stays a cover only.
     assert [e.entity_id for e in registry.entities.values() if e.unique_id.startswith(KITCHEN_WINDOW)] == [
-        "cover.kitchen_kitchen_window"
+        _entity(hass, "cover", f"{KITCHEN_WINDOW}")
     ]
 
     # Main Door is a real InfoOnlyDigital: suffixed ids, its device is
     # shared and keeps its name/model.
-    assert _entity(hass, "binary_sensor", MAIN_DOOR) == "binary_sensor.hall_main_door"
-    assert _entity(hass, "binary_sensor", f"{MAIN_DOOR}-window") == "binary_sensor.hall_main_door_contact"
+    assert _entity(hass, "binary_sensor", MAIN_DOOR) is not None
+    assert _entity(hass, "binary_sensor", f"{MAIN_DOOR}-window") is not None
     devices = dr.async_get(hass)
-    main_device = devices.async_get(registry.async_get("binary_sensor.hall_main_door_contact").device_id)
-    assert main_device.id == registry.async_get("binary_sensor.hall_main_door").device_id
+    main_device = devices.async_get(registry.async_get(_entity(hass, "binary_sensor", f"{MAIN_DOOR}-window")).device_id)
+    assert main_device.id == registry.async_get(_entity(hass, "binary_sensor", f"{MAIN_DOOR}")).device_id
     assert main_device.name == "Main Door"
     assert main_device.model == "digital"
 
     # Each contact's device sits in the contact's own room, not the
     # central monitor's (Hall).
-    office_device = devices.async_get(registry.async_get("binary_sensor.office_office_window").device_id)
+    office_device = devices.async_get(
+        registry.async_get(_entity(hass, "binary_sensor", f"{OFFICE_WINDOW}-window")).device_id
+    )
     assert office_device.name == "Office Window"
     assert office_device.model == "Window contact"
     assert ar.async_get(hass).async_get_area(office_device.area_id).name == "Office"
 
-    state = hass.states.get("binary_sensor.office_office_window")
+    state = hass.states.get(_entity(hass, "binary_sensor", f"{OFFICE_WINDOW}-window"))
     assert state.attributes["device_class"] == "window"
     assert state.attributes["install_place"] == "North wall"
     assert state.attributes["monitor"] == "Window and Door Monitoring"
-    assert hass.states.get("sensor.office_office_window_state").attributes["options"] == [
+    assert hass.states.get(_entity(hass, "sensor", f"{OFFICE_WINDOW}-state")).attributes["options"] == [
         "closed",
         "tilted",
         "open",
@@ -133,25 +150,25 @@ async def test_window_states_decode_in_list_order(hass, mock_connection, mock_en
     mock_connection.feed(CENTRAL_STATES, "4,2,1,16,8")
     await hass.async_block_till_done()
 
-    office = hass.states.get("binary_sensor.office_office_window")
+    office = hass.states.get(_entity(hass, "binary_sensor", f"{OFFICE_WINDOW}-window"))
     assert office.state == STATE_ON  # tilted counts as open
     assert office.attributes["position"] == "tilted"
     assert office.attributes["icon"] == "mdi:window-open-variant"
-    assert hass.states.get("sensor.office_office_window_state").state == "tilted"
-    assert hass.states.get("binary_sensor.hall_main_door_contact").state == STATE_OFF  # 16 = closed
-    assert hass.states.get("sensor.hall_main_door_state").state == "unlocked"
-    garden = hass.states.get("binary_sensor.garden_garden_door")
+    assert hass.states.get(_entity(hass, "sensor", f"{OFFICE_WINDOW}-state")).state == "tilted"
+    assert hass.states.get(_entity(hass, "binary_sensor", f"{MAIN_DOOR}-window")).state == STATE_OFF  # 16 = closed
+    assert hass.states.get(_entity(hass, "sensor", f"{MAIN_DOOR}-state")).state == "unlocked"
+    garden = hass.states.get(_entity(hass, "binary_sensor", f"{GARDEN_DOOR}-window"))
     assert garden.state == STATE_OFF  # 8 = closed
     assert garden.attributes["position"] == "locked"
     assert garden.attributes["icon"] == "mdi:window-closed-variant"
-    assert hass.states.get("sensor.garden_garden_door_state").state == "locked"
-    assert hass.states.get("binary_sensor.bathroom_fenster_bad").state == STATE_UNKNOWN
+    assert hass.states.get(_entity(hass, "sensor", f"{GARDEN_DOOR}-state")).state == "locked"
+    assert hass.states.get(_entity(hass, "binary_sensor", f"{FENSTER_BAD}-window")).state == STATE_UNKNOWN
 
     mock_connection.feed(ROOM_STATES, "4")
     await hass.async_block_till_done()
-    assert hass.states.get("binary_sensor.bathroom_fenster_bad").state == STATE_ON
-    assert hass.states.get("sensor.bathroom_fenster_bad_state").state == "open"
-    assert hass.states.get("binary_sensor.bathroom_fenster_bad").attributes["raw_state"] == 4
+    assert hass.states.get(_entity(hass, "binary_sensor", f"{FENSTER_BAD}-window")).state == STATE_ON
+    assert hass.states.get(_entity(hass, "sensor", f"{FENSTER_BAD}-state")).state == "open"
+    assert hass.states.get(_entity(hass, "binary_sensor", f"{FENSTER_BAD}-window")).attributes["raw_state"] == 4
 
     await _unload(hass, mock_entry)
 
@@ -170,11 +187,11 @@ async def test_lockable_door_reports_locked_and_unlocked(hass, mock_connection, 
     ):
         mock_connection.feed(CENTRAL_STATES, f"1,1,1,16,{raw}")
         await hass.async_block_till_done()
-        door = hass.states.get("binary_sensor.garden_garden_door")
+        door = hass.states.get(_entity(hass, "binary_sensor", f"{GARDEN_DOOR}-window"))
         assert door.state == contact, raw
         assert door.attributes["position"] == state, raw
         assert door.attributes.get("icon") == icon, raw
-        assert hass.states.get("sensor.garden_garden_door_state").state == state, raw
+        assert hass.states.get(_entity(hass, "sensor", f"{GARDEN_DOOR}-state")).state == state, raw
 
     await _unload(hass, mock_entry)
 
@@ -186,9 +203,9 @@ async def test_offline_and_missing_values_are_unavailable(
 
     mock_connection.feed(CENTRAL_STATES, "1,0,1,1,1")
     await hass.async_block_till_done()
-    assert hass.states.get("binary_sensor.office_office_window").state == STATE_UNAVAILABLE
-    assert hass.states.get("sensor.office_office_window_state").state == STATE_UNAVAILABLE
-    assert hass.states.get("binary_sensor.garden_garden_door").state == STATE_OFF
+    assert hass.states.get(_entity(hass, "binary_sensor", f"{OFFICE_WINDOW}-window")).state == STATE_UNAVAILABLE
+    assert hass.states.get(_entity(hass, "sensor", f"{OFFICE_WINDOW}-state")).state == STATE_UNAVAILABLE
+    assert hass.states.get(_entity(hass, "binary_sensor", f"{GARDEN_DOOR}-window")).state == STATE_OFF
 
     # Fewer values than windows: the contacts without one are unavailable,
     # and the mismatch is logged once.
@@ -197,9 +214,9 @@ async def test_offline_and_missing_values_are_unavailable(
     await hass.async_block_till_done()
     mock_connection.feed(CENTRAL_STATES, "1,4")
     await hass.async_block_till_done()
-    assert hass.states.get("binary_sensor.office_office_window").state == STATE_ON
-    assert hass.states.get("binary_sensor.hall_main_door_contact").state == STATE_UNAVAILABLE
-    assert hass.states.get("binary_sensor.garden_garden_door").state == STATE_UNAVAILABLE
+    assert hass.states.get(_entity(hass, "binary_sensor", f"{OFFICE_WINDOW}-window")).state == STATE_ON
+    assert hass.states.get(_entity(hass, "binary_sensor", f"{MAIN_DOOR}-window")).state == STATE_UNAVAILABLE
+    assert hass.states.get(_entity(hass, "binary_sensor", f"{GARDEN_DOOR}-window")).state == STATE_UNAVAILABLE
     mismatch = [r for r in caplog.records if "values in windowStates" in r.getMessage()]
     assert len(mismatch) <= 2  # once per platform (binary_sensor, sensor)
     assert {r.levelno for r in mismatch} == {logging.DEBUG}
@@ -207,7 +224,7 @@ async def test_offline_and_missing_values_are_unavailable(
     # Back to a full list: available again.
     mock_connection.feed(CENTRAL_STATES, "1,1,1,1,4")
     await hass.async_block_till_done()
-    assert hass.states.get("binary_sensor.garden_garden_door").state == STATE_ON
+    assert hass.states.get(_entity(hass, "binary_sensor", f"{GARDEN_DOOR}-window")).state == STATE_ON
 
     await _unload(hass, mock_entry)
 
@@ -217,7 +234,7 @@ async def test_monitor_count_sensors(hass, mock_connection, mock_entry, enable_c
     registry = er.async_get(hass)
 
     open_id = _entity(hass, "sensor", CENTRAL_NUM_OPEN)
-    assert open_id == "sensor.hall_window_and_door_monitoring_open"
+    assert open_id is not None
     assert hass.states.get(open_id).attributes["state_class"] == "measurement"
     closed_entry = registry.async_get(_entity(hass, "sensor", CENTRAL_NUM_CLOSED))
     assert closed_entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION

@@ -5,6 +5,8 @@ For more details about this component, please refer to the documentation at
 https://github.com/JoDehli/PyLoxone
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import Enum
 import json

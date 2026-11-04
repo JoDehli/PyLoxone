@@ -8,6 +8,7 @@ https://github.com/JoDehli/PyLoxone
 from functools import cached_property
 import json
 import logging
+from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
@@ -21,6 +22,7 @@ from .const import SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
+from .intercom.entities import intercom_switches
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,6 +84,7 @@ async def async_setup_entry(
             if switch_entity.get("presence", None):
                 override_kwargs = {**switch_entity, "type": "PresenceDetectionSwitch"}
                 entities.append(LoxoneLightPresenceSwitch(**override_kwargs))
+    entities.extend(intercom_switches(hass, config_entry, loxconfig))
     async_add_entities(entities)
 
 

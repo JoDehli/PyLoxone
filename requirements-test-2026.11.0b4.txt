@@ -1,0 +1,6 @@
+-r requirements-test-common.txt
+pytest-homeassistant==2026.11.0b4
+PyTurboJPEG==1.8.3
+av==19.0.0
+numpy==2.3.2
+ha-ffmpeg==3.2.2

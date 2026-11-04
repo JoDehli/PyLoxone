@@ -1,0 +1,6 @@
+-r requirements-test-common.txt
+pytest-homeassistant-custom-component==0.13.214
+PyTurboJPEG==1.7.5
+av==13.1.0
+numpy==2.2.2
+ha-ffmpeg==3.2.2

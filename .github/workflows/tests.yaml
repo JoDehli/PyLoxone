@@ -1,0 +1,36 @@
+name: Home Assistant compatibility
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ha: "2025.2.4"
+            python: "3.13"
+          - ha: "2026.10.4"
+            python: "3.14"
+          - ha: "2026.11.0b4"
+            python: "3.14"
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Camera image library
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libturbojpeg0
+      - name: Full suite on HA ${{ matrix.ha }}
+        env:
+          LOXONE_TEST_HA: ${{ matrix.ha }}
+        run: ./scripts/test -q
