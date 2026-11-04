@@ -19,6 +19,7 @@ from .const import SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
+from .wallbox2 import build_numbers
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ async def async_setup_entry(
         new_number = LoxoneNumber(**number_entity)
         entities.append(new_number)
 
+    entities.extend(build_numbers(loxconfig))
     async_add_entities(entities)
 
 
