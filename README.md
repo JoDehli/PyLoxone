@@ -466,7 +466,7 @@ LOXONE_TEST_HA=2026.10.4 LOXONE_PYTHON=python3.14 ./scripts/test -q
 LOXONE_PYTHON=python3.14 ./scripts/test -q  # default: 2026.11.0b4
 ```
 
-Camera tests need the system TurboJPEG library (`libturbojpeg0` on Ubuntu,
+Camera tests need the system TurboJPEG library (`libturbojpeg` on Ubuntu 24.04,
 `jpeg-turbo` with Homebrew on macOS); the matching Python/media dependencies
 are included in each target's requirements. `LOXONE_TEST_VENV` can override the
 environment path. The runner rejects a mismatched HA version, Python version

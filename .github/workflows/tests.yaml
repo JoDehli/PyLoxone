@@ -29,7 +29,7 @@ jobs:
           cache: pip
           cache-dependency-path: requirements*.txt
       - name: Camera image library
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libturbojpeg0
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libturbojpeg
       - name: Full suite on HA ${{ matrix.ha }}
         env:
           LOXONE_TEST_HA: ${{ matrix.ha }}
