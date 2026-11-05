@@ -13,6 +13,7 @@ from homeassistant.const import (
     UnitOfVolumeFlowRate,
 )
 
+from custom_components.loxone.compat import UNIT_LITERS_PER_HOUR, UNIT_PARTS_PER_MILLION
 from custom_components.loxone.sensor import (
     SENSOR_TYPES,
     UNAMBIGUOUS_UNITS,
@@ -62,7 +63,7 @@ class TestSensorMatching:
         assert desc.device_class == SensorDeviceClass.ILLUMINANCE
 
     def test_carbon_dioxide_ppm(self):
-        desc = match_sensor_description(unit="ppm")
+        desc = match_sensor_description(unit=UNIT_PARTS_PER_MILLION)
         assert desc is not None
         assert desc.device_class == SensorDeviceClass.CO2
 
@@ -105,7 +106,7 @@ class TestSensorMatching:
         assert match_sensor_description(unit=UnitOfPower.WATT) is match_sensor_description(unit=UnitOfPower.KILO_WATT)
 
     def test_volume_flow_rate_liters_per_hour(self):
-        desc = match_sensor_description(unit="L/h")
+        desc = match_sensor_description(unit=UNIT_LITERS_PER_HOUR)
         assert desc is not None
         assert desc.device_class == SensorDeviceClass.VOLUME_FLOW_RATE
         assert desc.state_class == SensorStateClass.MEASUREMENT
@@ -113,7 +114,7 @@ class TestSensorMatching:
     def test_volume_flow_rate_same_description(self):
         """All flow rate units resolve to the same description."""
         assert (
-            match_sensor_description(unit="L/h")
+            match_sensor_description(unit=UNIT_LITERS_PER_HOUR)
             is match_sensor_description(unit=UnitOfVolumeFlowRate.LITERS_PER_MINUTE)
         )
 
@@ -185,7 +186,7 @@ class TestUnambiguousUnits:
         assert UnitOfTemperature.CELSIUS in UNAMBIGUOUS_UNITS
 
     def test_ppm_is_unambiguous(self):
-        assert "ppm" in UNAMBIGUOUS_UNITS
+        assert UNIT_PARTS_PER_MILLION in UNAMBIGUOUS_UNITS
 
     def test_percentage_is_not_unambiguous(self):
         """% is ambiguous (could be humidity or battery)."""
@@ -205,7 +206,7 @@ class TestUnambiguousUnits:
             assert u in UNAMBIGUOUS_UNITS
 
     def test_volume_flow_rate_units_are_unambiguous(self):
-        for u in ("L/h", UnitOfVolumeFlowRate.LITERS_PER_MINUTE):
+        for u in (UNIT_LITERS_PER_HOUR, UnitOfVolumeFlowRate.LITERS_PER_MINUTE):
             assert u in UNAMBIGUOUS_UNITS
 
     def test_water_units_are_unambiguous(self):

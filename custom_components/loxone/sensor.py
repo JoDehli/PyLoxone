@@ -32,6 +32,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util
 
 from . import LoxoneEntity, MiniServer
+from .compat import UNIT_LITERS_PER_HOUR, UNIT_PARTS_PER_MILLION
 from .const import CLIMATE_EVENT, CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
                       get_or_create_device)
@@ -129,7 +130,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="volume_flow_rate",
         loxone_format_strings=(
-            "L/h",
+            UNIT_LITERS_PER_HOUR,
             UnitOfVolumeFlowRate.LITERS_PER_MINUTE,
         ),
         state_class=SensorStateClass.MEASUREMENT,
@@ -149,7 +150,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     ),
     LoxoneEntityDescription(
         key="carbon_dioxide",
-        loxone_format_strings=("ppm",),
+        loxone_format_strings=(UNIT_PARTS_PER_MILLION,),
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.CO2,
     ),

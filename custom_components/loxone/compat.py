@@ -1,11 +1,22 @@
-"""Home Assistant feature boundaries shared by platform setup and unload."""
+"""Home Assistant compatibility for units and optional camera features."""
 
 from importlib import import_module
+from typing import Final
 
+from homeassistant import const as ha_const
 from homeassistant.const import MAJOR_VERSION, MINOR_VERSION, Platform
 from homeassistant.helpers.device_registry import DeviceRegistry
 
 from .const import LOXONE_PLATFORMS
+
+# HA 2025.2 lacks the hourly flow member and ratio enum. Keep their fallbacks
+# here so sensor definitions use named units and newer HA keeps its native enums.
+UNIT_LITERS_PER_HOUR: Final[str] = getattr(ha_const.UnitOfVolumeFlowRate, "LITERS_PER_HOUR", "L/h")
+UNIT_PARTS_PER_MILLION: Final[str] = (
+    ha_const.UnitOfRatio.PARTS_PER_MILLION
+    if hasattr(ha_const, "UnitOfRatio")
+    else ha_const.CONCENTRATION_PARTS_PER_MILLION
+)
 
 
 def supports_intercom() -> bool:
