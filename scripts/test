@@ -1,49 +1,56 @@
 #!/usr/bin/env bash
-#
-# Run the Loxone integration test suite.
-#
-# The tests live in their own virtualenv (``.venv-test``) and NOT in
-# ``.venv``: ``.venv`` doubles as the local Home Assistant runtime
-# (for connecting a live Miniserver), and the test requirements pin
-# Home Assistant via ``pytest-homeassistant-custom-component``. Sharing
-# one environment means the next HA upgrade silently reintroduces the
-# pinned version — or, when HA was upgraded in between, breaks the test
-# run with a missing pytest.
-#
-# The venv is created on first use. To recreate it from scratch:
-#   rm -rf .venv-test && ./scripts/test
-#
-# Extra arguments are passed to pytest, e.g.:
-#   ./scripts/test -q
-#   ./scripts/test tests/test_connection_unit.py -k watchdog -x
-#   ./scripts/test --collect-only
-
+# Run one pinned HA target in its own virtualenv, separate from the live runtime.
+# LOXONE_TEST_HA=2025.2.4 LOXONE_PYTHON=python3.13 ./scripts/test -q
+# LOXONE_TEST_HA=2026.10.4 LOXONE_PYTHON=python3.14 ./scripts/test -q
+# ./scripts/test -q  # defaults to the verified 2026.11 beta
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 REPO_ROOT="$PWD"
-TEST_VENV="${LOXONE_TEST_VENV:-$REPO_ROOT/.venv-test}"
+TEST_HA="${LOXONE_TEST_HA:-2026.11.0b4}"
+case "$TEST_HA" in
+    2025.2.4) TEST_PLUGIN="pytest-homeassistant-custom-component"; TEST_PLUGIN_VERSION="0.13.214"; TEST_PYTHON="3.13" ;;
+    2026.10.4) TEST_PLUGIN="pytest-homeassistant-custom-component"; TEST_PLUGIN_VERSION="0.13.375"; TEST_PYTHON="3.14" ;;
+    2026.11.0b4) TEST_PLUGIN="pytest-homeassistant"; TEST_PLUGIN_VERSION="2026.11.0b4"; TEST_PYTHON="3.14" ;;
+    *) echo "Unsupported LOXONE_TEST_HA: $TEST_HA" >&2; exit 1 ;;
+esac
+TEST_VENV="${LOXONE_TEST_VENV:-$REPO_ROOT/.venv-test-$TEST_HA}"
 PYTHON="${LOXONE_PYTHON:-python3}"
 
 if [ ! -x "$TEST_VENV/bin/python" ]; then
-    echo "Creating test virtualenv at $TEST_VENV ..."
+    "$PYTHON" - "$TEST_PYTHON" <<'PY'
+import sys
+expected = tuple(map(int, sys.argv[1].split('.')))
+if sys.version_info[:2] != expected or (expected == (3, 14) and sys.version_info[:3] < (3, 14, 2)):
+    raise SystemExit(f"This target needs Python {sys.argv[1]}" + (".2+" if expected == (3, 14) else "") + "; set LOXONE_PYTHON accordingly.")
+PY
+    echo "Creating isolated HA $TEST_HA test environment at $TEST_VENV ..."
     "$PYTHON" -m venv "$TEST_VENV"
     "$TEST_VENV/bin/python" -m pip install --quiet --upgrade pip
-    "$TEST_VENV/bin/python" -m pip install --quiet \
-        -r requirements.txt -r requirements-dev.txt
-    echo "Test virtualenv ready."
+    "$TEST_VENV/bin/python" -m pip install --quiet -r requirements.txt -r "requirements-test-$TEST_HA.txt"
 fi
 
-if ! "$TEST_VENV/bin/python" -c "import pytest" >/dev/null 2>&1; then
-    cat >&2 <<'MSG'
-ERROR: pytest is not importable in the test virtualenv.
+"$TEST_VENV/bin/python" - "$TEST_HA" "$TEST_PLUGIN" "$TEST_PLUGIN_VERSION" "$TEST_PYTHON" <<'PY'
+from importlib import metadata
+import sys
 
-The test dependencies are missing (usually because the venv was created
-for a different purpose). Recreate it:
-
-    rm -rf .venv-test && ./scripts/test
-MSG
-    exit 1
-fi
-
+ha, plugin, plugin_version, python = sys.argv[1:]
+other = 'pytest-homeassistant' if plugin.endswith('custom-component') else 'pytest-homeassistant-custom-component'
+try:
+    assert metadata.version('homeassistant') == ha, 'Home Assistant version mismatch'
+    assert metadata.version(plugin) == plugin_version, 'Test-plugin version mismatch'
+    metadata.version('pytest')
+    try:
+        metadata.version(other)
+    except metadata.PackageNotFoundError:
+        pass
+    else:
+        raise AssertionError('Both HA test plugins are installed')
+    assert sys.version_info[:2] == tuple(map(int, python.split('.'))), 'Python version mismatch'
+    assert python != '3.14' or sys.version_info[:3] >= (3, 14, 2), 'Python 3.14.2+ is required'
+    from homeassistant.const import __version__
+    assert __version__ == ha, 'A different Home Assistant installation is shadowing this environment'
+except (AssertionError, metadata.PackageNotFoundError) as error:
+    raise SystemExit(f'Invalid test environment: {error}. Use a fresh LOXONE_TEST_VENV for HA {ha}.') from None
+PY
 exec "$TEST_VENV/bin/python" -m pytest "$@"

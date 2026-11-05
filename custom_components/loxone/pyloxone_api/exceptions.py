@@ -106,3 +106,11 @@ class MessageError(Exception):
     """Error from ms.error event."""
 
     pass
+
+
+class IntercomTokenError(RuntimeError):
+    """A dedicated token request failed without changing main-session auth."""
+
+    def __init__(self, message: str, code: int | None = None) -> None:
+        super().__init__(message)
+        self.code = code

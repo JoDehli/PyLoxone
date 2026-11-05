@@ -8,6 +8,7 @@ https://github.com/JoDehli/pyloxone-api
 import asyncio
 import datetime
 import hashlib
+import hmac
 import inspect
 import json
 import logging
@@ -46,7 +47,7 @@ from .const import (AES_KEY_SIZE, CMD_AUTH_WITH_TOKEN, CMD_ENABLE_UPDATES,
                     SECURED_COMMAND_TIMEOUT, TIMEOUT,
                     TOKEN_PERMISSION, TOKEN_REFRESH_MAX_FAILURES,
                     WEBSOCKET_CLOSE_TIMEOUT, WEBSOCKET_READ_TIMEOUT)
-from .exceptions import (LoxoneAuthEscalatedError,
+from .exceptions import (IntercomTokenError, LoxoneAuthEscalatedError,
                          LoxoneConnectionClosedOk, LoxoneConnectionError,
                          LoxoneException, LoxoneMaxNumOfConnectionsError,
                          LoxoneOutOfServiceException,
@@ -386,6 +387,8 @@ class LoxoneBaseConnection:
         self._token_refresh_lock = asyncio.Lock()
         self._token_refresh_event: asyncio.Event = asyncio.Event()
         self._token_refresh_error: Exception | None = None
+        self._intercom_reply: tuple[str, asyncio.Future] | None = None
+        self._intercom_abandoned: set[str] = set()
 
         # Monotonic timestamp of the last inbound websocket frame.
         # Drives the receive watchdog in ``keep_alive()``: the
@@ -847,6 +850,8 @@ class LoxoneBaseConnection:
                 raise LoxoneConnectionClosedOk(
                     "Connection closed before token refresh started"
                 )
+            if not self._authenticated_event.is_set():
+                raise LoxoneTokenError("Connection is awaiting authentication")
 
             old_key = self._key
             key_updated_event = asyncio.Event()
@@ -876,6 +881,88 @@ class LoxoneBaseConnection:
             finally:
                 if self._key_update_event is key_updated_event:
                     self._key_update_event = None
+
+    async def async_intercom_token(self, client_id: str, token: str | None = None, *, revoke: bool = False) -> dict:
+        """Issue/refresh/revoke a permission-0 token on the encrypted connection.
+
+        The protocol has no request IDs. Share the main refresh lock, and
+        intercept these replies before the main authentication handlers.
+        Gen 2 supports raw JWTs in encrypted refresh/kill commands (11.2+).
+        """
+        async with self._token_refresh_lock:
+            if (
+                not self._authenticated_event.is_set()
+                or not self.is_connected
+                or self._shutdown_event.is_set()
+                or self._closed
+            ):
+                raise IntercomTokenError("Miniserver connection is not authenticated")
+            if self.miniserver_version < [11, 2]:
+                raise IntercomTokenError("Dedicated Intercom tokens require Miniserver 11.2 or newer")
+            if token:
+                method = "killtoken" if revoke else "refreshjwt"
+                return await self._request_intercom_command(f"jdev/sys/{method}/{token}/{self._encoded_username}")
+            if revoke:
+                return {}
+            key = await self._request_intercom_command(f"jdev/sys/getkey2/{self._encoded_username}")
+            try:
+                algorithm = {"SHA1": hashlib.sha1, "SHA256": hashlib.sha256}[key.get("hashAlg", "SHA1")]
+                password_hash = algorithm((self.password + ":" + key["salt"]).encode()).hexdigest().upper()
+                digest = hmac.new(
+                    bytes.fromhex(key["key"]), (self.username + ":" + password_hash).encode(), algorithm
+                ).hexdigest()
+            except (KeyError, TypeError, ValueError) as error:
+                raise IntercomTokenError("Invalid Miniserver authentication challenge") from error
+            return await self._request_intercom_command(
+                f"jdev/sys/getjwt/{digest}/{self._encoded_username}/0/{client_id}/PyLoxone%20Intercom"
+            )
+
+    async def _request_intercom_command(self, command: str, timeout: float = 15.0) -> dict:
+        """Await one encrypted response without exposing commands in exceptions."""
+        method = command.split("/")[2]
+        future = asyncio.get_running_loop().create_future()
+        self._intercom_reply = (method, future)
+        try:
+            async with asyncio.timeout(timeout):
+                await self._send_text_command(command, encrypted=True)
+                return await future
+        except (
+            TimeoutError,
+            asyncio.CancelledError,
+        ):
+            # A late, uncorrelated getjwt/refresh reply must never reach the
+            # main token handler. Reconnect before allowing another auth RPC.
+            self._intercom_abandoned.add(method)
+            self._authenticated_event.clear()
+            self._reconnect_event.set()
+            raise
+        except IntercomTokenError:
+            raise
+        except Exception as error:
+            self._intercom_abandoned.add(method)
+            self._authenticated_event.clear()
+            self._reconnect_event.set()
+            raise IntercomTokenError("Intercom token transport failed") from error
+        finally:
+            self._intercom_reply = None
+
+    def _handle_intercom_reply(self, message: TextMessage) -> bool:
+        """Route dedicated token replies independently of main-session auth."""
+        control = message.control.decode() if isinstance(message.control, bytes) else message.control
+        control = control.removeprefix("jdev/").removeprefix("dev/")
+        parts = control.split("/")
+        method = parts[1] if len(parts) > 1 and parts[0] == "sys" else ""
+        if method in self._intercom_abandoned:
+            return True
+        if self._intercom_reply is None or method != self._intercom_reply[0]:
+            return False
+        future = self._intercom_reply[1]
+        if not future.done():
+            if message.code != 200:
+                future.set_exception(IntercomTokenError("Miniserver rejected the Intercom token request", message.code))
+            else:
+                future.set_result(message.value_as_dict)
+        return True
 
     def _signal_token_changed(self) -> None:
         """Notify the integration that the token has changed.
@@ -2432,6 +2519,7 @@ class LoxoneConnection(LoxoneBaseConnection):
         returns; the Miniserver closes a websocket that is not
         authenticated within a few seconds (issue #527).
         """
+        self._intercom_abandoned.clear()
         # generate first salt
         try:
             self._generate_salt()
@@ -2588,6 +2676,9 @@ class LoxoneConnection(LoxoneBaseConnection):
 
         _LOGGER.debug("Closing connection...")
         self._closed = True
+        if self._intercom_reply is not None and not self._intercom_reply[1].done():
+            self._intercom_abandoned.add(self._intercom_reply[0])
+            self._intercom_reply[1].set_exception(IntercomTokenError("Miniserver connection closed"))
         # A reconnect after this close re-runs the full ``open()``
         # bootstrap, as before the websocket could be deferred.
         self._websocket_deferred = False
@@ -2918,6 +3009,9 @@ class LoxoneConnection(LoxoneBaseConnection):
                 except Exception as e:
                     _LOGGER.error(f"Failed to decrypt control message: {e}")
                     return
+
+            if isinstance(mess_obj, TextMessage) and self._handle_intercom_reply(mess_obj):
+                return
 
             # Handle key exchange
             if isinstance(mess_obj, TextMessage) and "keyexchange" in mess_obj.message:

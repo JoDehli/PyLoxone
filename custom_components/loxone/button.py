@@ -21,6 +21,7 @@ from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN
 from .helpers import add_room_and_cat_to_value_values, get_all
 from .miniserver import get_miniserver_from_hass
+from .intercom.entities import intercom_buttons
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ async def async_setup_entry(
         button_entity = add_room_and_cat_to_value_values(loxconfig, button_entity)
         entities.append(LoxoneButton(**button_entity))
 
+    entities.extend(intercom_buttons(hass, config_entry, loxconfig, async_add_entities))
     async_add_entities(entities)
 
 

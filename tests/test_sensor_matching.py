@@ -7,13 +7,13 @@ from homeassistant.const import (
     PERCENTAGE,
     UnitOfEnergy,
     UnitOfPower,
-    UnitOfRatio,
     UnitOfSpeed,
     UnitOfTemperature,
     UnitOfVolume,
     UnitOfVolumeFlowRate,
 )
 
+from custom_components.loxone.compat import UNIT_LITERS_PER_HOUR, UNIT_PARTS_PER_MILLION
 from custom_components.loxone.sensor import (
     SENSOR_TYPES,
     UNAMBIGUOUS_UNITS,
@@ -63,7 +63,7 @@ class TestSensorMatching:
         assert desc.device_class == SensorDeviceClass.ILLUMINANCE
 
     def test_carbon_dioxide_ppm(self):
-        desc = match_sensor_description(unit=UnitOfRatio.PARTS_PER_MILLION)
+        desc = match_sensor_description(unit=UNIT_PARTS_PER_MILLION)
         assert desc is not None
         assert desc.device_class == SensorDeviceClass.CO2
 
@@ -106,7 +106,7 @@ class TestSensorMatching:
         assert match_sensor_description(unit=UnitOfPower.WATT) is match_sensor_description(unit=UnitOfPower.KILO_WATT)
 
     def test_volume_flow_rate_liters_per_hour(self):
-        desc = match_sensor_description(unit=UnitOfVolumeFlowRate.LITERS_PER_HOUR)
+        desc = match_sensor_description(unit=UNIT_LITERS_PER_HOUR)
         assert desc is not None
         assert desc.device_class == SensorDeviceClass.VOLUME_FLOW_RATE
         assert desc.state_class == SensorStateClass.MEASUREMENT
@@ -114,7 +114,7 @@ class TestSensorMatching:
     def test_volume_flow_rate_same_description(self):
         """All flow rate units resolve to the same description."""
         assert (
-            match_sensor_description(unit=UnitOfVolumeFlowRate.LITERS_PER_HOUR)
+            match_sensor_description(unit=UNIT_LITERS_PER_HOUR)
             is match_sensor_description(unit=UnitOfVolumeFlowRate.LITERS_PER_MINUTE)
         )
 
@@ -186,7 +186,7 @@ class TestUnambiguousUnits:
         assert UnitOfTemperature.CELSIUS in UNAMBIGUOUS_UNITS
 
     def test_ppm_is_unambiguous(self):
-        assert UnitOfRatio.PARTS_PER_MILLION in UNAMBIGUOUS_UNITS
+        assert UNIT_PARTS_PER_MILLION in UNAMBIGUOUS_UNITS
 
     def test_percentage_is_not_unambiguous(self):
         """% is ambiguous (could be humidity or battery)."""
@@ -206,7 +206,7 @@ class TestUnambiguousUnits:
             assert u in UNAMBIGUOUS_UNITS
 
     def test_volume_flow_rate_units_are_unambiguous(self):
-        for u in (UnitOfVolumeFlowRate.LITERS_PER_HOUR, UnitOfVolumeFlowRate.LITERS_PER_MINUTE):
+        for u in (UNIT_LITERS_PER_HOUR, UnitOfVolumeFlowRate.LITERS_PER_MINUTE):
             assert u in UNAMBIGUOUS_UNITS
 
     def test_water_units_are_unambiguous(self):
@@ -240,14 +240,14 @@ class TestUnitExtraction:
         assert clean_unit("%.0f Lx") == "Lx"
 
     def test_extract_ppm(self):
-        assert clean_unit("%.0f ppm") == UnitOfRatio.PARTS_PER_MILLION
+        assert clean_unit("%.0f ppm") == "ppm"
 
     def test_extract_bare_format(self):
         """Format string without a unit returns the cleaned string."""
         assert clean_unit("%.1f") == ""
 
     def test_extract_liters_per_hour(self):
-        assert clean_unit("%.3f L/h") == UnitOfVolumeFlowRate.LITERS_PER_HOUR
+        assert clean_unit("%.3f L/h") == "L/h"
 
     def test_extract_liters_no_space(self):
         """Loxone totalFormat often omits the space: '%.1fL'."""

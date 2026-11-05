@@ -35,9 +35,10 @@ from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
                     CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL, DEFAULT,
                     DEFAULT_DELAY_SCENE, DEFAULT_PORT, DEFAULT_VERIFY_SSL,
-                    DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT, LOXONE_PLATFORMS,
+                    DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT,
                     SECUREDSENDDOMAIN, SENDDOMAIN, SERVICE_REFRESH_TOKEN, cfmt)
 from .coordinator import LoxoneCoordinator
+from .compat import entry_platforms
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
 from .pyloxone_api.connection import LoxoneConnection
@@ -111,6 +112,11 @@ async def _async_handle_refresh_token(hass: HomeAssistant, call) -> None:
 def connection_state_signal(entry_id: str) -> str:
     """Dispatcher signal sent when the entry's connection goes up or down."""
     return f"{DOMAIN}_connection_state_{entry_id}"
+
+
+def state_update_signal(entry_id: str) -> str:
+    """Dispatcher signal carrying state values from exactly one Miniserver."""
+    return f"{DOMAIN}_state_update_{entry_id}"
 
 
 def _async_listen_once_until_unload(
@@ -254,6 +260,11 @@ async def async_remove_entry(hass, config_entry) -> None:
     connection is still open (e.g. a removal triggered from a
     config-flow retry while the entry is loaded).
     """
+    if getattr(config_entry, "data", {}).get("intercom_auth"):
+        from .intercom.tokens import async_remove_intercom_token
+
+        await async_remove_intercom_token(hass, config_entry)
+
     coordinator = None
     for co in getattr(hass.data.get(DOMAIN, {}), "values", lambda: [])():
         if (
@@ -324,7 +335,7 @@ async def async_unload_entry(hass, config_entry):
 
     # Unload
     unload_ok = await hass.config_entries.async_unload_platforms(
-        config_entry, LOXONE_PLATFORMS
+        config_entry, entry_platforms()
     )
     return unload_ok
 
@@ -538,7 +549,16 @@ async def async_setup_entry(hass, config_entry):
     # every ``async_setup_platform`` a second time with an empty config,
     # where they do nothing; YAML-defined custom sensors are loaded by
     # HA from YAML independently of this.
-    await hass.config_entries.async_forward_entry_setups(config_entry, LOXONE_PLATFORMS)
+    platforms = entry_platforms()
+    if Platform.CAMERA not in platforms and any(
+        isinstance(control, dict) and control.get("type") == "IntercomV2"
+        for control in (coordinator.miniserver.lox_config.json.get("controls") or {}).values()
+    ):
+        _LOGGER.info(
+            "Native Intercom cameras require Home Assistant 2026.11 or newer "
+            "with its camera APIs available; existing Loxone platforms remain available"
+        )
+    await hass.config_entries.async_forward_entry_setups(config_entry, platforms)
 
     async def _reload_after_delay(delay: float) -> None:
         await coordinator.api.close()
@@ -657,6 +677,8 @@ async def async_setup_entry(hass, config_entry):
         # must not be stringified unless DEBUG is enabled. G004 already
         # bans the f-string variant; do not "simplify" it back.
         _LOGGER.debug("%s", message)
+        coordinator.update_intercom_states(message)
+        async_dispatcher_send(hass, state_update_signal(config_entry.entry_id), message)
         hass.bus.async_fire(EVENT, message)
 
     async def loxone_discovered(event):
@@ -831,6 +853,8 @@ async def async_setup_entry(hass, config_entry):
         the change would only be written with the next value update.
         """
         coordinator.connection_available = state == "connected"
+        if not coordinator.connection_available:
+            coordinator.intercom_state_values.clear()
         _LOGGER.debug("Loxone connection state: %s", state)
         # Every loaded LoxoneEntity of this entry rewrites its state (see
         # ``LoxoneEntity.async_added_to_hass``). Previously one

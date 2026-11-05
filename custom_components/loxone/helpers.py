@@ -84,6 +84,10 @@ def get_or_create_device(device_uuid, device_name, device_type, device_room):
             "model": device_type,
             "suggested_area": device_room,
         }
+    elif device_registry[device_uuid]["model"] is None and device_type is not None:
+        # A shared WindowMonitor contact may register before its real control.
+        # Fill that missing metadata when the owning platform arrives later.
+        device_registry[device_uuid]["model"] = device_type
     return device_registry[device_uuid]
 
 

@@ -15,7 +15,10 @@ Home Assistant binding for Loxone.
 A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
 He really helped me a lot to with the new token based authentication. Thanks Pawel!!!
 
-#### This release works for the version 2024.1.0 and newer!!
+Minimum supported Home Assistant version: **2025.2.4**. Native Intercom Gen 2
+cameras require **2026.11+** and its two-way camera API. Older versions continue
+loading Loxone platforms, including Intercom sensors and controls, without
+native cameras or camera token timers.
 
 
 ## Config for the gen2 miniserver
@@ -55,6 +58,7 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - Switch, TimedSwitch and Pushbutton
 - Jalousie, Window and Gate
 - Intercom
+- Intercom Gen 2 (ringing, controls and diagnostics; camera on Home Assistant 2026.11+)
 - LightControllerV2
 - Alarm
 - Fan
@@ -67,6 +71,98 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 ## Known Limitations
 
 - Pushbuttons are stateless. They can not be used to reliably trigger automations. Use a Switch as a workaround and turn it off again in the Automation or in Loxone itself.
+
+## Intercom Gen 2 (experimental)
+
+### Sensors and controls
+
+Native local `IntercomV2` devices are discovered automatically through the
+existing PyLoxone entry. These entities work on every supported HA version:
+
+| Entity | Purpose |
+| --- | --- |
+| Ringing binary sensor | Tracks the bell's ringing state for dashboards and automations |
+| Mute doorbell switch | Mutes/unmutes the Loxone bell; state follows Miniserver feedback |
+| Dismiss ringing button | Stops the bell without starting a conversation |
+| Configured output buttons | Pulse the output subcontrols exposed by Loxone, such as a door release |
+| Play reply buttons | Play the voice replies configured in Loxone; each button shows its message as an attribute |
+| Online binary sensor | Reports whether the Intercom device is ready |
+| Device status sensor | Distinguishes unknown, online, rebooting and initializing states |
+| Firmware sensor | Optional diagnostic entity, disabled by default; firmware also appears in device information |
+
+Only available states and configured actions are exposed. Outputs must first be
+configured and visible to the account in Loxone; no door-release action is
+invented. An output pulse does not report whether a physical door is locked.
+PIN-protected outputs are not exposed as ordinary buttons; use the existing
+`loxone.event_secured_websocket_command` action with the required code. Locked
+controls cannot be operated through these buttons or the mute switch.
+
+Mute doorbell affects the Loxone bell, independently of the browser microphone.
+Reply buttons follow their configured slot, retaining identity when the text is
+edited. Removing a reply makes its button unavailable until that slot is used
+again. No voice reply or output is triggered automatically during discovery.
+
+For ringing notifications, use a state trigger from `off` to `on` on the Ringing
+sensor. The signal represents active ringing; repeated presses while it remains
+active do not imply separate button-press events.
+
+### Live camera
+
+On Home Assistant 2026.11 or newer, PyLoxone automatically creates a camera for
+each native `IntercomV2` device exposed to the configured Loxone account. Add or
+reload PyLoxone through **Settings → Devices & services**; no camera YAML,
+separate Intercom credentials, or token file is required. Earlier HA versions
+skip these cameras and continue loading the existing platforms.
+
+The camera uses the existing Miniserver connection for discovery and automatic
+issuance of a dedicated permission-0 Intercom token. Device and
+entity IDs use the Miniserver identity and Intercom UUID, so DHCP address
+changes preserve entity IDs, dashboard references and user customizations.
+The Intercom is grouped under its Miniserver and uses its Loxone room as the
+suggested area. It becomes available after the Miniserver reports a valid
+device address and online state. Disconnects close its media sessions.
+
+Open the camera's more-info dialog for live video and listening. Two-way audio
+also requires enabling the camera preview under **Settings → System → Labs**,
+HTTPS access to HA, and browser microphone permission. Chrome has been tested;
+embedded browsers may behave differently. Use a tile that opens more-info
+rather than keeping an audio stream running in a background dashboard card:
+the Intercom allows only one audio call at a time. PyLoxone does not interrupt
+another call to obtain the audio slot.
+
+This implementation supports local native Gen 2 devices. Trust connections,
+custom `IntercomV2` devices and snapshots are not supported. Testing has used
+Intercom firmware `17.00.06.01` and Miniserver `17.3.10.27`.
+See the [Intercom test record](docs/intercom-testing.md) for automated coverage,
+hardware checks and remaining limits.
+
+If negotiation stalls, PyLoxone reports a timeout and releases the session.
+Disconnects, device-ended calls and invalid signalling also close the affected
+session. A busy audio slot is reported without forcing another caller off.
+After the other call ends, close and reopen the camera to retry.
+
+### Intercom authentication
+
+PyLoxone requests a dedicated token when the camera is first opened, using the
+existing account credentials over its encrypted Miniserver connection. Permission
+`0` is intended for Intercom authentication; the main app token is never passed
+to the Intercom. Cameras belonging to the same entry share this dedicated token.
+
+The token and a stable client UUID are stored separately in HA's config entry,
+reused after reloads/restarts, and renewed automatically before expiry. Temporary
+network failures retry after one minute. A revoked token is replaced when the
+Miniserver rejects renewal or the Intercom rejects authentication; device
+authentication retries once. Rejected account credentials or permissions stop
+automatic retries, and users should check the existing PyLoxone account settings.
+
+Unload cancels renewal work and retains the token. Removing the integration
+attempts to revoke its dedicated token using a short-lived Miniserver connection;
+if the Miniserver is unreachable, the token expires naturally. Tokens are not
+exposed in camera state attributes, diagnostics, or the frontend.
+
+On the tested firmware, the Intercom still accepted an issued JWT immediately
+after Miniserver revocation. Revocation is therefore best effort and must not
+be relied on to immediately prevent new camera sessions or terminate a call.
 
 ## LightControllerV2 Sub-Controls
 
@@ -349,3 +445,36 @@ Here is a example of a Room Controller V2:
 
 
 
+
+## Development and compatibility tests
+
+The full test suite runs in CI against three pinned environments:
+
+| Home Assistant | Python | Test plugin |
+| --- | --- | --- |
+| 2025.2.4 | 3.13 | `pytest-homeassistant-custom-component==0.13.214` |
+| 2026.10.4 | 3.14.2+ | `pytest-homeassistant-custom-component==0.13.375` |
+| 2026.11.0b4 | 3.14.2+ | `pytest-homeassistant==2026.11.0b4` |
+
+The 2026.11 target uses HA's official test package. It must not be installed
+alongside the legacy custom-component test plugin. Each target gets its own
+`.venv-test-<version>`; the live HA runtime and its credentials stay separate.
+
+```sh
+LOXONE_TEST_HA=2025.2.4 LOXONE_PYTHON=python3.13 ./scripts/test -q
+LOXONE_TEST_HA=2026.10.4 LOXONE_PYTHON=python3.14 ./scripts/test -q
+LOXONE_PYTHON=python3.14 ./scripts/test -q  # default: 2026.11.0b4
+```
+
+Camera tests need the system TurboJPEG library (`libturbojpeg` on Ubuntu 24.04,
+`jpeg-turbo` with Homebrew on macOS); the matching Python/media dependencies
+are included in each target's requirements. `LOXONE_TEST_VENV` can override the
+environment path. The runner rejects a mismatched HA version, Python version
+or test plugin rather than silently running a different target.
+
+Python source and formatting target 3.13 so changes remain importable on the
+minimum HA version. Native camera tests are skipped on older HA targets;
+existing-platform, protocol, token and setup/reload/unload tests still run.
+Tests use synthetic Miniserver configuration and never need home credentials.
+The 2026.11 beta is an explicitly pinned development target, not an automatic
+upgrade of an installed HA instance.

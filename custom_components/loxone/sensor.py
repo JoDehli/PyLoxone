@@ -21,7 +21,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_DEVICE_CLASS, CONF_NAME,
                                  CONF_UNIT_OF_MEASUREMENT, CONF_VALUE_TEMPLATE,
                                  LIGHT_LUX, PERCENTAGE, STATE_UNKNOWN,
-                                 UnitOfEnergy, UnitOfPower, UnitOfRatio,
+                                 UnitOfEnergy, UnitOfPower,
                                  UnitOfSpeed, UnitOfTemperature, UnitOfVolume,
                                  UnitOfVolumeFlowRate)
 from homeassistant.core import HomeAssistant, callback
@@ -32,10 +32,12 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util
 
 from . import LoxoneEntity, MiniServer
+from .compat import UNIT_LITERS_PER_HOUR, UNIT_PARTS_PER_MILLION
 from .const import CLIMATE_EVENT, CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
+from .intercom.entities import intercom_sensors
 from .window_monitor import (LoxoneWindowPositionSensor,
                              window_contacts, window_monitor_controls,
                              window_monitor_count_sensors)
@@ -128,7 +130,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     LoxoneEntityDescription(
         key="volume_flow_rate",
         loxone_format_strings=(
-            UnitOfVolumeFlowRate.LITERS_PER_HOUR,
+            UNIT_LITERS_PER_HOUR,
             UnitOfVolumeFlowRate.LITERS_PER_MINUTE,
         ),
         state_class=SensorStateClass.MEASUREMENT,
@@ -148,7 +150,7 @@ SENSOR_TYPES: tuple[LoxoneEntityDescription, ...] = (
     ),
     LoxoneEntityDescription(
         key="carbon_dioxide",
-        loxone_format_strings=(UnitOfRatio.PARTS_PER_MILLION,),
+        loxone_format_strings=(UNIT_PARTS_PER_MILLION,),
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.CO2,
     ),
@@ -331,6 +333,7 @@ async def async_setup_entry(
         async_dispatcher_connect(hass, miniserver.async_signal_new_device(NEW_SENSOR), async_add_sensors)
     )
 
+    entities.extend(intercom_sensors(hass, config_entry, loxconfig))
     async_add_entities(entities, update_before_add=True)
 
 

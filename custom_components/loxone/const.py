@@ -25,6 +25,7 @@ LOXONE_PLATFORMS: Final[list[Platform]] = [
     Platform.SCENE,
     Platform.SELECT,
     Platform.TEXT,
+    Platform.CAMERA,
 ]
 
 LOXONE_DEFAULT_PORT = 8080
