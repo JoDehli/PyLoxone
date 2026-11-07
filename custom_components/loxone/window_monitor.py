@@ -51,6 +51,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, Sen
 from homeassistant.helpers.entity import EntityCategory
 
 from . import LoxoneEntity
+from .const import DOMAIN
 from .helpers import get_all, get_or_create_device, get_room_name_from_room_uuid
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,6 +82,12 @@ STATE_OPTIONS = [STATE_CLOSED, STATE_TILTED, STATE_OPEN, STATE_LOCKED, STATE_UNL
 STATE_ICONS: dict[str, str] = {
     STATE_TILTED: "mdi:window-open-variant",
     STATE_LOCKED: "mdi:window-closed-variant",
+}
+
+# Icons when the user switched the contact to a door ("Show as" in the entity
+# settings).  Other states keep Home Assistant's door default.
+DOOR_ICONS: dict[str, str] = {
+    STATE_LOCKED: "mdi:door-closed-lock",
 }
 
 # Control types that already become a cover with their own position state.
@@ -330,8 +337,19 @@ class _WindowContactEntity(LoxoneEntity):
     def __init__(self, contact: WindowContact, initial: list[int | None] | None = None) -> None:
         super().__init__(room=contact.room)
         self._contact = contact
-        model = None if contact.shared_device else "Window contact"
-        self._attr_device_info = get_or_create_device(contact.uuid, contact.name, model, contact.room)
+        if contact.shared_device:
+            # The contact's device belongs to its own control, which sets the
+            # model. Identify the device without a model: a model of None
+            # would overwrite the control's model, depending on which
+            # platform is set up first.
+            self._attr_device_info = {
+                "identifiers": {(DOMAIN, contact.uuid)},
+                "name": contact.name,
+                "manufacturer": "Loxone",
+                "suggested_area": contact.room,
+            }
+        else:
+            self._attr_device_info = get_or_create_device(contact.uuid, contact.name, "Window contact", contact.room)
         self._seen = False
         self._present = True
         self._value: int | None = None
@@ -410,9 +428,25 @@ class LoxoneWindowContactSensor(_WindowContactEntity, BinarySensorEntity):
 
     @property
     def icon(self) -> str | None:
-        """Own icon for tilted and locked; the device-class default otherwise."""
+        """
+        Own icon for tilted and locked; the device-class default otherwise.
+
+        A contact the user set to "door" (registry device class) gets the door
+        icons instead, so a locked door shows a lock rather than a window.
+        """
         state = window_state(self._value)
-        return STATE_ICONS.get(state) if state is not None else None
+        if state is None:
+            return None
+        if self._effective_device_class() == BinarySensorDeviceClass.DOOR:
+            return DOOR_ICONS.get(state)
+        return STATE_ICONS.get(state)
+
+    def _effective_device_class(self) -> str | None:
+        """The device class the user chose in HA, else the integration's own."""
+        entry = self.registry_entry
+        if entry is not None and entry.device_class:
+            return entry.device_class
+        return self.device_class
 
 
 class LoxoneWindowPositionSensor(_WindowContactEntity, SensorEntity):

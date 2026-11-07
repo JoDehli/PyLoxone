@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
@@ -40,6 +41,16 @@ from custom_components.loxone.window_monitor import (
 )
 
 FIXTURE = Path(__file__).parent / "fixtures" / "LoxAPP3.json"
+
+
+@pytest.fixture
+def loxapp3() -> dict:
+    """The WindowMonitor tests run on the repository's own structure file.
+
+    ``conftest.loxapp3`` is the synthetic harness file, which has no window
+    monitors.
+    """
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))
 
 ROOM_STATES = "1efaa7ad-0217-ede4-ffff5b41adbf0217"
 CENTRAL_STATES = "1efaa7ad-0227-ede4-ffff5b41adbf0227"
@@ -293,3 +304,25 @@ def test_contact_entities_have_a_name():
         MAIN_DOOR: ("Contact", "State"),
         GARDEN_DOOR: (None, "State"),
     }
+
+
+@pytest.mark.parametrize(
+    ("registry_device_class", "value", "icon"),
+    [
+        (None, 8, "mdi:window-closed-variant"),  # integration default: window
+        (None, 16, None),
+        ("window", 8, "mdi:window-closed-variant"),
+        ("door", 8, "mdi:door-closed-lock"),  # "Show as door" in HA
+        ("door", 16, None),
+        ("door", 4, None),
+        ("door", 2, None),  # tilted keeps the door default
+    ],
+)
+def test_icon_follows_the_effective_device_class(registry_device_class, value, icon):
+    contacts = window_contacts(json.loads(FIXTURE.read_text(encoding="utf-8")))
+    contact = next(c for c in contacts if c.uuid == GARDEN_DOOR)
+    entity = LoxoneWindowContactSensor(contact)
+    entity._apply([value] * (contact.index + 1))
+    if registry_device_class is not None:
+        entity.registry_entry = SimpleNamespace(device_class=registry_device_class)
+    assert entity.icon == icon
