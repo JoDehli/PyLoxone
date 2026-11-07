@@ -1,0 +1,75 @@
+name: PyLoxone Enhancement request
+description: Suggest a new feature or an improvement for the PyLoxone integration
+title: "[Enhancement]: "
+labels: [ "enhancement" ]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What do you want to do that you cannot do today, or what is hard to do? Describe the situation, not only the solution.
+      placeholder: I would like to ... because ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should it work? A new entity, a service, a changed behaviour, a new option?
+      placeholder: A clear and concise description of what you would like to happen.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the integration does this concern?
+      options:
+        - Entities (sensors, switches, lights, covers, ...)
+        - Services and automations
+        - Config flow and options
+        - Connection and reconnect
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: control-type
+    attributes:
+      label: Loxone control type
+      description: If the request is about a specific Loxone control (for example Jalousie, Intercom or WindowMonitor), name it. The control type is in the structure file.
+      placeholder: Jalousie, InfoOnlyDigital, ...
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have tried
+      description: Workarounds, templates or other integrations you use today.
+      placeholder: I currently solve it with ...
+    validations:
+      required: false
+  - type: textarea
+    id: loxone-version
+    attributes:
+      label: Firmware of your Miniserver
+      description: Which firmware version does your Miniserver use? Only if the request depends on it.
+      placeholder: Loxone Firmware
+    validations:
+      required: false
+  - type: textarea
+    id: pyloxone-version
+    attributes:
+      label: Version of PyLoxone
+      description: Which version of PyLoxone do you use?
+      placeholder: PyLoxone Version
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Screenshots, examples, links to the Loxone documentation. Please remove serial numbers, IP addresses and passwords.
+      placeholder: Anything else that helps.
+    validations:
+      required: false
