@@ -12,6 +12,7 @@ hass.py
 *.yaml
 !/.github/workflows/*.yaml
 !/.github/ISSUE_TEMPLATE/*.yaml
+!/.pre-commit-config.yaml
 
 *.yml
 !/.github/workflows/*.yml
