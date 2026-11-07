@@ -83,6 +83,12 @@ STATE_ICONS: dict[str, str] = {
     STATE_LOCKED: "mdi:window-closed-variant",
 }
 
+# Icons when the user switched the contact to a door ("Show as" in the entity
+# settings).  Other states keep Home Assistant's door default.
+DOOR_ICONS: dict[str, str] = {
+    STATE_LOCKED: "mdi:door-closed-lock",
+}
+
 # Control types that already become a cover with their own position state.
 COVER_CONTROL_TYPES = frozenset({"Jalousie", "Gate", "Window"})
 
@@ -410,9 +416,25 @@ class LoxoneWindowContactSensor(_WindowContactEntity, BinarySensorEntity):
 
     @property
     def icon(self) -> str | None:
-        """Own icon for tilted and locked; the device-class default otherwise."""
+        """
+        Own icon for tilted and locked; the device-class default otherwise.
+
+        A contact the user set to "door" (registry device class) gets the door
+        icons instead, so a locked door shows a lock rather than a window.
+        """
         state = window_state(self._value)
-        return STATE_ICONS.get(state) if state is not None else None
+        if state is None:
+            return None
+        if self._effective_device_class() == BinarySensorDeviceClass.DOOR:
+            return DOOR_ICONS.get(state)
+        return STATE_ICONS.get(state)
+
+    def _effective_device_class(self) -> str | None:
+        """The device class the user chose in HA, else the integration's own."""
+        entry = self.registry_entry
+        if entry is not None and entry.device_class:
+            return entry.device_class
+        return self.device_class
 
 
 class LoxoneWindowPositionSensor(_WindowContactEntity, SensorEntity):
