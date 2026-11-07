@@ -4,6 +4,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-python3 -m pip install --requirement requirements.txt
+# requirements-dev.txt provides the `hass` command (Home Assistant) used below.
+python3 -m pip install --requirement requirements.txt --requirement requirements-dev.txt
 
 hass --config "config" --script ensure_config
