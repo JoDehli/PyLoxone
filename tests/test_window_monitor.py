@@ -42,6 +42,16 @@ from custom_components.loxone.window_monitor import (
 
 FIXTURE = Path(__file__).parent / "fixtures" / "LoxAPP3.json"
 
+
+@pytest.fixture
+def loxapp3() -> dict:
+    """The WindowMonitor tests run on the repository's own structure file.
+
+    ``conftest.loxapp3`` is the synthetic harness file, which has no window
+    monitors.
+    """
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))
+
 ROOM_STATES = "1efaa7ad-0217-ede4-ffff5b41adbf0217"
 CENTRAL_STATES = "1efaa7ad-0227-ede4-ffff5b41adbf0227"
 CENTRAL_NUM_OPEN = "1efaa7ad-0221-edee-08ff5b41adbf0221"

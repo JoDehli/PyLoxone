@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The offline test suite: the integration inside the Home Assistant test
+  # harness against tests/fixtures/LoxAPP3.json, no Miniserver needed.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run tests
+        run: pytest -q
+
+  # Advisory for now: the tree is not yet `ruff format` clean and the
+  # `ruff check` backlog is large. Once scripts/lint has been run over the
+  # tree, drop the continue-on-error on the format step to make it blocking.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: pip install ruff==0.15.20
+      - name: ruff format --check (advisory)
+        continue-on-error: true
+        run: ruff format --check .
+      - name: ruff check (advisory)
+        continue-on-error: true
+        run: ruff check . --statistics
