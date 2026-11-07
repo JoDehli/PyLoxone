@@ -6,10 +6,13 @@
 # The lint rule set is a RATCHET: it only lists rule families that are already
 # clean in the whole tree. Add a family here once its existing violations are
 # fixed, never before. The full `select = ALL` pass from ruff.toml stays advisory.
+#
+# No ruff-format hook yet: formatting the tree would rewrite lines in open PRs
+# and cause merge conflicts. Add it after the open PRs are merged, together with
+# a one-off format commit listed in .git-blame-ignore-revs.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.20
     hooks:
       - id: ruff
         args: [--select, "E9,PLE,S307"]
-      - id: ruff-format
