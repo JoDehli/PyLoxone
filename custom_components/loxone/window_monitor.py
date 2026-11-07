@@ -51,6 +51,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, Sen
 from homeassistant.helpers.entity import EntityCategory
 
 from . import LoxoneEntity
+from .const import DOMAIN
 from .helpers import get_all, get_or_create_device, get_room_name_from_room_uuid
 
 _LOGGER = logging.getLogger(__name__)
@@ -336,8 +337,19 @@ class _WindowContactEntity(LoxoneEntity):
     def __init__(self, contact: WindowContact, initial: list[int | None] | None = None) -> None:
         super().__init__(room=contact.room)
         self._contact = contact
-        model = None if contact.shared_device else "Window contact"
-        self._attr_device_info = get_or_create_device(contact.uuid, contact.name, model, contact.room)
+        if contact.shared_device:
+            # The contact's device belongs to its own control, which sets the
+            # model. Identify the device without a model: a model of None
+            # would overwrite the control's model, depending on which
+            # platform is set up first.
+            self._attr_device_info = {
+                "identifiers": {(DOMAIN, contact.uuid)},
+                "name": contact.name,
+                "manufacturer": "Loxone",
+                "suggested_area": contact.room,
+            }
+        else:
+            self._attr_device_info = get_or_create_device(contact.uuid, contact.name, "Window contact", contact.room)
         self._seen = False
         self._present = True
         self._value: int | None = None
