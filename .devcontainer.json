@@ -43,5 +43,12 @@
             }
         }
     },
-    "remoteUser": "vscode"
+    "remoteUser": "vscode",
+    // System libraries used by Home Assistant's ffmpeg, camera (turbojpeg) and
+    // DHCP discovery (libpcap) integrations. Without them the dev run logs errors.
+    "features": {
+        "ghcr.io/devcontainers-extra/features/apt-packages:1": {
+            "packages": "ffmpeg,libturbojpeg0,libpcap-dev"
+        }
+    }
 }

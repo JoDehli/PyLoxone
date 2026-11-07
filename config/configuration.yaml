@@ -1,5 +1,26 @@
-# https://www.home-assistant.io/integrations/default_config/
-default_config:
+# Replaces `default_config:` (https://www.home-assistant.io/integrations/default_config/).
+# Same list, minus `go2rtc`: it needs a Docker binary that the dev container
+# does not have, and it makes the whole default_config setup fail.
+assist_pipeline:
+bluetooth:
+cloud:
+conversation:
+dhcp:
+energy:
+file:
+history:
+homeassistant_alerts:
+logbook:
+media_source:
+mobile_app:
+my:
+ssdp:
+stream:
+sun:
+usage_prediction:
+usb:
+webhook:
+zeroconf:
 
 # https://www.home-assistant.io/integrations/homeassistant/
 homeassistant:
