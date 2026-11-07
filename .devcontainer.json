@@ -23,8 +23,11 @@
             "settings": {
                 "files.eol": "\n",
                 "editor.tabSize": 4,
-                "editor.formatOnPaste": true,
-                "editor.formatOnSave": true,
+                // Format on paste/save is off on purpose: it would rewrite lines
+                // in open PRs. Turn it on together with the one-off format commit
+                // (see .pre-commit-config.yaml).
+                "editor.formatOnPaste": false,
+                "editor.formatOnSave": false,
                 "editor.formatOnType": false,
                 "files.trimTrailingWhitespace": true,
                 "python.analysis.typeCheckingMode": "basic",
