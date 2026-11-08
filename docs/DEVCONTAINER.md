@@ -9,17 +9,18 @@ this repository.
 
 - The image is `mcr.microsoft.com/devcontainers/python:3.14`. It matches
   `.python-version` and `requires-python >=3.14.2`.
-- The `apt-packages` feature installs `ffmpeg`, `libturbojpeg0` and
-  `libpcap-dev`. Home Assistant needs them for its ffmpeg, camera and DHCP
-  integrations.
 - `postCreateCommand` runs `scripts/setup`, which:
-  1. installs `requirements.txt` and `requirements-dev.txt`,
-  2. installs `requirements-ha-integrations.txt`, the pinned packages of the
+  1. installs the system packages `ffmpeg`, `libturbojpeg0` and `libpcap-dev`
+     with `sudo apt-get` (Home Assistant needs them for its ffmpeg and camera
+     integrations). They are not a devcontainer feature, because the feature
+     failed to build under Podman,
+  2. installs `requirements.txt` and `requirements-dev.txt`,
+  3. installs `requirements-ha-integrations.txt`, the pinned packages of the
      Home Assistant integrations that `default_config` loads,
-  3. links `config/custom_components` to `custom_components/` (skipped if it
+  4. links `config/custom_components` to `custom_components/` (skipped if it
      already exists), because Home Assistant only loads custom integrations
      from there,
-  4. runs `hass --script ensure_config`.
+  5. runs `hass --script ensure_config`.
 - Format on save and on paste are **off**. Formatting would rewrite lines in
   open PRs. See the TODO in `.pre-commit-config.yaml`.
 
@@ -121,6 +122,20 @@ has not been tested by Home Assistant` is normal. `go2rtc` is not loaded (see
 of integrations without it, because `go2rtc` needs a Docker binary inside the
 container.
 
+### Discovery is off in the dev container
+
+The discovery integrations `bluetooth`, `dhcp`, `ssdp`, `usb` and `zeroconf` are
+removed from `config/configuration.yaml`. The Loxone integration does not use
+them. Discovery scans the network and starts integrations whose requirements are
+not installed in the container, which produced `No module named ...` errors (for
+example `psnawp_api` for `playstation_network`).
+
+If you need discovery, add the integration back to `config/configuration.yaml`
+yourself. Its Python packages are not in `requirements-ha-integrations.txt`. Copy
+the pins from the integration's `manifest.json` (`requirements` entry) for the
+Home Assistant version in `requirements-dev.txt`, then install them in the
+container. Until then, the integration logs `No module named ...`.
+
 ## Tests
 
 From the container terminal:
@@ -148,5 +163,5 @@ pytest -q
 | `Docker version 17.12.0 or later required` | VS Code looks for `docker` | Set `dockerPath` to `podman`, install `podman-docker` |
 | `No module named 'hass_frontend'` (and similar) | Post-create step did not finish | Rebuild the container, or run `bash scripts/setup` in the container terminal |
 | `Permission denied` on `config/.storage/...` | Files written as root in `config/` | Remove the affected files, see above |
-| `ffmpeg` / `libturbojpeg` / `libpcap` errors in the log | System packages missing | Rebuild the container so the `apt-packages` feature runs |
+| `ffmpeg` / `libturbojpeg` / `libpcap` errors in the log | System packages missing | Run `sudo apt-get install -y ffmpeg libturbojpeg0 libpcap-dev` in the container terminal, or run `bash scripts/setup` again |
 | `go2rtc` errors | Needs a Docker binary | Expected; `go2rtc` is excluded from `config/configuration.yaml` |
