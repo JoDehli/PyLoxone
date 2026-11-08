@@ -1,11 +1,11 @@
 # Replaces `default_config:` (https://www.home-assistant.io/integrations/default_config/).
-# Same list, minus `go2rtc`: it needs a Docker binary that the dev container
-# does not have, and it makes the whole default_config setup fail.
+# Same list, minus `go2rtc` (it needs a Docker binary that the dev container does
+# not have) and minus the discovery integrations `bluetooth`, `dhcp`, `ssdp`, `usb`
+# and `zeroconf`. Discovery matches devices on the network and starts integrations
+# whose requirements are not installed in the dev container. See docs/DEVCONTAINER.md.
 assist_pipeline:
-bluetooth:
 cloud:
 conversation:
-dhcp:
 energy:
 file:
 history:
@@ -14,13 +14,10 @@ logbook:
 media_source:
 mobile_app:
 my:
-ssdp:
 stream:
 sun:
 usage_prediction:
-usb:
 webhook:
-zeroconf:
 
 # https://www.home-assistant.io/integrations/homeassistant/
 homeassistant:
