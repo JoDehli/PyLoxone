@@ -4,6 +4,12 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+# System libraries used by Home Assistant's ffmpeg, camera (turbojpeg) and
+# DHCP discovery (libpcap) integrations. Without them the dev run logs errors.
+# Installed here instead of via a devcontainer feature, which fails to build under podman.
+sudo apt-get update
+sudo apt-get install -y ffmpeg libturbojpeg0 libpcap-dev
+
 # requirements-dev.txt provides the `hass` command (Home Assistant) used below.
 python3 -m pip install --requirement requirements.txt --requirement requirements-dev.txt
 
