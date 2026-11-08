@@ -1,0 +1,39 @@
+# Python packages of Home Assistant integrations that default_config loads in the
+# dev container. Home Assistant only installs an integration's requirements on
+# demand, so without these the debug run logs "No module named ..." errors.
+#
+# Pins are copied from the `requirements` lists in
+# homeassistant/components/<domain>/manifest.json for homeassistant==2026.10.4
+# (see requirements-dev.txt). Update them together with that pin.
+
+# frontend
+home-assistant-frontend==20260930.5
+# ffmpeg
+ha-ffmpeg==3.2.2
+# ssdp
+async-upnp-client==0.48.2
+# dhcp
+aiodhcpwatcher==1.2.7
+aiodiscover==3.3.2
+cached-ipaddress==1.1.2
+# usb
+aiousbwatcher==1.1.2
+serialx==1.11.0
+# camera / stream
+PyTurboJPEG==1.8.3
+av==19.0.0
+numpy==2.3.2
+# conversation
+gazetteer-matcher==1.1.0
+hassil==3.12.1
+home-assistant-intents==2026.10.6
+# go2rtc (module only; the go2rtc binary itself still needs Docker)
+go2rtc-client==0.4.0
+# radio_frequency / infrared
+rf-protocols==4.3.0
+infrared-protocols==10.1.0
+# tts
+mutagen==1.48.1
+# assist_pipeline
+pymicro-vad==1.0.1
+pyspeex-noise==1.0.2

@@ -1,0 +1,18 @@
+# Local pre-commit hooks. Install once with:  pre-commit install
+#
+# Ruff version is pinned to the one in requirements-dev.txt and in CI, so the
+# hooks and the CI lint agree.
+#
+# The lint rule set is a RATCHET: it only lists rule families that are already
+# clean in the whole tree. Add a family here once its existing violations are
+# fixed, never before. The full `select = ALL` pass from ruff.toml stays advisory.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.20
+    hooks:
+      - id: ruff
+        args: [--select, "E9,PLE,S307"]
+      # TODO: re-enable after the open PRs are merged. Formatting the tree now
+      # would rewrite lines in open PRs and cause merge conflicts. Enable it
+      # together with a one-off format commit listed in .git-blame-ignore-revs.
+      # - id: ruff-format
