@@ -1,6 +1,6 @@
 {
     "name": "JoDehli/PyLoxone",
-    "image": "mcr.microsoft.com/devcontainers/python:3.13",
+    "image": "mcr.microsoft.com/devcontainers/python:3.14",
     "postCreateCommand": "scripts/setup",
     "forwardPorts": [
         8123
@@ -23,14 +23,17 @@
             "settings": {
                 "files.eol": "\n",
                 "editor.tabSize": 4,
-                "editor.formatOnPaste": true,
-                "editor.formatOnSave": true,
+                // Format on paste/save is off on purpose: it would rewrite lines
+                // in open PRs. Turn it on together with the one-off format commit
+                // (see .pre-commit-config.yaml).
+                "editor.formatOnPaste": false,
+                "editor.formatOnSave": false,
                 "editor.formatOnType": false,
                 "files.trimTrailingWhitespace": true,
                 "python.analysis.typeCheckingMode": "basic",
                 "python.analysis.autoImportCompletions": true,
                 "python.analysis.extraPaths": [
-                    "/home/vscode/.local/lib/python3.13/site-packages"
+                    "/home/vscode/.local/lib/python3.14/site-packages"
                 ],
                 "python.defaultInterpreterPath": "/usr/local/bin/python",
                 "pylint.importStrategy": "fromEnvironment",
@@ -41,6 +44,8 @@
         }
     },
     "remoteUser": "vscode",
+    // System libraries used by Home Assistant's ffmpeg, camera (turbojpeg) and
+    // DHCP discovery (libpcap) integrations. Without them the dev run logs errors.
     "features": {
         "ghcr.io/devcontainers-extra/features/apt-packages:1": {
             "packages": "ffmpeg,libturbojpeg0,libpcap-dev"

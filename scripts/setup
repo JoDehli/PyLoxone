@@ -4,6 +4,16 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-python3 -m pip install --requirement requirements.txt
+# requirements-dev.txt provides the `hass` command (Home Assistant) used below.
+python3 -m pip install --requirement requirements.txt --requirement requirements-dev.txt
+
+# Requirements of the Home Assistant integrations that default_config loads.
+python3 -m pip install --requirement requirements-ha-integrations.txt
+
+# Home Assistant only loads custom integrations from <config>/custom_components,
+# so link the repo's integration there. Skipped when the link already exists.
+if [ ! -e config/custom_components ]; then
+    ln -s ../custom_components config/custom_components
+fi
 
 hass --config "config" --script ensure_config
