@@ -209,7 +209,7 @@ class TestTokenChangeCallback:
         """
         from unittest.mock import patch
 
-        from custom_components.loxone.coordinator import LoxoneCoordinator
+        from custom_components.loxone.coordinator import _ConfigEntryTokenStore
 
         entry = SimpleNamespace(
             entry_id="entry-a",
@@ -223,11 +223,8 @@ class TestTokenChangeCallback:
                 saved.append(data)
                 config_entry.data = data
 
-        coordinator = object.__new__(LoxoneCoordinator)
-        coordinator.config_entry = entry
-        coordinator.hass = SimpleNamespace(
-            config_entries=_ConfigEntries()
-        )
+        hass = SimpleNamespace(config_entries=_ConfigEntries())
+        store = _ConfigEntryTokenStore(hass, entry)
         refreshed_token = {
             "token": "secret-token-value",
             "valid_until": 2_000_000_000,
@@ -235,7 +232,7 @@ class TestTokenChangeCallback:
         }
 
         with patch("custom_components.loxone.coordinator._LOGGER.info") as info:
-            coordinator._on_token_changed(refreshed_token)
+            store.save(refreshed_token)
 
         assert len(saved) == 1
         assert entry.data == {

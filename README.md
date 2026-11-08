@@ -17,6 +17,17 @@ He really helped me a lot to with the new token based authentication. Thanks Paw
 
 #### This release works for the version 2024.1.0 and newer!!
 
+## Recorder Configuration (important)
+> [!CAUTION]
+> **Please add this to your `configuration.yaml` before you use the integration.** A Loxone system generates a few thousand events per day. Without this exclusion, Home Assistant records all of them and the database can grow very quickly.
+
+```yaml
+recorder:
+  exclude:
+    event_types:
+      - loxone_event
+```
+
 
 ## Config for the gen2 miniserver
 If you have the gen2 miniserver you should connect via local access. It is more reliable and faster than a cloud connection.
@@ -123,18 +134,19 @@ logger:
     homeassistant: warning
     homeassistant.helpers: warning
     custom_components.loxone: debug
-    custom_components.loxone.api: debug
+    pyloxone_api.connection: debug
 ```
 
-## Recorder Configuration
-A Loxone system generates a few thousand events per day. These events are recorded in your homeassistant and the database file can grow a lot per day. It is recommended to exclude loxone events from the recorder using the following settings:
+The Loxone communication lives in the [pyloxone-api](https://github.com/JoDehli/pyloxone-api) package, which is a separate package (logger name `pyloxone_api`, not `custom_components.loxone`). Use `pyloxone_api.connection: debug` to see the login steps (`authwithtoken`, `gettoken`, ...).
 
-```yaml
-recorder:
-  exclude:
-    event_types:
-      - loxone_event
-```
+## pyloxone-api dependency
+The integration uses the [pyloxone-api](https://github.com/JoDehli/pyloxone-api) package for the connection to the Miniserver. Home Assistant installs it automatically from the `requirements` entry in `custom_components/loxone/manifest.json`. The same version is pinned in `requirements.txt` for development; both must match.
+
+**Token storage:** After a successful login the integration saves the Loxone token in its config entry (`.storage/core.config_entries` in your Home Assistant config folder). The token is bound to the host, port and user of the entry. It is used for later starts so that no password login is needed. A token for a different host, port or user is ignored.
+
+- After updating from an older version, the first start performs one password login. This is expected.
+- Treat the `.storage` folder as sensitive: the stored token logs in as your Loxone user.
+- Removing the integration tries to invalidate the token on the Miniserver. This only works while the connection is still open; otherwise the token expires on its own.
 
 ## Websocket direct command service
 If you want to send data directly to Loxone inputs or blocks that are not (yet) supported, you can use this service to send a command:
