@@ -58,19 +58,54 @@ def test_irc_v2_schedule_preset_while_overridden_stops_override():
     assert sent == ["stopOverride"]
 
 
-def test_comfort_mode_temp_is_the_absolute_temperature():
-    """Spec: setComfortModeTemp/{temp} with temp = comfortTemperature +
-    comfortTemperatureOffset ± 0.5 - an absolute temperature, not an
-    offset from comfortTemperature."""
+@pytest.mark.parametrize(
+    ("states", "requested", "command"),
+    [
+        # Issue #544: comfort 24 °C, 24.5 °C requested. The absolute value
+        # sent before ended up as a target of 24 + 24.5 = 48.5 °C.
+        (
+            {"comfortTemperature": 24.0, "comfortTemperatureOffset": 0, "tempTarget": 24.0},
+            24.5,
+            "setComfortModeTemp/0.5",
+        ),
+        # Same temperature again: the offset stays 0 (was 48.0 °C).
+        (
+            {"comfortTemperature": 24.0, "comfortTemperatureOffset": 0, "tempTarget": 24.0},
+            24.0,
+            "setComfortModeTemp/0.0",
+        ),
+        # An offset that is already adopted is replaced, not added twice.
+        (
+            {"comfortTemperature": 24.0, "comfortTemperatureOffset": 0.5, "tempTarget": 24.5},
+            23.0,
+            "setComfortModeTemp/-1.0",
+        ),
+        # Economy: the target is below the comfort temperature.
+        (
+            {"comfortTemperature": 22.0, "comfortTemperatureOffset": 0, "tempTarget": 19.0},
+            20.0,
+            "setComfortModeTemp/1.0",
+        ),
+        # No offset state (yet): counts as 0.
+        ({"comfortTemperature": 21.0, "tempTarget": 21.0}, 22.0, "setComfortModeTemp/1.0"),
+        # No target state yet: the comfort temperature is the reference.
+        ({"comfortTemperature": 21.0}, 22.0, "setComfortModeTemp/1.0"),
+    ],
+)
+def test_comfort_mode_temp_is_the_comfort_temperature_offset(states, requested, command):
+    """The Miniserver takes the argument of setComfortModeTemp as the new
+    comfortTemperatureOffset (issue #544), not as an absolute temperature."""
     sent: list = []
-    rc = _room_controller_v2(
-        sent,
-        OperatingMode.AUTO_HEAT,
-        ActiveMode.COMFORT,
-        comfortTemperature=21.0,
-    )
+    rc = _room_controller_v2(sent, OperatingMode.AUTO_HEAT, ActiveMode.COMFORT, **states)
+    rc.set_temperature(temperature=requested)
+    assert sent == [command]
+
+
+def test_comfort_mode_temp_is_not_sent_without_a_reference():
+    sent: list = []
+    rc = _room_controller_v2(sent, OperatingMode.AUTO_HEAT, ActiveMode.COMFORT)
     rc.set_temperature(temperature=22.0)
-    assert sent == ["setComfortModeTemp/22.0"]
+    assert sent == []
 
 
 def _room_controller_v1(sent: list, details=None, **state_values):
