@@ -616,16 +616,39 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                         dict(uuid=self.uuidAction, value=f"override/{(kwargs["temperature"] * 2560) + 112}//{kwargs["temperature"]}"),
                     )
                 else:
-                    # ``setComfortModeTemp/{temp}`` takes the new absolute
-                    # comfort temperature (spec: comfortTemperature +
-                    # comfortTemperatureOffset ± 0.5), not an offset: the
-                    # offset sent before asked e.g. for 1 °C instead of 22 °C.
-                    self.hass.bus.fire(
-                        SENDDOMAIN,
-                        dict(uuid=self.uuidAction, value=f"setComfortModeTemp/{kwargs['temperature']}"),
-                    )
+                    # The Miniserver takes the argument of
+                    # ``setComfortModeTemp`` as the new
+                    # comfortTemperatureOffset, not as an absolute
+                    # temperature: sending 24.5 with a comfort temperature
+                    # of 24 °C results in a target of 48.5 °C (issue #544).
+                    # So send the current offset shifted by the requested
+                    # change of the target temperature.
+                    new_offset = self._comfort_offset_for(kwargs["temperature"])
+                    if new_offset is not None:
+                        self.hass.bus.fire(
+                            SENDDOMAIN,
+                            dict(uuid=self.uuidAction, value=f"setComfortModeTemp/{new_offset}"),
+                        )
 
         self.schedule_update_ha_state()
+
+    def _comfort_offset_for(self, temperature) -> float | None:
+        """Return the comfortTemperatureOffset that leads to the given target.
+
+        The offset is relative to the comfort temperature, so the current
+        offset is shifted by the difference between the requested and the
+        current target temperature. This also holds while cooling or in
+        economy mode, where the target is not comfortTemperature itself.
+        Without a known target the comfort temperature is the reference.
+        """
+        current_offset = self.get_state_value("comfortTemperatureOffset") or 0
+        current_target = self.get_state_value("tempTarget")
+        if current_target is None:
+            comfort = self.get_state_value("comfortTemperature")
+            if comfort is None:
+                return None
+            current_target = comfort + current_offset
+        return round(current_offset + temperature - current_target, 2)
 
     @property
     def target_temperature(self) -> float | None:
