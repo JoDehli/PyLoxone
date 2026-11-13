@@ -150,7 +150,10 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             raise e
 
         self.miniserver = MiniServer(
-            self.hass, self.api.structure_file, self.config_entry
+            self.hass,
+            self.api.structure_file,
+            self.config_entry,
+            configuration_url=f"{self.api.scheme}://{self.api.url}",
         )
         self._control_uuids = _collect_control_uuids(self.api.structure_file)
 

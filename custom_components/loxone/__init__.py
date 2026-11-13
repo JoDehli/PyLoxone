@@ -533,6 +533,13 @@ async def async_setup_entry(hass, config_entry):
 
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
 
+    # Register the Miniserver itself as a device (firmware, serial number,
+    # MAC, web interface).
+    try:
+        coordinator.miniserver.async_update_device_registry()
+    except ValueError as err:
+        _LOGGER.warning("Could not update the Miniserver device: %s", err)
+
     # Config-entry platforms only. The extra ``async_load_platform``
     # per platform (with the ConfigEntry passed as ``hass_config``) ran
     # every ``async_setup_platform`` a second time with an empty config,
