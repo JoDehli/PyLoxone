@@ -439,7 +439,6 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         """Handle climate demand events from ClimateController."""
         if event.data.get("uuid") == self.uuidAction:
             self._demand = event.data.get("value", 0)
-            self._demand = event.data["value"]
             self.schedule_update_ha_state()
 
     def get_mode_from_id(self, mode_id):
@@ -577,11 +576,12 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                                 dict(uuid=self.uuidAction, value=f"setComfortTemperatureCool/{new_temp}"),
                             )
                     elif active == ActiveMode.BUILDING_PROTECT:
-                        if new_temp != comfort_cool:
-                            self.hass.bus.fire(
-                                SENDDOMAIN,
-                                dict(uuid=self.uuidAction, value=f"setecoplusmaxtemperature/{new_temp}"),
-                            )
+                        # UNDOCUMENTED: setecoplusmaxtemperature is not in
+                        # the structure file, but the Miniserver accepts
+                        # it - see _send_building_protect_temperature.
+                        self._send_building_protect_temperature(
+                            "setecoplusmaxtemperature", "heatProtectTemperature", new_temp
+                        )
             if "target_temp_low" in kwargs:
                 comfort_heat = self.get_state_value("comfortTemperature")
                 if comfort_heat is not None:
@@ -602,11 +602,12 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                                 dict(uuid=self.uuidAction, value=f"setComfortTemperature/{new_temp}"),
                             )
                     elif active == ActiveMode.BUILDING_PROTECT:
-                        if new_temp != comfort_cool:
-                            self.hass.bus.fire(
-                                SENDDOMAIN,
-                                dict(uuid=self.uuidAction, value=f"setecoplusmintemperature/{new_temp}"),
-                            )
+                        # UNDOCUMENTED: setecoplusmintemperature is not in
+                        # the structure file, but the Miniserver accepts
+                        # it - see _send_building_protect_temperature.
+                        self._send_building_protect_temperature(
+                            "setecoplusmintemperature", "frostProtectTemperature", new_temp
+                        )
         else:
             # Auto/single target — temporarily adopt the comfort temperature
             if "temperature" in kwargs:
@@ -631,6 +632,25 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                         )
 
         self.schedule_update_ha_state()
+
+    def _send_building_protect_temperature(self, command: str, state_name: str, new_temp) -> None:
+        """Set a building protection temperature with an undocumented command.
+
+        UNDOCUMENTED BUT WORKING: ``setecoplusmintemperature`` and
+        ``setecoplusmaxtemperature`` are not in the structure file
+        (V17.0), which lists frostProtectTemperature and
+        heatProtectTemperature as states only and names no command to
+        set them. A live Miniserver accepts both commands with Code 200,
+        while an unknown command gets Code 500 (checked 2026-11-13 on a
+        room controller V2). Do not remove them as "not in the spec".
+
+        Nothing is sent when the value already matches the state.
+        """
+        if new_temp != self.get_state_value(state_name):
+            self.hass.bus.fire(
+                SENDDOMAIN,
+                dict(uuid=self.uuidAction, value=f"{command}/{new_temp}"),
+            )
 
     def _comfort_offset_for(self, temperature) -> float | None:
         """Return the comfortTemperatureOffset that leads to the given target.
