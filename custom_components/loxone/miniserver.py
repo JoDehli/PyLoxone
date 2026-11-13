@@ -1,12 +1,8 @@
-import asyncio
 import logging
 import re
-import traceback
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
-                                 CONF_USERNAME)
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr
 

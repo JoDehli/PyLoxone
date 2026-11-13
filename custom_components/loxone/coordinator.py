@@ -153,11 +153,34 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             self.hass,
             self.api.structure_file,
             self.config_entry,
-            configuration_url=f"{self.api.scheme}://{self.api.url}",
+            configuration_url=self._configuration_url,
         )
         self._control_uuids = _collect_control_uuids(self.api.structure_file)
 
         return None
+
+    @property
+    def _configuration_url(self) -> str:
+        """The Miniserver's web interface, from the connection's normalised URL."""
+        return f"{self.api.scheme}://{self.api.url}"
+
+    def refresh_miniserver(self) -> bool:
+        """Hand the Miniserver the structure file of the latest bootstrap.
+
+        ``LoxoneConnection.run`` re-runs ``open()`` on every reconnect and
+        reads the structure file (and firmware version) again. Returns
+        ``True`` if there was a newer one than the Miniserver already has.
+        """
+        structure_file = self.api.structure_file
+        if (
+            self.miniserver is None
+            or not structure_file
+            or structure_file is self.miniserver.lox_config.json
+        ):
+            return False
+        self.miniserver.lox_config.json = structure_file
+        self.miniserver.configuration_url = self._configuration_url
+        return True
 
     def owns_uuid(self, uuid: str) -> bool:
         """Return True if ``uuid`` is a control or subcontrol of this Miniserver.

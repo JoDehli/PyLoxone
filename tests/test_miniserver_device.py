@@ -11,10 +11,12 @@ from types import SimpleNamespace
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.loxone.miniserver import MiniServer
+from custom_components.loxone.pyloxone_api.connection import LoxoneConnection
 
 SERIAL = "504F94AABBCC"
 MAC = "50:4f:94:aa:bb:cc"
@@ -141,6 +143,45 @@ async def test_device_registry_problem_does_not_fail_the_setup(
     entry = await setup_loxone_entry(mock_entry)
 
     assert entry.state is ConfigEntryState.LOADED
+
+
+async def test_device_collision_does_not_fail_the_setup(
+    hass, mock_connection, mock_entry, setup_loxone_entry, monkeypatch
+):
+    """Collisions are ``HomeAssistantError``, not ``ValueError``."""
+
+    def _collide(self):
+        raise HomeAssistantError("device collision")
+
+    monkeypatch.setattr(MiniServer, "async_update_device_registry", _collide)
+
+    entry = await setup_loxone_entry(mock_entry)
+
+    assert entry.state is ConfigEntryState.LOADED
+
+
+async def test_reconnect_brings_the_new_firmware_version(
+    hass, mock_connection, mock_entry, setup_loxone_entry, gen1_miniserver, monkeypatch
+):
+    """``run()`` re-reads the structure file on a reconnect, e.g. after the
+    Miniserver rebooted into a new firmware; no reload needed."""
+    captured = {}
+
+    async def _run(self, on_state=None, callback=None, **kwargs):
+        captured["on_state"] = on_state
+        on_state("connected")
+        await self._fake_closed.wait()
+
+    monkeypatch.setattr(LoxoneConnection, "run", _run)
+    await setup_loxone_entry(mock_entry)
+    assert _miniserver_device(hass, mock_entry).sw_version == "17.3.11.10"
+
+    api = hass.data["loxone"][mock_entry.entry_id].api
+    api.structure_file = {**api.structure_file, "softwareVersion": [17, 4, 2, 5]}
+    captured["on_state"]("disconnected")
+    captured["on_state"]("connected")
+
+    assert _miniserver_device(hass, mock_entry).sw_version == "17.4.2.5"
 
 
 @pytest.mark.parametrize(

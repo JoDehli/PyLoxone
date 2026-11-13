@@ -533,12 +533,20 @@ async def async_setup_entry(hass, config_entry):
 
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
 
-    # Register the Miniserver itself as a device (firmware, serial number,
-    # MAC, web interface).
-    try:
-        coordinator.miniserver.async_update_device_registry()
-    except ValueError as err:
-        _LOGGER.warning("Could not update the Miniserver device: %s", err)
+    def _update_miniserver_device() -> None:
+        """Register the Miniserver itself as a device (firmware, serial
+        number, MAC, web interface) or bring that device up to date.
+
+        A registry problem (``ValueError`` for an invalid value,
+        ``HomeAssistantError`` for a collision with another device) must
+        not take the integration down.
+        """
+        try:
+            coordinator.miniserver.async_update_device_registry()
+        except (ValueError, HomeAssistantError) as err:
+            _LOGGER.warning("Could not update the Miniserver device: %s", err)
+
+    _update_miniserver_device()
 
     # Config-entry platforms only. The extra ``async_load_platform``
     # per platform (with the ConfigEntry passed as ``hass_config``) ran
@@ -839,6 +847,10 @@ async def async_setup_entry(hass, config_entry):
         """
         coordinator.connection_available = state == "connected"
         _LOGGER.debug("Loxone connection state: %s", state)
+        # A reconnect re-reads the structure file, e.g. after the Miniserver
+        # rebooted into a new firmware: let the device follow.
+        if state == "connected" and coordinator.refresh_miniserver():
+            _update_miniserver_device()
         # Every loaded LoxoneEntity of this entry rewrites its state (see
         # ``LoxoneEntity.async_added_to_hass``). Previously one
         # ``async_update_entity`` task was created per registry entry -
