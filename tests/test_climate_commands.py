@@ -217,3 +217,56 @@ def test_ac_control_temperature_unit(format_str, expected):
     ac.details = {} if format_str is None else {"format": format_str}
     unit = UnitOfTemperature.FAHRENHEIT if expected == "°F" else UnitOfTemperature.CELSIUS
     assert ac.temperature_unit == unit
+
+
+@pytest.mark.parametrize(
+    "kwargs, commands",
+    [
+        ({"target_temp_low": 8.0}, ["setecoplusmintemperature/8.0"]),
+        ({"target_temp_high": 35.0}, ["setecoplusmaxtemperature/35.0"]),
+        (
+            {"target_temp_low": 8.0, "target_temp_high": 35.0},
+            ["setecoplusmaxtemperature/35.0", "setecoplusmintemperature/8.0"],
+        ),
+        # Unchanged values are compared with the protection temperatures,
+        # not with the comfort temperatures.
+        ({"target_temp_low": 5.0, "target_temp_high": 92.0}, []),
+        ({"target_temp_low": 21.0, "target_temp_high": 24.0},
+         ["setecoplusmaxtemperature/24.0", "setecoplusmintemperature/21.0"]),
+    ],
+)
+def test_irc_v2_building_protection_range_uses_the_undocumented_commands(kwargs, commands):
+    """setecoplus{min,max}temperature: not in the structure file, accepted by the Miniserver."""
+    sent: list = []
+    rc = _room_controller_v2(
+        sent,
+        OperatingMode.AUTO_HEAT_COOL,
+        ActiveMode.BUILDING_PROTECT,
+        comfortTemperature=21.0,
+        comfortTemperatureCool=24.0,
+        frostProtectTemperature=5.0,
+        heatProtectTemperature=92.0,
+    )
+    rc._range_possible = True
+
+    rc.set_temperature(**kwargs)
+
+    assert sent == commands
+
+
+def test_irc_v2_demand_event_without_value_does_not_raise():
+    sent: list = []
+    rc = _room_controller_v2(sent, OperatingMode.AUTO_HEAT_COOL, ActiveMode.COMFORT)
+
+    rc.climate_handler(SimpleNamespace(data={"uuid": "rc-uuid"}))
+
+    assert rc._demand == 0
+
+
+def test_irc_v2_demand_event_stores_the_value():
+    sent: list = []
+    rc = _room_controller_v2(sent, OperatingMode.AUTO_HEAT_COOL, ActiveMode.COMFORT)
+
+    rc.climate_handler(SimpleNamespace(data={"uuid": "rc-uuid", "value": 1}))
+
+    assert rc._demand == 1
