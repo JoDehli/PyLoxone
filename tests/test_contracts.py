@@ -72,7 +72,7 @@ def test_platform_modules_match_loxone_platforms():
 
 def test_every_manifest_requirement_is_imported():
     """A requirement nobody imports is dead weight on every install."""
-    import_names = {"pycryptodome": "Crypto"}
+    import_names = {"pycryptodome": "Crypto", "pyloxone-api": "pyloxone_api"}
     source = "\n".join(path.read_text() for path in INTEGRATION.rglob("*.py"))
     for requirement in _manifest()["requirements"]:
         name = re.split(r"[<>=!~\[]", requirement, maxsplit=1)[0].strip()

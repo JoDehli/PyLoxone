@@ -70,7 +70,7 @@ def mock_connection(hass, loxapp3, enable_custom_integrations):
     """
     from custom_components.loxone import helpers
     from custom_components.loxone.const import EVENT
-    from custom_components.loxone.pyloxone_api.connection import LoxoneConnection
+    from pyloxone_api.connection import LoxoneConnection
 
     # Devices are cached per uuid in a module-level dict in ``helpers``; a
     # previous test would otherwise decide this test's device model.

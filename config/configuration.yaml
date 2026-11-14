@@ -36,5 +36,5 @@ logger:
     homeassistant.core: error
     homeassistant.helpers: error
     custom_components.loxone: debug
-    custom_components.loxone.pyloxone_api.connection: debug
-    custom_components.loxone.pyloxone_api.websocket_protocol: error
+    pyloxone_api.connection: debug
+    pyloxone_api.websocket_protocol: error

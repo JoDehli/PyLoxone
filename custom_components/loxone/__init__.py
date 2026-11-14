@@ -40,8 +40,8 @@ from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
 from .coordinator import LoxoneCoordinator
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
-from .pyloxone_api.connection import LoxoneConnection
-from .pyloxone_api.exceptions import (LoxoneAuthEscalatedError,
+from pyloxone_api.connection import LoxoneConnection
+from pyloxone_api.exceptions import (LoxoneAuthEscalatedError,
                                       LoxoneConnectionClosedOk,
                                       LoxoneConnectionError, LoxoneException,
                                       LoxoneOutOfServiceException,
@@ -858,16 +858,8 @@ async def async_setup_entry(hass, config_entry):
         async_dispatcher_send(hass, connection_state_signal(config_entry.entry_id))
 
     async def stop_event(_):
-        token = coordinator.api.get_token_dict()
-        hass.config_entries.async_update_entry(
-            config_entry,
-            data={
-                **config_entry.data,  # preserve existing data
-                "token": token["token"],
-                "hash_alg": token["hash_alg"],
-                "valid_until": token["valid_until"],
-            },
-        )
+        # The token is saved by the token store on every login/refresh,
+        # so there is nothing to write here before closing.
         await coordinator.api.close()
 
     def _send_in_background(device_uuid, send) -> None:

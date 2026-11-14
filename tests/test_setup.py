@@ -98,7 +98,7 @@ async def test_unreachable_miniserver_retries_setup(hass, mock_entry, enable_cus
     """A connection error during setup raises ConfigEntryNotReady (HA retries)."""
     from unittest.mock import patch
 
-    from custom_components.loxone.pyloxone_api.connection import LoxoneConnection
+    from pyloxone_api.connection import LoxoneConnection
 
     async def _refuse(self, session=None):
         message = "connection refused"

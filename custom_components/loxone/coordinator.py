@@ -10,9 +10,61 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
 from .miniserver import MiniServer
-from .pyloxone_api.connection import LoxoneConnection, LoxoneException
+from pyloxone_api.connection import LoxoneConnection, LoxoneException
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class _ConfigEntryTokenStore:
+    """Persist the Loxone token in the ConfigEntry (``TokenStore`` protocol).
+
+    ``load()`` hands the library the stored dict (it checks the binding
+    itself and ignores a token that does not match). ``save()`` is called
+    after every login and refresh with the new token, and with ``None``
+    when the token is reset.
+
+    Errors are logged, never raised: a persistence failure must not break
+    the live websocket path.
+    """
+
+    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+        self._hass = hass
+        self._entry = config_entry
+
+    def load(self) -> dict | None:
+        data = self._entry.data
+        if not data.get("token"):
+            return None
+        return dict(data)
+
+    def save(self, token: dict | None) -> None:
+        try:
+            if token is None:
+                new_data = {
+                    **self._entry.data,
+                    "token": "",
+                    "hash_alg": "",
+                    "valid_until": "",
+                }
+                new_data.pop("binding", None)
+                new_data.pop("unsecure_password", None)
+            else:
+                # token, valid_until, hash_alg, unsecure_password, binding
+                new_data = {**self._entry.data, **token}
+            # ``async_update_entry`` is the supported way to mutate a
+            # ConfigEntry's data from a coordinator.
+            self._hass.config_entries.async_update_entry(
+                self._entry, data=new_data
+            )
+            _LOGGER.info(
+                "Persisted Loxone token for config entry %s (valid until %s)",
+                self._entry.entry_id,
+                "reset" if token is None else token.get("valid_until", "unknown"),
+            )
+        except Exception as e:
+            _LOGGER.warning(
+                "Failed to persist Loxone token: %s", e, exc_info=True
+            )
 
 
 def _collect_control_uuids(structure_file: dict) -> frozenset[str]:
@@ -69,72 +121,26 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         # callback in ``__init__.py``.
         self.connection_available: bool = True
 
-    def _on_token_changed(self, token: dict) -> None:
-        """Persist a freshly-issued token into the ConfigEntry.
-
-        Called by :class:`LoxoneConnection` via the
-        ``token_change_callback`` whenever the Miniserver issues
-        a new token (initial auth or refresh). The token dict
-        is merged into ``ConfigEntry.data`` so a HA restart
-        can pick it up without re-prompting for credentials.
-
-        Errors are logged at WARNING — a persistence failure
-        must not break the live websocket path; the user just
-        has to re-authenticate on the next restart.
-        """
-        try:
-            new_data = {**self.config_entry.data, **token}
-            # ``async_update_entry`` is the supported way to
-            # mutate a ConfigEntry's data from a coordinator.
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=new_data
-            )
-            _LOGGER.info(
-                "Persisted updated Loxone token for config entry %s "
-                "(valid until %s)",
-                self.config_entry.entry_id,
-                token.get("valid_until", "unknown"),
-            )
-        except Exception as e:
-            _LOGGER.warning(
-                "Failed to persist updated token: %s", e, exc_info=True
-            )
-
     async def async_config_entry_first_refresh(self) -> None:
         _LOGGER.debug("async_config_entry_first_refresh")
         if self.api and self.api.connection:
             await self.api.close()
             self.api.connection = None
 
-        if "token" in self.config_entry.data:
-            self.api = LoxoneConnection(
-                host=self._host,
-                port=self._port,
-                username=self._username,
-                password=self._password,
-                token=self.config_entry.data,
-                verify_ssl=self._verify_ssl,
-                # Off-load the (potentially multi-MB)
-                # ``LoxAPP3.json`` parse to HA's default executor —
-                # keeps the event loop responsive while ``open()``
-                # is bootstrapping.
-                executor=self.hass.async_add_executor_job,
-                # ``_on_token_changed`` is async-aware and
-                # merges the new token into ConfigEntry.data
-                # so a HA restart can resume without a fresh
-                # username/password auth.
-                token_change_callback=self._on_token_changed,
-            )
-        else:
-            self.api = LoxoneConnection(
-                host=self._host,
-                port=self._port,
-                username=self._username,
-                password=self._password,
-                verify_ssl=self._verify_ssl,
-                executor=self.hass.async_add_executor_job,
-                token_change_callback=self._on_token_changed,
-            )
+        self.api = LoxoneConnection(
+            host=self._host,
+            port=self._port,
+            username=self._username,
+            password=self._password,
+            verify_ssl=self._verify_ssl,
+            # Off-load the (potentially multi-MB) ``LoxAPP3.json`` parse
+            # to HA's default executor — keeps the event loop responsive
+            # while ``open()`` is bootstrapping.
+            executor=self.hass.async_add_executor_job,
+            # The library loads the stored token (if it matches this
+            # connection) and saves every new token through the store.
+            token_store=_ConfigEntryTokenStore(self.hass, self.config_entry),
+        )
         try:
             session = async_get_clientsession(self.hass)
             # Bootstrap only: the websocket is opened by ``run()`` once
@@ -204,7 +210,7 @@ class LoxoneCoordinator(DataUpdateCoordinator):
 
         ``kill_token`` defaults to ``False``: an unload (reload, HA
         restart) must keep the token valid so the value persisted by
-        ``_on_token_changed`` survives. Only removing the config entry
+        the token store saved survives. Only removing the config entry
         for good invalidates it on the Miniserver (see
         ``async_remove_entry`` in ``__init__.py``).
         """
