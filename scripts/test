@@ -29,9 +29,12 @@ if [ ! -x "$TEST_VENV/bin/python" ]; then
     echo "Creating test virtualenv at $TEST_VENV ..."
     "$PYTHON" -m venv "$TEST_VENV"
     "$TEST_VENV/bin/python" -m pip install --quiet --upgrade pip
-    # pyloxone-api is developed in a sibling checkout until it is released.
-    # Installing it editable first satisfies the pin in requirements.txt
-    # locally, so pip does not look for it on PyPI.
+    # pyloxone-api is released on PyPI and pinned in requirements.txt.
+    # If a sibling checkout exists, it is installed editable first: when
+    # its version equals the pin, the tests run against that local code;
+    # otherwise pip replaces it with the pinned release from PyPI.
+    # Point PYLOXONE_API_SRC at a path that does not exist to always
+    # test against the PyPI release.
     PYLOXONE_API_SRC="${PYLOXONE_API_SRC:-$REPO_ROOT/../pyloxone-api}"
     if [ -f "$PYLOXONE_API_SRC/pyproject.toml" ]; then
         "$TEST_VENV/bin/python" -m pip install --quiet -e "$PYLOXONE_API_SRC"
