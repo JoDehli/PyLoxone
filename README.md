@@ -15,7 +15,7 @@ Home Assistant binding for Loxone.
 A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
 He really helped me a lot to with the new token based authentication. Thanks Pawel!!!
 
-#### This release works for the version 2024.1.0 and newer!!
+#### This release works for the version 2025.2.4 and newer!!
 
 ## Recorder Configuration (important)
 > [!CAUTION]
