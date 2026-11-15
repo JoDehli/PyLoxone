@@ -132,7 +132,12 @@ def async_setup_controls(
     entities = build_entities(platform, ctx)
     services = _SERVICES.get(str(platform), [])
     if services:
-        current = entity_platform.async_get_current_platform()
+        try:
+            current = entity_platform.async_get_current_platform()
+        except RuntimeError:
+            # Called outside a platform setup (direct calls in tests).
+            _LOGGER.debug("No current %s platform; entity services not registered", platform)
+            return entities
         for service in services:
             current.async_register_entity_service(service.name, service.schema, service.method, [service.feature])
     return entities
