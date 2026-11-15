@@ -19,6 +19,9 @@ _LOGGER = logging.getLogger(__name__)
 # on the installation this was observed on. Not in the structure file.
 OFF_MOOD_IDS = (0, 778)
 
+# Command of a plain turn-on (no effect, no brightness), see #539.
+PLAIN_TURN_ON_COMMAND = "changeTo/99"
+
 # Per-circuit subcontrol states that carry the circuit state in manual
 # mode ("Stimmung Manuell"): a plain Switch circuit reports "active",
 # Dimmer/EIBDimmer circuits report "position" (0-100).
@@ -175,30 +178,15 @@ class LoxoneLightControllerV2(LoxoneEntity, LightEntity):
             )
         elif kwargs == {}:
             if self._attr_is_on is not True:
-                # Plain turn-on activates the first mood that is not an off
-                # mood; without any such mood, plus (spec: next mood).
-                first_mood_id = next(
-                    (
-                        mood["id"]
-                        for mood in self._moodlist
-                        if isinstance(mood, dict)
-                        and "id" in mood
-                        and mood["id"] not in OFF_MOOD_IDS
-                    ),
-                    None,
+                # Plain turn-on sends changeTo/99, as every release from
+                # 2023 up to 0.10.1 did. The id is not in the structure
+                # file, but it is what switches the controller on in the
+                # field; 0.10.2 replaced it with "first mood of moodList",
+                # which left controllers dark (JoDehli/PyLoxone#539).
+                self.hass.bus.async_fire(
+                    SENDDOMAIN,
+                    dict(uuid=self.uuidAction, value=PLAIN_TURN_ON_COMMAND),
                 )
-                if first_mood_id is not None:
-                    self.hass.bus.async_fire(
-                        SENDDOMAIN,
-                        dict(
-                            uuid=self.uuidAction,
-                            value="changeTo/{}".format(first_mood_id),
-                        ),
-                    )
-                else:
-                    self.hass.bus.async_fire(
-                        SENDDOMAIN, dict(uuid=self.uuidAction, value="plus")
-                    )
             else:
                 # Already on: no command - a plain turn-on must not steal
                 # the running mood or brightness.
