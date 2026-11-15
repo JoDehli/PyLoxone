@@ -90,6 +90,7 @@ def test_builders():
         raise RuntimeError(message)
 
     platform = str(Platform.SENSOR)
+    controls.handled_types()  # load the real modules before taking the snapshot
     before = list(controls._BUILDERS.get(platform, []))
     controls.register(Platform.SENSOR, "TestGood")(good)
     controls.register(Platform.SENSOR, "TestBad")(bad)
