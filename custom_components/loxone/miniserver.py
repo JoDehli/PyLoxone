@@ -20,7 +20,7 @@ NEW_COVERS = "covers"
 
 
 @callback
-def get_miniserver_from_hass(hass, config_entry):
+def get_miniserver_from_hass(hass, config_entry) -> MiniServer:
     """Return the Miniserver for this specific config entry."""
     return hass.data[DOMAIN][config_entry.entry_id].miniserver
 
@@ -102,6 +102,26 @@ class MiniServer:
             NEW_COVERS: f"loxone_new_cover_{self.miniserver_id}",
         }
         return new_device[device_type]
+
+    @property
+    def device_info(self) -> dict[str, Any]:
+        """Device details for entities that belong to the Miniserver device."""
+        info: dict[str, Any] = {
+            "identifiers": {(DOMAIN, self.serial or self.miniserver_id)},
+            "name": self.name,
+            "manufacturer": "Loxone",
+            "model": get_miniserver_type(self.miniserver_type),
+        }
+        # Only what is known: an empty value would overwrite the device's current one.
+        if self.serial:
+            info["serial_number"] = self.serial
+        if self.software_version:
+            info["sw_version"] = self.software_version
+        if (mac := self.mac_address) is not None:
+            info["connections"] = {(dr.CONNECTION_NETWORK_MAC, mac)}
+        if self.configuration_url:
+            info["configuration_url"] = self.configuration_url
+        return info
 
     @callback
     def async_update_device_registry(self) -> None:
