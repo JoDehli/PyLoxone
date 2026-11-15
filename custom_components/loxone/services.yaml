@@ -101,3 +101,40 @@ quick_shade:
   target:
     entity:
       domain: cover
+
+daytimer_start_override:
+  description: Override the output of a Loxone Daytimer for a while.
+  target:
+    entity:
+      integration: loxone
+      domain: sensor
+  fields:
+    value:
+      name: Value
+      description: Output value during the override (0 / 1 for a digital Daytimer).
+      required: true
+      example: 21.5
+      selector:
+        number:
+          min: -100000
+          max: 100000
+          step: any
+          mode: box
+    duration:
+      name: Duration
+      description: Duration of the override in seconds.
+      required: true
+      example: 3600
+      selector:
+        number:
+          min: 1
+          max: 31536000
+          unit_of_measurement: s
+          mode: box
+
+daytimer_stop_override:
+  description: Stop a running override of a Loxone Daytimer.
+  target:
+    entity:
+      integration: loxone
+      domain: sensor

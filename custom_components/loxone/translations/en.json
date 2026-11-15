@@ -167,6 +167,24 @@
     "quick_shade": {
       "name": "Quick shade",
       "description": "Move Loxone Jalousie to shade position. Position is set by Loxone depends on multiple values."
+    },
+    "daytimer_start_override": {
+      "name": "Daytimer start override",
+      "description": "Override the output of a Loxone Daytimer for a while.",
+      "fields": {
+        "value": {
+          "name": "Value",
+          "description": "Output value during the override (0 / 1 for a digital Daytimer)."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Duration of the override in seconds."
+        }
+      }
+    },
+    "daytimer_stop_override": {
+      "name": "Daytimer stop override",
+      "description": "Stop a running override of a Loxone Daytimer."
     }
   },
   "issues": {
