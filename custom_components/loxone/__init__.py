@@ -39,8 +39,9 @@ from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     SECUREDSENDDOMAIN, SENDDOMAIN, SERVICE_REFRESH_TOKEN, cfmt)
 from .coordinator import (FileStructureCache, LoxoneCoordinator,
                           clear_stored_token, structure_cache_path)
-from .issues import (create_public_key_issue, delete_all_issues,
-                     delete_public_key_issue, update_https_issues)
+from .issues import (create_public_key_issue, create_remote_connect_issue,
+                     delete_all_issues, delete_public_key_issue,
+                     delete_remote_connect_issue, update_https_issues)
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
 from pyloxone_api.connection import LoxoneConnection
@@ -49,6 +50,7 @@ from pyloxone_api.exceptions import (LoxoneAuthEscalatedError,
                                       LoxoneConnectionError, LoxoneException,
                                       LoxoneOutOfServiceException,
                                       LoxonePublicKeyMismatchError,
+                                      LoxoneRemoteConnectDeniedError,
                                       LoxoneServiceUnAvailableError,
                                       LoxoneTokenError,
                                       LoxoneUnauthorisedError)
@@ -509,6 +511,14 @@ async def async_setup_entry(hass, config_entry):
         raise ConfigEntryError(
             "The Miniserver presented a different public key than the pinned one"
         ) from err
+    except LoxoneRemoteConnectDeniedError as err:
+        await coordinator.api.close()
+        # Final: asking the cloud again gets the same answer.
+        _LOGGER.error(
+            "Loxone Remote Connect refused the address of %s: %s", host, err
+        )
+        create_remote_connect_issue(hass, config_entry, err)
+        raise ConfigEntryError(f"Loxone Remote Connect refused: {err}") from err
     except LoxoneServiceUnAvailableError as err:
         _LOGGER.warning(
             "Loxone Miniserver at %s is unavailable (service restarting?). Will retry automatically",
@@ -557,6 +567,7 @@ async def async_setup_entry(hass, config_entry):
         host,
     )
     delete_public_key_issue(hass, config_entry)
+    delete_remote_connect_issue(hass, config_entry)
     update_https_issues(hass, config_entry, coordinator.api)
 
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
@@ -646,6 +657,11 @@ async def async_setup_entry(hass, config_entry):
             )
             coordinator.connection_available = False
             create_public_key_issue(hass, config_entry)
+        except LoxoneRemoteConnectDeniedError as e:
+            # Final (run() does not retry it): no reload loop.
+            _LOGGER.error("Loxone Remote Connect refused the address: %s", e)
+            coordinator.connection_available = False
+            create_remote_connect_issue(hass, config_entry, e)
         except LoxoneOutOfServiceException as e:
             _LOGGER.warning(
                 "Loxone out of service (%s). Reloading Loxone integration.",

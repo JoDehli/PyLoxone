@@ -65,6 +65,10 @@
     "certificate_expired": {
       "title": "Certifikát Loxone Miniserveru vypršel ({title})",
       "description": "Platnost TLS certifikátu Miniserveru vypršela. Připoj Miniserver k internetu, aby si certifikát obnovil, nebo aktualizuj jeho firmware."
+    },
+    "remote_connect_denied": {
+      "title": "Loxone Remote Connect odmítl spojení ({title})",
+      "description": "Loxone Remote Connect nevydal adresu Miniserveru (stav {code}):\n\n> {message}\n\nIntegrace se přestala připojovat. Připoj se po místní síti (host = místní IP adresa Miniserveru) nebo přes VPN do jeho sítě a integraci znovu načti."
     }
   }
 }

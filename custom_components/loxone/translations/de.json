@@ -58,6 +58,9 @@
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+        },
+        "data_description": {
+          "host": "Lokale IP-Adresse oder Hostname des Miniservers, `https://…` für TLS oder `connect.loxonecloud.com/<Seriennummer>` für Loxone Remote Connect."
         }
       },
       "reauth_confirm": {
@@ -87,7 +90,10 @@
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
         },
         "description": "PyLoxone Einstellungen editieren:",
-        "title": "PyLoxone Einstellungen"
+        "title": "PyLoxone Einstellungen",
+        "data_description": {
+          "host": "Lokale IP-Adresse oder Hostname des Miniservers, `https://…` für TLS oder `connect.loxonecloud.com/<Seriennummer>` für Loxone Remote Connect."
+        }
       }
     }
   },
@@ -186,6 +192,10 @@
     "certificate_expired": {
       "title": "Zertifikat des Loxone Miniservers abgelaufen ({title})",
       "description": "Das TLS-Zertifikat des Miniservers ist abgelaufen. Verbinde den Miniserver mit dem Internet, damit er das Zertifikat erneuern kann, oder aktualisiere seine Firmware."
+    },
+    "remote_connect_denied": {
+      "title": "Loxone Remote Connect hat die Verbindung abgelehnt ({title})",
+      "description": "Loxone Remote Connect hat die Adresse des Miniservers nicht herausgegeben (Status {code}):\n\n> {message}\n\nDie Integration verbindet sich nicht mehr. Verbinde dich über das lokale Netzwerk (Host = lokale IP-Adresse des Miniservers) oder über ein VPN in sein Netzwerk und lade die Integration neu."
     }
   }
 }

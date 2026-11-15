@@ -273,5 +273,69 @@ def test_translations_cover_the_issues():
     for lang in ("en", "de", "cs"):
         path = Path(__file__).parents[1] / "custom_components" / "loxone" / "translations" / f"{lang}.json"
         issues = json.loads(path.read_text())["issues"]
-        assert {"public_key_changed", "https_available", "certificate_expired"} <= set(issues)
+        assert {"public_key_changed", "https_available", "certificate_expired", "remote_connect_denied"} <= set(issues)
         assert "confirm" in issues["public_key_changed"]["fix_flow"]["step"]
+
+
+# --- Remote Connect --------------------------------------------------------------
+
+
+async def test_remote_connect_host_is_passed_through(hass, mock_connection, setup_loxone_entry, created):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=4,
+        data={},
+        options={
+            "host": "connect.loxonecloud.com/504F94A23DB1",
+            "port": 8080,
+            "username": "admin",
+            "password": "secret",
+            "verify_ssl": True,
+            "generate_scenes": False,
+            "generate_scenes_delay": 3,
+            "generate_lightcontroller_subcontrols": False,
+        },
+        unique_id="TEST-SERIAL-0001",
+    )
+    await setup_loxone_entry(entry)
+    assert entry.state is ConfigEntryState.LOADED
+    assert created[-1]["host"] == "connect.loxonecloud.com/504F94A23DB1"
+
+
+async def test_remote_connect_denied_stops_setup(hass, mock_connection, mock_entry):
+    from pyloxone_api.exceptions import LoxoneRemoteConnectDeniedError
+
+    message = "Remote Connect refused (418): Access through Loxone Remote Connect is only possible with the Loxone App or Loxone Config."
+
+    async def denied(self, session=None, *, connect_websocket=True):
+        raise LoxoneRemoteConnectDeniedError(message, code=418)
+
+    mock_entry.add_to_hass(hass)
+    with patch.object(LoxoneConnection, "open", new=denied):
+        await hass.config_entries.async_setup(mock_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_entry.state is ConfigEntryState.SETUP_ERROR
+    issue = _issue(hass, "remote_connect_denied", mock_entry)
+    assert issue is not None
+    assert not issue.is_fixable
+    assert issue.translation_placeholders["code"] == "418"
+    assert "Loxone App" in issue.translation_placeholders["message"]
+
+
+async def test_remote_connect_denied_while_running(hass, mock_connection, mock_entry, setup_loxone_entry):
+    from pyloxone_api.exceptions import LoxoneRemoteConnectDeniedError
+
+    async def run_denied(self, on_state=None, callback=None, **kwargs):
+        raise LoxoneRemoteConnectDeniedError("Remote Connect refused (403)", code=403)
+
+    with (
+        patch.object(LoxoneConnection, "run", new=run_denied),
+        patch.object(hass.config_entries, "async_schedule_reload") as reload,
+    ):
+        await setup_loxone_entry(mock_entry)
+        await hass.async_block_till_done()
+        assert _issue(hass, "remote_connect_denied", mock_entry) is not None
+        reload.assert_not_called()

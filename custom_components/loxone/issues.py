@@ -8,6 +8,9 @@
   in its apiKey reply), but the entry connects over plain HTTP.
 * ``certificate_expired``: the Miniserver's TLS certificate has expired
   (``httpsStatus`` 2).
+* ``remote_connect_denied``: Loxone Remote Connect refused to give out the
+  Miniserver's address (``LoxoneRemoteConnectDeniedError``, e.g. remote
+  access only permitted for the Loxone App and Loxone Config).
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from .const import DOMAIN
 ISSUE_PUBLIC_KEY_CHANGED = "public_key_changed"
 ISSUE_HTTPS_AVAILABLE = "https_available"
 ISSUE_CERTIFICATE_EXPIRED = "certificate_expired"
+ISSUE_REMOTE_CONNECT_DENIED = "remote_connect_denied"
 
 HTTPS_STATUS_AVAILABLE = 1
 HTTPS_STATUS_EXPIRED = 2
@@ -89,6 +93,29 @@ def update_https_issues(hass: HomeAssistant, entry: ConfigEntry, api: Any) -> No
         ir.async_delete_issue(hass, DOMAIN, expired_id)
 
 
+def create_remote_connect_issue(hass: HomeAssistant, entry: ConfigEntry, err: Exception) -> None:
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id(ISSUE_REMOTE_CONNECT_DENIED, entry),
+        is_fixable=False,
+        severity=ir.IssueSeverity.ERROR,
+        translation_key=ISSUE_REMOTE_CONNECT_DENIED,
+        translation_placeholders=_placeholders(
+            entry, code=str(getattr(err, "code", None) or "-"), message=str(err) or "-"
+        ),
+    )
+
+
+def delete_remote_connect_issue(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    ir.async_delete_issue(hass, DOMAIN, issue_id(ISSUE_REMOTE_CONNECT_DENIED, entry))
+
+
 def delete_all_issues(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    for kind in (ISSUE_PUBLIC_KEY_CHANGED, ISSUE_HTTPS_AVAILABLE, ISSUE_CERTIFICATE_EXPIRED):
+    for kind in (
+        ISSUE_PUBLIC_KEY_CHANGED,
+        ISSUE_HTTPS_AVAILABLE,
+        ISSUE_CERTIFICATE_EXPIRED,
+        ISSUE_REMOTE_CONNECT_DENIED,
+    ):
         ir.async_delete_issue(hass, DOMAIN, issue_id(kind, entry))
