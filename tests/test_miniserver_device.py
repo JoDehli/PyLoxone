@@ -16,7 +16,7 @@ from homeassistant.helpers import device_registry as dr
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.loxone.miniserver import MiniServer
-from custom_components.loxone.pyloxone_api.connection import LoxoneConnection
+from pyloxone_api.connection import LoxoneConnection
 
 SERIAL = "504F94AABBCC"
 MAC = "50:4f:94:aa:bb:cc"
