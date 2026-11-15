@@ -1,0 +1,82 @@
+blueprint:
+  name: Loxone Message Center repair issue
+  description: >-
+    Run your own actions whenever the Loxone integration raises a new repair
+    issue from the Miniserver Message Center (System Status).
+
+
+    The following variables can be used in templates inside your actions:
+
+    - `issue_id` - unique id of the Message Center entry
+
+    - `issue_title` - title, plus the affected device name when known
+
+    - `issue_message` - description of the problem, including when it occurred
+
+    - `issue_help_url` - link to the Loxone help page (may be empty)
+
+    - `issue_severity` - `warning`, `error` or `critical`
+
+    - `issue_entry` - the raw Message Center entry sent by the Miniserver
+  domain: automation
+  source_url: https://github.com/JoDehli/PyLoxone/blob/master/blueprints/loxone_repair_issue.yaml
+  input:
+    min_severity:
+      name: Minimum severity
+      description: Only run the actions for issues of this severity or higher.
+      default: warning
+      selector:
+        select:
+          options:
+            - label: Warning
+              value: warning
+            - label: Error
+              value: error
+            - label: Critical
+              value: critical
+    actions:
+      name: Actions
+      description: >-
+        Actions to run for each new issue, e.g. send a mobile notification
+        using `{{ issue_title }}` and `{{ issue_message }}`.
+      selector:
+        action: {}
+
+mode: queued
+max: 20
+
+triggers:
+  - trigger: event
+    event_type: repairs_issue_registry_updated
+    event_data:
+      action: create
+      domain: loxone
+
+variables:
+  min_severity: !input min_severity
+  issue_id: "{{ trigger.event.data.issue_id }}"
+  # Each variable looks the issue up itself: template results are rendered
+  # to strings, so the issue object cannot be stored in a variable.
+  issue_title: >-
+    {% set i = issue('loxone', issue_id) %}{% if i %}{{
+    i.translation_placeholders.title }}{% if i.translation_placeholders.name
+    %}: {{ i.translation_placeholders.name }}{% endif %}{% endif %}
+  issue_message: >-
+    {% set i = issue('loxone', issue_id) %}{{
+    i.translation_placeholders.description if i else '' }}
+  issue_help_url: >-
+    {% set i = issue('loxone', issue_id) %}{{
+    (i.learn_more_url or '') if i else '' }}
+  issue_severity: >-
+    {% set i = issue('loxone', issue_id) %}{{ i.severity if i else '' }}
+  issue_entry: >-
+    {% set i = issue('loxone', issue_id) %}{{
+    i.data.entry if i and i.data and i.data.entry else {} }}
+
+conditions:
+  - condition: template
+    value_template: >-
+      {% set rank = {'warning': 1, 'error': 2, 'critical': 3} %}
+      {{ rank.get(issue_severity, 0) >= rank[min_severity] }}
+
+actions: !input actions

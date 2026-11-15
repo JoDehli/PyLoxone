@@ -48,6 +48,7 @@ def _setup_meter_entities(loxconfig: dict) -> list:
     miniserver = SimpleNamespace(
         lox_config=SimpleNamespace(json=loxconfig),
         serial="12345678",
+        device_info={"identifiers": {("loxone", "12345678")}},
         listeners=[],
         async_signal_new_device=lambda new_type: "loxone-new-device",
     )
