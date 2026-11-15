@@ -2,9 +2,9 @@
 
 Spec facts (Structure File, LightControllerV2, pages 95-98):
 - mood playback `changeTo/{moodId}`, mood id **0 is always off**
-- the ids 99 / 778 are NOT in the spec (runtime conventions of the
-  analysis installation), see docs/IMPLEMENTED_CONTROL_TYPES_EN.md,
-  section "LightControllerV2"
+- the ids 99 / 778 are NOT in the spec, see
+  docs/IMPLEMENTED_CONTROL_TYPES_EN.md, section "LightControllerV2".
+  `changeTo/99` is nevertheless the plain turn-on command (#539).
 """
 
 from __future__ import annotations
@@ -111,9 +111,11 @@ def test_event_mixed_off_and_real_mood_is_on():
 # --- turn_on/turn_off command encoding ---------------------------------------
 
 
-def test_turn_on_without_kwargs_activates_the_first_mood():
-    """`changeTo/99` was a runtime convention of one installation and is
-    not in the spec; plain turn-on activates the first known mood."""
+def test_turn_on_without_kwargs_sends_change_to_99():
+    """Regression for JoDehli/PyLoxone#539: 0.10.2 replaced `changeTo/99`
+    with `changeTo/<first mood of moodList>` and the controller stayed
+    dark. The id is not in the spec, but it is the command that switched
+    the controller on in every release from 2023 up to 0.10.1."""
     controller, sent = _controller(
         moodlist=[{"id": 3, "name": "Eins"}, {"id": 5, "name": "Zwei"}]
     )
@@ -121,16 +123,16 @@ def test_turn_on_without_kwargs_activates_the_first_mood():
 
     asyncio.run(controller.async_turn_on())
 
-    assert sent == ["changeTo/3"]
+    assert sent == ["changeTo/99"]
 
 
-def test_turn_on_without_kwargs_falls_back_to_plus_without_moods():
+def test_turn_on_without_kwargs_does_not_depend_on_the_mood_list():
     controller, sent = _controller(moodlist=[])
     controller._attr_is_on = False
 
     asyncio.run(controller.async_turn_on())
 
-    assert sent == ["plus"]
+    assert sent == ["changeTo/99"]
 
 
 def test_turn_on_without_kwargs_while_on_is_a_noop():
