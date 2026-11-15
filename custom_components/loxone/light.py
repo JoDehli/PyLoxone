@@ -5,6 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.const import Platform
 
 from .helpers import add_room_and_cat_to_value_values, get_all
 from .lights.colorpickers import LumiTech, RGBColorPicker, TunableWhiteLight
@@ -12,6 +13,7 @@ from .lights.dimmer import EIBDimmer, LoxoneDimmer
 from .lights.lightcontroller import LoxoneLightControllerV2
 from .lights.switch import LoxoneLightSwitch
 from .miniserver import get_miniserver_from_hass
+from .controls import async_setup_controls
 
 _LOGGER = logging.getLogger(__name__)
 DEFAULT_NAME = "Loxone Light Controller V2"
@@ -149,4 +151,10 @@ async def async_setup_entry(
             else:
                 _LOGGER.error(f"Could not read picker_type of colorpicker")
 
+    # Control types of the ``controls`` package (one module per group).
+    entities.extend(
+        async_setup_controls(
+            Platform.LIGHT, hass, config_entry, loxconfig, async_add_entities
+        )
+    )
     async_add_entities(entities)

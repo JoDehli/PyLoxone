@@ -13,12 +13,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.const import Platform
 
 from . import LoxoneEntity
 from .const import SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all, get_or_create_device,
                       parse_control_lock)
 from .miniserver import get_miniserver_from_hass
+from .controls import async_setup_controls
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,6 +122,12 @@ async def async_setup_entry(
         except Exception:
             _LOGGER.exception("Skipping Radio control %s", select_entity.get("name", "?"))
 
+    # Control types of the ``controls`` package (one module per group).
+    entities.extend(
+        async_setup_controls(
+            Platform.SELECT, hass, config_entry, loxconfig, async_add_entities
+        )
+    )
     async_add_entities(entities)
 
 
