@@ -19,7 +19,7 @@ from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
                                  EVENT_HOMEASSISTANT_STARTED,
                                  EVENT_HOMEASSISTANT_STOP, Platform)
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import (ConfigEntryAuthFailed,
+from homeassistant.exceptions import (ConfigEntryAuthFailed, ConfigEntryError,
                                       ConfigEntryNotReady, HomeAssistantError)
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import config_validation as cv
@@ -37,7 +37,10 @@ from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
                     DEFAULT_DELAY_SCENE, DEFAULT_PORT, DEFAULT_VERIFY_SSL,
                     DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT, LOXONE_PLATFORMS,
                     SECUREDSENDDOMAIN, SENDDOMAIN, SERVICE_REFRESH_TOKEN, cfmt)
-from .coordinator import LoxoneCoordinator
+from .coordinator import (FileStructureCache, LoxoneCoordinator,
+                          clear_stored_token, structure_cache_path)
+from .issues import (create_public_key_issue, delete_all_issues,
+                     delete_public_key_issue, update_https_issues)
 from .helpers import get_miniserver_type
 from .miniserver import MiniServer, get_miniserver_from_hass
 from pyloxone_api.connection import LoxoneConnection
@@ -45,6 +48,7 @@ from pyloxone_api.exceptions import (LoxoneAuthEscalatedError,
                                       LoxoneConnectionClosedOk,
                                       LoxoneConnectionError, LoxoneException,
                                       LoxoneOutOfServiceException,
+                                      LoxonePublicKeyMismatchError,
                                       LoxoneServiceUnAvailableError,
                                       LoxoneTokenError,
                                       LoxoneUnauthorisedError)
@@ -253,7 +257,16 @@ async def async_remove_entry(hass, config_entry) -> None:
     simply expires on the Miniserver. A kill is attempted while the
     connection is still open (e.g. a removal triggered from a
     config-flow retry while the entry is loaded).
+
+    Also removes the entry's repair issues and cached structure file.
     """
+    try:
+        delete_all_issues(hass, config_entry)
+        await hass.async_add_executor_job(
+            FileStructureCache(structure_cache_path(hass, config_entry.entry_id)).remove
+        )
+    except Exception as err:  # noqa: BLE001 - cleanup must not block the removal
+        _LOGGER.warning("Cleanup on entry removal failed: %s", err)
     coordinator = None
     for co in getattr(hass.data.get(DOMAIN, {}), "values", lambda: [])():
         if (
@@ -483,6 +496,19 @@ async def async_setup_entry(hass, config_entry):
 
     try:
         await coordinator.async_config_entry_first_refresh()
+    except LoxonePublicKeyMismatchError as err:
+        await coordinator.api.close()
+        # Final: retrying would only hit the same key again. A repair
+        # issue lets the user accept the new key after checking it.
+        _LOGGER.error(
+            "Loxone Miniserver at %s presented a different public key than "
+            "the pinned one. Not connecting; see Settings > Repairs",
+            host,
+        )
+        create_public_key_issue(hass, config_entry)
+        raise ConfigEntryError(
+            "The Miniserver presented a different public key than the pinned one"
+        ) from err
     except LoxoneServiceUnAvailableError as err:
         _LOGGER.warning(
             "Loxone Miniserver at %s is unavailable (service restarting?). Will retry automatically",
@@ -530,6 +556,8 @@ async def async_setup_entry(hass, config_entry):
         "Successfully connected to Loxone Miniserver at %s",
         host,
     )
+    delete_public_key_issue(hass, config_entry)
+    update_https_issues(hass, config_entry, coordinator.api)
 
     hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
 
@@ -585,14 +613,8 @@ async def async_setup_entry(hass, config_entry):
                 exc_info=True,
             )
             # First we delete the invalid token then try to reload
-            hass.config_entries.async_update_entry(
-                config_entry,
-                data={
-                    "token": "",
-                    "hash_alg": "",
-                    "valid_until": "",
-                },
-            )
+            # Keeps the client uuid and the pinned public key.
+            clear_stored_token(hass, config_entry)
             # Loxone-Integration neu laden
             _schedule_reload()
         except (
@@ -611,15 +633,19 @@ async def async_setup_entry(hass, config_entry):
                 e,
                 exc_info=True,
             )
-            hass.config_entries.async_update_entry(
-                config_entry,
-                data={
-                    "token": "",
-                    "hash_alg": "",
-                    "valid_until": "",
-                },
-            )
+            # Keeps the client uuid and the pinned public key.
+            clear_stored_token(hass, config_entry)
             _schedule_reload()
+        except LoxonePublicKeyMismatchError as e:
+            # Final (run() does not retry it): no reload loop, the user
+            # decides in Settings > Repairs.
+            _LOGGER.error(
+                "Loxone Miniserver presented a different public key than the "
+                "pinned one (%s). Connection stopped; see Settings > Repairs",
+                e,
+            )
+            coordinator.connection_available = False
+            create_public_key_issue(hass, config_entry)
         except LoxoneOutOfServiceException as e:
             _LOGGER.warning(
                 "Loxone out of service (%s). Reloading Loxone integration.",
@@ -851,6 +877,8 @@ async def async_setup_entry(hass, config_entry):
         # rebooted into a new firmware: let the device follow.
         if state == "connected" and coordinator.refresh_miniserver():
             _update_miniserver_device()
+        if state == "connected":
+            update_https_issues(hass, config_entry, coordinator.api)
         # Every loaded LoxoneEntity of this entry rewrites its state (see
         # ``LoxoneEntity.async_added_to_hass``). Previously one
         # ``async_update_entity`` task was created per registry entry -

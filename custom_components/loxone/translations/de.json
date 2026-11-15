@@ -167,6 +167,25 @@
     "loxone_device_status": {
       "title": "{title}: {name}",
       "description": "{description}"
+    },
+    "public_key_changed": {
+      "title": "Loxone Miniserver meldet einen anderen öffentlichen Schlüssel ({title})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Neuen öffentlichen Schlüssel akzeptieren?",
+            "description": "Bei der ersten Verbindung hat die Integration den öffentlichen Schlüssel des Miniservers gespeichert. Jetzt meldet er einen anderen Schlüssel, deshalb verbindet sich die Integration nicht mehr.\n\nDas ist nach einem Austausch oder Zurücksetzen des Miniservers zu erwarten. Andernfalls antwortet möglicherweise ein anderes Gerät im Netzwerk an seiner Stelle.\n\nBestätige nur, wenn du weißt, warum sich der Schlüssel geändert hat: Die Integration vergisst dann den alten Schlüssel und speichert den, den der Miniserver bei der nächsten Verbindung meldet."
+          }
+        }
+      }
+    },
+    "https_available": {
+      "title": "Loxone Miniserver unterstützt HTTPS ({title})",
+      "description": "Der Miniserver unterstützt verschlüsselte HTTPS/WSS-Verbindungen, die Integration verbindet sich aber über unverschlüsseltes HTTP. Für TLS den Host in den Optionen der Integration auf `https://{hostname}` ändern."
+    },
+    "certificate_expired": {
+      "title": "Zertifikat des Loxone Miniservers abgelaufen ({title})",
+      "description": "Das TLS-Zertifikat des Miniservers ist abgelaufen. Verbinde den Miniserver mit dem Internet, damit er das Zertifikat erneuern kann, oder aktualisiere seine Firmware."
     }
   }
 }

@@ -177,6 +177,25 @@
     "loxone_device_status": {
       "title": "{title}: {name}",
       "description": "{description}"
+    },
+    "public_key_changed": {
+      "title": "Loxone Miniserver presented a different public key ({title})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Accept the new public key?",
+            "description": "On the first connection the integration pinned the public key of the Miniserver. It now presents a different key, so the integration stopped connecting.\n\nThis is expected after the Miniserver was replaced or reset. Otherwise another device in the network may be answering in its place.\n\nConfirm only if you know why the key changed: the integration then forgets the old key and pins the one the Miniserver presents on the next connection."
+          }
+        }
+      }
+    },
+    "https_available": {
+      "title": "Loxone Miniserver supports HTTPS ({title})",
+      "description": "The Miniserver supports encrypted HTTPS/WSS connections, but the integration connects over plain HTTP. To use TLS, change the host in the integration's options to `https://{hostname}`."
+    },
+    "certificate_expired": {
+      "title": "Loxone Miniserver certificate expired ({title})",
+      "description": "The TLS certificate of the Miniserver has expired. Connect the Miniserver to the internet so it can renew the certificate, or update its firmware."
     }
   }
 }
