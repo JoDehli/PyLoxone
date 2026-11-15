@@ -29,7 +29,7 @@ def control(
     sub_controls: dict | None = None,
     **extra,
 ) -> dict:
-    uuid = uuid_for(control_type, name)
+    uuid = extra.pop("uuidAction", None) or uuid_for(control_type, name)
     result = {
         "name": name,
         "type": control_type,

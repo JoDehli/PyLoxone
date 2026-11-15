@@ -42,6 +42,7 @@ from .window_monitor import (LoxoneWindowPositionSensor,
                              window_contacts, window_monitor_controls,
                              window_monitor_count_sensors)
 from .controls import async_setup_controls
+from .controls.info import apply_text_presentation, text_presentation
 
 NEW_SENSOR = "sensors"
 
@@ -253,14 +254,22 @@ async def async_setup_entry(
 
     # #529: text memory flags and other text values with "Use" ticked in
     # Loxone Config arrive as InfoOnlyText (state "text", like TextInput).
+    # Text cells of a system scheme are often named "-": they get the
+    # scheme's name and position and start disabled (text_presentation).
     for sensor in get_all(loxconfig, "InfoOnlyText"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-        entities.append(LoxoneTextSensor(**sensor))
+        presentation = text_presentation(loxconfig, sensor)
+        entity = LoxoneTextSensor(**{**sensor, "name": presentation.name})
+        apply_text_presentation(loxconfig, entity, presentation)
+        entities.append(entity)
 
     # #529: the "Status" block (TextState) - read-only text with icon/colour.
     for sensor in get_all(loxconfig, "TextState"):
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
-        entities.append(LoxoneTextStateSensor(**sensor))
+        presentation = text_presentation(loxconfig, sensor)
+        entity = LoxoneTextStateSensor(**{**sensor, "name": presentation.name})
+        apply_text_presentation(loxconfig, entity, presentation)
+        entities.append(entity)
 
     for sensor in get_all(loxconfig, "Meter"):
         _LOGGER.debug("Found Meter: %s", sensor)
