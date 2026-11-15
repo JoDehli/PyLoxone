@@ -226,6 +226,21 @@ actions:
     action: notify.persistent_notification
 ```
 
+#### Blueprints
+
+The repository ships two blueprints: an automation for Message Center repair issues and a script for sending commands to secured controls. Both are documented in detail in [BLUEPRINTS.md](BLUEPRINTS.md).
+
+| Blueprint | Type | Purpose |
+|---|---|---|
+| [Loxone Message Center repair issue](BLUEPRINTS.md#loxone-message-center-repair-issue) | Automation | Run your own actions for new repair issues |
+| [Loxone secured command](BLUEPRINTS.md#loxone-secured-command) | Script | Send a command to a secured control, asking for the visualisation password |
+
+To import the secured command blueprint, use **Settings → Automations & Scenes → Blueprints → Import Blueprint** with this URL (it works once the file is on `master`):
+
+```
+https://github.com/JoDehli/PyLoxone/blob/master/blueprints/secured_command_input_helper.yaml
+```
+
 #### Blueprint: run your own actions for new repair issues
 
 The repository includes an automation blueprint, [`blueprints/loxone_repair_issue.yaml`](blueprints/loxone_repair_issue.yaml). It triggers on every new Loxone repair issue and runs the actions you choose, such as a mobile notification, a TTS announcement or flashing a light. You can also set a minimum severity so that only errors or critical issues run your actions.

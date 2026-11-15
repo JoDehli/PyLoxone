@@ -1,0 +1,41 @@
+blueprint:
+  name: Loxone secured command
+  description: Send a command to a secured Loxone control, asking for the visualisation password at run time.
+  domain: script
+  input:
+    target_entity:
+      name: Secured Loxone entity
+      selector:
+        entity:
+          integration: loxone
+    command:
+      name: Command
+      description: e.g. pulse, on, off, open, close
+      default: pulse
+      selector:
+        text:
+
+fields:
+  code:
+    name: Code
+    required: true
+    selector:
+      text:
+        type: password
+
+variables:
+  target_entity: !input target_entity
+  command: !input command
+
+sequence:
+  - if:
+      - condition: template
+        value_template: "{{ code is not defined or code | string | trim == '' }}"
+    then:
+      - stop: No code was provided
+        error: true
+  - action: loxone.event_secured_websocket_command
+    data: >-
+      {{ {'device': target_entity,
+          'value': command | string,
+          'code': code | string | trim} }}
