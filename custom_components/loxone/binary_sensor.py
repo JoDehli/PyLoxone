@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal, final
+from typing import Literal
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -24,6 +24,7 @@ from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
+from .window_monitor import LoxoneWindowContactSensor, window_contacts
 
 _LOGGER = logging.getLogger(__name__)
 NEW_SENSOR = "binairy_sensors"
@@ -80,6 +81,13 @@ async def async_setup_entry(
         sensor.update({"type": "smoke"})
         entities.append(LoxoneDigitalSensor(**sensor))
 
+    # #524: one window binary sensor per WindowMonitor contact (the lock
+    # state is part of the contact's enum sensor, see window_monitor.py).
+    try:
+        entities.extend(LoxoneWindowContactSensor(contact) for contact in window_contacts(loxconfig))
+    except Exception:
+        _LOGGER.exception("Skipping WindowMonitor controls")
+
     @callback
     def async_add_binary_sensors(_):
         async_add_entities(_, True)
@@ -104,7 +112,7 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._attr_state = STATE_UNKNOWN
-        self._attr_is_on = STATE_UNKNOWN
+        self._attr_is_on = None
         self._from_loxone_config = False
 
         if (
@@ -115,10 +123,12 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
         ):
             self._from_loxone_config = True
             if self.type == "smoke":
-                # Optional since Miniserver 10.3: structure files without
-                # the state must not crash the setup (a missing key then
-                # simply never matches an event → the sensor stays unknown).
-                self._state_uuid = self.states.get("areAlarmSignalsOff")
+                # PS-04: read the smoke *level* (any level > 0 is a smoke
+                # event). `areAlarmSignalsOff` is a different signal: it
+                # tells whether the alarm signals (beeper) are muted. Falls
+                # back to the echoed uuidAction when `level` is absent, so
+                # the platform cannot abort on a missing key.
+                self._state_uuid = self.states.get("level") or self.uuidAction
             elif self.type == "presence":
                 self._state_uuid = self.states.get("active")
             elif "active" in self.states:
@@ -164,26 +174,31 @@ class LoxoneDigitalSensor(LoxoneEntity, BinarySensorEntity):
 
     async def event_handler(self, e):
         if self._state_uuid in e.data:
-            self._state = e.data[self._state_uuid]
-            if self._state == 1.0:
-                self._state = self._on_state
+            value = e.data[self._state_uuid]
+            # A smoke *level* (and any sibling state) above zero is an
+            # alarm: a non-1.0 value such as a fractional or a level of 2
+            # used to read as "off".
+            if isinstance(value, bool):
+                on = value
+            elif isinstance(value, (int, float)):
+                on = value > 0
+            elif isinstance(value, str) and value.strip() != "":
+                on = value.strip().lower() != "off"
             else:
-                self._state = self._off_state
+                on = False
+            self._state = self._on_state if on else self._off_state
             if not self._attr_available:
                 self._attr_available = True
             self.async_schedule_update_ha_state()
 
-    @final
-    @property
-    def state(self) -> Literal["on", "off"] | None:
-        """Return the state of the binary sensor."""
-        if (is_on := self.is_on) is None:
-            return None
-        return STATE_ON if is_on else STATE_OFF
-
     @property
     def is_on(self) -> bool | None:
         """Return true if sensor is on."""
+        # STATE_UNKNOWN until the first event: no value to report yet, so
+        # neither on nor off. The final BinarySensorEntity.state derives
+        # on/off from this and stays None while we return None.
+        if self._state == STATE_UNKNOWN:
+            return None
         return self._state == self._on_state
 
 
@@ -203,14 +218,12 @@ class LoxoneCustomBinarySensor(LoxoneEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         """Return true if sensor is on."""
-        return self._state == self._on_state
-
-    @property
-    def state(self) -> Literal["on", "off"] | None:
-        """Return the state of the binary sensor."""
-        if (is_on := self.is_on) is None:
+        # STATE_UNKNOWN until the first event: no value to report yet, so
+        # neither on nor off. The final BinarySensorEntity.state derives
+        # on/off from this and stays None while we return None.
+        if self._state == STATE_UNKNOWN:
             return None
-        return STATE_ON if is_on else STATE_OFF
+        return self._state == self._on_state
 
     async def event_handler(self, e):
         if self.uuidAction in e.data:

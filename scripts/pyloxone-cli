@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+"""
+Run the pyloxone_api client stand-alone.
+
+Install the package first, e.g. ``pip install -e ../pyloxone-api``, then
+run this script. The package is a separate distribution and no longer
+lives inside ``custom_components/loxone``.
+"""
+
+import runpy
+
+runpy.run_module("pyloxone_api.__main__", run_name="__main__", alter_sys=True)

@@ -439,7 +439,6 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         """Handle climate demand events from ClimateController."""
         if event.data.get("uuid") == self.uuidAction:
             self._demand = event.data.get("value", 0)
-            self._demand = event.data["value"]
             self.schedule_update_ha_state()
 
     def get_mode_from_id(self, mode_id):
@@ -474,7 +473,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         # extra = {}
         # for key in set(self._states.keys()):
         #     extra[key] = self.get_state_value(key)
-        return {
+        attrs = {
             **self._attr_extra_state_attributes,
             "is_overridden": self.is_overridden,
             "demand": self._demand,
@@ -489,6 +488,28 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
             # "mode_list": self._modeList,
             # **extra,
         }
+        # CO2 in ppm, only added if the controller delivers a valid value
+        # (controllers without a CO2 sensor deliver no meaningful value).
+        co2 = self._positive_value("co2", 10000)
+        if co2 is not None:
+            attrs["co2"] = co2
+        co2_target = self._positive_value("co2Target", 10000)
+        if co2_target is not None:
+            attrs["co2_target"] = co2_target
+        return attrs
+
+    def _positive_value(self, name, maximum):
+        """Return a state as float, or None if missing, invalid, 0 or above maximum.
+
+        A missing sensor input delivers no meaningful value (0 or nothing at all).
+        Values above the maximum are no plausible room values but transmission errors.
+        """
+        value = self.get_state_value(name)
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            return None
+        return value if 0 < value <= maximum else None
 
     @property
     def is_overridden(self) -> bool:
@@ -511,6 +532,11 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     def current_temperature(self):
         """Return the current temperature."""
         return self.get_state_value("tempActual")
+
+    @property
+    def current_humidity(self) -> float | None:
+        """Return the current humidity (state humidityActual)."""
+        return self._positive_value("humidityActual", 100)
 
     def set_temperature(self, **kwargs):
         """Set new target temperature."""
@@ -550,11 +576,12 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                                 dict(uuid=self.uuidAction, value=f"setComfortTemperatureCool/{new_temp}"),
                             )
                     elif active == ActiveMode.BUILDING_PROTECT:
-                        if new_temp != comfort_cool:
-                            self.hass.bus.fire(
-                                SENDDOMAIN,
-                                dict(uuid=self.uuidAction, value=f"setecoplusmaxtemperature/{new_temp}"),
-                            )
+                        # UNDOCUMENTED: setecoplusmaxtemperature is not in
+                        # the structure file, but the Miniserver accepts
+                        # it - see _send_building_protect_temperature.
+                        self._send_building_protect_temperature(
+                            "setecoplusmaxtemperature", "heatProtectTemperature", new_temp
+                        )
             if "target_temp_low" in kwargs:
                 comfort_heat = self.get_state_value("comfortTemperature")
                 if comfort_heat is not None:
@@ -575,11 +602,12 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                                 dict(uuid=self.uuidAction, value=f"setComfortTemperature/{new_temp}"),
                             )
                     elif active == ActiveMode.BUILDING_PROTECT:
-                        if new_temp != comfort_cool:
-                            self.hass.bus.fire(
-                                SENDDOMAIN,
-                                dict(uuid=self.uuidAction, value=f"setecoplusmintemperature/{new_temp}"),
-                            )
+                        # UNDOCUMENTED: setecoplusmintemperature is not in
+                        # the structure file, but the Miniserver accepts
+                        # it - see _send_building_protect_temperature.
+                        self._send_building_protect_temperature(
+                            "setecoplusmintemperature", "frostProtectTemperature", new_temp
+                        )
         else:
             # Auto/single target — temporarily adopt the comfort temperature
             if "temperature" in kwargs:
@@ -589,16 +617,58 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                         dict(uuid=self.uuidAction, value=f"override/{(kwargs["temperature"] * 2560) + 112}//{kwargs["temperature"]}"),
                     )
                 else:
-                    # ``setComfortModeTemp/{temp}`` takes the new absolute
-                    # comfort temperature (spec: comfortTemperature +
-                    # comfortTemperatureOffset ± 0.5), not an offset: the
-                    # offset sent before asked e.g. for 1 °C instead of 22 °C.
-                    self.hass.bus.fire(
-                        SENDDOMAIN,
-                        dict(uuid=self.uuidAction, value=f"setComfortModeTemp/{kwargs['temperature']}"),
-                    )
+                    # The Miniserver takes the argument of
+                    # ``setComfortModeTemp`` as the new
+                    # comfortTemperatureOffset, not as an absolute
+                    # temperature: sending 24.5 with a comfort temperature
+                    # of 24 °C results in a target of 48.5 °C (issue #544).
+                    # So send the current offset shifted by the requested
+                    # change of the target temperature.
+                    new_offset = self._comfort_offset_for(kwargs["temperature"])
+                    if new_offset is not None:
+                        self.hass.bus.fire(
+                            SENDDOMAIN,
+                            dict(uuid=self.uuidAction, value=f"setComfortModeTemp/{new_offset}"),
+                        )
 
         self.schedule_update_ha_state()
+
+    def _send_building_protect_temperature(self, command: str, state_name: str, new_temp) -> None:
+        """Set a building protection temperature with an undocumented command.
+
+        UNDOCUMENTED BUT WORKING: ``setecoplusmintemperature`` and
+        ``setecoplusmaxtemperature`` are not in the structure file
+        (V17.0), which lists frostProtectTemperature and
+        heatProtectTemperature as states only and names no command to
+        set them. A live Miniserver accepts both commands with Code 200,
+        while an unknown command gets Code 500 (checked 2026-11-13 on a
+        room controller V2). Do not remove them as "not in the spec".
+
+        Nothing is sent when the value already matches the state.
+        """
+        if new_temp != self.get_state_value(state_name):
+            self.hass.bus.fire(
+                SENDDOMAIN,
+                dict(uuid=self.uuidAction, value=f"{command}/{new_temp}"),
+            )
+
+    def _comfort_offset_for(self, temperature) -> float | None:
+        """Return the comfortTemperatureOffset that leads to the given target.
+
+        The offset is relative to the comfort temperature, so the current
+        offset is shifted by the difference between the requested and the
+        current target temperature. This also holds while cooling or in
+        economy mode, where the target is not comfortTemperature itself.
+        Without a known target the comfort temperature is the reference.
+        """
+        current_offset = self.get_state_value("comfortTemperatureOffset") or 0
+        current_target = self.get_state_value("tempTarget")
+        if current_target is None:
+            comfort = self.get_state_value("comfortTemperature")
+            if comfort is None:
+                return None
+            current_target = comfort + current_offset
+        return round(current_offset + temperature - current_target, 2)
 
     @property
     def target_temperature(self) -> float | None:

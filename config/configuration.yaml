@@ -1,5 +1,23 @@
-# https://www.home-assistant.io/integrations/default_config/
-default_config:
+# Replaces `default_config:` (https://www.home-assistant.io/integrations/default_config/).
+# Same list, minus `go2rtc` (it needs a Docker binary that the dev container does
+# not have) and minus the discovery integrations `bluetooth`, `dhcp`, `ssdp`, `usb`
+# and `zeroconf`. Discovery matches devices on the network and starts integrations
+# whose requirements are not installed in the dev container. See docs/DEVCONTAINER.md.
+assist_pipeline:
+cloud:
+conversation:
+energy:
+file:
+history:
+homeassistant_alerts:
+logbook:
+media_source:
+mobile_app:
+my:
+stream:
+sun:
+usage_prediction:
+webhook:
 
 # https://www.home-assistant.io/integrations/homeassistant/
 homeassistant:
@@ -18,5 +36,5 @@ logger:
     homeassistant.core: error
     homeassistant.helpers: error
     custom_components.loxone: debug
-    custom_components.loxone.pyloxone_api.connection: debug
-    custom_components.loxone.pyloxone_api.websocket_protocol: error
+    pyloxone_api.connection: debug
+    pyloxone_api.websocket_protocol: error

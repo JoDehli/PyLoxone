@@ -37,6 +37,9 @@ from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all, get
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
 from custom_components.loxone import LoxoneEntity, miniserver
+from .window_monitor import (LoxoneWindowPositionSensor,
+                             window_contacts, window_monitor_controls,
+                             window_monitor_count_sensors)
 
 NEW_SENSOR = "sensors"
 
@@ -246,6 +249,17 @@ async def async_setup_entry(
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
         entities.append(LoxoneTextSensor(**sensor))
 
+    # #529: text memory flags and other text values with "Use" ticked in
+    # Loxone Config arrive as InfoOnlyText (state "text", like TextInput).
+    for sensor in get_all(loxconfig, "InfoOnlyText"):
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        entities.append(LoxoneTextSensor(**sensor))
+
+    # #529: the "Status" block (TextState) - read-only text with icon/colour.
+    for sensor in get_all(loxconfig, "TextState"):
+        sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
+        entities.append(LoxoneTextStateSensor(**sensor))
+
     for sensor in get_all(loxconfig, "Meter"):
         _LOGGER.debug("Found Meter: %s", sensor)
         sensor = add_room_and_cat_to_value_values(loxconfig, sensor)
@@ -324,6 +338,14 @@ async def async_setup_entry(
     for key in messageCenter.keys():
         sensor = messageCenter.get(key)
         entities.append(LoxoneMessageCenterSensor(miniserver, **sensor))
+    # #524: WindowMonitor — a three-way position sensor per contact and the
+    # monitor's counters (the window/lock binary sensors live on the
+    # binary_sensor platform).
+    try:
+        entities.extend(LoxoneWindowPositionSensor(contact) for contact in window_contacts(loxconfig))
+        entities.extend(window_monitor_count_sensors(window_monitor_controls(loxconfig)))
+    except Exception:
+        _LOGGER.exception("Skipping WindowMonitor controls")
 
     @callback
     def async_add_sensors(_):
@@ -474,6 +496,96 @@ class LoxoneTextSensor(LoxoneEntity, SensorEntity):
             **self._attr_extra_state_attributes,
             "device_type": self.type,
         }
+
+
+# Home Assistant rejects a state longer than 255 characters.
+TEXT_STATE_MAX_LENGTH = 255
+
+
+def text_state_icon_and_color(raw: Any) -> dict[str, str]:
+    """Parse a TextState ``iconAndColor`` payload (#529).
+
+    Spec (Structure File, TextState): a text state holding JSON such as
+    ``{"icon": "Icons/xxxx.svg", "color": "#45864A"}``, since 13.1. Older
+    firmware has no such state; anything that is not a JSON object with
+    string values yields ``{}`` instead of an exception.
+    """
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except ValueError:
+            return {}
+    if not isinstance(raw, dict):
+        return {}
+    parsed = {}
+    for key in ("icon", "color"):
+        value = raw.get(key)
+        if isinstance(value, str) and value.strip():
+            parsed[key] = value.strip()
+    return parsed
+
+
+class LoxoneTextStateSensor(LoxoneTextSensor):
+    """The "Status" block (``TextState``, #529): a read-only text sensor.
+
+    The text arrives as a text event on ``textAndIcon``. A text longer
+    than Home Assistant's 255-character state limit is cut, with the full
+    text in the ``text`` attribute. The block's icon and colour
+    (``iconAndColor``) become the ``loxone_icon`` and ``color``
+    attributes; the icon is a Loxone SVG path, not an ``mdi:`` name, so
+    it is kept out of the ``icon`` attribute the frontend renders.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.type = "TextState"
+        states = self.states if isinstance(getattr(self, "states", None), dict) else {}
+        self._state_uuid = states.get("textAndIcon") or self.uuidAction
+        self._icon_color_uuid = states.get("iconAndColor")
+        self._icon_and_color: dict[str, str] = {}
+        self._attr_device_info = get_or_create_device(
+            self.unique_id, self.name, self.type, kwargs.get("room", "")
+        )
+
+    async def event_handler(self, e):
+        request_update = False
+        if self._icon_color_uuid and self._icon_color_uuid in e.data:
+            self._icon_and_color = text_state_icon_and_color(
+                e.data[self._icon_color_uuid]
+            )
+            request_update = True
+        if self._state_uuid in e.data:
+            self._state = str(e.data[self._state_uuid])
+            request_update = True
+        if request_update:
+            self.async_schedule_update_ha_state()
+
+    @property
+    def native_value(self):
+        """Return the text, cut to Home Assistant's state length limit."""
+        text = self._state
+        if isinstance(text, str) and len(text) > TEXT_STATE_MAX_LENGTH:
+            return text[: TEXT_STATE_MAX_LENGTH - 1] + "…"
+        return text
+
+    async def async_set_value(self, value):
+        """The Status block is an output; it takes no value."""
+        _LOGGER.warning("Ignoring write to read-only TextState '%s'", self.name)
+
+    @property
+    def extra_state_attributes(self):
+        """Return device specific state attributes."""
+        attributes = {
+            **super().extra_state_attributes,
+            "state_uuid": self._state_uuid,
+        }
+        if "icon" in self._icon_and_color:
+            attributes["loxone_icon"] = self._icon_and_color["icon"]
+        if "color" in self._icon_and_color:
+            attributes["color"] = self._icon_and_color["color"]
+        if isinstance(self._state, str) and len(self._state) > TEXT_STATE_MAX_LENGTH:
+            attributes["text"] = self._state
+        return attributes
 
 
 class LoxoneSensor(LoxoneEntity, SensorEntity):

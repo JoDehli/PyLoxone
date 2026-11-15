@@ -1,0 +1,1168 @@
+{
+  "msInfo": {
+    "msName": "PyLoxone Test Miniserver",
+    "serialNr": "TEST-SERIAL-0001",
+    "miniserverType": 2,
+    "mac": "40:2B:0C:11:22:33",
+    "firmware": "7.1.0",
+    "isOAuth": false
+  },
+  "softwareVersion": [
+    "7",
+    "1",
+    "0",
+    "28"
+  ],
+  "globalStates": {
+    "notifications": "4d53676c-616c-6c4e-ffff-4e4f474c31303041"
+  },
+  "messageCenter": {
+    "MessageCenter": {
+      "name": "Message Center",
+      "type": "MessageCenter",
+      "compound": false,
+      "details": {},
+      "states": {
+        "changed": "4d536763-6867-2020-ffff-4d53686720202001"
+      },
+      "uuidAction": "4d536763-7474-6c63-ffff-4d536774746c6301",
+      "isHidden": false
+    }
+  },
+  "rooms": {
+    "726f6f6d-0101-9617-ffff-c6f7572726f6000001": {
+      "name": "Parlour"
+    },
+    "726f6f6d-0102-9666-ffff-96365726f6f6000002": {
+      "name": "Office"
+    },
+    "726f6f6d-0103-9697-ffff-368656e726f6000003": {
+      "name": "Kitchen"
+    },
+    "726f6f6d-0104-9656-ffff-26f6f6d726f6000004": {
+      "name": "Bedroom"
+    },
+    "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005": {
+      "name": "Hall"
+    },
+    "726f6f6d-0106-9617-ffff-4656e726f6f6000006": {
+      "name": "Garden"
+    },
+    "726f6f6d-0107-9617-ffff-8726f6f6d726000007": {
+      "name": "Bathroom"
+    }
+  },
+  "cats": {
+    "6361743a-0108-96d6-ffff-f72746361743000008": {
+      "name": "Comfort"
+    },
+    "6361743a-010c-9657-ffff-7796361743a4000012": {
+      "name": "Energy"
+    },
+    "6361743a-0111-9657-ffff-7796361743a4000017": {
+      "name": "Energy"
+    },
+    "6361743a-0115-96d6-ffff-f72746361743000021": {
+      "name": "Comfort"
+    },
+    "6361743a-0119-9657-ffff-7796361743a4000025": {
+      "name": "Energy"
+    },
+    "6361743a-0120-9657-ffff-7796361743a4000032": {
+      "name": "Energy"
+    },
+    "6361743a-0125-96d6-ffff-f72746361743000037": {
+      "name": "Comfort"
+    },
+    "6361743a-013d-96d6-ffff-f72746361743000061": {
+      "name": "Comfort"
+    },
+    "6361743a-0144-96d6-ffff-f72746361743000068": {
+      "name": "Comfort"
+    },
+    "6361743a-014b-9637-ffff-269747963617000075": {
+      "name": "Security"
+    },
+    "6361743a-0151-9637-ffff-269747963617000081": {
+      "name": "Security"
+    },
+    "6361743a-0156-96d6-ffff-f72746361743000086": {
+      "name": "Comfort"
+    },
+    "6361743a-015c-9637-ffff-269747963617000092": {
+      "name": "Security"
+    },
+    "6361743a-0160-9637-ffff-269747963617000096": {
+      "name": "Security"
+    },
+    "6361743a-0164-9637-ffff-269747963617000100": {
+      "name": "Security"
+    },
+    "6361743a-0169-96d6-ffff-f72746361743000105": {
+      "name": "Comfort"
+    },
+    "6361743a-016d-96d6-ffff-f72746361743000109": {
+      "name": "Comfort"
+    },
+    "6361743a-0171-96f7-ffff-36361743a446000113": {
+      "name": "Doors"
+    },
+    "6361743a-017a-96f7-ffff-36361743a446000122": {
+      "name": "Doors"
+    },
+    "6361743a-017e-96f7-ffff-36361743a446000126": {
+      "name": "Doors"
+    },
+    "6361743a-0182-96d6-ffff-f72746361743000130": {
+      "name": "Comfort"
+    },
+    "6361743a-019e-96d6-ffff-f72746361743000158": {
+      "name": "Comfort"
+    },
+    "6361743a-01a2-96d6-ffff-f72746361743000162": {
+      "name": "Comfort"
+    },
+    "6361743a-01a6-9637-ffff-269747963617000166": {
+      "name": "Security"
+    },
+    "6361743a-01ab-96d6-ffff-f72746361743000171": {
+      "name": "Comfort"
+    },
+    "6361743a-01b5-96d6-ffff-f72746361743000181": {
+      "name": "Comfort"
+    }
+  },
+  "controls": {
+    "63746c3a-0109-96d7-ffff-572617475726000009": {
+      "name": "Temperature Parlour",
+      "type": "InfoOnlyAnalog",
+      "uuidAction": "63746c3a-0109-96d7-ffff-572617475726000009",
+      "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
+      "cat": "6361743a-0108-96d6-ffff-f72746361743000008",
+      "details": {
+        "format": "%.1f \u00b0C",
+        "layout": "IconDigitalRoom,RoomContentsDigital,IconDigitalRoomContents"
+      },
+      "states": {
+        "hints": "36333734-010a-9336-ffff-d303130392d3000010",
+        "active": "36333734-010b-9336-ffff-d303130392d3000011"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-010d-9657-ffff-779204b69746000013": {
+      "name": "Energy Kitchenv2",
+      "type": "InfoOnlyAnalog",
+      "uuidAction": "63746c3a-010d-9657-ffff-779204b69746000013",
+      "room": "726f6f6d-0103-9697-ffff-368656e726f6000003",
+      "cat": "6361743a-010c-9657-ffff-7796361743a4000012",
+      "details": {
+        "format": "%d kWh",
+        "layout": "IconDigitalRoom,RoomContentsDigital$tmpRoomContents"
+      },
+      "states": {
+        "hints": "36333734-010e-9336-ffff-d303130642d3000014",
+        "active": "36333734-010f-9336-ffff-d303130642d3000015",
+        "totalNeg": "36333734-0110-9336-ffff-d303130642d3000016"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0112-9656-ffff-b657220313a4000018": {
+      "name": "Breaker 1",
+      "type": "InfoOnlyDigital",
+      "uuidAction": "63746c3a-0112-9656-ffff-b657220313a4000018",
+      "room": "726f6f6d-0104-9656-ffff-26f6f6d726f6000004",
+      "cat": "6361743a-0111-9657-ffff-7796361743a4000017",
+      "details": {
+        "text": {
+          "on": "ON",
+          "off": "OFF"
+        }
+      },
+      "states": {
+        "active": "36333734-0113-9336-ffff-d303131322d3000019",
+        "values": "36333734-0114-9336-ffff-d303131322d3000020"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0301-96d7-ffff-572617475726000098": {
+      "name": "Main Door",
+      "type": "InfoOnlyDigital",
+      "uuidAction": "63746c3a-0301-96d7-ffff-572617475726000098",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-0171-96f7-ffff-36361743a446000113",
+      "details": {
+        "text": {
+          "on": "ON",
+          "off": "OFF"
+        }
+      },
+      "states": {
+        "active": "36333734-0302-9336-ffff-d303131322d3000099",
+        "values": "36333734-0303-9336-ffff-d303131322d3000100"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0116-9617-ffff-57320496e707000022": {
+      "name": "Status Input",
+      "type": "TextInput",
+      "uuidAction": "63746c3a-0116-9617-ffff-57320496e707000022",
+      "room": "726f6f6d-0102-9666-ffff-96365726f6f6000002",
+      "cat": "6361743a-0115-96d6-ffff-f72746361743000021",
+      "details": {
+        "maxLength": 20,
+        "retain": false
+      },
+      "states": {
+        "text": "36333734-0117-9336-ffff-d303131362d3000023",
+        "active": "36333734-0118-9336-ffff-d303131362d3000024"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-011a-9657-ffff-779204d65746000026": {
+      "name": "Energy Meter",
+      "type": "Meter",
+      "uuidAction": "63746c3a-011a-9657-ffff-779204d65746000026",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-0119-9657-ffff-7796361743a4000025",
+      "details": {
+        "format": "%d W",
+        "storageFormat": "%d kWh",
+        "totalFormat": "%d kWh",
+        "powerFormat": "%d W"
+      },
+      "states": {
+        "active": "36333734-011b-9336-ffff-d303131612d3000027",
+        "total": "36333734-011c-9336-ffff-d303131612d3000028",
+        "totalNeg": "36333734-011d-9336-ffff-d303131612d3000029",
+        "storage": "36333734-011e-9336-ffff-d303131612d3000030",
+        "controlType": "36333734-011f-9336-ffff-d303131612d3000031"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0121-9696-ffff-1746520436f6000033": {
+      "name": "Climate Controller",
+      "type": "ClimateController",
+      "uuidAction": "63746c3a-0121-9696-ffff-1746520436f6000033",
+      "room": "726f6f6d-0106-9617-ffff-4656e726f6f6000006",
+      "cat": "6361743a-0120-9657-ffff-7796361743a4000032",
+      "details": {
+        "connectedInputs": 1
+      },
+      "states": {
+        "active": "36333734-0122-9336-ffff-d303132312d3000034",
+        "command": "36333734-0123-9336-ffff-d303132312d3000035",
+        "temperatureOutdoor": "36333734-0124-9336-ffff-d303132312d3000036"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0126-9647-ffff-f6f6d20436f6000038": {
+      "name": "Bedroom Controller",
+      "type": "IRoomControllerV2",
+      "uuidAction": "63746c3a-0126-9647-ffff-f6f6d20436f6000038",
+      "room": "726f6f6d-0104-9656-ffff-26f6f6d726f6000004",
+      "cat": "6361743a-0125-96d6-ffff-f72746361743000037",
+      "details": {
+        "timerModes": [
+          {
+            "name": "Here",
+            "description": "Comfort",
+            "id": 1
+          },
+          {
+            "name": "Away",
+            "description": "Economy",
+            "id": 0
+          },
+          {
+            "name": "Off",
+            "description": "Building protect",
+            "id": 2
+          }
+        ],
+        "format": "%.1f \u00b0",
+        "connectedInputs": 0
+      },
+      "states": {
+        "tempActual": "36333734-0127-9336-ffff-d303132362d3000039",
+        "tempTarget": "36333734-0128-9336-ffff-d303132362d3000040",
+        "comfortTemperature": "36333734-0129-9336-ffff-d303132362d3000041",
+        "comfortTolerance": "36333734-012a-9336-ffff-d303132362d3000042",
+        "absentMinOffset": "36333734-012b-9336-ffff-d303132362d3000043",
+        "absentMaxOffset": "36333734-012c-9336-ffff-d303132362d3000044",
+        "frostProtectTemperature": "36333734-012d-9336-ffff-d303132362d3000045",
+        "heatProtectTemperature": "36333734-012e-9336-ffff-d303132362d3000046",
+        "activeMode": "36333734-012f-9336-ffff-d303132362d3000047",
+        "comfortTemperatureOffset": "36333734-0130-9336-ffff-d303132362d3000048",
+        "overrideEntries": "36333734-0131-9336-ffff-d303132362d3000049",
+        "prepareState": "36333734-0132-9336-ffff-d303132362d3000050",
+        "useOutdoor": "36333734-0133-9336-ffff-d303132362d3000051",
+        "operatingMode": "36333734-0134-9336-ffff-d303132362d3000052",
+        "overrideReason": "36333734-0135-9336-ffff-d303132362d3000053",
+        "openWindow": "36333734-0136-9336-ffff-d303132362d3000054",
+        "modeList": "36333734-0137-9336-ffff-d303132362d3000055",
+        "fanspeeds": "[{\"id\":0,\"name\":\"Auto\"},{\"id\":1,\"name\":\"Low\"},{\"id\":2,\"name\":\"High\"}]",
+        "airflows": "[{\"id\":0,\"name\":\"Auto\"},{\"id\":1,\"name\":\"Down\"},{\"id\":2,\"name\":\"Up\"}]",
+        "valveHeat": "36333734-0127-9336-ffff-000000000001000001",
+        "valveCool": "36333734-0127-9336-ffff-000000000001000002",
+        "isPreparing": "36333734-0127-9336-ffff-000000000001000003"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false,
+      "subControls": {
+        "7375623a-0138-9647-ffff-f6f6d20436f6000056": {
+          "name": "Heating and Cooling",
+          "type": "IRCV2Daytimer",
+          "uuidAction": "7375623a-0138-9647-ffff-f6f6d20436f6000056",
+          "details": {
+            "analog": true,
+            "format": "%.1f \u00b0"
+          },
+          "states": {
+            "entriesAndDefaultValue": "37333735-0139-9336-ffff-d303133382d3000057",
+            "mode": "37333735-013a-9336-ffff-d303133382d3000058",
+            "modeList": "37333735-013b-9336-ffff-d303133382d3000059",
+            "value": "37333735-013c-9336-ffff-d303133382d3000060"
+          },
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false
+        }
+      }
+    },
+    "63746c3a-013e-9666-ffff-36520436f6e7000062": {
+      "name": "Office Controller",
+      "type": "IRoomController",
+      "uuidAction": "63746c3a-013e-9666-ffff-36520436f6e7000062",
+      "room": "726f6f6d-0102-9666-ffff-96365726f6f6000002",
+      "cat": "6361743a-013d-96d6-ffff-f72746361743000061",
+      "details": {
+        "timerModes": [
+          {
+            "name": "Comfort",
+            "id": 1
+          },
+          {
+            "name": "Economy",
+            "id": 0
+          }
+        ]
+      },
+      "states": {
+        "tempActual": "36333734-013f-9336-ffff-d303133652d3000063",
+        "tempTarget": "36333734-0140-9336-ffff-d303133652d3000064",
+        "activeMode": "36333734-0141-9336-ffff-d303133652d3000065",
+        "openWindow": "36333734-0142-9336-ffff-d303133652d3000066",
+        "modeList": "36333734-0143-9336-ffff-d303133652d3000067",
+        "fanspeeds": "[{\"id\":0,\"name\":\"Auto\"},{\"id\":1,\"name\":\"Low\"},{\"id\":2,\"name\":\"High\"}]",
+        "airflows": "[{\"id\":0,\"name\":\"Auto\"},{\"id\":1,\"name\":\"Down\"},{\"id\":2,\"name\":\"Up\"}]"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0145-9204-ffff-16c6c7761793000069": {
+      "name": "AC Hallway",
+      "type": "AcControl",
+      "uuidAction": "63746c3a-0145-9204-ffff-16c6c7761793000069",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-0144-96d6-ffff-f72746361743000068",
+      "details": {},
+      "states": {
+        "temperature": "36333734-0146-9336-ffff-d303134352d3000070",
+        "setTemperature": "36333734-0147-9336-ffff-d303134352d3000071",
+        "fanSpeed": "36333734-0148-9336-ffff-d303134352d3000072",
+        "swingState": "36333734-0149-9336-ffff-d303134352d3000073",
+        "hvacMode": "36333734-014a-9336-ffff-d303134352d3000074",
+        "fanspeeds": "[{\"id\":0,\"name\":\"Auto\"},{\"id\":1,\"name\":\"Low\"},{\"id\":2,\"name\":\"High\"}]",
+        "airflows": "[{\"id\":0,\"name\":\"Auto\"},{\"id\":1,\"name\":\"Down\"},{\"id\":2,\"name\":\"Up\"}]",
+        "status": "2d646464-7265-9d0d4-4cff-0cca85f0f54f",
+        "mode": "2d646464-7265-9d030-4cff-445a3577e18a",
+        "absentMaxOffset": "2d646464-7265-9e0cc-4cff-6577428c2f6d",
+        "absentMinOffset": "2d646464-7265-9e06b-4cff-c64e5a22fac1",
+        "activeMode": "2d646464-7265-9e080-4cff-d6b2e6e1b465",
+        "comfortTemperature": "2d646464-7265-9e00c-4cff-a4c616e8c4bf",
+        "comfortTemperatureCool": "2d646464-7265-9e014-4cff-4d3334955d46",
+        "comfortTemperatureOffset": "2d646464-7265-9e0af-4cff-783b52901a6c",
+        "currCoolTempIx": "2d646464-7265-9e0ca-4cff-ccdb251bce79",
+        "currHeatTempIx": "2d646464-7265-9e079-4cff-3a67c9e2ed82",
+        "currentMode": "2d646464-7265-9e09a-4cff-f48d9d59ce6c",
+        "fan": "2d646464-7265-9e0a6-4cff-b0b9658d7dbc",
+        "frostProtectTemperature": "2d646464-7265-9e039-4cff-211d9b963cc5",
+        "heatProtectTemperature": "2d646464-7265-9e08e-4cff-a44ecd5b868e",
+        "isPreparing": "2d646464-7265-9e0c5-4cff-ff527e03af2a",
+        "openWindow": "2d646464-7265-9e095-4cff-e1d763f588b2",
+        "operatingMode": "2d646464-7265-9e065-4cff-b2344421c5b7",
+        "override": "2d646464-7265-9e05a-4cff-1ad69534f07c",
+        "prepareState": "2d646464-7265-9e037-4cff-e255eb8a1c09",
+        "targetTemperature": "2d646464-7265-9e0aa-4cff-1c87409cd75d",
+        "tempActual": "2d646464-7265-9e016-4cff-7853d0064591",
+        "tempTarget": "2d646464-7265-9e085-4cff-d401ce257ad4",
+        "valveCool": "2d646464-7265-9e058-4cff-52777dc278aa",
+        "valveHeat": "2d646464-7265-9e0f6-4cff-301d1a619588",
+        "ventMode": "2d646464-7265-9e009-4cff-6b35bc4986e1",
+        "setPoint": "2d646464-7265-9e00b-4cff-742c0bac7420"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-014c-96c6-ffff-761792050726000076": {
+      "name": "Hallway Presence",
+      "type": "PresenceDetector",
+      "uuidAction": "63746c3a-014c-96c6-ffff-761792050726000076",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-014b-9637-ffff-269747963617000075",
+      "details": {
+        "detected": true
+      },
+      "states": {
+        "active": "36333734-014d-9336-ffff-d303134632d3000077",
+        "illuminance": "36333734-014e-9336-ffff-d303134632d3000078",
+        "noise": "36333734-014f-9336-ffff-d303134632d3000079",
+        "time": "36333734-0150-9336-ffff-d303134632d3000080"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0152-9746-ffff-26f6f6d20536000082": {
+      "name": "Bathroom Smoke",
+      "type": "SmokeAlarm",
+      "uuidAction": "63746c3a-0152-9746-ffff-26f6f6d20536000082",
+      "room": "726f6f6d-0107-9617-ffff-8726f6f6d726000007",
+      "cat": "6361743a-0151-9637-ffff-269747963617000081",
+      "details": {},
+      "states": {
+        "active": "36333734-0153-9336-ffff-d303135322d3000083",
+        "level": "36333734-0154-9336-ffff-d303135322d3000084",
+        "areAlarmSignalsOff": "36333734-0155-9336-ffff-d303135322d3000085"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0157-9766-ffff-e6720526f6f6000087": {
+      "name": "Living Room Light Switch",
+      "type": "Switch",
+      "uuidAction": "63746c3a-0157-9766-ffff-e6720526f6f6000087",
+      "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
+      "cat": "6361743a-0156-96d6-ffff-f72746361743000086",
+      "details": {},
+      "states": {
+        "active": "36333734-0158-9336-ffff-d303135372d3000088",
+        "direction": "36333734-0159-9336-ffff-d303135372d3000089",
+        "favouriteMode": "36333734-015a-9336-ffff-d303135372d3000090",
+        "favouriteModeList": "36333734-015b-9336-ffff-d303135372d3000091"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-015d-96f7-ffff-054696d65642000093": {
+      "name": "Door Timed Switch",
+      "type": "TimedSwitch",
+      "uuidAction": "63746c3a-015d-96f7-ffff-054696d65642000093",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-015c-9637-ffff-269747963617000092",
+      "details": {},
+      "states": {
+        "active": "36333734-015e-9336-ffff-d303135642d3000094",
+        "direction": "36333734-015f-9336-ffff-d303135642d3000095"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0161-9747-ffff-f64756365205000097": {
+      "name": "Introduce Pushbutton",
+      "type": "Pushbutton",
+      "uuidAction": "63746c3a-0161-9747-ffff-f64756365205000097",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-0160-9637-ffff-269747963617000096",
+      "details": {},
+      "states": {
+        "active": "36333734-0162-9336-ffff-d303136312d3000098",
+        "direction": "36333734-0163-9336-ffff-d303136312d3000099"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0165-9696-ffff-0496e7465726000101": {
+      "name": "Main Intercom",
+      "type": "Intercom",
+      "uuidAction": "63746c3a-0165-9696-ffff-0496e7465726000101",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-0164-9637-ffff-269747963617000100",
+      "details": {},
+      "states": {
+        "active": "36333734-0166-9336-ffff-d303136352d3000102"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false,
+      "subControls": {
+        "7375623a-0167-9696-ffff-0496e7465726000103": {
+          "name": "Micro",
+          "type": "IntercomSubControl",
+          "uuidAction": "7375623a-0167-9696-ffff-0496e7465726000103",
+          "details": {},
+          "states": {
+            "on": "37333735-0168-9336-ffff-d303136372d3000104"
+          },
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false
+        }
+      }
+    },
+    "63746c3a-9c7d-96f2-ffff-e301696e743276000024": {
+      "name": "Entrance Intercom",
+      "type": "IntercomV2",
+      "uuidAction": "63746c3a-9c7d-96f2-ffff-e301696e743276000024",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-0164-9637-ffff-269747963617000100",
+      "details": {},
+      "states": {
+        "active": "36333734-9c8d-9336-ffff-d303136a2b42d300025"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false,
+      "subControls": {
+        "7375623a-9c9d-9696-ffff-c74c6f6c6b3276000026": {
+          "name": "Door Lock",
+          "type": "IntercomSubControl",
+          "uuidAction": "7375623a-9c9d-9696-ffff-c74c6f6c6b3276000026",
+          "details": {},
+          "states": {
+            "active": "37333735-9cad-9336-ffff-d303136b2c42d300027"
+          },
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false
+        }
+      }
+    },
+    "63746c3a-016a-9696-ffff-8746e6573732000106": {
+      "name": "Brightness Slider",
+      "type": "Slider",
+      "uuidAction": "63746c3a-016a-9696-ffff-8746e6573732000106",
+      "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
+      "cat": "6361743a-0169-96d6-ffff-f72746361743000105",
+      "details": {
+        "min": 0.0,
+        "max": 100.0,
+        "step": 10.0
+      },
+      "states": {
+        "value": "36333734-016b-9336-ffff-d303136612d3000107",
+        "active": "36333734-016c-9336-ffff-d303136612d3000108"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-016e-96e7-ffff-96c6174696f6000110": {
+      "name": "Ventilation Radio",
+      "type": "Radio",
+      "uuidAction": "63746c3a-016e-96e7-ffff-96c6174696f6000110",
+      "room": "726f6f6d-0103-9697-ffff-368656e726f6000003",
+      "cat": "6361743a-016d-96d6-ffff-f72746361743000109",
+      "details": {
+        "jLockable": true,
+        "allOff": "Uit",
+        "outputs": {
+          "1": "Low",
+          "2": "Medium",
+          "3": "High"
+        }
+      },
+      "states": {
+        "value": "36333734-016f-9336-ffff-d303136652d3000111",
+        "active": "36333734-0170-9336-ffff-d303136652d3000112",
+        "activeOutput": "2d646464-7265-9c096-4cff-2ee53548eacd",
+        "activePercentage": "2d646464-7265-9c099-4cff-92b61bcf54e6"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0172-9766-ffff-e67204a616c6000114": {
+      "name": "Living Jalousie",
+      "type": "Jalousie",
+      "uuidAction": "63746c3a-0172-9766-ffff-e67204a616c6000114",
+      "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
+      "cat": "6361743a-0171-96f7-ffff-36361743a446000113",
+      "details": {
+        "animation": true,
+        "flap": false,
+        "quickShade": true,
+        "sunAutoma": true
+      },
+      "states": {
+        "position": "36333734-0173-9336-ffff-d303137322d3000115",
+        "flapValue": "36333734-0174-9336-ffff-d303137322d3000116",
+        "time": "36333734-0175-9336-ffff-d303137322d3000117",
+        "number": "36333734-0176-9336-ffff-d303137322d3000118",
+        "mode": "36333734-0177-9336-ffff-d303137322d3000119",
+        "analogValueAbsolute": "36333734-0178-9336-ffff-d303137322d3000120",
+        "active": "36333734-0179-9336-ffff-d303137322d3000121"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-017b-9746-ffff-8656e2057696000123": {
+      "name": "Kitchen Window",
+      "type": "Window",
+      "uuidAction": "63746c3a-017b-9746-ffff-8656e2057696000123",
+      "room": "726f6f6d-0103-9697-ffff-368656e726f6000003",
+      "cat": "6361743a-017a-96f7-ffff-36361743a446000122",
+      "details": {
+        "animation": 0
+      },
+      "states": {
+        "position": "36333734-017c-9336-ffff-d303137622d3000124",
+        "active": "36333734-017d-9336-ffff-d303137622d3000125"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-017f-9726-ffff-56e204761746000127": {
+      "name": "Garden Gate",
+      "type": "Gate",
+      "uuidAction": "63746c3a-017f-9726-ffff-56e204761746000127",
+      "room": "726f6f6d-0106-9617-ffff-4656e726f6f6000006",
+      "cat": "6361743a-017e-96f7-ffff-36361743a446000126",
+      "details": {
+        "animation": 0
+      },
+      "states": {
+        "position": "36333734-0180-9336-ffff-d303137662d3000128",
+        "active": "36333734-0181-9336-ffff-d303137662d3000129"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-019b-9766-ffff-6a616c6f756e3000c0": {
+      "name": "Terrace Jalousie",
+      "type": "Jalousie",
+      "uuidAction": "63746c3a-019b-9766-ffff-6a616c6f756e3000c0",
+      "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
+      "cat": "6361743a-0171-96f7-ffff-36361743a446000113",
+      "details": {
+        "animation": 0,
+        "flap": true,
+        "quickShade": true,
+        "sunAutoma": true,
+        "isAutomatic": true
+      },
+      "states": {
+        "position": "36333734-01c8-9336-ffff-d303137282d3000c01",
+        "shadePosition": "36333734-01c8-9336-ffff-d303137282d3000c02",
+        "up": "36333734-01c8-9336-ffff-d303137282d3000c03",
+        "down": "36333734-01c8-9336-ffff-d303137282d3000c04",
+        "autoState": "36333734-01c8-9336-ffff-d303137282d3000c05",
+        "autoInfoText": "36333734-01c8-9336-ffff-d303137282d3000c06",
+        "targetPosition": "36333734-01c8-9336-ffff-d303137282d3000c07"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-0183-9766-ffff-e67204c69676000131": {
+      "name": "Living Light Controller",
+      "type": "LightControllerV2",
+      "uuidAction": "63746c3a-0183-9766-ffff-e67204c69676000131",
+      "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
+      "cat": "6361743a-0182-96d6-ffff-f72746361743000130",
+      "details": {
+        "icon": true
+      },
+      "states": {
+        "bri": "36333734-0184-9336-ffff-d303138332d3000132",
+        "active": "36333734-0185-9336-ffff-d303138332d3000133",
+        "state": "36333734-0186-9336-ffff-d303138332d3000134",
+        "mood": "36333734-0187-9336-ffff-d303138332d3000135",
+        "moodList": "36333734-0188-9336-ffff-d303138332d3000136",
+        "activeMoods": "36333734-0189-9336-ffff-d303138332d3000137",
+        "additionalMoods": "36333734-018a-9336-ffff-d303138332d3000138",
+        "control": "36333734-018b-9336-ffff-d303138332d3000139"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false,
+      "subControls": {
+        "7375623a-018c-9766-ffff-e67204c69676000140": {
+          "name": "LCV2 Dimmer",
+          "type": "Dimmer",
+          "uuidAction": "7375623a-018c-9766-ffff-e67204c69676000140",
+          "details": {},
+          "states": {
+            "active": "37333735-018d-9336-ffff-d303138632d3000141",
+            "brightness": "37333735-018e-9336-ffff-d303138632d3000142"
+          },
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false
+        },
+        "7375623a-018f-9766-ffff-e67204c69676000143": {
+          "name": "LCV2 Switch",
+          "type": "Switch",
+          "uuidAction": "7375623a-018f-9766-ffff-e67204c69676000143",
+          "details": {},
+          "states": {
+            "active": "37333735-0190-9336-ffff-d303138662d3000144"
+          },
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false
+        },
+        "7375623a-0191-9766-ffff-e67204c69676000145": {
+          "name": "Colour RGB",
+          "type": "ColorPickerV2",
+          "uuidAction": "7375623a-0191-9766-ffff-e67204c69676000145",
+          "details": {
+            "pickerType": 0
+          },
+          "states": {
+            "active": "37333735-0192-9336-ffff-d303139312d3000146",
+            "brightness": "37333735-0193-9336-ffff-d303139312d3000147",
+            "hue": "37333735-0194-9336-ffff-d303139312d3000148",
+            "saturation": "37333735-0195-9336-ffff-d303139312d3000149"
+          },
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false
+        },
+        "7375623a-0196-9766-ffff-e67204c69676000150": {
+          "name": "Colour CT",
+          "type": "ColorPickerV2",
+          "uuidAction": "7375623a-0196-9766-ffff-e67204c69676000150",
+          "details": {
+            "pickerType": 1
+          },
+          "states": {
+            "active": "37333735-0197-9336-ffff-d303139362d3000151",
+            "brightness": "37333735-0198-9336-ffff-d303139362d3000152",
+            "kelvin": "37333735-0199-9336-ffff-d303139362d3000153"
+          },
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false
+        },
+        "7375623a-019a-9766-ffff-e67204c69676000154": {
+          "name": "Colour CT Full",
+          "type": "ColorPickerV2",
+          "uuidAction": "7375623a-019a-9766-ffff-e67204c69676000154",
+          "details": {
+            "pickerType": 2
+          },
+          "states": {
+            "active": "37333735-019b-9336-ffff-d303139612d3000155",
+            "brightness": "37333735-019c-9336-ffff-d303139612d3000156",
+            "kelvin": "37333735-019d-9336-ffff-d303139612d3000157"
+          },
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false
+        }
+      }
+    },
+    "63746c3a-019f-9616-ffff-4616c6f6e652000159": {
+      "name": "Standalone Dimmer",
+      "type": "Dimmer",
+      "uuidAction": "63746c3a-019f-9616-ffff-4616c6f6e652000159",
+      "room": "726f6f6d-0104-9656-ffff-26f6f6d726f6000004",
+      "cat": "6361743a-019e-96d6-ffff-f72746361743000158",
+      "details": {
+        "layout": "IconDimmerRoom,RoomContentsDimmer,IconDimmerRoomContents"
+      },
+      "states": {
+        "active": "36333734-01a0-9336-ffff-d303139662d3000160",
+        "brightness": "36333734-01a1-9336-ffff-d303139662d3000161",
+        "min": "64696d6d6572-7661-4c75-9cff-052664696d6d696d696e2d6d696e",
+        "max": "64696d6d6572-7661-4c75-9cff-052664696d6d696d6178",
+        "position": "64696d6d6572-7661-4c75-9cff-052664696d6d696c706f73"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-01a3-9422-ffff-4696d6d65723000163": {
+      "name": "EIB Dimmer",
+      "type": "EIBDimmer",
+      "uuidAction": "63746c3a-01a3-9422-ffff-4696d6d65723000163",
+      "room": "726f6f6d-0104-9656-ffff-26f6f6d726f6000004",
+      "cat": "6361743a-01a2-96d6-ffff-f72746361743000162",
+      "details": {},
+      "states": {
+        "active": "36333734-01a4-9336-ffff-d303161332d3000164",
+        "brightness": "36333734-01a5-9336-ffff-d303161332d3000165"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-01a7-96d6-ffff-0416c61726d3000167": {
+      "name": "Home Alarm",
+      "type": "Alarm",
+      "uuidAction": "63746c3a-01a7-96d6-ffff-0416c61726d3000167",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-01a6-9637-ffff-269747963617000166",
+      "details": {
+        "modeList": [
+          "Disarmed",
+          "Armed Home",
+          "Armed Away"
+        ]
+      },
+      "states": {
+        "active": "36333734-01a8-9336-ffff-d303161372d3000168",
+        "level": "36333734-01a9-9336-ffff-d303161372d3000169",
+        "nextLevelAt": "36333734-01aa-9336-ffff-d303161372d3000170"
+      },
+      "subControls": {
+        "63746c3a-01a7-96d6-ffff-0416c61726d3000167/sensors": {
+          "name": "Alarm Sensors",
+          "type": "Tracker",
+          "uuidAction": "63746c3a-01a7-96d6-ffff-0416c61726d3000167/sensors",
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false,
+          "details": {
+            "maxEntries": 40
+          },
+          "states": {
+            "entries": "36333734-01ab-9336-ffff-d303161372d3000196"
+          }
+        }
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-019c-96d6-ffff-0416c61726d30001c1": {
+      "name": "Entrance Alarm",
+      "type": "Alarm",
+      "uuidAction": "63746c3a-019c-96d6-ffff-0416c61726d30001c1",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-01a6-9637-ffff-269747963617000166",
+      "details": {
+        "modeList": [
+          "Disarmed",
+          "Armed Home",
+          "Armed Away"
+        ]
+      },
+      "states": {
+        "armed": "36333734-01cb-9336-ffff-d303161372d3000c11",
+        "level": "36333734-01cb-9336-ffff-d303161372d3000c12",
+        "disabledMove": "36333734-01cb-9336-ffff-d303161372d3000c13",
+        "armedAt": "36333734-01cb-9336-ffff-d303161372d3000c14",
+        "nextLevelAt": "36333734-01cb-9336-ffff-d303161372d3000c15",
+        "armedDelay": "36333734-01cb-9336-ffff-d303161372d3000c16",
+        "armedDelayTotal": "36333734-01cb-9336-ffff-d303161372d3000c17"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-01ac-9746-ffff-8656e2056656000172": {
+      "name": "Kitchen Ventilation",
+      "type": "Ventilation",
+      "uuidAction": "63746c3a-01ac-9746-ffff-8656e2056656000172",
+      "room": "726f6f6d-0103-9697-ffff-368656e726f6000003",
+      "cat": "6361743a-01ab-96d6-ffff-f72746361743000171",
+      "details": {
+        "timerPrefix": null,
+        "hasPresence": true,
+        "hasIndoorHumidity": false,
+        "hasAirQuality": false
+      },
+      "states": {
+        "active": "36333734-01ad-9336-ffff-d303161632d3000173",
+        "mode": "36333734-01ae-9336-ffff-d303161632d3000174",
+        "modeList": "36333734-01af-9336-ffff-d303161632d3000175",
+        "temperatureIndoor": "36333734-01b0-9336-ffff-d303161632d3000176",
+        "humidityIndoor": "36333734-01b1-9336-ffff-d303161632d3000177",
+        "airQualityIndoor": "36333734-01b2-9336-ffff-d303161632d3000178",
+        "presence": "2d646464-7265-9c005-4cff-0526a55d76f4"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false,
+      "subControls": {
+        "7375623a-01b3-9746-ffff-8656e2056656000179": {
+          "name": "Presence",
+          "type": "PresenceDetector",
+          "uuidAction": "7375623a-01b3-9746-ffff-8656e2056656000179",
+          "details": {},
+          "states": {
+            "active": "37333735-01b4-9336-ffff-d303162332d3000180"
+          },
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false
+        }
+      },
+      "sub": [
+        {
+          "name": "Kitchen Ventilation presence",
+          "type": "PresenceDetector",
+          "uuidAction": "2d646464-7265-9c0e2-4cff-a461a19fa4d6",
+          "states": {
+            "present": "2d646464-7265-9c005-4cff-0526a55d76f4"
+          },
+          "room": "726f6f6d-0103-9697-ffff-368656e726f6000003",
+          "cat": "6361743a-01ab-96d6-ffff-f72746361743000171",
+          "restriction": "2d646464-7265-9c0ee-4cff-b6db01c93e8e",
+          "defaultRating": 0,
+          "isFavorite": false,
+          "isSecured": false,
+          "details": {}
+        }
+      ]
+    },
+    "63746c3a-01b6-9726-ffff-f75722041756000182": {
+      "name": "Parlour Audio Zone",
+      "type": "AudioZoneV2",
+      "uuidAction": "63746c3a-01b6-9726-ffff-f75722041756000182",
+      "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
+      "cat": "6361743a-01b5-96d6-ffff-f72746361743000181",
+      "details": {
+        "devices": {
+          "1": "Living Room Speaker"
+        },
+        "sources": ["Radio", "Library", "AirPlay"],
+        "favourites": ["Classical Mix", "Jazz Station"]
+      },
+      "states": {
+        "active": "36333734-01b7-9336-ffff-d303162362d3000183",
+        "source": "36333734-01b8-9336-ffff-d303162362d3000184",
+        "sourceList": "36333734-01b9-9336-ffff-d303162362d3000185",
+        "volume": "36333734-01ba-9336-ffff-d303162362d3000186",
+        "mute": "36333734-01bb-9336-ffff-d303162362d3000187",
+        "fadeIn": "36333734-01bc-9336-ffff-d303162362d3000188",
+        "fadeOut": "36333734-01bd-9336-ffff-d303162362d3000189",
+        "playState": "36333734-01be-9336-ffff-d303162362704c73",
+        "metadata": "36333734-01bf-9336-ffff-d303162362726d74",
+        "favouriteList": "36333734-01c3-9336-ffff-d303162362666c73"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-01c0-96d7-ffff-f696e726f756000190": {
+      "name": "Dev Status",
+      "type": "InfoOnlyText",
+      "uuidAction": "63746c3a-01c0-96d7-ffff-f696e726f756000190",
+      "room": "726f6f6d-0102-9666-965726f6f6000002",
+      "cat": "6361743a-0182-96d6-ffff-f72746361743000130",
+      "states": {
+        "text": "36333734-01c1-9336-ffff-d303204b72d3000191"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-01c2-96d7-ffff-f5726172626c000192": {
+      "name": "Stairwell",
+      "type": "UpDownDigital",
+      "uuidAction": "63746c3a-01c2-96d7-ffff-f5726172626c000192",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-0182-96d6-ffff-f72746361743000130",
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-01c4-96d7-ffff-f726636b6572000194": {
+      "name": "Device Tracker",
+      "type": "Tracker",
+      "uuidAction": "63746c3a-01c4-96d7-ffff-f726636b6572000194",
+      "room": "726f6f6d-0106-9617-ffff-4656e726f6f6000006",
+      "cat": "6361743a-015c-9637-ffff-269747963617000092",
+      "details": {
+        "maxEntries": 5
+      },
+      "states": {
+        "entries": "36333734-01c5-9336-ffff-d303131372d3000195"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-01e0-96d7-ffff-f656e657267796d0001a0": {
+      "name": "Energy Manager",
+      "type": "EnergyManager",
+      "uuidAction": "63746c3a-01e0-96d7-ffff-f656e657267796d0001a0",
+      "room": "726f6f6d-0106-9617-ffff-4656e726f6f6000006",
+      "cat": "6361743a-0120-9657-ffff-7796361743a4000032",
+      "details": {
+        "actualFormat": "%d W",
+        "totalFormat": "%d kWh",
+        "storageFormat": "%d kWh"
+      },
+      "states": {
+        "actual": "36333734-01e1-9336-ffff-d30313163796d0001a1",
+        "total": "36333734-01e2-9336-ffff-d30313163796d0001a2",
+        "totalNeg": "36333734-01e3-9336-ffff-d30313163796d0001a3",
+        "storage": "36333734-01e4-9336-ffff-d30313163796d0001a4"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-01e8-96d7-ffff-f656e65726779320001b0": {
+      "name": "Energy Manager 2",
+      "type": "EnergyManager2",
+      "uuidAction": "63746c3a-01e8-96d7-ffff-f656e65726779320001b0",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-0120-9657-ffff-7796361743a4000032",
+      "details": {
+        "totalFormat": "%d kWh",
+        "storageFormat": "%d kWh"
+      },
+      "states": {
+        "total": "36333734-01e9-9336-ffff-d30313163796d0001b1",
+        "totalNeg": "36333734-01ea-9336-ffff-d30313163796d0001b2",
+        "storage": "36333734-01eb-9336-ffff-d30313163796d0001b3"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-01f0-96d7-ffff-f506f776572756e69740001c0": {
+      "name": "Power Unit",
+      "type": "PowerUnit",
+      "uuidAction": "63746c3a-01f0-96d7-ffff-f506f776572756e69740001c0",
+      "room": "726f6f6d-0106-9617-ffff-4656e726f6f6000006",
+      "cat": "6361743a-0120-9657-ffff-7796361743a4000032",
+      "details": {
+        "actualFormat": "%d W",
+        "totalFormat": "%d kWh",
+        "storageFormat": "%d kWh"
+      },
+      "states": {
+        "actual": "36333734-01f1-9336-ffff-d3031316575740001c1",
+        "total": "36333734-01f2-9336-ffff-d3031316575740001c2",
+        "storage": "36333734-01f3-9336-ffff-d3031316575740001c3"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "63746c3a-01f8-96d7-ffff-f57616c6c626f786761720001d0": {
+      "name": "Wallbox Garage",
+      "type": "Wallbox",
+      "uuidAction": "63746c3a-01f8-96d7-ffff-f57616c6c626f786761720001d0",
+      "room": "726f6f6d-0106-9617-ffff-4656e726f6f6000006",
+      "cat": "6361743a-0120-9657-ffff-7796361743a4000032",
+      "details": {
+        "actualFormat": "%d W",
+        "totalFormat": "%d kWh"
+      },
+      "states": {
+        "actual": "36333734-01f9-9336-ffff-d3031316626f780001d1",
+        "total": "36333734-01fa-9336-ffff-d3031316626f780001d2"
+      },
+      "defaultRating": 2,
+      "isFavorite": false,
+      "isSecured": false
+    },
+    "13a9fb56-01bb-fda5-ffff47167370ed09": {
+      "name": "Entry NFC",
+      "type": "NfcCodeTouch",
+      "uuidAction": "13a9fb56-01bb-fda5-ffff47167370ed09",
+      "room": "726f6f6d-0105-9616-ffff-c726f6f6d3a4000005",
+      "cat": "6361743a-015c-9637-ffff-269747963617000092",
+      "defaultRating": 0,
+      "isFavorite": false,
+      "isSecured": true,
+      "configState": {
+        "isConfigured": false
+      },
+      "restrictions": 0,
+      "details": {
+        "jLockable": true
+      },
+      "states": {
+        "jLocked": "93a9fb56-01bb-fd91-ffff928adbaba279",
+        "historyDate": "1cf8a1de-01ff-c0e8-ffff47167370ed09",
+        "codeDate": "1cf8a1de-01ff-c0e9-ffff47167370ed09",
+        "deviceState": "1cf8a1de-01ff-c0ea-ffff47167370ed09",
+        "nfcLearnResult": "1cf8a1de-01ff-c0eb-ffff47167370ed09",
+        "events": "1cf8a1de-01ff-c0ec-ffff47167370ed09",
+        "lastid": "1cf8a1de-01ff-c0ed-ffff47167370ed09",
+        "lastuser": "1cf8a1de-01ff-c0ee-ffff47167370ed09",
+        "lasttag": "1cf8a1de-01ff-c0ef-ffff47167370ed09",
+        "lastcode": "1cf8a1de-01ff-c0f0-ffff47167370ed09",
+        "keyPadAuthType": "1cf8a1de-01ff-c0f1-ffff47167370ed09"
+      }
+    },
+    "1cf643a3-0083-7c35-ffff47167370ed09": {
+      "name": "Cinema Light 1",
+      "type": "LightsceneRGB",
+      "uuidAction": "1cf643a3-0083-7c35-ffff47167370ed09",
+      "room": "726f6f6d-0104-9656-ffff-26f6f6d726f6000004",
+      "cat": "6361743a-0108-96d6-ffff-f72746361743000008",
+      "defaultRating": 0,
+      "isFavorite": false,
+      "isSecured": false,
+      "restrictions": 0,
+      "details": {
+        "jLockable": true,
+        "sceneList": {}
+      },
+      "states": {
+        "jLocked": "9cf643a3-0083-7c2c-05ff494c2b0681a0",
+        "activeScene": "1cf643a3-0083-7c32-0bff494c2b0681a0",
+        "red": "1cf643a3-0083-7c2f-08ff494c2b0681a0",
+        "green": "1cf643a3-0083-7c30-09ff494c2b0681a0",
+        "blue": "1cf643a3-0083-7c31-0aff494c2b0681a0",
+        "color": "1cf643a3-0083-7c33-0cff494c2b0681a0"
+      }
+    },
+    "1d6c95a2-00b6-e46f-ffff0d3a09848c7c": {
+      "name": "Cinema Light 2",
+      "type": "LightsceneRGB",
+      "uuidAction": "1d6c95a2-00b6-e46f-ffff0d3a09848c7c",
+      "room": "726f6f6d-0101-9617-ffff-c6f7572726f6000001",
+      "cat": "6361743a-0108-96d6-ffff-f72746361743000008",
+      "defaultRating": 0,
+      "isFavorite": false,
+      "isSecured": false,
+      "restrictions": 0,
+      "details": {
+        "jLockable": true,
+        "sceneList": {}
+      },
+      "states": {
+        "jLocked": "9d6c95a2-00b6-e475-ffff0d3a09848c7c",
+        "activeScene": "1d6c95a2-00b6-e47b-ffff0d3a09848c7c",
+        "red": "1d6c95a2-00b6-e478-ffff0d3a09848c7c",
+        "green": "1d6c95a2-00b6-e479-ffff0d3a09848c7c",
+        "blue": "1d6c95a2-00b6-e47a-ffff0d3a09848c7c",
+        "color": "1d6c95a2-00b6-e47c-ffff0d3a09848c7c"
+      }
+    }
+  }
+}
