@@ -23,7 +23,8 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from . import LoxoneEntity
 from .const import (SENDDOMAIN, SERVICE_DISABLE_SUN_AUTOMATION,
                     SERVICE_ENABLE_SUN_AUTOMATION, SERVICE_QUICK_SHADE,
-                    SUPPORT_QUICK_SHADE, SUPPORT_SUN_AUTOMATION)
+                    SERVICE_WINDOW_SLIGHTLY_OPEN, SUPPORT_QUICK_SHADE,
+                    SUPPORT_SLIGHTLY_OPEN, SUPPORT_SUN_AUTOMATION)
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device, map_range)
 from .miniserver import get_miniserver_from_hass
@@ -96,6 +97,15 @@ async def async_setup_entry(
         SERVICE_QUICK_SHADE,
         {},
         "quick_shade",
+    )
+
+    # Only Window entities advertise SUPPORT_SLIGHTLY_OPEN, so the service
+    # rejects Gates and Jalousies instead of failing on a missing method.
+    platform.async_register_entity_service(
+        SERVICE_WINDOW_SLIGHTLY_OPEN,
+        {},
+        "slightly_open",
+        [SUPPORT_SLIGHTLY_OPEN],
     )
 
 
@@ -227,6 +237,18 @@ class LoxoneGate(LoxoneEntity, CoverEntity):
         }
 
 
+# Structure File, Window, state "type" (since Miniserver 15.3):
+# window type for the visualisation.
+WINDOW_TYPES = {
+    0: "tilt_top",
+    1: "tilt_bottom",
+    2: "tilt_left",
+    3: "tilt_right",
+    4: "sliding_left",
+    5: "sliding_right",
+}
+
+
 class LoxoneWindow(LoxoneEntity, CoverEntity):
     # pylint: disable=no-self-use
     def __init__(self, **kwargs):
@@ -234,8 +256,11 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         self.hass = kwargs["hass"]
         self._position = None
         self._target_position = None
-        self._closed = True
+        # Unknown until the first position event arrives.
+        self._closed = None
         self._direction = 0
+        self._locked_reason = None
+        self._window_type = None
 
         self.type = "Window"
         self._attr_device_info = get_or_create_device(
@@ -247,16 +272,23 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         direction_uuid = self.states.get("direction")
         # Optional since Miniserver 11.3 - pre-11.3 structures omit it:
         target_uuid = self.states.get("targetPosition")
+        # Text state: name of the input connected to "WP" while blocked.
+        locked_uuid = self.states.get("lockedReason")
+        # Optional since Miniserver 15.3:
+        type_uuid = self.states.get("type")
         if any(
             uuid and uuid in e.data
-            for uuid in (position_uuid, direction_uuid, target_uuid)
+            for uuid in (
+                position_uuid,
+                direction_uuid,
+                target_uuid,
+                locked_uuid,
+                type_uuid,
+            )
         ):
             if position_uuid and position_uuid in e.data:
                 self._position = float(e.data[position_uuid]) * 100.0
-                if self._position == 0:
-                    self._closed = True
-                else:
-                    self._closed = False
+                self._closed = self._position == 0
 
             if direction_uuid and direction_uuid in e.data:
                 self._direction = e.data[direction_uuid]
@@ -264,8 +296,35 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
             if target_uuid and target_uuid in e.data:
                 target_position_loxone = float(e.data[target_uuid]) * 100.0
                 self._target_position = target_position_loxone
-                
+
+            if locked_uuid and locked_uuid in e.data:
+                reason = e.data[locked_uuid]
+                self._locked_reason = str(reason) if reason else None
+
+            if type_uuid and type_uuid in e.data:
+                try:
+                    raw_type = int(float(e.data[type_uuid]))
+                except (TypeError, ValueError):
+                    raw_type = None
+                self._window_type = WINDOW_TYPES.get(raw_type)
+
             self.schedule_update_ha_state()
+
+    @property
+    def supported_features(self):
+        """Flag supported features.
+
+        Spec (Structure File, Window): fullopen, fullclose, moveToPosition
+        and slightlyOpen are unversioned; stop exists since 11.3 and has a
+        fallback for older structures (see stop_cover).
+        """
+        return (
+            CoverEntityFeature.OPEN
+            | CoverEntityFeature.CLOSE
+            | CoverEntityFeature.STOP
+            | CoverEntityFeature.SET_POSITION
+            | SUPPORT_SLIGHTLY_OPEN
+        )
 
     @property
     def current_cover_position(self):
@@ -280,6 +339,16 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
         return self._target_position
 
     @property
+    def locked_reason(self):
+        """Why the window is blocked (input on "WP"), None if not blocked."""
+        return self._locked_reason
+
+    @property
+    def window_type(self):
+        """Window type for the visualisation (MS >= 15.3), None if unknown."""
+        return self._window_type
+
+    @property
     def extra_state_attributes(self):
         """
         Return device specific state attributes.
@@ -289,6 +358,9 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
             **self._attr_extra_state_attributes,
             "device_type": self.type,
             "target_position": self.target_position,
+            "locked": self._locked_reason is not None,
+            "locked_reason": self._locked_reason,
+            "window_type": self._window_type,
         }
         return device_att
 
@@ -352,6 +424,10 @@ class LoxoneWindow(LoxoneEntity, CoverEntity):
             SENDDOMAIN,
             dict(uuid=self.uuidAction, value="moveToPosition/{}".format(position)),
         )
+
+    def slightly_open(self, **kwargs: Any) -> None:
+        """Move the window to its partially open position (spec: slightlyOpen)."""
+        self.hass.bus.fire(SENDDOMAIN, dict(uuid=self.uuidAction, value="slightlyOpen"))
 
 
 class LoxoneJalousie(LoxoneEntity, CoverEntity):
