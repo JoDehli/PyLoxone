@@ -62,7 +62,7 @@ Change 123456789ABC to your miniserver Serial Number.
 Currently, this integration supports the following Loxone entities by mapping them to Home Assistant entities.
 If you encounter a Loxone entity that is currently not supported, you can post a feature request so it can be looked into.
 
-- InfoOnlyAnalog and InfoOnlyDigital
+- InfoOnlyAnalog, InfoOnlyDigital and InfoOnlyText (also memory flags, once "Use" is ticked for them in Loxone Config)
 - Switch, TimedSwitch and Pushbutton
 - Jalousie, Window and Gate
 - Intercom
@@ -73,6 +73,7 @@ If you encounter a Loxone entity that is currently not supported, you can post a
 - AudioZoneV2
 - Slider and ValueSelector (Up-Down Buttons)
 - TextInput
+- TextState (the "Status" block, as a read-only text sensor)
 - Radio Buttons
 
 ## Known Limitations
