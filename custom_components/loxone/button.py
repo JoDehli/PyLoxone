@@ -20,6 +20,7 @@ from homeassistant.util import dt as dt_util
 from . import LoxoneEntity
 from .const import DOMAIN, SENDDOMAIN
 from .helpers import add_room_and_cat_to_value_values, get_all
+from .intercom.entities import intercom_buttons
 from .miniserver import get_miniserver_from_hass
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,6 +50,11 @@ async def async_setup_entry(
         button_entity = add_room_and_cat_to_value_values(loxconfig, button_entity)
         entities.append(LoxoneButton(**button_entity))
 
+    # #466: Intercom Gen 2 dismiss, output and voice reply buttons.
+    try:
+        entities.extend(intercom_buttons(hass, config_entry, async_add_entities))
+    except Exception:
+        _LOGGER.exception("Skipping IntercomV2 controls")
     async_add_entities(entities)
 
 

@@ -113,6 +113,11 @@ def connection_state_signal(entry_id: str) -> str:
     return f"{DOMAIN}_connection_state_{entry_id}"
 
 
+def intercom_state_signal(entry_id: str) -> str:
+    """Dispatcher signal carrying Intercom Gen 2 state values of one entry."""
+    return f"{DOMAIN}_intercom_state_{entry_id}"
+
+
 def _async_listen_once_until_unload(
     hass: HomeAssistant, config_entry: ConfigEntry, event_type, listener
 ) -> None:
@@ -672,6 +677,13 @@ async def async_setup_entry(hass, config_entry):
         # must not be stringified unless DEBUG is enabled. G004 already
         # bans the f-string variant; do not "simplify" it back.
         _LOGGER.debug("%s", message)
+        # #466: Intercom Gen 2 entities follow their states per config
+        # entry. Without an IntercomV2 control this is one empty check.
+        intercom_states = coordinator.update_intercom_states(message)
+        if intercom_states:
+            async_dispatcher_send(
+                hass, intercom_state_signal(config_entry.entry_id), intercom_states
+            )
         hass.bus.async_fire(EVENT, message)
 
     async def loxone_discovered(event):
@@ -846,6 +858,9 @@ async def async_setup_entry(hass, config_entry):
         the change would only be written with the next value update.
         """
         coordinator.connection_available = state == "connected"
+        if not coordinator.connection_available:
+            # Never show Intercom values of a session that is gone.
+            coordinator.intercom_state_values.clear()
         _LOGGER.debug("Loxone connection state: %s", state)
         # A reconnect re-reads the structure file, e.g. after the Miniserver
         # rebooted into a new firmware: let the device follow.
