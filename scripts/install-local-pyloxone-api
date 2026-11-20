@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Install the local pyloxone-api checkout into the Home Assistant runtime
+# (.venv) as an editable package, with Home Assistant's own constraints so
+# no pinned dependency gets changed.
+#
+# Usage:
+#   ./scripts/install-local-pyloxone-api
+#   PYLOXONE_API_SRC=/path/to/pyloxone-api ./scripts/install-local-pyloxone-api
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+REPO_ROOT="$PWD"
+
+PYLOXONE_API_SRC="${PYLOXONE_API_SRC:-$REPO_ROOT/../pyloxone-api}"
+HA_VENV="${HA_VENV:-$REPO_ROOT/.venv}"
+PYTHON="$HA_VENV/bin/python"
+UV="$(command -v uv || true)"
+CONSTRAINTS="$(ls "$HA_VENV"/lib/python3.*/site-packages/homeassistant/package_constraints.txt 2>/dev/null | head -n 1 || true)"
+
+if [ ! -f "$PYLOXONE_API_SRC/pyproject.toml" ]; then
+    echo "ERROR: no pyproject.toml in $PYLOXONE_API_SRC" >&2
+    echo "Set PYLOXONE_API_SRC to your pyloxone-api checkout." >&2
+    exit 1
+fi
+if [ -z "$UV" ]; then
+    echo "ERROR: uv not found in PATH." >&2
+    exit 1
+fi
+if [ ! -x "$PYTHON" ]; then
+    echo "ERROR: $PYTHON not found. Set HA_VENV to the Home Assistant venv." >&2
+    exit 1
+fi
+if [ -z "$CONSTRAINTS" ]; then
+    echo "ERROR: package_constraints.txt not found in $HA_VENV." >&2
+    exit 1
+fi
+
+echo "Installing $PYLOXONE_API_SRC into $HA_VENV"
+echo "Constraints: $CONSTRAINTS"
+"$UV" pip install --python "$PYTHON" -e "$PYLOXONE_API_SRC" -c "$CONSTRAINTS"
+
+echo
+"$UV" pip show --python "$PYTHON" pyloxone-api
+echo
+echo "Done. Start Home Assistant with the usual command."
