@@ -253,14 +253,30 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
         }
 
     @property
-    def current_temperature(self):
+    def native_current_temperature(self):
         """Return the current temperature."""
         return self.get_state_value("tempActual")
 
     @property
-    def target_temperature(self) -> float | None:
+    def native_target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
         return self.get_state_value("tempTarget")
+
+    # Compatibility aliases for Home Assistant < 2026.11, which has no native_* API.
+    # HA 2026.11+ ignores these when native_* is present, so no deprecation warning.
+    # Remove them once the minimum supported HA version is 2026.11 or newer
+    # (see the supported-version statement in README.md).
+    @property
+    def temperature_unit(self):
+        return self.native_temperature_unit
+
+    @property
+    def current_temperature(self):
+        return self.native_current_temperature
+
+    @property
+    def target_temperature(self):
+        return self.native_target_temperature
 
     def set_temperature(self, **kwargs):
         """Set new target temperature"""
@@ -327,7 +343,7 @@ class LoxoneRoomController(LoxoneEntity, ClimateEntity, ABC):
         return modes
 
     @property
-    def temperature_unit(self) -> str:
+    def native_temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
         return _temperature_unit_from_format(self.details.get("format"))
 
@@ -520,7 +536,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return self.active_state.mode
 
     @property
-    def temperature_unit(self) -> str:
+    def native_temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
         # The Loxone Config app allows the designer to set an arbitrary
         # format string for the room controller's input temperature sensor.
@@ -529,7 +545,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return _temperature_unit_from_format(self.details.get("format"))
 
     @property
-    def current_temperature(self):
+    def native_current_temperature(self):
         """Return the current temperature."""
         return self.get_state_value("tempActual")
 
@@ -537,6 +553,30 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     def current_humidity(self) -> float | None:
         """Return the current humidity (state humidityActual)."""
         return self._positive_value("humidityActual", 100)
+
+    # Compatibility aliases for Home Assistant < 2026.11, which has no native_* API.
+    # HA 2026.11+ ignores these when native_* is present, so no deprecation warning.
+    # Remove them once the minimum supported HA version is 2026.11 or newer
+    # (see the supported-version statement in README.md).
+    @property
+    def temperature_unit(self):
+        return self.native_temperature_unit
+
+    @property
+    def current_temperature(self):
+        return self.native_current_temperature
+
+    @property
+    def target_temperature(self):
+        return self.native_target_temperature
+
+    @property
+    def target_temperature_high(self):
+        return self.native_target_temperature_high
+
+    @property
+    def target_temperature_low(self):
+        return self.native_target_temperature_low
 
     def set_temperature(self, **kwargs):
         """Set new target temperature."""
@@ -671,7 +711,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return round(current_offset + temperature - current_target, 2)
 
     @property
-    def target_temperature(self) -> float | None:
+    def native_target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
 
         mode = self.operating_mode
@@ -689,7 +729,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         return 0.5
 
     @property
-    def target_temperature_high(self) -> float | None:
+    def native_target_temperature_high(self) -> float | None:
         """Return the highbound target temperature we try to reach."""
 
         mode = self.operating_mode
@@ -712,7 +752,7 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                 return None
 
     @property
-    def target_temperature_low(self) -> float | None:
+    def native_target_temperature_low(self) -> float | None:
         """Return the lowbound target temperature we try to reach."""
 
         mode = self.operating_mode
@@ -889,9 +929,25 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         }
 
     @property
-    def current_temperature(self):
+    def native_current_temperature(self):
         """Return the current temperature."""
         return self.get_state_value("temperature")
+
+    # Compatibility aliases for Home Assistant < 2026.11, which has no native_* API.
+    # HA 2026.11+ ignores these when native_* is present, so no deprecation warning.
+    # Remove them once the minimum supported HA version is 2026.11 or newer
+    # (see the supported-version statement in README.md).
+    @property
+    def temperature_unit(self):
+        return self.native_temperature_unit
+
+    @property
+    def current_temperature(self):
+        return self.native_current_temperature
+
+    @property
+    def target_temperature(self):
+        return self.native_target_temperature
 
     def set_temperature(self, **kwargs):
         """Set new target temperature"""
@@ -971,14 +1027,14 @@ class LoxoneAcControl(LoxoneEntity, ClimateEntity, ABC):
         ]
 
     @property
-    def temperature_unit(self) -> str:
+    def native_temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
         # Was ``format.find("°")``, an index that is truthy for "%.1f°F"
         # too, so Fahrenheit controls were reported as Celsius.
         return _temperature_unit_from_format(self.details.get("format"))
 
     @property
-    def target_temperature(self) -> float | None:
+    def native_target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
 
         return self.get_state_value("targetTemperature")
