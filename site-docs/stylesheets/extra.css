@@ -1,0 +1,33 @@
+/* Use more of the screen: the default grid is ~61rem wide. */
+.md-grid {
+  max-width: 90rem;
+}
+
+/* Keep control names (first two columns) on one line. */
+.md-typeset table:not([class]) td:nth-child(1),
+.md-typeset table:not([class]) td:nth-child(2),
+.md-typeset table:not([class]) td:nth-child(3) {
+  white-space: nowrap;
+}
+
+/* Green colour scheme (Loxone-style green, no logo). */
+:root {
+  --md-primary-fg-color: #69c350;
+  --md-primary-fg-color--light: #8fd47b;
+  --md-primary-fg-color--dark: #4ea23a;
+  /* Dark text on the green header: white on #69c350 is too low in contrast. */
+  --md-primary-bg-color: #14230e;
+  --md-primary-bg-color--light: #2d4a22;
+  --md-accent-fg-color: #3f9a2a;
+  --md-accent-fg-color--transparent: #3f9a2a1a;
+  --md-typeset-a-color: #3b8a28;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color: #7fd568;
+  --md-accent-fg-color--transparent: #7fd5681a;
+  --md-typeset-a-color: #7fd568;
+  --md-primary-fg-color: #4ea23a;
+  --md-primary-bg-color: #f2fbee;
+  --md-primary-bg-color--light: #cfe9c6;
+}

@@ -16,6 +16,7 @@ hass.py
 
 *.yml
 !/.github/workflows/*.yml
+!/mkdocs.yml
 !/.github/ISSUE_TEMPLATE/*.yml
 
 *.db
@@ -58,3 +59,7 @@ uv.lock
 
 # Blueprints
 !blueprints/**/*.yaml
+
+# MkDocs preview venv and build output (see scripts/docs)
+.venv-docs/
+/site/

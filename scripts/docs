@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#
+# Live preview of the documentation site (MkDocs, auto-reloads on changes).
+#
+# The venv ``.venv-docs`` is created on first use. To recreate it:
+#   rm -rf .venv-docs && ./scripts/docs
+#
+# Usage:
+#   ./scripts/docs                  # serve on http://127.0.0.1:8000
+#   ./scripts/docs --build          # strict build into ./site (checks links)
+#   ./scripts/docs -a 0.0.0.0:8080  # extra arguments go to `mkdocs serve`
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+VENV=.venv-docs
+if [ ! -x "$VENV/bin/mkdocs" ]; then
+    python3 -m venv "$VENV"
+    "$VENV/bin/pip" install -q -r requirements-docs.txt
+fi
+
+export NO_MKDOCS_2_WARNING=1
+
+if [ "${1:-}" = "--build" ]; then
+    shift
+    exec "$VENV/bin/mkdocs" build --strict "$@"
+fi
+
+exec "$VENV/bin/mkdocs" serve "$@"
