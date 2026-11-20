@@ -136,6 +136,20 @@ async def test_discovery_groups_entities_on_one_device(hass, intercom):
     assert coordinator.miniserver.lox_config.json["controls"] == intercom_controls()
 
 
+async def test_reconnect_follows_changed_state_uuids(hass, intercom):
+    """A structure file re-read on reconnect brings its new state uuids along."""
+    _, coordinator = intercom
+    assert coordinator.update_intercom_states({"front-bell": 1.0}) == {"front-bell": 1.0}
+    assert coordinator.update_intercom_states({"moved-bell": 1.0}) == {}
+
+    structure = deepcopy(coordinator.api.structure_file)
+    structure["controls"]["front"]["states"]["bell"] = "moved-bell"
+    coordinator.api.structure_file = structure
+    assert coordinator.refresh_miniserver()
+
+    assert coordinator.update_intercom_states({"moved-bell": 1.0}) == {"moved-bell": 1.0}
+
+
 async def test_bell_and_mute_use_independent_feedback(hass, intercom):
     entry, coordinator = intercom
     await initial_states(hass, coordinator)

@@ -195,6 +195,9 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             return False
         self.miniserver.lox_config.json = structure_file
         self.miniserver.configuration_url = self._configuration_url
+        # #466: the state uuids may have changed with the new structure
+        # file (e.g. after a firmware update); keep forwarding the right ones.
+        self._intercom_state_uuids = intercom_state_uuids(structure_file)
         return True
 
     def update_intercom_states(self, message) -> dict:
