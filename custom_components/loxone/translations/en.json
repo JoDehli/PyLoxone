@@ -167,6 +167,10 @@
     "quick_shade": {
       "name": "Quick shade",
       "description": "Move Loxone Jalousie to shade position. Position is set by Loxone depends on multiple values."
+    },
+    "window_slightly_open": {
+      "name": "Window slightly open",
+      "description": "Move a Loxone Window to its partially open (ventilation) position."
     }
   },
   "issues": {
