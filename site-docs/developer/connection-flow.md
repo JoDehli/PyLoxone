@@ -1,6 +1,6 @@
 # Loxone Miniserver – Connection Flow (Connect)
 
-Source: `docs/CommunicatingWithMiniserver.pdf` and `pyloxone_api` (`src/pyloxone_api/connection.py` im Paket-Repo).
+Source: [Communicating with the Miniserver](https://www.loxone.com/wp-content/uploads/datasheets/CommunicatingWithMiniserver.pdf) (Loxone) and `pyloxone_api` (`src/pyloxone_api/connection.py` im Paket-Repo).
 
 ## Quick overview
 

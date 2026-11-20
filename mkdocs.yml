@@ -43,7 +43,7 @@ nav:
       - Dev container: developer/devcontainer.md
       - pyloxone-api: developer/pyloxone-api.md
       - Connection flow: developer/connection-flow.md
-      - UI and functionality: developer/ui.md
+      - Implemented control types: developer/implemented-control-types.md
 
 markdown_extensions:
   - tables

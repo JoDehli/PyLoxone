@@ -11,7 +11,7 @@ PyLoxone is a Home Assistant custom integration. The code lives in `custom_compo
 | `blueprints/` | Home Assistant blueprints shipped with the integration |
 | `config/` | Home Assistant configuration used by the dev container (git-ignored except `configuration.yaml`) |
 | `scripts/` | Helper scripts, see below |
-| `docs/` | Internal notes and the Loxone reference documents |
+| `docs/` | Internal notes |
 | `site-docs/` | Source of this documentation site |
 
 ## Getting started
@@ -47,10 +47,11 @@ The test virtualenv is created on first use. It is separate from `.venv` on purp
 Pages are Markdown files in `site-docs/`; the navigation is defined in `mkdocs.yml`. Pushes to `master` that touch the docs are published to GitHub Pages by the `Docs` workflow.
 
 !!! note
-    `site-docs/blueprints.md` is generated from `BLUEPRINTS.md` and `site-docs/developer/devcontainer.md` and `connection-flow.md` are copies of `docs/DEVCONTAINER.md` and `docs/CONNECTION_FLOW.md`. Update the originals and copy the changes over.
+    `site-docs/blueprints.md` is generated from `BLUEPRINTS.md` and `site-docs/developer/devcontainer.md` and `connection-flow.md` are copies of `docs/DEVCONTAINER.md` and `docs/CONNECTION_FLOW.md`. `implemented-control-types.md` is maintained by hand and condensed from `docs/IMPLEMENTED_CONTROL_TYPES_EN.md`. Update the originals and copy the changes over.
 
 ## Further reading
 
 - [pyloxone-api](pyloxone-api.md): the library that talks to the Miniserver, versioning and local development
-- [UI and functionality](ui.md): config flow, options, services, repairs
+- [Loxone Structure File](https://www.loxone.com/wp-content/uploads/datasheets/StructureFile.pdf) (Loxone): format of `LoxAPP3.json` and the control types, the basis for the entity mapping
+- [Implemented control types](implemented-control-types.md): current state per control type and the gaps that are still open
 - [Connection flow](connection-flow.md): HTTP bootstrap → WebSocket → authentication → operation → reconnect

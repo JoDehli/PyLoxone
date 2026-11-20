@@ -63,3 +63,8 @@ uv.lock
 # MkDocs preview venv and build output (see scripts/docs)
 .venv-docs/
 /site/
+
+# Loxone reference documents: download from loxone.com, never commit
+docs/*.pdf
+docs/1700_Structure-File.txt
+docs/CommunicatingWithMiniserver.txt
