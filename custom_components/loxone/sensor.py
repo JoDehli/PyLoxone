@@ -31,6 +31,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util
+from homeassistant.const import Platform
 
 from .const import CLIMATE_EVENT, CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all, get_datetime_from_loxone, get_device,
@@ -40,6 +41,7 @@ from custom_components.loxone import LoxoneEntity, miniserver
 from .window_monitor import (LoxoneWindowPositionSensor,
                              window_contacts, window_monitor_controls,
                              window_monitor_count_sensors)
+from .controls import async_setup_controls
 
 NEW_SENSOR = "sensors"
 
@@ -355,6 +357,12 @@ async def async_setup_entry(
         async_dispatcher_connect(hass, miniserver.async_signal_new_device(NEW_SENSOR), async_add_sensors)
     )
 
+    # Control types of the ``controls`` package (one module per group).
+    entities.extend(
+        async_setup_controls(
+            Platform.SENSOR, hass, config_entry, loxconfig, async_add_entities
+        )
+    )
     async_add_entities(entities, update_before_add=True)
 
 
