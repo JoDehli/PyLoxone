@@ -13,7 +13,7 @@ LEGACY_EXCEPT_PATTERN = re.compile(
 
 
 def test_no_legacy_comma_except_handlers_remain() -> None:
-    """Modern Python rejects ``except A, B:`` syntax."""
+    """Modern Python rejects ``except (A, B):`` syntax."""
     source_paths = ROOT.glob("custom_components/**/*.py")
     offenders = [
         str(path.relative_to(ROOT))
