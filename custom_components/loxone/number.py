@@ -13,12 +13,14 @@ from homeassistant.const import STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.const import Platform
 
 from . import LoxoneEntity
 from .const import SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
+from .controls import async_setup_controls
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +50,12 @@ async def async_setup_entry(
         new_number = LoxoneNumber(**number_entity)
         entities.append(new_number)
 
+    # Control types of the ``controls`` package (one module per group).
+    entities.extend(
+        async_setup_controls(
+            Platform.NUMBER, hass, config_entry, loxconfig, async_add_entities
+        )
+    )
     async_add_entities(entities)
 
 

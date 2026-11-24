@@ -157,6 +157,24 @@
     "quick_shade": {
       "name": "Beschattung ",
       "description": "Loxone Jalousie in Schattenposition bringen. Position wird von Loxone abhängig von mehreren Werten festgelegt."
+    },
+    "daytimer_start_override": {
+      "name": "Schaltuhr übersteuern",
+      "description": "Den Ausgang einer Loxone Schaltuhr für eine bestimmte Zeit übersteuern.",
+      "fields": {
+        "value": {
+          "name": "Wert",
+          "description": "Ausgangswert während der Übersteuerung (0 / 1 bei einer digitalen Schaltuhr)."
+        },
+        "duration": {
+          "name": "Dauer",
+          "description": "Dauer der Übersteuerung in Sekunden."
+        }
+      }
+    },
+    "daytimer_stop_override": {
+      "name": "Übersteuerung beenden",
+      "description": "Eine laufende Übersteuerung einer Loxone Schaltuhr beenden."
     }
   },
   "issues": {
