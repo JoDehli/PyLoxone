@@ -114,3 +114,10 @@ async def test_broken_builder_does_not_block_others(
 
 def test_handled_types_lists_registered_types(test_builders):
     assert {"TestGood", "TestBad"} <= controls.handled_types(Platform.SENSOR)
+
+
+def test_control_modules_are_loaded_on_package_import():
+    # HA imports the platforms (and so this package) in its import
+    # executor; loading the modules later, in the first platform setup,
+    # ran listdir/import_module inside the event loop.
+    assert controls._modules_loaded

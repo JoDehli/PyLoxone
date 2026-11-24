@@ -151,3 +151,10 @@ __all__ = [
     "register",
     "register_service",
 ]
+
+
+# Import the control modules now, while Home Assistant imports the platform
+# modules in its import executor: ``pkgutil.iter_modules`` lists the
+# directory and ``import_module`` reads files, both blocking calls that HA
+# reports when they run inside the event loop (first platform setup).
+_load_modules()
