@@ -19,6 +19,7 @@ from homeassistant.helpers import entity_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.const import Platform
 
 from . import LoxoneEntity
 from .const import (SENDDOMAIN, SERVICE_DISABLE_SUN_AUTOMATION,
@@ -27,6 +28,7 @@ from .const import (SENDDOMAIN, SERVICE_DISABLE_SUN_AUTOMATION,
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device, map_range)
 from .miniserver import get_miniserver_from_hass
+from .controls import async_setup_controls
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,6 +79,12 @@ async def async_setup_entry(
     miniserver.listeners.append(
         async_dispatcher_connect(
             hass, miniserver.async_signal_new_device(NEW_COVERS), async_add_entities
+        )
+    )
+    # Control types of the ``controls`` package (one module per group).
+    entities.extend(
+        async_setup_controls(
+            Platform.COVER, hass, config_entry, loxconfig, async_add_entities
         )
     )
     async_add_entities(entities)
