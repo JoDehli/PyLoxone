@@ -1,4 +1,4 @@
-﻿"""RGB Lighting Controller (Structure File, LightsceneRGB).
+"""RGB Lighting Controller (Structure File, LightsceneRGB).
 
 Spec: commands ``on``, ``off`` and ``{sceneNumber}``; scene 0 is all off.
 Observed: ``details.sceneList`` is an object keyed by scene number.

@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from enum import StrEnum
 
 from homeassistant.config_entries import ConfigEntry

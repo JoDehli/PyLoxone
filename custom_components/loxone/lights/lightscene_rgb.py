@@ -1,4 +1,4 @@
-﻿"""Loxone RGB Lighting Controller (structure-file type ``LightsceneRGB``).
+"""Loxone RGB Lighting Controller (structure-file type ``LightsceneRGB``).
 
 Spec facts (Structure File, LightsceneRGB):
 - commands: ``on``, ``off`` (scene 0, all off) and ``{sceneNumber}``
