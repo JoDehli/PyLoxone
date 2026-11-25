@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from enum import StrEnum
 
 from homeassistant.config_entries import ConfigEntry
@@ -10,6 +10,7 @@ from .helpers import add_room_and_cat_to_value_values, get_all
 from .lights.colorpickers import LumiTech, RGBColorPicker, TunableWhiteLight
 from .lights.dimmer import EIBDimmer, LoxoneDimmer
 from .lights.lightcontroller import LoxoneLightControllerV2
+from .lights.lightscene_rgb import LoxoneLightsceneRGB
 from .lights.switch import LoxoneLightSwitch
 from .miniserver import get_miniserver_from_hass
 
@@ -25,6 +26,7 @@ class LoxoneLights(StrEnum):
     SWITCH = "Switch"
     DIMMER = "Dimmer"
     COLORPICKERV2 = "ColorPickerV2"
+    LIGHTSCENERGB = "LightsceneRGB"
 
 
 class ColorPickerTypes(StrEnum):
@@ -148,5 +150,10 @@ async def async_setup_entry(
                     )
             else:
                 _LOGGER.error(f"Could not read picker_type of colorpicker")
+
+    # Standalone RGB Lighting Controllers: on/off with their scenes as effects.
+    for lightscene in get_all(loxconfig, LoxoneLights.LIGHTSCENERGB):
+        lightscene = add_room_and_cat_to_value_values(loxconfig, lightscene)
+        entities.append(LoxoneLightsceneRGB(**lightscene))
 
     async_add_entities(entities)
