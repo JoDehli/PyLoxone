@@ -2,10 +2,13 @@
 
 Spec facts (Structure File, LightsceneRGB):
 - commands: ``on``, ``off`` (scene 0, all off) and ``{sceneNumber}``
+
+Observed: ``on`` switches all channels to full (white light), not to the
+previous scene, so a plain turn-on restores the last active scene instead.
 - states: ``activeScene``, ``color`` (``hsv(h,s,v)``) and, not in the
   spec but sent by the Miniserver, ``red`` / ``green`` / ``blue``
 
-Observed on a Miniserver Gen 2:
+Also observed on a Miniserver Gen 2:
 - ``details.sceneList`` is a JSON object keyed by scene number, not an array
 - ``hsv(h,s,v)`` is rejected (response value 0), so the colour cannot be
   set over the API; it is only reported as state attributes
@@ -55,6 +58,8 @@ class LoxoneLightsceneRGB(LoxoneEntity, LightEntity):
         super().__init__(**kwargs)
         self._attr_unique_id = self.uuidAction
         self._active_scene: int | None = None
+        # Last scene other than "off", restored by a plain turn-on.
+        self._last_scene: int | None = None
         self._color: str | None = None
         self._channels: dict[str, Any] = {}
         self._scenes = self._parse_scene_list(kwargs.get("details", {}).get("sceneList"))
@@ -103,13 +108,23 @@ class LoxoneLightsceneRGB(LoxoneEntity, LightEntity):
         self.hass.bus.async_fire(SENDDOMAIN, dict(uuid=self.uuidAction, value=command))
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn the light on, or activate the scene given as effect."""
+        """Turn the light on, or activate the scene given as effect.
+
+        A plain turn-on restores the last active scene; ``on`` is only sent
+        when no scene is known yet, because it switches to full white.
+        """
         if ATTR_EFFECT in kwargs:
             number = self._scene_number(kwargs[ATTR_EFFECT])
             if number is None:
                 _LOGGER.warning("Unknown scene %r for %s", kwargs[ATTR_EFFECT], self.name)
                 return
             self._send(str(number))
+        elif self._attr_is_on:
+            # Already on: a plain turn-on must not change the running scene.
+            _LOGGER.debug("%s is already on; ignoring plain turn_on", self.name)
+            return
+        elif self._last_scene is not None:
+            self._send(str(self._last_scene))
         else:
             self._send("on")
         self.async_schedule_update_ha_state()
@@ -131,6 +146,8 @@ class LoxoneLightsceneRGB(LoxoneEntity, LightEntity):
                 _LOGGER.warning("Ignoring invalid activeScene of %s: %r", self.name, event.data[scene_uuid])
             else:
                 self._attr_is_on = self._active_scene != OFF_SCENE
+                if self._attr_is_on:
+                    self._last_scene = self._active_scene
                 self._attr_available = True
                 request_update = True
 

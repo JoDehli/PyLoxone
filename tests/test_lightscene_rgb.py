@@ -91,12 +91,32 @@ def test_unknown_effect_sends_nothing():
     assert sent == []
 
 
-def test_plain_turn_on_sends_on():
+def test_plain_turn_on_without_known_scene_sends_on():
     lightscene, sent = _lightscene()
 
     asyncio.run(lightscene.async_turn_on())
 
     assert sent == ["on"]
+
+
+def test_plain_turn_on_restores_last_scene():
+    """``on`` switches to full white, so the last scene is restored instead."""
+    lightscene, sent = _lightscene()
+    _event(lightscene, {"scene-uuid": 2.0})
+    _event(lightscene, {"scene-uuid": 0.0})
+
+    asyncio.run(lightscene.async_turn_on())
+
+    assert sent == ["2"]
+
+
+def test_plain_turn_on_when_already_on_sends_nothing():
+    lightscene, sent = _lightscene()
+    _event(lightscene, {"scene-uuid": 3.0})
+
+    asyncio.run(lightscene.async_turn_on())
+
+    assert sent == []
 
 
 def test_turn_off_sends_off():
