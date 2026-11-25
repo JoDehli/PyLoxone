@@ -49,27 +49,27 @@ def _event(lightscene, data: dict) -> None:
 # --- scenes as effects -------------------------------------------------------
 
 
-def test_effect_list_is_sorted_alphabetically():
+def test_effect_list_follows_loxone_order_then_all_on():
     lightscene, _ = _lightscene()
 
-    assert lightscene.effect_list == ["Blue", "Green", "Purple", "Red"]
+    assert lightscene.effect_list == ["Purple", "Red", "Green", "Blue", "All on"]
 
 
-def test_effect_list_sort_ignores_case():
-    lightscene, _ = _lightscene({"1": "red", "2": "Blue"})
+def test_effect_list_sorts_by_scene_number_not_key_order():
+    lightscene, _ = _lightscene({"10": "Ten", "2": "Two", "1": "One"})
 
-    assert lightscene.effect_list == ["Blue", "red"]
+    assert lightscene.effect_list == ["One", "Two", "Ten", "All on"]
 
 
-def test_empty_or_unsupported_scene_list_gives_no_effects():
-    assert _lightscene({})[0].effect_list == []
-    assert _lightscene(["Purple"])[0].effect_list == []
+def test_empty_or_unsupported_scene_list_gives_only_all_on():
+    assert _lightscene({})[0].effect_list == ["All on"]
+    assert _lightscene(["Purple"])[0].effect_list == ["All on"]
 
 
 def test_invalid_scene_number_is_skipped():
     lightscene, _ = _lightscene({"1": "Purple", "x": "Broken"})
 
-    assert lightscene.effect_list == ["Purple"]
+    assert lightscene.effect_list == ["Purple", "All on"]
 
 
 # --- commands -----------------------------------------------------------------
@@ -81,6 +81,23 @@ def test_effect_sends_scene_number():
     asyncio.run(lightscene.async_turn_on(effect="Red"))
 
     assert sent == ["2"]
+
+
+def test_all_on_effect_sends_on():
+    lightscene, sent = _lightscene()
+
+    asyncio.run(lightscene.async_turn_on(effect="All on"))
+
+    assert sent == ["on"]
+
+
+def test_scene_named_all_on_takes_precedence():
+    lightscene, sent = _lightscene({"5": "All on"})
+
+    asyncio.run(lightscene.async_turn_on(effect="All on"))
+
+    assert sent == ["5"]
+    assert lightscene.effect_list == ["All on"]
 
 
 def test_unknown_effect_sends_nothing():
@@ -108,6 +125,16 @@ def test_plain_turn_on_restores_last_scene():
     asyncio.run(lightscene.async_turn_on())
 
     assert sent == ["2"]
+
+
+def test_plain_turn_on_after_unlisted_scene_sends_on():
+    lightscene, sent = _lightscene()
+    _event(lightscene, {"scene-uuid": 9})
+    _event(lightscene, {"scene-uuid": 0})
+
+    asyncio.run(lightscene.async_turn_on())
+
+    assert sent == ["on"]
 
 
 def test_plain_turn_on_when_already_on_sends_nothing():
@@ -159,13 +186,13 @@ def test_scene_zero_is_off_without_effect():
     assert lightscene.effect is None
 
 
-def test_scene_not_in_list_is_on_without_effect():
+def test_scene_not_in_list_is_all_on():
     lightscene, _ = _lightscene()
 
     _event(lightscene, {"scene-uuid": 9.0})
 
     assert lightscene.is_on is True
-    assert lightscene.effect is None
+    assert lightscene.effect == "All on"
 
 
 def test_invalid_active_scene_is_ignored():
@@ -196,3 +223,29 @@ def test_colour_is_reported_read_only_in_attributes():
     assert attributes["color"] == "hsv(225,100,100)"
     assert (attributes["red"], attributes["green"], attributes["blue"]) == (0.0, 33.0, 100.0)
     assert lightscene.supported_color_modes == {"onoff"}
+
+
+def test_rgb_attributes_from_hsv_colour():
+    lightscene, _ = _lightscene()
+
+    _event(lightscene, {"color-uuid": "hsv(240,100,100)"})
+
+    assert lightscene.extra_state_attributes["rgb_color"] == [0, 0, 255]
+    assert lightscene.extra_state_attributes["rgb_hex"] == "#0000FF"
+
+
+def test_rgb_attributes_white_for_zero_saturation():
+    lightscene, _ = _lightscene()
+
+    _event(lightscene, {"color-uuid": "hsv(0,0,100)"})
+
+    assert lightscene.extra_state_attributes["rgb_hex"] == "#FFFFFF"
+
+
+def test_rgb_attributes_absent_for_unknown_colour_format():
+    lightscene, _ = _lightscene()
+
+    _event(lightscene, {"color-uuid": "temp(100,2700)"})
+
+    assert "rgb_color" not in lightscene.extra_state_attributes
+    assert "rgb_hex" not in lightscene.extra_state_attributes

@@ -16,7 +16,9 @@ Also observed on a Miniserver Gen 2:
 
 from __future__ import annotations
 
+import colorsys
 import logging
+import re
 from typing import Any
 
 from homeassistant.components.light import (
@@ -35,8 +37,14 @@ _LOGGER = logging.getLogger(__name__)
 # Scene number that means "all off" (Structure File, LightsceneRGB).
 OFF_SCENE = 0
 
+# Effect that sends ``on`` (all channels full), offered next to the scenes.
+ALL_ON_EFFECT = "All on"
+
 # Colour channel states, reported read-only as state attributes.
 RGB_CHANNELS = ("red", "green", "blue")
+
+# Colour state format of the block, e.g. "hsv(240,100,100)".
+HSV_PATTERN = re.compile(r"^\s*hsv\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\)\s*$")
 
 
 class LoxoneLightsceneRGB(LoxoneEntity, LightEntity):
@@ -93,15 +101,16 @@ class LoxoneLightsceneRGB(LoxoneEntity, LightEntity):
 
     @property
     def effect_list(self) -> list[str]:
-        """Return the scene names, sorted alphabetically."""
-        return sorted(self._scenes.values(), key=str.casefold)
+        """Return the scene names in Loxone order, followed by "All on"."""
+        names = [self._scenes[number] for number in sorted(self._scenes)]
+        return names if ALL_ON_EFFECT in names else [*names, ALL_ON_EFFECT]
 
     @property
     def effect(self) -> str | None:
-        """Return the name of the active scene, or None if off or unknown."""
+        """Return the active scene name; an unlisted scene is "All on", which is not in the scene list."""
         if self._active_scene in (None, OFF_SCENE):
             return None
-        return self._scenes.get(self._active_scene)
+        return self._scenes.get(self._active_scene, ALL_ON_EFFECT)
 
     def _send(self, command: str) -> None:
         """Send a command to the RGB Lighting Controller."""
@@ -110,20 +119,24 @@ class LoxoneLightsceneRGB(LoxoneEntity, LightEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on, or activate the scene given as effect.
 
-        A plain turn-on restores the last active scene; ``on`` is only sent
-        when no scene is known yet, because it switches to full white.
+        A plain turn-on restores the last active scene; ``on`` is sent when
+        that scene is not in the scene list (e.g. "All on") or not known yet.
         """
         if ATTR_EFFECT in kwargs:
-            number = self._scene_number(kwargs[ATTR_EFFECT])
-            if number is None:
-                _LOGGER.warning("Unknown scene %r for %s", kwargs[ATTR_EFFECT], self.name)
+            effect = kwargs[ATTR_EFFECT]
+            number = self._scene_number(effect)
+            if number is not None:
+                self._send(str(number))
+            elif effect == ALL_ON_EFFECT:
+                self._send("on")
+            else:
+                _LOGGER.warning("Unknown scene %r for %s", effect, self.name)
                 return
-            self._send(str(number))
         elif self._attr_is_on:
             # Already on: a plain turn-on must not change the running scene.
             _LOGGER.debug("%s is already on; ignoring plain turn_on", self.name)
             return
-        elif self._last_scene is not None:
+        elif self._last_scene in self._scenes:
             self._send(str(self._last_scene))
         else:
             self._send("on")
@@ -178,4 +191,20 @@ class LoxoneLightsceneRGB(LoxoneEntity, LightEntity):
         }
         if self._color is not None:
             attributes["color"] = self._color
+        rgb = self._rgb_from_color()
+        if rgb is not None:
+            attributes["rgb_color"] = list(rgb)
+            attributes["rgb_hex"] = "#{:02X}{:02X}{:02X}".format(*rgb)
         return attributes
+
+    def _rgb_from_color(self) -> tuple[int, int, int] | None:
+        """Convert the "hsv(h,s,v)" colour state to 0-255 RGB, or None if not parsable."""
+        if not isinstance(self._color, str):
+            return None
+        match = HSV_PATTERN.match(self._color)
+        if match is None:
+            _LOGGER.debug("Unsupported colour format of %s: %r", self.name, self._color)
+            return None
+        hue, saturation, value = (float(part) for part in match.groups())
+        red, green, blue = colorsys.hsv_to_rgb((hue % 360) / 360, min(saturation, 100) / 100, min(value, 100) / 100)
+        return round(red * 255), round(green * 255), round(blue * 255)
