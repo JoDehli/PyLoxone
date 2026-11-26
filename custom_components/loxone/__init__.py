@@ -220,6 +220,10 @@ async def _async_sync_areas_with_loxone(hass: HomeAssistant, data={}) -> None:
     ar_registry = ar.async_get(hass)
     for id, entry in er_registry.entities.items():
         if entry.platform == DOMAIN:
+            # Entities without an own name represent their device and location;
+            # HA does not support an entity-level area for them.
+            if entry.has_entity_name and not (entry.name or entry.original_name):
+                continue
             state = hass.states.get(entry.entity_id)
             if hasattr(state, "attributes") and "room" in state.attributes:
                 area = ar_registry.async_get_area_by_name(state.attributes["room"])
