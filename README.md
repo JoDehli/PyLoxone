@@ -12,6 +12,8 @@ If you want to support my work on this binding you can buy me a coffee:
 
 Home Assistant binding for Loxone. 
 
+📖 **Documentation:** https://jodehli.github.io/PyLoxone/ (supported devices, known limitations, blueprints and the developer guide)
+
 A special thanks to Pawel Pieczul from the great openhab2 house automation software. 
 He really helped me a lot to with the new token based authentication. Thanks Pawel!!!
 
