@@ -6,7 +6,7 @@ PyLoxone is a Home Assistant custom integration. The code lives in `custom_compo
 
 | Path | Content |
 |---|---|
-| `custom_components/loxone/` | The integration: one file per Home Assistant platform (`light.py`, `cover.py`, `climate.py`, …), `config_flow.py`, `miniserver.py`, `coordinator.py` |
+| `custom_components/loxone/` | The integration: one file per Home Assistant platform (`light.py`, `cover.py`, `climate.py`, …), `config_flow.py`, `miniserver.py`, `coordinator.py`. `intercom/` (Intercom Gen 2) and `wallbox2.py` (Wallbox Gen 2) are feature packages that feed several platforms |
 | `tests/` | Offline test suite; runs the integration inside the Home Assistant test harness against `tests/fixtures/LoxAPP3.json`, no Miniserver needed |
 | `blueprints/` | Home Assistant blueprints shipped with the integration |
 | `config/` | Home Assistant configuration used by the dev container (git-ignored except `configuration.yaml`) |

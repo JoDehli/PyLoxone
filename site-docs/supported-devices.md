@@ -24,7 +24,7 @@ If your control is missing or only partly supported, please open a [feature requ
 | Loxone control | Home Assistant | Status | Notes |
 |---|---|---|---|
 | `Jalousie` | `cover` | ✅ Supported | |
-| `Window` | `cover` | ✅ Supported | |
+| `Window` | `cover` | ✅ Supported | Includes the partially open (ventilation) position as the `loxone.window_slightly_open` service. |
 | `Gate` | `cover` | ✅ Supported | |
 | `WindowMonitor` | `binary_sensor`, `sensor` | ✅ Supported | |
 
@@ -69,7 +69,7 @@ If your control is missing or only partly supported, please open a [feature requ
 | `Alarm` | `alarm_control_panel` | ✅ Supported | |
 | `AudioZoneV2` | `media_player` | 🟡 Partial | Play, pause, next, previous and volume. Text-to-speech, favorites and presence are missing. |
 | `Intercom` | `switch` | 🟡 Partial | Sub-controls appear as switches; the doorbell is not visible. |
-| `IntercomV2` | – | ❌ Not supported | |
+| `IntercomV2` (Gen 2) | `binary_sensor`, `switch`, `button`, `sensor`, `text` | 🟡 Partial | Experimental. Ringing, bell mute, dismiss, outputs, voice replies and diagnostics. No camera or two-way audio yet. Secured Intercoms and outputs get no entities. Output buttons are untested on hardware. See the README section "Intercom Gen 2". |
 
 ## Other
 
@@ -77,6 +77,12 @@ If your control is missing or only partly supported, please open a [feature requ
 |---|---|---|---|
 | Message Center / System Status | `sensor`, repairs | ✅ Supported | See the README for templates and [blueprints](blueprints.md). |
 | `AlarmChain`, `AlarmClock` | – | ❌ Not supported | |
+
+## Energy
+
+| Loxone control | Home Assistant | Status | Notes |
+|---|---|---|---|
+| `Wallbox2` (Wallbox Gen. 2) | `switch`, `select`, `number`, `binary_sensor` | ✅ Supported | Charging allow switch, charging mode, manual charging limit in kW, and connected / charging / load shedding / phase switching sensors. The kW range was verified on an 11 kW Wallbox Gen. 2 only. |
 
 !!! tip "Unsupported control?"
     You can still send commands to any control with the websocket direct command service. See the README section "Advanced usage".

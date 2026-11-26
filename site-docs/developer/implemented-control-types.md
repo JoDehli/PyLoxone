@@ -18,7 +18,7 @@ Status: **implemented** = covers the Structure File spec, **partial** = works, w
 | Control type | File | Status | Open gaps |
 |---|---|---|---|
 | `Jalousie` | `cover.py` | implemented | Commands `up`/`UpOff`, `down`/`DownOff`, `manualPosBlind`, `setAdjustingEndPos`, `endPosAdjustment` not used |
-| `Window` | `cover.py` | implemented | Commands `open/on`, `open/off`, `close/on`, `close/off`, `slightlyOpen`, `stop` not used |
+| `Window` | `cover.py` | implemented | Commands `open/on`, `open/off`, `close/on`, `close/off` not used. `slightlyOpen/` is exposed as the service `loxone.window_slightly_open`; `lockedReason` and the window type are read as attributes |
 | `Gate` | `cover.py` | implemented | Commands `forceOpen`, `forceClose`, `PartiallyOpen`, `getState`, `stop` not used |
 | `WindowMonitor` | `window_monitor.py` → `binary_sensor.py`, `sensor.py` | implemented | |
 
@@ -56,6 +56,12 @@ Status: **implemented** = covers the Structure File spec, **partial** = works, w
 | `ClimateController`, `ClimateControllerUS` | `sensor.py` | partial | Only the request/demand relay. The mode numbering differs between the two types |
 | `Ventilation` | `fan.py` | partial | Speed and presets plus presence, humidity and air-quality sub-sensors. `setMode/2..6` is undocumented and the preset ids are hardcoded |
 
+## Energy
+
+| Control type | File | Status | Open gaps |
+|---|---|---|---|
+| `Wallbox2` (Wallbox Gen. 2) | `wallbox2.py` → `switch.py`, `select.py`, `number.py`, `binary_sensor.py` | implemented | Commands `allow/on`, `allow/off`, `setmode/<id>`, `manualLimit/<kW>`. `min`/`max` are assumed to be kW and verified only on an 11 kW Wallbox Gen. 2 |
+
 ## Security, audio, intercom
 
 | Control type | File | Status | Open gaps |
@@ -63,11 +69,11 @@ Status: **implemented** = covers the Structure File spec, **partial** = works, w
 | `Alarm` | `alarm_control_panel.py` | implemented | |
 | `AudioZoneV2` | `media_player.py` | partial | Transport only (play, pause, next, previous, volume, step; stop maps to pause). Missing: `tts`, favorites, presence/bluetooth, availability from `serverState`. Zones with `volumeModes: 2` get wrong absolute-volume commands |
 | `Intercom` | `switch.py` | partial | V1 sub-controls as switches only. The doorbell (`bell` state) and `answer` are not visible; `securedDetails` unused |
-| `IntercomV2` | – | missing | |
+| `IntercomV2` (Gen 2) | `intercom/` → `binary_sensor.py`, `switch.py`, `button`, `sensor`, `text` | partial | No camera or two-way audio. Intercoms of a trust member and custom devices are skipped. Secured Intercoms and outputs get no entities. The output buttons send `pulse`, which is not documented for Intercom subcontrols, and are untested on hardware |
 
 ## Not implemented
 
-`AlarmChain`, `AlarmClock`, `LightController`, `IntercomV2`.
+`AlarmChain`, `AlarmClock`, `LightController`.
 
 ## Sources
 
