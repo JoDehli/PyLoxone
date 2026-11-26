@@ -101,3 +101,11 @@ quick_shade:
   target:
     entity:
       domain: cover
+
+window_slightly_open:
+  description: Move a Loxone Window to its partially open (ventilation) position.
+  target:
+    entity:
+      integration: loxone
+      domain: cover
+      device_class: window

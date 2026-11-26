@@ -9,6 +9,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL
+from .intercom.device import intercom_state_uuids
 from .miniserver import MiniServer
 from pyloxone_api.connection import LoxoneConnection, LoxoneException
 
@@ -120,6 +121,12 @@ class LoxoneCoordinator(DataUpdateCoordinator):
         # it is flipped by the ``run()`` supervisor's on_state
         # callback in ``__init__.py``.
         self.connection_available: bool = True
+        # #466: last values of the Intercom Gen 2 states, for entities
+        # added after the Miniserver's initial state push (an entity
+        # enabled later, a reply button discovered from a state).
+        # Cleared when the connection goes down.
+        self.intercom_state_values: dict[str, object] = {}
+        self._intercom_state_uuids: frozenset[str] = frozenset()
 
     async def async_config_entry_first_refresh(self) -> None:
         _LOGGER.debug("async_config_entry_first_refresh")
@@ -162,6 +169,8 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             configuration_url=self._configuration_url,
         )
         self._control_uuids = _collect_control_uuids(self.api.structure_file)
+        self._intercom_state_uuids = intercom_state_uuids(self.api.structure_file)
+        self.intercom_state_values.clear()
 
         return None
 
@@ -186,7 +195,22 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             return False
         self.miniserver.lox_config.json = structure_file
         self.miniserver.configuration_url = self._configuration_url
+        # #466: the state uuids may have changed with the new structure
+        # file (e.g. after a firmware update); keep forwarding the right ones.
+        self._intercom_state_uuids = intercom_state_uuids(structure_file)
         return True
+
+    def update_intercom_states(self, message) -> dict:
+        """Cache and return the Intercom Gen 2 states contained in ``message``."""
+        if not self._intercom_state_uuids or not isinstance(message, dict):
+            return {}
+        states = {
+            uuid: value
+            for uuid, value in message.items()
+            if uuid in self._intercom_state_uuids
+        }
+        self.intercom_state_values.update(states)
+        return states
 
     def owns_uuid(self, uuid: str) -> bool:
         """Return True if ``uuid`` is a control or subcontrol of this Miniserver.

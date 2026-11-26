@@ -19,6 +19,7 @@ from .const import SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all, get_or_create_device,
                       parse_control_lock)
 from .miniserver import get_miniserver_from_hass
+from .wallbox2 import build_selects
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,6 +121,7 @@ async def async_setup_entry(
         except Exception:
             _LOGGER.exception("Skipping Radio control %s", select_entity.get("name", "?"))
 
+    entities.extend(build_selects(loxconfig))
     async_add_entities(entities)
 
 

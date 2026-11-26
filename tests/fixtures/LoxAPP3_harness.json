@@ -635,11 +635,14 @@
       "room": "726f6f6d-0103-9697-ffff-368656e726f6000003",
       "cat": "6361743a-017a-96f7-ffff-36361743a446000122",
       "details": {
-        "animation": 0
+        "type": 0
       },
       "states": {
         "position": "36333734-017c-9336-ffff-d303137622d3000124",
-        "active": "36333734-017d-9336-ffff-d303137622d3000125"
+        "direction": "36333734-017d-9336-ffff-d303137622d3000125",
+        "lockedReason": "36333734-017e-9336-ffff-d303137622d3000126",
+        "targetPosition": "36333734-017f-9336-ffff-d303137622d3000127",
+        "type": "36333734-0180-9336-ffff-d303137622d3000128"
       },
       "defaultRating": 2,
       "isFavorite": false,

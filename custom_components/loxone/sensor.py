@@ -35,6 +35,7 @@ from homeassistant.util import dt as dt_util
 from .const import CLIMATE_EVENT, CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN, THROTTLE_KEEP_ALIVE_TIME
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all, get_datetime_from_loxone, get_device,
                       get_or_create_device)
+from .intercom.entities import intercom_sensors
 from .miniserver import get_miniserver_from_hass
 from custom_components.loxone import LoxoneEntity, miniserver
 from .window_monitor import (LoxoneWindowPositionSensor,
@@ -346,6 +347,12 @@ async def async_setup_entry(
         entities.extend(window_monitor_count_sensors(window_monitor_controls(loxconfig)))
     except Exception:
         _LOGGER.exception("Skipping WindowMonitor controls")
+
+    # #466: Intercom Gen 2 device status and firmware.
+    try:
+        entities.extend(intercom_sensors(hass, config_entry))
+    except Exception:
+        _LOGGER.exception("Skipping IntercomV2 controls")
 
     @callback
     def async_add_sensors(_):

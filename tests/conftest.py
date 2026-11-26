@@ -91,6 +91,9 @@ def mock_connection(hass, loxapp3, enable_custom_integrations):
         return self.connection
 
     async def _fake_run(self, on_state=None, callback=None, **kwargs):
+        # The integration's real message callback, for tests that push a
+        # state the way the listener does (``await api._fake_callback(...)``).
+        self._fake_callback = callback
         # The supervisor: report "connected", then stay up until close()
         # (entry unload) ends the session.
         if on_state is not None:
