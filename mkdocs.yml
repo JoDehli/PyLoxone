@@ -1,0 +1,58 @@
+site_name: PyLoxone
+site_description: Home Assistant integration for the Loxone Miniserver
+site_url: https://jodehli.github.io/PyLoxone/
+repo_url: https://github.com/JoDehli/PyLoxone
+repo_name: JoDehli/PyLoxone
+docs_dir: site-docs
+extra_css:
+  - stylesheets/extra.css
+
+theme:
+  name: material
+  custom_dir: overrides
+  favicon: assets/favicon.svg
+  icon:
+    logo: custom/pyloxone
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - content.tabs.link
+    - navigation.sections
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Supported devices: supported-devices.md
+  - Known limitations: known-limitations.md
+  - Blueprints: blueprints.md
+  - Developer:
+      - Overview: developer/index.md
+      - Dev container: developer/devcontainer.md
+      - pyloxone-api: developer/pyloxone-api.md
+      - Connection flow: developer/connection-flow.md
+      - Implemented control types: developer/implemented-control-types.md
+
+markdown_extensions:
+  - tables
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
