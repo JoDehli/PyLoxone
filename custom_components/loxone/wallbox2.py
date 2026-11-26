@@ -235,7 +235,13 @@ class LoxoneWallbox2Select(LoxoneWallbox2Entity, SelectEntity):
         self._attr_current_option = self._id_to_label.get(self._mode_id)
 
     def _apply_modes(self, value) -> None:
-        """Take the mode names from the pushed ``modes`` state."""
+        """Take the mode names from the pushed ``modes`` state.
+
+        The structure file lists ``modes`` only under *Details*, not under
+        *States*. The names are read from the pushed state here (observed on
+        the 11 kW Wallbox Gen. 2 used for testing) and the ``details.modes``
+        fallback in ``__init__`` stays in place for firmware that does not push it.
+        """
         modes = parse_modes(value)
         if modes is None:
             _LOGGER.debug("Unusable wallbox modes state: %r", value)
@@ -279,6 +285,10 @@ class LoxoneWallbox2Number(LoxoneWallbox2Entity, NumberEntity):
 
     Setting a value also activates the manual mode (99) on the Miniserver, as
     described in the structure file.
+
+    Unit: the structure file gives ``min``/``max`` as "allowed charging power"
+    without a unit. kW is assumed and verified only on an 11 kW Wallbox Gen. 2;
+    other models should be checked before relying on the value.
     """
 
     _state_key = "limit"
