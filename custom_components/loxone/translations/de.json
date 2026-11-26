@@ -157,6 +157,10 @@
     "quick_shade": {
       "name": "Beschattung ",
       "description": "Loxone Jalousie in Schattenposition bringen. Position wird von Loxone abhängig von mehreren Werten festgelegt."
+    },
+    "window_slightly_open": {
+      "name": "Fenster leicht öffnen",
+      "description": "Loxone Fenster in die teilweise geöffnete (Lüftungs-)Position bringen."
     }
   },
   "issues": {
