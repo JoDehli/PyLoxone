@@ -22,6 +22,7 @@ from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
 from .intercom.entities import intercom_switches
 from .miniserver import get_miniserver_from_hass
+from .wallbox2 import build_switches
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,6 +84,7 @@ async def async_setup_entry(
             if switch_entity.get("presence", None):
                 override_kwargs = {**switch_entity, "type": "PresenceDetectionSwitch"}
                 entities.append(LoxoneLightPresenceSwitch(**override_kwargs))
+    entities.extend(build_switches(loxconfig))
     # #466: Intercom Gen 2 bell mute.
     try:
         entities.extend(intercom_switches(hass, config_entry))

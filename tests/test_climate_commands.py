@@ -188,8 +188,8 @@ def test_irc_hvac_modes_respect_restricted_to_mode():
 )
 def test_economy_range_with_missing_states_is_unknown(states):
     rc = _room_controller_v2([], OperatingMode.AUTO_HEAT_COOL, ActiveMode.ECONOMY, **states)
-    assert rc.target_temperature_high is None
-    assert rc.target_temperature_low is None
+    assert rc.native_target_temperature_high is None
+    assert rc.native_target_temperature_low is None
 
 
 def test_economy_range_from_comfort_and_offsets():
@@ -202,8 +202,8 @@ def test_economy_range_from_comfort_and_offsets():
         absentMinOffset=2.0,
         absentMaxOffset=3.0,
     )
-    assert rc.target_temperature_low == 19.0
-    assert rc.target_temperature_high == 27.0
+    assert rc.native_target_temperature_low == 19.0
+    assert rc.native_target_temperature_high == 27.0
 
 
 @pytest.mark.parametrize(
@@ -216,7 +216,7 @@ def test_ac_control_temperature_unit(format_str, expected):
     ac = LoxoneAcControl.__new__(LoxoneAcControl)
     ac.details = {} if format_str is None else {"format": format_str}
     unit = UnitOfTemperature.FAHRENHEIT if expected == "°F" else UnitOfTemperature.CELSIUS
-    assert ac.temperature_unit == unit
+    assert ac.native_temperature_unit == unit
 
 
 @pytest.mark.parametrize(

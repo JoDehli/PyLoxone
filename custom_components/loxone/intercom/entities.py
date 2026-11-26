@@ -138,7 +138,9 @@ class IntercomEntity(Entity):
         firmware = updates.get(self.device.states.get("version"))
         if isinstance(firmware, str) and firmware:
             registry = dr.async_get(self.hass)
-            device = registry.async_get_device(identifiers={(DOMAIN, self.device.key)})
+            device = registry.async_get_device_by_identifier(
+                (DOMAIN, self.device.key), self.device.entry.entry_id
+            )
             if device is not None and device.sw_version != firmware:
                 registry.async_update_device(device.id, sw_version=firmware)
         self.async_write_ha_state()

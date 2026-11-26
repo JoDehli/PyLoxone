@@ -62,10 +62,14 @@ class IntercomDevice:
         if serial := self.details.get("serialNo") or self.details.get("serialNr"):
             info["serial_number"] = str(serial)
         # Only reference the Miniserver device if it is registered: Home
-        # Assistant rejects a ``via_device`` that does not exist.
+        # Assistant rejects a ``via_device_id`` that does not exist. The key
+        # is the registry id of the parent device, not its identifier.
         parent = miniserver_identifier(self.coordinator, self.entry)
-        if dr.async_get(hass).async_get_device(identifiers={parent}) is not None:
-            info["via_device"] = parent
+        parent_device = dr.async_get(hass).async_get_device_by_identifier(
+            parent, self.entry.entry_id
+        )
+        if parent_device is not None:
+            info["via_device_id"] = parent_device.id
         return info
 
 
