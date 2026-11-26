@@ -27,4 +27,4 @@ PyLoxone is a Home Assistant integration for the Loxone Miniserver. It reads the
     Home Assistant 2025.2.4 or newer.
 
 !!! note "More setup details"
-    The [README](https://github.com/JoDehli/PyLoxone#readme) covers the recorder configuration, the Gen 2 Miniserver and the cloud connection.
+    The [setup page](setup.md) covers the recorder configuration, the Gen 2 Miniserver and the cloud connection.

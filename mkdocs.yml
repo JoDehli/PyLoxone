@@ -36,8 +36,13 @@ theme:
 nav:
   - Home: index.md
   - Supported devices: supported-devices.md
+  - Setup and configuration: setup.md
+  - Sensors: sensors.md
+  - Message Center and repairs: message-center.md
+  - Intercom Gen 2: intercom-gen2.md
   - Known limitations: known-limitations.md
   - Blueprints: blueprints.md
+  - Advanced usage: advanced.md
   - Developer:
       - Overview: developer/index.md
       - Dev container: developer/devcontainer.md

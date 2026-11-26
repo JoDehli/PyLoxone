@@ -38,4 +38,4 @@ To run Home Assistant itself (the local runtime in `.venv`) against the checkout
 
 ## Token storage
 
-After a successful login the integration stores the Loxone token in its config entry (`.storage/core.config_entries`). The token is bound to host, port and user; a token for a different combination is ignored. See the README section "pyloxone-api dependency" for the user-facing details.
+After a successful login the integration stores the Loxone token in its config entry (`.storage/core.config_entries`). The token is bound to host, port and user; a token for a different combination is ignored. See [Token storage](../setup.md#token-storage) for the user-facing details.

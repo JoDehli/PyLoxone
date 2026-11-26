@@ -44,7 +44,7 @@ If your control is missing or only partly supported, please open a [feature requ
 
 | Loxone control | Home Assistant | Status | Notes |
 |---|---|---|---|
-| `InfoOnlyAnalog` | `sensor` | ✅ Supported | Device class is detected from the unit, see the README. |
+| `InfoOnlyAnalog` | `sensor` | ✅ Supported | Device class is detected from the unit, see [Sensors](sensors.md). |
 | `InfoOnlyDigital` | `binary_sensor` | ✅ Supported | Shows `unknown` until the first value arrives. |
 | `InfoOnlyText` | `sensor` | ✅ Supported | Also text memory flags once "Use" is ticked in Loxone Config. |
 | `TextState` | `sensor` | ✅ Supported | Read-only. State is limited to 255 characters; the full text is in the `text` attribute. |
@@ -69,13 +69,13 @@ If your control is missing or only partly supported, please open a [feature requ
 | `Alarm` | `alarm_control_panel` | ✅ Supported | |
 | `AudioZoneV2` | `media_player` | 🟡 Partial | Play, pause, next, previous and volume. Text-to-speech, favorites and presence are missing. |
 | `Intercom` | `switch` | 🟡 Partial | Sub-controls appear as switches; the doorbell is not visible. |
-| `IntercomV2` (Gen 2) | `binary_sensor`, `switch`, `button`, `sensor`, `text` | 🟡 Partial | Experimental. Ringing, bell mute, dismiss, outputs, voice replies and diagnostics. No camera or two-way audio yet. Secured Intercoms and outputs get no entities. Output buttons are untested on hardware. See the README section "Intercom Gen 2". |
+| `IntercomV2` (Gen 2) | `binary_sensor`, `switch`, `button`, `sensor`, `text` | 🟡 Partial | Experimental. Ringing, bell mute, dismiss, outputs, voice replies and diagnostics. No camera or two-way audio yet. Secured Intercoms and outputs get no entities. Output buttons are untested on hardware. See [Intercom Gen 2](intercom-gen2.md). |
 
 ## Other
 
 | Loxone control | Home Assistant | Status | Notes |
 |---|---|---|---|
-| Message Center / System Status | `sensor`, repairs | ✅ Supported | See the README for templates and [blueprints](blueprints.md). |
+| Message Center / System Status | `sensor`, repairs | ✅ Supported | See [Message Center and repairs](message-center.md) and the [blueprints](blueprints.md). |
 | `AlarmChain`, `AlarmClock` | – | ❌ Not supported | |
 
 ## Energy
@@ -85,4 +85,4 @@ If your control is missing or only partly supported, please open a [feature requ
 | `Wallbox2` (Wallbox Gen. 2) | `switch`, `select`, `number`, `binary_sensor` | ✅ Supported | Charging allow switch, charging mode, manual charging limit in kW, and connected / charging / load shedding / phase switching sensors. The kW range was verified on an 11 kW Wallbox Gen. 2 only. |
 
 !!! tip "Unsupported control?"
-    You can still send commands to any control with the websocket direct command service. See the README section "Advanced usage".
+    You can still send commands to any control with the websocket direct command service. See [Advanced usage](advanced.md).
