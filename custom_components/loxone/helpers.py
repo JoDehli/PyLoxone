@@ -92,6 +92,13 @@ def get_or_create_device(device_uuid, device_name, device_type, device_room):
 
 
 def map_range(value, in_min, in_max, out_min, out_max):
+    """Map value from [in_min, in_max] to [out_min, out_max].
+
+    An empty input range (in_min == in_max) has no defined mapping, so out_min
+    is returned instead of dividing by zero.
+    """
+    if in_max == in_min:
+        return out_min
     return out_min + (((value - in_min) / (in_max - in_min)) * (out_max - out_min))
 
 
@@ -189,16 +196,18 @@ def get_miniserver_type(t):
 
 
 def get_all(json_data, name):
-    controls = []
-    if isinstance(name, list):
-        for c in json_data["controls"].keys():
-            if json_data["controls"][c]["type"] in name:
-                controls.append(json_data["controls"][c])
-    else:
-        for c in json_data["controls"].keys():
-            if json_data["controls"][c]["type"] == name:
-                controls.append(json_data["controls"][c])
-    return controls
+    """Return all controls whose type is ``name`` (or one of the types in a list).
+
+    Missing ``controls`` sections and controls without a ``type`` are skipped
+    instead of raising a KeyError.
+    """
+    types = name if isinstance(name, list) else [name]
+    controls = (json_data or {}).get("controls") or {}
+    return [
+        control
+        for control in controls.values()
+        if isinstance(control, dict) and control.get("type") in types
+    ]
 
 
 def clean_unit(lox_format):
