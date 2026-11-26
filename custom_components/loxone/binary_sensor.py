@@ -24,6 +24,7 @@ from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
 from .miniserver import get_miniserver_from_hass
+from .wallbox2 import build_binary_sensors
 from .window_monitor import LoxoneWindowContactSensor, window_contacts
 
 _LOGGER = logging.getLogger(__name__)
@@ -99,6 +100,7 @@ async def async_setup_entry(
             async_add_binary_sensors,
         )
     )
+    entities.extend(build_binary_sensors(loxconfig))
     async_add_entities(entities)
 
 
