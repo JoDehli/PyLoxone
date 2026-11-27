@@ -718,7 +718,14 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         active = self.active_state
         if active.mode is ActiveMode.FIXED_DYNAMIC:
             return active.value
-        if mode not in (OperatingMode.AUTO_HEAT_COOL, OperatingMode.MANUAL_HEAT_COOL):
+        # Heating-only (or cooling-only) controllers report operating mode
+        # 0/3 "heating and cooling" as well, but have no range: their
+        # single target is tempTarget. Without this the target was unknown
+        # (``temperature: null``) in every automatic mode.
+        if (
+            mode not in (OperatingMode.AUTO_HEAT_COOL, OperatingMode.MANUAL_HEAT_COOL)
+            or not self._range_possible
+        ):
             return self.get_state_value("tempTarget")
         if active.mode is ActiveMode.MANUAL:
             return self.get_state_value("tempTarget")
