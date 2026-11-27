@@ -83,7 +83,7 @@ If your control is missing or only partly supported, please open a [feature requ
 | Loxone control | Home Assistant | Status | Notes |
 |---|---|---|---|
 | `Wallbox2` (Wallbox Gen. 2) | `switch`, `select`, `number`, `binary_sensor` | ✅ Supported | Charging allow switch, charging mode, manual charging limit in kW, and connected / charging / load shedding / phase switching sensors. The kW range was verified on an 11 kW Wallbox Gen. 2 only. |
-| `LoadManager` (Load Manager) | `sensor`, `binary_sensor` | ✅ Supported | Read-only. Current, peak overload, available, maximum and maximum technical power in kW, the number of locked loads (with their names as an attribute), maximum power exceeded, and per load: locked and active (loads with a status input). Undocumented states (available peak power, reduced analog loads) are disabled by default. |
+| `LoadManager` (Load Manager) | `sensor`, `binary_sensor` | ✅ Supported | Read-only. Current (or average, in the peak modes), available, maximum and maximum technical power in kW, named after the configured mode like in the Loxone app, the number of locked loads (with their names as an attribute), maximum power exceeded, and per load: locked and active (loads with a status input). Undocumented states (available peak power, reduced analog loads) are disabled by default. |
 
 !!! tip "Unsupported control?"
     You can still send commands to any control with the websocket direct command service. See [Advanced usage](advanced.md).

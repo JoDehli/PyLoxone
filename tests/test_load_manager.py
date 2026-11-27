@@ -24,6 +24,7 @@ from custom_components.loxone.load_manager import (
     build_binary_sensors,
     build_sensors,
     get_loads,
+    power_label,
 )
 
 UUID = "00000000-0000-0000-ffff000000000002"
@@ -145,9 +146,34 @@ def test_names():
     cfg = _loxconfig(_control())
     names = {e.unique_id.removeprefix(f"{UUID}-"): e.name for e in
              build_sensors(cfg) + build_binary_sensors(cfg)}
-    assert names["current-power"] == "Load Manager Current power"
+    # mode 2 ("Peak Overload"): currentPower is the average power
+    assert names["current-power"] == "Load Manager Average power"
+    assert names["peak-overload-power"] == "Load Manager Current power"
     assert names["load-1-locked"] == "Load Manager Water heater locked"
     assert names["load-0-reduced"] == "Load Manager Car reduced"
+
+
+@pytest.mark.parametrize(
+    ("mode", "current", "peak_overload"),
+    [
+        (0, "Current power", "Peak overload power"),
+        (1, "Average power", "Peak overload power"),
+        (2, "Average power", "Current power"),
+        ("2", "Average power", "Current power"),
+        (None, "Current power", "Peak overload power"),
+    ],
+)
+def test_power_names_follow_the_mode(mode, current, peak_overload):
+    details = {"loads": []}
+    if mode is not None:
+        details["mode"] = mode
+    sensors = _by_suffix(build_sensors(_loxconfig(_control(details=details))))
+    assert sensors["current-power"].name == f"Load Manager {current}"
+    assert sensors["peak-overload-power"].name == f"Load Manager {peak_overload}"
+
+
+def test_power_label_keeps_other_names():
+    assert power_label("availablePower", "Available power", 2) == "Available power"
 
 
 def test_load_without_name_gets_a_default():

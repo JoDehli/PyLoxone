@@ -13,7 +13,11 @@ Read-only entities for the ``LoadManager`` control (Loxone structure file
 
 ``currentPower`` is the current power in "Overload" mode and the average
 power in "Peak" mode; ``peakOverloadPower`` is the current power in "Peak
-Overload" mode (``mode`` 2, since V15.3).
+Overload" mode (``mode`` 2, since V15.3). The entity names follow the
+``mode`` detail, as the Loxone app does: in "Peak" and "Peak Overload" mode
+``currentPower`` is called "Average power", and in "Peak Overload" mode
+``peakOverloadPower`` is called "Current power". Only the names change, the
+unique ids stay the same.
 
 ``lockedLoads`` and ``statusLoads`` are bitmasks, "First Bit -> First Load":
 bit ``n`` belongs to the load with ``id`` ``n`` in the ``loads`` detail. This
@@ -258,6 +262,10 @@ class LoxoneLoadManagerBinarySensor(LoxoneLoadManagerEntity, BinarySensorEntity)
         return attributes
 
 
+MODE_OVERLOAD = 0
+MODE_PEAK = 1
+MODE_PEAK_OVERLOAD = 2
+
 # state key, unique id suffix, label, diagnostic, undocumented
 POWER_SENSORS = (
     ("currentPower", "current-power", "Current power", False, False),
@@ -267,6 +275,27 @@ POWER_SENSORS = (
     ("maxPower", "max-power", "Maximum power", True, False),
     ("maxTp", "max-technical-power", "Maximum technical power", True, False),
 )
+
+
+def get_mode(control: dict) -> int | None:
+    """Return the ``mode`` detail (since V15.3), or None when it is missing."""
+    mode = _number((control.get("details") or {}).get("mode"))
+    return None if mode is None else int(mode)
+
+
+def power_label(state_key: str, default: str, mode: int | None) -> str:
+    """Name a power value after its meaning in the configured mode.
+
+    Spec: ``currentPower`` is the average power in "Peak" mode, and
+    ``peakOverloadPower`` the current power in "Peak Overload" mode. The
+    Loxone app also shows ``currentPower`` as "Average power" in "Peak
+    Overload" mode. Without a ``mode`` (before V15.3) the default is kept.
+    """
+    if state_key == "currentPower" and mode in (MODE_PEAK, MODE_PEAK_OVERLOAD):
+        return "Average power"
+    if state_key == "peakOverloadPower" and mode == MODE_PEAK_OVERLOAD:
+        return "Current power"
+    return default
 
 
 def _build(factory, control: dict) -> list:
@@ -283,9 +312,11 @@ def _build(factory, control: dict) -> list:
 
 def _sensors(control: dict) -> list:
     states = control.get("states") or {}
+    mode = get_mode(control)
     entities: list = [
         LoxoneLoadManagerPowerSensor(
-            state_key, suffix, label, diagnostic, undocumented, **control
+            state_key, suffix, power_label(state_key, label, mode),
+            diagnostic, undocumented, **control
         )
         for state_key, suffix, label, diagnostic, undocumented in POWER_SENSORS
         if state_key in states
