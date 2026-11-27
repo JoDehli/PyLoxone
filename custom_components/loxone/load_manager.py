@@ -154,6 +154,7 @@ class LoxoneLoadManagerEntity(LoxoneEntity):
     def extra_state_attributes(self):
         return {
             **self._attr_extra_state_attributes,
+            "state_key": self._state_key,
             "state_uuid": self.states.get(self._state_key),
             "device_type": self.type,
             "platform": "loxone",

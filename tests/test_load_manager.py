@@ -307,4 +307,12 @@ def test_load_attributes():
     assert attributes["load_power"] == 5.7
     assert attributes["load_analog"] is True
     assert attributes["state_uuid"] == "s-locked"
+    assert attributes["state_key"] == "lockedLoads"
     assert attributes["device_type"] == "LoadManager"
+
+
+def test_power_sensors_expose_their_state_key():
+    """Names follow the mode, so dashboards find a value by ``state_key``."""
+    sensors = _by_suffix(build_sensors(_loxconfig(_control())))
+    assert sensors["current-power"].extra_state_attributes["state_key"] == "currentPower"
+    assert sensors["locked-loads"].extra_state_attributes["state_key"] == "lockedLoads"
