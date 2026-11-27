@@ -6,7 +6,12 @@ import pytest
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
 
 from _controls import control, entity_id, state, structure_with, uuid_for
-from custom_components.loxone.controls.lights_v1 import parse_color, parse_scene_list
+from custom_components.loxone.controls.lights_v1 import (
+    hsv_to_rgb,
+    parse_color,
+    parse_rgb_scene_list,
+    parse_scene_list,
+)
 
 SCENES = '1=\\"Reading\\",2=\\"Dinner\\",7=\\"Party\\"'
 
@@ -35,7 +40,10 @@ CONTROLLER = control(
     sub_controls={sub["uuidAction"]: sub for sub in (RGB, LUMITECH, SWITCH, DIMMER)},
 )
 LIGHTSCENE = control(
-    "LightsceneRGB", "Mood Light", states=("activeScene", "color"), details={"sceneList": ["Red", "Blue"]}
+    "LightsceneRGB",
+    "Mood Light",
+    states=("activeScene", "color"),
+    details={"sceneList": {"1": "Red", "2": "Blue", "5": "Green"}},
 )
 
 
@@ -71,6 +79,21 @@ def _commands(setup) -> list:
 def test_parse_scene_list():
     assert parse_scene_list(SCENES) == {1: "Reading", 2: "Dinner", 7: "Party"}
     assert parse_scene_list(None) == {}
+
+
+def test_parse_rgb_scene_list():
+    # Object keyed by scene number, as the Miniserver sends it.
+    assert parse_rgb_scene_list({"1": "Purple", "3": "Green", "x": "Bad"}) == {1: "Purple", 3: "Green"}
+    # Array, as the structure file spec describes it.
+    assert parse_rgb_scene_list(["Red", "Blue"]) == {1: "Red", 2: "Blue"}
+    assert parse_rgb_scene_list({}) == {}
+    assert parse_rgb_scene_list(None) == {}
+
+
+def test_hsv_to_rgb():
+    assert hsv_to_rgb(240, 100, 100) == (0, 0, 255)
+    assert hsv_to_rgb(0, 0, 100) == (255, 255, 255)
+    assert hsv_to_rgb(360, 100, 50) == (128, 0, 0)
 
 
 @pytest.mark.parametrize(
@@ -177,8 +200,31 @@ async def test_lightscene_rgb(hass, setup):
     assert current.state == STATE_ON
     assert current.attributes["effect"] == "Blue"
     assert current.attributes["scene_hs_color"] == (240.0, 100.0)
+    assert current.attributes["scene_rgb_color"] == (0, 0, 255)
+    assert current.attributes["effect_list"] == ["Red", "Blue", "Green", "All on"]
 
-    await hass.services.async_call("light", "turn_on", {"entity_id": light, "effect": "Red"}, blocking=True)
+    # Scene numbers come from the sceneList keys, gaps included.
+    setup.feed(state(LIGHTSCENE, "activeScene"), 5.0)
+    await hass.async_block_till_done()
+    assert hass.states.get(light).attributes["effect"] == "Green"
+
+    # "on" reports an active scene outside the scene list.
+    setup.feed(state(LIGHTSCENE, "activeScene"), 6.0)
+    await hass.async_block_till_done()
+    assert hass.states.get(light).state == STATE_ON
+    assert hass.states.get(light).attributes["effect"] == "All on"
+
+    setup.feed(state(LIGHTSCENE, "activeScene"), 0.0)
+    await hass.async_block_till_done()
+    assert hass.states.get(light).state == STATE_OFF
+
+    for effect in ("Red", "Green", "All on"):
+        await hass.services.async_call("light", "turn_on", {"entity_id": light, "effect": effect}, blocking=True)
     await hass.services.async_call("light", "turn_off", {"entity_id": light}, blocking=True)
     await hass.async_block_till_done()
-    assert _commands(setup) == [(LIGHTSCENE["uuidAction"], "1"), (LIGHTSCENE["uuidAction"], "off")]
+    assert _commands(setup) == [
+        (LIGHTSCENE["uuidAction"], "1"),
+        (LIGHTSCENE["uuidAction"], "5"),
+        (LIGHTSCENE["uuidAction"], "on"),
+        (LIGHTSCENE["uuidAction"], "off"),
+    ]

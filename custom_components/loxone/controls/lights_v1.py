@@ -9,10 +9,14 @@
   ``off``, ``hsv(...)``, ``lumitech(...)``.
 * LightsceneRGB (RGB lighting controller): ``details.sceneList``,
   ``activeScene``, ``color``; commands ``on``, ``off``, ``{sceneNumber}``.
+  Observed on a live Miniserver (PR #564 discussion): ``sceneList`` is an
+  object keyed by scene number (the spec says array), and ``on`` reports an
+  ``activeScene`` that is not in that list.
 """
 
 from __future__ import annotations
 
+import colorsys
 import logging
 import re
 from typing import Any
@@ -43,6 +47,9 @@ _COLOR_RE = re.compile(r"^\s*(hsv|lumitech)\s*\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*(
 LUMITECH_MIN_KELVIN = 2700
 LUMITECH_MAX_KELVIN = 6500
 
+# LightsceneRGB: effect for the ``on`` command ("all on"), which is no scene.
+ALL_ON_EFFECT = "All on"
+
 
 def parse_scene_list(text: Any) -> dict[int, str]:
     """Scene number -> name from the LightController ``sceneList`` text."""
@@ -63,6 +70,35 @@ def parse_color(text: Any) -> tuple[str, tuple[float, ...]] | None:
     if (kind == "hsv" and len(values) != 3) or (kind == "lumitech" and len(values) != 2):
         return None
     return kind, values
+
+
+def parse_rgb_scene_list(scenes: Any) -> dict[int, str]:
+    """Scene number -> name from the LightsceneRGB ``details.sceneList``.
+
+    The Miniserver sends an object keyed by scene number; an array (as the
+    structure file spec describes it) is read as scenes 1..n.
+    """
+    if isinstance(scenes, dict):
+        items = scenes.items()
+    elif isinstance(scenes, list):
+        items = enumerate(scenes, start=1)
+    else:
+        return {}
+    result: dict[int, str] = {}
+    for number, name in items:
+        try:
+            result[int(number)] = str(name)
+        except (TypeError, ValueError):
+            _LOGGER.debug("Ignoring scene %r=%r of LightsceneRGB", number, name)
+    return result
+
+
+def hsv_to_rgb(hue: float, saturation: float, value: float) -> tuple[int, int, int]:
+    """Loxone ``hsv`` (0-360, 0-100, 0-100) to 0-255 RGB."""
+    rgb = colorsys.hsv_to_rgb(
+        (hue % 360) / 360, max(0.0, min(saturation, 100.0)) / 100, max(0.0, min(value, 100.0)) / 100
+    )
+    return tuple(round(channel * 255) for channel in rgb)  # type: ignore[return-value]
 
 
 def _to_hass_brightness(percent: float) -> int:
@@ -129,16 +165,33 @@ class LightControllerLight(SceneLight):
 class LightsceneRGBLight(SceneLight):
     """LightsceneRGB: scenes from ``details.sceneList``, colour as attribute.
 
-    The scene list holds the names of scenes 1..n (scene 0 is "all off").
-    The colour can only be learned into a scene, not set directly, so the
-    light stays on/off with scene effects.
+    The scene list maps scene numbers to names (scene 0 is "all off"). The
+    colour can only be learned into a scene, not set directly (the block
+    rejects ``hsv(...)``), so the light stays on/off with scene effects.
+    ``on`` ("all on") is offered as its own effect, since its active scene
+    is not part of the scene list.
     """
 
     def __init__(self, control: dict) -> None:
         super().__init__(control, watch=("activeScene", "color"))
-        names = self.details.get("sceneList") or []
-        self._scenes = {index: str(name) for index, name in enumerate(names, start=1)}
+        self._scenes = parse_rgb_scene_list(self.details.get("sceneList"))
         self._color: str | None = None
+
+    @property
+    def effect_list(self) -> list[str]:
+        return [*self._scenes.values(), ALL_ON_EFFECT]
+
+    @property
+    def effect(self) -> str | None:
+        if not self._active:
+            return None
+        return self._scenes.get(self._active, ALL_ON_EFFECT)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        if kwargs.get(ATTR_EFFECT) == ALL_ON_EFFECT:
+            self.send("on")
+            return
+        await super().async_turn_on(**kwargs)
 
     def _handle_states(self, changes: dict[str, Any]) -> None:
         if "activeScene" in changes:
@@ -151,7 +204,9 @@ class LightsceneRGBLight(SceneLight):
         parsed = parse_color(self._color)
         attributes["scene_color"] = self._color
         if parsed and parsed[0] == "hsv":
-            attributes["scene_hs_color"] = (parsed[1][0], parsed[1][1])
+            hue, saturation, value = parsed[1]
+            attributes["scene_hs_color"] = (hue, saturation)
+            attributes["scene_rgb_color"] = hsv_to_rgb(hue, saturation, value)
         return attributes
 
 
