@@ -8,6 +8,7 @@ https://github.com/JoDehli/PyLoxone
 from functools import cached_property
 import json
 import logging
+from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
