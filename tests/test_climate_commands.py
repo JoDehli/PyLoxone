@@ -295,7 +295,12 @@ def _until(hours):
 def fixed_now(monkeypatch):
     from custom_components.loxone import climate
 
-    monkeypatch.setattr(climate.dt_util, "now", lambda: NOW)
+    monkeypatch.setattr(climate.dt_util, "utcnow", lambda: NOW)
+    # Local time in Europe/Berlin (UTC+1) is one hour ahead of UTC; the
+    # override end must still be based on UTC.
+    monkeypatch.setattr(
+        climate.dt_util, "now", lambda: NOW.astimezone(timezone(timedelta(hours=1)))
+    )
 
 
 def _override_rc(sent, operating_mode, active_mode, hours=4, **states):
@@ -380,3 +385,12 @@ def test_comfort_offset_stays_the_default():
     assert rc._setpoint_mode == IRC_SETPOINT_COMFORT_OFFSET
     rc.set_temperature(temperature=22.0)
     assert sent == ["setComfortModeTemp/1.0"]
+
+
+def test_manual_override_end_is_based_on_utc_not_local_time(fixed_now):
+    """Regression: the Miniserver reads ``until`` as UTC. With the local clock
+    one hour ahead (Europe/Berlin), the end must not move by that hour."""
+    sent: list = []
+    rc = _override_rc(sent, OperatingMode.AUTO_HEAT, ActiveMode.COMFORT, hours=0.5)
+    rc.set_temperature(temperature=22.0)
+    assert sent == [f"override/3/{_until(0.5)}/22.0"]

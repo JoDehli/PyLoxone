@@ -90,7 +90,7 @@ AUTO_OPERATING_MODES = (
 # without ``until`` the controller stays in automatic mode and no override
 # starts, so an end time is always sent.
 IRC_OVERRIDE_MANUAL_MODE_ID = 3
-LOXONE_EPOCH_LOCAL = datetime(2009, 1, 1)
+LOXONE_EPOCH = datetime(2009, 1, 1)  # naive, UTC based
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -732,16 +732,14 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         end time, so one is always sent (the configured length, at least
         0.5 h).
 
-        ``until`` is counted in local wall-clock time, like the other Loxone
-        timestamps this integration reads, using the Home Assistant time
-        zone. This assumes Home Assistant and the Miniserver are set to the
-        same time zone. Checked on hardware (0.5 h and 4 h overrides end on
-        time) with both on Europe/London while it equalled UTC; the summer
-        time case follows from the same assumption but was not observed.
+        ``until`` is counted from 2009-01-01 00:00 UTC, so it is computed from
+        UTC and not from the local time. Checked on a Miniserver in
+        Europe/Berlin (UTC+1): a local-time ``until`` ended the override one
+        hour late, while the Miniserver's own clock was correct.
         """
         hours = float(self._override_hours or DEFAULT_IRC_OVERRIDE_HOURS)
-        end = dt_util.now().replace(tzinfo=None) + timedelta(hours=hours)
-        until = int((end - LOXONE_EPOCH_LOCAL).total_seconds())
+        end = dt_util.utcnow().replace(tzinfo=None) + timedelta(hours=hours)
+        until = int((end - LOXONE_EPOCH).total_seconds())
         return f"override/{IRC_OVERRIDE_MANUAL_MODE_ID}/{until}/{temperature}"
 
     def _send_building_protect_temperature(self, command: str, state_name: str, new_temp) -> None:
