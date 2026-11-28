@@ -61,6 +61,7 @@ Status: **implemented** = covers the Structure File spec, **partial** = works, w
 | Control type | File | Status | Open gaps |
 |---|---|---|---|
 | `Wallbox2` (Wallbox Gen. 2) | `wallbox2.py` → `switch.py`, `select.py`, `number.py`, `binary_sensor.py` | implemented | Commands `allow/on`, `allow/off`, `setmode/<id>`, `manualLimit/<kW>`. `min`/`max` are assumed to be kW and verified only on an 11 kW Wallbox Gen. 2 |
+| `LoadManager` | `load_manager.py` → `sensor.py`, `binary_sensor.py` | implemented | Read-only; the spec lists no commands. Power names follow `mode` (`currentPower` is "Average power" in Peak and Peak Overload mode, `peakOverloadPower` is "Current power" in Peak Overload mode). `lockedLoads` / `statusLoads` are bitmasks ("First Bit -> First Load"), also verified on firmware 17.3 with twelve loads. `availablePowerPeak`, `reducedLoads` and `isAnalog` are not in the structure file (16.0); their entities are disabled by default. `jLocked` is not exposed |
 
 ## Security, audio, intercom
 

@@ -36,6 +36,7 @@ from .const import CLIMATE_EVENT, CONF_ACTIONID, DOMAIN, EVENT, SENDDOMAIN, THRO
 from .helpers import (add_room_and_cat_to_value_values, clean_unit, get_all, get_datetime_from_loxone, get_device,
                       get_or_create_device)
 from .intercom.entities import intercom_sensors
+from .load_manager import build_sensors as load_manager_sensors
 from .miniserver import get_miniserver_from_hass
 from custom_components.loxone import LoxoneEntity, miniserver
 from .window_monitor import (LoxoneWindowPositionSensor,
@@ -347,6 +348,10 @@ async def async_setup_entry(
         entities.extend(window_monitor_count_sensors(window_monitor_controls(loxconfig)))
     except Exception:
         _LOGGER.exception("Skipping WindowMonitor controls")
+
+    # LoadManager: power values and the number of locked loads (the
+    # per-load flags live on the binary_sensor platform).
+    entities.extend(load_manager_sensors(loxconfig))
 
     # #466: Intercom Gen 2 device status and firmware.
     try:

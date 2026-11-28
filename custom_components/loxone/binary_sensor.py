@@ -24,6 +24,7 @@ from .const import CONF_ACTIONID, DOMAIN, SENDDOMAIN
 from .helpers import (add_room_and_cat_to_value_values, get_all,
                       get_or_create_device)
 from .intercom.entities import intercom_binary_sensors
+from .load_manager import build_binary_sensors as load_manager_binary_sensors
 from .miniserver import get_miniserver_from_hass
 from .wallbox2 import build_binary_sensors
 from .window_monitor import LoxoneWindowContactSensor, window_contacts
@@ -102,6 +103,7 @@ async def async_setup_entry(
         )
     )
     entities.extend(build_binary_sensors(loxconfig))
+    entities.extend(load_manager_binary_sensors(loxconfig))
     # #466: Intercom Gen 2 ringing and online state.
     try:
         entities.extend(intercom_binary_sensors(hass, config_entry))
