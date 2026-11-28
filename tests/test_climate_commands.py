@@ -270,3 +270,22 @@ def test_irc_v2_demand_event_stores_the_value():
     rc.climate_handler(SimpleNamespace(data={"uuid": "rc-uuid", "value": 1}))
 
     assert rc._demand == 1
+
+
+@pytest.mark.parametrize("active_mode", [ActiveMode.COMFORT, ActiveMode.ECONOMY])
+def test_single_target_controller_in_heat_cool_mode_shows_its_target(active_mode):
+    """A heating-only controller reports operating mode 0 (automatic heating
+    and cooling) but has no range: its target is tempTarget, not unknown."""
+    rc = _room_controller_v2([], OperatingMode.AUTO_HEAT_COOL, active_mode, tempTarget=21.5)
+    assert rc.native_target_temperature == 21.5
+
+
+def test_range_controller_in_heat_cool_mode_keeps_its_range():
+    rc = _room_controller_v2(
+        [], OperatingMode.AUTO_HEAT_COOL, ActiveMode.COMFORT,
+        tempTarget=21.5, comfortTemperature=21.0, comfortTemperatureCool=24.0,
+    )
+    rc._range_possible = True
+    assert rc.native_target_temperature is None
+    assert rc.native_target_temperature_low == 21.0
+    assert rc.native_target_temperature_high == 24.0
