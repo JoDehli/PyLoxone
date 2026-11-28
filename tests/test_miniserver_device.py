@@ -128,7 +128,9 @@ async def test_cloud_dns_host_gives_a_valid_configuration_url(
     await setup_loxone_entry(entry)
 
     assert entry.state is ConfigEntryState.LOADED
-    assert _miniserver_device(hass, entry).configuration_url == f"https://dns.loxonecloud.com/{SERIAL}"
+    # pyloxone-api treats the deprecated dns.loxonecloud.com host as Remote
+    # Connect and uses connect.loxonecloud.com instead (spec V17.0).
+    assert _miniserver_device(hass, entry).configuration_url == f"https://connect.loxonecloud.com/{SERIAL}"
 
 
 async def test_device_registry_problem_does_not_fail_the_setup(

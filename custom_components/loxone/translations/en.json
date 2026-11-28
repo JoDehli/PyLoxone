@@ -58,6 +58,9 @@
           "generate_scenes": "generate scenes",
           "generate_lightcontroller_subcontrols": "Enable LightControllerV2 subcontrols by default",
           "generate_scenes_delay": "Delay for the scene generation if enabled"
+        },
+        "data_description": {
+          "host": "Local IP address or host name of the Miniserver, `https://…` for TLS, or `connect.loxonecloud.com/<serial number>` for Loxone Remote Connect."
         }
       },
       "reauth_confirm": {
@@ -87,7 +90,10 @@
           "generate_scenes_delay": "Delay for the scene generation if enabled"
         },
         "description": "PyLoxone edit settings:",
-        "title": "PyLoxone settings"
+        "title": "PyLoxone settings",
+        "data_description": {
+          "host": "Local IP address or host name of the Miniserver, `https://…` for TLS, or `connect.loxonecloud.com/<serial number>` for Loxone Remote Connect."
+        }
       }
     }
   },
@@ -181,6 +187,29 @@
     "loxone_device_status": {
       "title": "{title}: {name}",
       "description": "{description}"
+    },
+    "public_key_changed": {
+      "title": "Loxone Miniserver presented a different public key ({title})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Accept the new public key?",
+            "description": "On the first connection the integration pinned the public key of the Miniserver. It now presents a different key, so the integration stopped connecting.\n\nThis is expected after the Miniserver was replaced or reset. Otherwise another device in the network may be answering in its place.\n\nConfirm only if you know why the key changed: the integration then forgets the old key and pins the one the Miniserver presents on the next connection."
+          }
+        }
+      }
+    },
+    "https_available": {
+      "title": "Loxone Miniserver supports HTTPS ({title})",
+      "description": "The Miniserver supports encrypted HTTPS/WSS connections, but the integration connects over plain HTTP. To use TLS, change the host in the integration's options to `https://{hostname}`."
+    },
+    "certificate_expired": {
+      "title": "Loxone Miniserver certificate expired ({title})",
+      "description": "The TLS certificate of the Miniserver has expired. Connect the Miniserver to the internet so it can renew the certificate, or update its firmware."
+    },
+    "remote_connect_denied": {
+      "title": "Loxone Remote Connect refused the connection ({title})",
+      "description": "Loxone Remote Connect did not give out the address of the Miniserver (status {code}):\n\n> {message}\n\nThe integration stopped connecting. Connect over the local network (host = local IP address of the Miniserver) or through a VPN into its network, then reload the integration."
     }
   }
 }

@@ -1,5 +1,8 @@
 import asyncio
+import json
 import logging
+import os
+from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (CONF_HOST, CONF_PASSWORD, CONF_PORT,
@@ -14,6 +17,33 @@ from .miniserver import MiniServer
 from pyloxone_api.connection import LoxoneConnection, LoxoneException
 
 _LOGGER = logging.getLogger(__name__)
+
+# Sent as client info with the token request; shown in the Miniserver's
+# list of tokens.
+CLIENT_INFO = "Home Assistant"
+
+# The token itself. ``binding``, ``client_uuid`` and ``public_key_pin``
+# describe the Miniserver and this client, not the token: they must
+# survive a token reset, otherwise every reset would register a new client
+# and forget the pinned public key (trust on first use again).
+_EMPTY_TOKEN_FIELDS = {"token": "", "hash_alg": "", "valid_until": ""}
+_TOKEN_ONLY_FIELDS = ("unsecure_password",)
+_CLIENT_FIELDS = ("client_uuid", "public_key_pin")
+
+
+def cleared_token_data(data: dict) -> dict:
+    """``data`` without the token, keeping the client and pin fields."""
+    new_data = {**data, **_EMPTY_TOKEN_FIELDS}
+    for key in _TOKEN_ONLY_FIELDS:
+        new_data.pop(key, None)
+    return new_data
+
+
+def clear_stored_token(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    """Drop the stored token of ``config_entry`` (see ``cleared_token_data``)."""
+    hass.config_entries.async_update_entry(
+        config_entry, data=cleared_token_data(dict(config_entry.data))
+    )
 
 
 class _ConfigEntryTokenStore:
@@ -34,21 +64,16 @@ class _ConfigEntryTokenStore:
 
     def load(self) -> dict | None:
         data = self._entry.data
-        if not data.get("token"):
+        # Also without a token: the library reads the client uuid and the
+        # pinned public key from the same data.
+        if not data.get("token") and not any(data.get(key) for key in _CLIENT_FIELDS):
             return None
         return dict(data)
 
     def save(self, token: dict | None) -> None:
         try:
             if token is None:
-                new_data = {
-                    **self._entry.data,
-                    "token": "",
-                    "hash_alg": "",
-                    "valid_until": "",
-                }
-                new_data.pop("binding", None)
-                new_data.pop("unsecure_password", None)
+                new_data = cleared_token_data(dict(self._entry.data))
             else:
                 # token, valid_until, hash_alg, unsecure_password, binding
                 new_data = {**self._entry.data, **token}
@@ -66,6 +91,48 @@ class _ConfigEntryTokenStore:
             _LOGGER.warning(
                 "Failed to persist Loxone token: %s", e, exc_info=True
             )
+
+
+class FileStructureCache:
+    """Keeps the last ``LoxAPP3.json`` in HA's ``.storage`` (``StructureCache``).
+
+    The library compares its ``lastModified`` with the Miniserver's
+    version and skips the download when nothing changed, also after a
+    restart. ``load`` / ``save`` are blocking; the library runs them in
+    the executor. Errors are logged, never raised.
+    """
+
+    def __init__(self, path: str | os.PathLike) -> None:
+        self.path = Path(path)
+
+    def load(self) -> dict | None:
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return None
+        except (OSError, ValueError) as err:
+            _LOGGER.warning("Ignoring the cached structure file %s: %s", self.path, err)
+            return None
+        return data if isinstance(data, dict) else None
+
+    def save(self, structure: dict) -> None:
+        temporary = self.path.with_name(self.path.name + ".tmp")
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            temporary.write_text(json.dumps(structure), encoding="utf-8")
+            os.replace(temporary, self.path)
+        except OSError as err:
+            _LOGGER.warning("Could not cache the structure file in %s: %s", self.path, err)
+
+    def remove(self) -> None:
+        try:
+            self.path.unlink(missing_ok=True)
+        except OSError as err:
+            _LOGGER.warning("Could not remove the cached structure file %s: %s", self.path, err)
+
+
+def structure_cache_path(hass: HomeAssistant, entry_id: str) -> str:
+    return hass.config.path(".storage", f"loxone.structure.{entry_id}")
 
 
 def _collect_control_uuids(structure_file: dict) -> frozenset[str]:
@@ -147,6 +214,12 @@ class LoxoneCoordinator(DataUpdateCoordinator):
             # The library loads the stored token (if it matches this
             # connection) and saves every new token through the store.
             token_store=_ConfigEntryTokenStore(self.hass, self.config_entry),
+            client_info=CLIENT_INFO,
+            # Skips downloading an unchanged structure file, also after a
+            # restart.
+            structure_cache=FileStructureCache(
+                structure_cache_path(self.hass, self.config_entry.entry_id)
+            ),
         )
         try:
             session = async_get_clientsession(self.hass)

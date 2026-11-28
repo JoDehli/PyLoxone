@@ -58,6 +58,9 @@
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+        },
+        "data_description": {
+          "host": "Lokale IP-Adresse oder Hostname des Miniservers, `https://…` für TLS oder `connect.loxonecloud.com/<Seriennummer>` für Loxone Remote Connect."
         }
       },
       "reauth_confirm": {
@@ -87,7 +90,10 @@
           "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
         },
         "description": "PyLoxone Einstellungen editieren:",
-        "title": "PyLoxone Einstellungen"
+        "title": "PyLoxone Einstellungen",
+        "data_description": {
+          "host": "Lokale IP-Adresse oder Hostname des Miniservers, `https://…` für TLS oder `connect.loxonecloud.com/<Seriennummer>` für Loxone Remote Connect."
+        }
       }
     }
   },
@@ -171,6 +177,29 @@
     "loxone_device_status": {
       "title": "{title}: {name}",
       "description": "{description}"
+    },
+    "public_key_changed": {
+      "title": "Loxone Miniserver meldet einen anderen öffentlichen Schlüssel ({title})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Neuen öffentlichen Schlüssel akzeptieren?",
+            "description": "Bei der ersten Verbindung hat die Integration den öffentlichen Schlüssel des Miniservers gespeichert. Jetzt meldet er einen anderen Schlüssel, deshalb verbindet sich die Integration nicht mehr.\n\nDas ist nach einem Austausch oder Zurücksetzen des Miniservers zu erwarten. Andernfalls antwortet möglicherweise ein anderes Gerät im Netzwerk an seiner Stelle.\n\nBestätige nur, wenn du weißt, warum sich der Schlüssel geändert hat: Die Integration vergisst dann den alten Schlüssel und speichert den, den der Miniserver bei der nächsten Verbindung meldet."
+          }
+        }
+      }
+    },
+    "https_available": {
+      "title": "Loxone Miniserver unterstützt HTTPS ({title})",
+      "description": "Der Miniserver unterstützt verschlüsselte HTTPS/WSS-Verbindungen, die Integration verbindet sich aber über unverschlüsseltes HTTP. Für TLS den Host in den Optionen der Integration auf `https://{hostname}` ändern."
+    },
+    "certificate_expired": {
+      "title": "Zertifikat des Loxone Miniservers abgelaufen ({title})",
+      "description": "Das TLS-Zertifikat des Miniservers ist abgelaufen. Verbinde den Miniserver mit dem Internet, damit er das Zertifikat erneuern kann, oder aktualisiere seine Firmware."
+    },
+    "remote_connect_denied": {
+      "title": "Loxone Remote Connect hat die Verbindung abgelehnt ({title})",
+      "description": "Loxone Remote Connect hat die Adresse des Miniservers nicht herausgegeben (Status {code}):\n\n> {message}\n\nDie Integration verbindet sich nicht mehr. Verbinde dich über das lokale Netzwerk (Host = lokale IP-Adresse des Miniservers) oder über ein VPN in sein Netzwerk und lade die Integration neu."
     }
   }
 }

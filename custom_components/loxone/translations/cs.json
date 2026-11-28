@@ -46,6 +46,29 @@
     "loxone_device_status": {
       "title": "{title}: {name}",
       "description": "{description}"
+    },
+    "public_key_changed": {
+      "title": "Loxone Miniserver ukazuje jiný veřejný klíč ({title})",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Přijmout nový veřejný klíč?",
+            "description": "Při prvním připojení si integrace uložila veřejný klíč Miniserveru. Teď Miniserver ukazuje jiný klíč, a proto se integrace přestala připojovat.\n\nTo je v pořádku po výměně nebo resetu Miniserveru. Jinak se za Miniserver může vydávat jiné zařízení v síti.\n\nPotvrď jen tehdy, když víš, proč se klíč změnil: integrace pak starý klíč zapomene a uloží si ten, který Miniserver ukáže při příštím připojení."
+          }
+        }
+      }
+    },
+    "https_available": {
+      "title": "Loxone Miniserver podporuje HTTPS ({title})",
+      "description": "Miniserver podporuje šifrované spojení HTTPS/WSS, ale integrace se připojuje přes nešifrované HTTP. Pro TLS změň v nastavení integrace adresu na `https://{hostname}`."
+    },
+    "certificate_expired": {
+      "title": "Certifikát Loxone Miniserveru vypršel ({title})",
+      "description": "Platnost TLS certifikátu Miniserveru vypršela. Připoj Miniserver k internetu, aby si certifikát obnovil, nebo aktualizuj jeho firmware."
+    },
+    "remote_connect_denied": {
+      "title": "Loxone Remote Connect odmítl spojení ({title})",
+      "description": "Loxone Remote Connect nevydal adresu Miniserveru (stav {code}):\n\n> {message}\n\nIntegrace se přestala připojovat. Připoj se po místní síti (host = místní IP adresa Miniserveru) nebo přes VPN do jeho sítě a integraci znovu načti."
     }
   }
 }
