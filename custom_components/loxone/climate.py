@@ -6,6 +6,7 @@ https://github.com/JoDehli/PyLoxone
 """
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
 import json
 import logging
@@ -18,10 +19,14 @@ from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.util import dt as dt_util
 from voluptuous import All, Optional, Range
 
 from . import LoxoneEntity
-from .const import CLIMATE_EVENT, CONF_HVAC_AUTO_MODE, PRESET_PAUSED_WINDOW, PRESET_SCHEDULE, SENDDOMAIN
+from .const import (CLIMATE_EVENT, CONF_HVAC_AUTO_MODE, CONF_IRC_OVERRIDE_HOURS,
+                    CONF_IRC_SETPOINT_MODE, DEFAULT_IRC_OVERRIDE_HOURS,
+                    DEFAULT_IRC_SETPOINT_MODE, IRC_SETPOINT_MANUAL_OVERRIDE,
+                    PRESET_PAUSED_WINDOW, PRESET_SCHEDULE, SENDDOMAIN)
 from .helpers import add_room_and_cat_to_value_values, get_all, get_or_create_device
 from .miniserver import get_miniserver_from_hass
 
@@ -72,6 +77,21 @@ class OperatingMode(Enum):
                 return member
         raise ValueError(f"{mode} is not a valid number for {cls.__name__}")
 
+
+AUTO_OPERATING_MODES = (
+    OperatingMode.AUTO_HEAT_COOL,
+    OperatingMode.AUTO_HEAT,
+    OperatingMode.AUTO_COOL,
+)
+
+# Structure file (IRoomControllerV2): ``override/{modeId}/[until]/[temp]``.
+# modeId 3 is the manual mode, ``temp`` its target temperature and ``until``
+# the end of the timer in seconds since 2009-01-01. Tested on a Miniserver:
+# without ``until`` the controller stays in automatic mode and no override
+# starts, so an end time is always sent.
+IRC_OVERRIDE_MANUAL_MODE_ID = 3
+LOXONE_EPOCH = datetime(2009, 1, 1)  # naive, UTC based
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         Optional(CONF_HVAC_AUTO_MODE, default=0): All(int, Range(min=0, max=2)),
@@ -105,12 +125,19 @@ async def async_setup_entry(
     loxconfig = miniserver.lox_config.json
     entities = []
 
+    options = config_entry.options
     for climate in get_all(loxconfig, "IRoomControllerV2"):
         climate = add_room_and_cat_to_value_values(loxconfig, climate)
         climate.update(
             {
                 "hass": hass,
                 CONF_HVAC_AUTO_MODE: 0,
+                CONF_IRC_SETPOINT_MODE: options.get(
+                    CONF_IRC_SETPOINT_MODE, DEFAULT_IRC_SETPOINT_MODE
+                ),
+                CONF_IRC_OVERRIDE_HOURS: options.get(
+                    CONF_IRC_OVERRIDE_HOURS, DEFAULT_IRC_OVERRIDE_HOURS
+                ),
             }
         )
         entities.append(LoxoneRoomControllerV2(**climate))
@@ -393,6 +420,8 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
     """Loxone room controller V2 with demand tracking and dynamic capabilities."""
 
     _attr_translation_key = "room_controller_v2"
+    _setpoint_mode = DEFAULT_IRC_SETPOINT_MODE
+    _override_hours = DEFAULT_IRC_OVERRIDE_HOURS
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -408,6 +437,8 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         self.type = "RoomControllerV2"
         self._single_comfort_temp = kwargs["details"].get("singleComfortTemperature", False)
         self._demand = 0
+        self._setpoint_mode = kwargs.get(CONF_IRC_SETPOINT_MODE, DEFAULT_IRC_SETPOINT_MODE)
+        self._override_hours = kwargs.get(CONF_IRC_OVERRIDE_HOURS, DEFAULT_IRC_OVERRIDE_HOURS)
 
         # Copy mode list to avoid mutating shared kwargs data
         self._modeList = list(kwargs["details"]["timerModes"])
@@ -584,6 +615,26 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
         active_mode = self.active_mode
         is_fixed = active_mode in (ActiveMode.FIXED_DYNAMIC, ActiveMode.FIXED)
 
+        if (
+            self._setpoint_mode == IRC_SETPOINT_MANUAL_OVERRIDE
+            and "temperature" in kwargs
+            and op_mode in AUTO_OPERATING_MODES
+            and not is_fixed
+        ):
+            # Option "manual override": start (or replace) the manual
+            # override timer with the requested temperature, as the
+            # Loxone app's fixed temperature and voice bridges do. Also
+            # used while such an override is already running (activeMode
+            # 3 in an automatic operating mode), so a new temperature
+            # replaces it instead of changing the manual temperature
+            # parameter.
+            self.hass.bus.fire(
+                SENDDOMAIN,
+                dict(uuid=self.uuidAction, value=self._manual_override_command(kwargs["temperature"])),
+            )
+            self.schedule_update_ha_state()
+            return
+
         if is_fixed or active_mode == ActiveMode.MANUAL or op_mode in (OperatingMode.MANUAL_COOL, OperatingMode.MANUAL_HEAT) or (op_mode is OperatingMode.MANUAL_HEAT_COOL and not self._range_possible):
             # Manual mode — set manual temperature directly
             if "temperature" in kwargs:
@@ -672,6 +723,24 @@ class LoxoneRoomControllerV2(LoxoneEntity, ClimateEntity, ABC):
                         )
 
         self.schedule_update_ha_state()
+
+    def _manual_override_command(self, temperature) -> str:
+        """Return the command that starts a manual override at ``temperature``.
+
+        ``override/3/{until}/{temp}`` with ``until`` the end of the override
+        in seconds since 2009. The Miniserver ignores the override without an
+        end time, so one is always sent (the configured length, at least
+        0.5 h).
+
+        ``until`` is counted from 2009-01-01 00:00 UTC, so it is computed from
+        UTC and not from the local time. Checked on a Miniserver in
+        Europe/Berlin (UTC+1): a local-time ``until`` ended the override one
+        hour late, while the Miniserver's own clock was correct.
+        """
+        hours = float(self._override_hours or DEFAULT_IRC_OVERRIDE_HOURS)
+        end = dt_util.utcnow().replace(tzinfo=None) + timedelta(hours=hours)
+        until = int((end - LOXONE_EPOCH).total_seconds())
+        return f"override/{IRC_OVERRIDE_MANUAL_MODE_ID}/{until}/{temperature}"
 
     def _send_building_protect_temperature(self, command: str, state_name: str, new_temp) -> None:
         """Set a building protection temperature with an undocumented command.

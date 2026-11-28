@@ -31,10 +31,12 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.setup import async_setup_component
 
 from .const import (ATTR_AREA_CREATE, ATTR_CODE, ATTR_COMMAND, ATTR_DEVICE,
-                    ATTR_UUID, ATTR_VALUE,
+                    ATTR_UUID, ATTR_VALUE, CONF_IRC_OVERRIDE_HOURS,
+                    CONF_IRC_SETPOINT_MODE,
                     CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
                     CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL, DEFAULT,
-                    DEFAULT_DELAY_SCENE, DEFAULT_PORT, DEFAULT_VERIFY_SSL,
+                    DEFAULT_DELAY_SCENE, DEFAULT_IRC_OVERRIDE_HOURS,
+                    DEFAULT_IRC_SETPOINT_MODE, DEFAULT_PORT, DEFAULT_VERIFY_SSL,
                     DOMAIN, DOMAIN_DEVICES, ERROR_VALUE, EVENT, LOXONE_PLATFORMS,
                     SECUREDSENDDOMAIN, SENDDOMAIN, SERVICE_REFRESH_TOKEN, cfmt)
 from .coordinator import LoxoneCoordinator
@@ -416,6 +418,12 @@ async def async_set_options(hass, config_entry):
         CONF_SCENE_GEN_DELAY: options_in.pop(CONF_SCENE_GEN_DELAY, DEFAULT_DELAY_SCENE),
         CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN: options_in.pop(
             CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, ""
+        ),
+        CONF_IRC_SETPOINT_MODE: options_in.pop(
+            CONF_IRC_SETPOINT_MODE, DEFAULT_IRC_SETPOINT_MODE
+        ),
+        CONF_IRC_OVERRIDE_HOURS: options_in.pop(
+            CONF_IRC_OVERRIDE_HOURS, DEFAULT_IRC_OVERRIDE_HOURS
         ),
     }
     hass.config_entries.async_update_entry(

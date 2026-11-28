@@ -16,14 +16,19 @@ from homeassistant.helpers.schema_config_entry_flow import (
     SchemaFlowFormStep)
 from homeassistant.helpers.selector import (BooleanSelector, NumberSelector,
                                             NumberSelectorConfig,
-                                            NumberSelectorMode, TextSelector,
+                                            NumberSelectorMode, SelectSelector,
+                                            SelectSelectorConfig,
+                                            SelectSelectorMode, TextSelector,
                                             TextSelectorConfig,
                                             TextSelectorType)
 
-from .const import (CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
+from .const import (CONF_IRC_OVERRIDE_HOURS, CONF_IRC_SETPOINT_MODE,
+                    CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, CONF_SCENE_GEN,
                     CONF_SCENE_GEN_DELAY, CONF_VERIFY_SSL,
-                    DEFAULT_DELAY_SCENE, DEFAULT_IP, DEFAULT_PORT,
-                    DEFAULT_VERIFY_SSL, DOMAIN)
+                    DEFAULT_DELAY_SCENE, DEFAULT_IP,
+                    DEFAULT_IRC_OVERRIDE_HOURS, DEFAULT_IRC_SETPOINT_MODE,
+                    DEFAULT_PORT, DEFAULT_VERIFY_SSL, DOMAIN,
+                    IRC_SETPOINT_COMFORT_OFFSET, IRC_SETPOINT_MANUAL_OVERRIDE)
 
 
 async def validate_loxone_setup(
@@ -52,6 +57,8 @@ async def validate_loxone_setup(
         user_input[CONF_PORT] = int(user_input[CONF_PORT])
     if CONF_SCENE_GEN_DELAY in user_input:
         user_input[CONF_SCENE_GEN_DELAY] = int(user_input[CONF_SCENE_GEN_DELAY])
+    if CONF_IRC_OVERRIDE_HOURS in user_input:
+        user_input[CONF_IRC_OVERRIDE_HOURS] = float(user_input[CONF_IRC_OVERRIDE_HOURS])
 
     return user_input
 
@@ -78,6 +85,20 @@ DATA_SCHEMA_SETUP = vol.Schema(
         vol.Required(
             CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False
         ): BooleanSelector(),
+        vol.Optional(
+            CONF_IRC_SETPOINT_MODE, default=DEFAULT_IRC_SETPOINT_MODE
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=[IRC_SETPOINT_COMFORT_OFFSET, IRC_SETPOINT_MANUAL_OVERRIDE],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_IRC_SETPOINT_MODE,
+            )
+        ),
+        vol.Optional(
+            CONF_IRC_OVERRIDE_HOURS, default=DEFAULT_IRC_OVERRIDE_HOURS
+        ): NumberSelector(
+            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=0.5, max=168, step=0.5)
+        ),
     }
 )
 
@@ -103,6 +124,20 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
         vol.Required(
             CONF_LIGHTCONTROLLER_SUBCONTROLS_GEN, default=False
         ): BooleanSelector(),
+        vol.Optional(
+            CONF_IRC_SETPOINT_MODE, default=DEFAULT_IRC_SETPOINT_MODE
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=[IRC_SETPOINT_COMFORT_OFFSET, IRC_SETPOINT_MANUAL_OVERRIDE],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_IRC_SETPOINT_MODE,
+            )
+        ),
+        vol.Optional(
+            CONF_IRC_OVERRIDE_HOURS, default=DEFAULT_IRC_OVERRIDE_HOURS
+        ): NumberSelector(
+            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=0.5, max=168, step=0.5)
+        ),
     }
 )
 

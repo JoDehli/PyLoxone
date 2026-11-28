@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -10,7 +11,9 @@ from custom_components.loxone.climate import (ActiveMode, ActiveState, HVACMode,
                                               LoxoneRoomController,
                                               LoxoneRoomControllerV2,
                                               OperatingMode)
-from custom_components.loxone.const import PRESET_SCHEDULE
+from custom_components.loxone.const import (IRC_SETPOINT_COMFORT_OFFSET,
+                                            IRC_SETPOINT_MANUAL_OVERRIDE,
+                                            PRESET_SCHEDULE)
 
 
 def _room_controller_v2(sent: list, operating_mode, active_mode, **state_values):
@@ -270,3 +273,124 @@ def test_irc_v2_demand_event_stores_the_value():
     rc.climate_handler(SimpleNamespace(data={"uuid": "rc-uuid", "value": 1}))
 
     assert rc._demand == 1
+
+
+
+# --- option "manual override" (irc_setpoint_mode) ----------------------------
+# Structure file (IRoomControllerV2): ``override/{modeId}/[until]/[temp]``,
+# modeId 3 = manual, ``until`` in seconds since 2009. With this option a
+# single target temperature in an automatic operating mode starts the manual
+# override timer ("fixed setpoint"), as voice bridges such as 1Home do,
+# instead of adjusting the comfort temperature.
+
+NOW = datetime(2026, 11, 25, 14, 0, 0, tzinfo=timezone.utc)
+
+
+def _until(hours):
+    end = datetime(2026, 11, 25, 14, 0, 0) + timedelta(hours=hours)
+    return int((end - datetime(2009, 1, 1)).total_seconds())
+
+
+@pytest.fixture
+def fixed_now(monkeypatch):
+    from custom_components.loxone import climate
+
+    monkeypatch.setattr(climate.dt_util, "utcnow", lambda: NOW)
+    # Local time in Europe/Berlin (UTC+1) is one hour ahead of UTC; the
+    # override end must still be based on UTC.
+    monkeypatch.setattr(
+        climate.dt_util, "now", lambda: NOW.astimezone(timezone(timedelta(hours=1)))
+    )
+
+
+def _override_rc(sent, operating_mode, active_mode, hours=4, **states):
+    rc = _room_controller_v2(sent, operating_mode, active_mode, **states)
+    rc._setpoint_mode = IRC_SETPOINT_MANUAL_OVERRIDE
+    rc._override_hours = hours
+    return rc
+
+
+@pytest.mark.parametrize(
+    "operating_mode",
+    [OperatingMode.AUTO_HEAT, OperatingMode.AUTO_COOL, OperatingMode.AUTO_HEAT_COOL],
+)
+@pytest.mark.parametrize("active_mode", [ActiveMode.COMFORT, ActiveMode.ECONOMY])
+def test_manual_override_option_starts_the_override_timer(
+    fixed_now, operating_mode, active_mode
+):
+    sent: list = []
+    rc = _override_rc(
+        sent, operating_mode, active_mode, comfortTemperature=21.0, tempTarget=21.0
+    )
+    rc.set_temperature(temperature=22.0)
+    assert sent == [f"override/3/{_until(4)}/22.0"]
+
+
+def test_manual_override_option_replaces_a_running_override(fixed_now):
+    """activeMode 3 in an automatic operating mode is a running override (as
+    1Home leaves it): a new temperature replaces the override instead of
+    changing the manual temperature parameter."""
+    sent: list = []
+    rc = _override_rc(sent, OperatingMode.AUTO_HEAT_COOL, ActiveMode.MANUAL, overrideReason=3)
+    rc.set_temperature(temperature=20.5)
+    assert sent == [f"override/3/{_until(4)}/20.5"]
+
+
+@pytest.mark.parametrize("hours", [0.5, 1.5, 24])
+def test_manual_override_option_sends_the_configured_end(fixed_now, hours):
+    sent: list = []
+    rc = _override_rc(sent, OperatingMode.AUTO_HEAT, ActiveMode.COMFORT, hours=hours)
+    rc.set_temperature(temperature=22.0)
+    assert sent == [f"override/3/{_until(hours)}/22.0"]
+
+
+def test_manual_override_option_always_sends_an_end_time(fixed_now):
+    """The Miniserver ignores an override without an end time, so a missing
+    length (e.g. an older stored 0) falls back to the default."""
+    sent: list = []
+    rc = _override_rc(sent, OperatingMode.AUTO_HEAT, ActiveMode.COMFORT, hours=0)
+    rc.set_temperature(temperature=22.0)
+    assert sent == [f"override/3/{_until(4)}/22.0"]
+
+
+def test_manual_override_option_keeps_manual_operating_modes():
+    """Manual operating modes keep setting the manual temperature."""
+    sent: list = []
+    rc = _override_rc(sent, OperatingMode.MANUAL_HEAT, ActiveMode.MANUAL)
+    rc.set_temperature(temperature=22.0)
+    assert sent == ["setManualTemperature/22.0"]
+
+
+def test_manual_override_option_ignores_ranges():
+    """Heat/cool ranges still adjust the comfort temperatures."""
+    sent: list = []
+    rc = _override_rc(
+        sent,
+        OperatingMode.AUTO_HEAT_COOL,
+        ActiveMode.COMFORT,
+        comfortTemperature=21.0,
+        comfortTemperatureCool=24.0,
+    )
+    rc._range_possible = True
+    rc.set_temperature(target_temp_low=22.0, target_temp_high=24.0)
+    assert sent == ["setComfortTemperature/22.0"]
+
+
+def test_comfort_offset_stays_the_default():
+    sent: list = []
+    rc = _room_controller_v2(
+        sent, OperatingMode.AUTO_HEAT, ActiveMode.COMFORT,
+        comfortTemperature=21.0, tempTarget=21.0,
+    )
+    assert rc._setpoint_mode == IRC_SETPOINT_COMFORT_OFFSET
+    rc.set_temperature(temperature=22.0)
+    assert sent == ["setComfortModeTemp/1.0"]
+
+
+def test_manual_override_end_is_based_on_utc_not_local_time(fixed_now):
+    """Regression: the Miniserver reads ``until`` as UTC. With the local clock
+    one hour ahead (Europe/Berlin), the end must not move by that hour."""
+    sent: list = []
+    rc = _override_rc(sent, OperatingMode.AUTO_HEAT, ActiveMode.COMFORT, hours=0.5)
+    rc.set_temperature(temperature=22.0)
+    assert sent == [f"override/3/{_until(0.5)}/22.0"]

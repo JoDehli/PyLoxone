@@ -50,7 +50,7 @@ Status: **implemented** = covers the Structure File spec, **partial** = works, w
 
 | Control type | File | Status | Open gaps |
 |---|---|---|---|
-| `IRoomControllerV2` | `climate.py`, `switch.py`, `sensor.py` | partial | `setComfortModeTemp` sends the offset. `setecoplus*` commands are undocumented but accepted by the Miniserver |
+| `IRoomControllerV2` | `climate.py`, `switch.py`, `sensor.py` | partial | A single target in an automatic mode sends `setComfortModeTemp` (the offset) by default, or, with the option *Room controller: set temperature as* = manual override, `override/3/{until}/{temp}`. `until` is seconds since 2009-01-01 UTC and is required: without it no override starts. `setecoplus*` commands are undocumented but accepted by the Miniserver |
 | `IRoomController` | `climate.py` | partial | Timer commands, `stop` / `error` / `manualMode` missing; undocumented valve/prepare states to verify |
 | `AcControl` | `climate.py` | partial | Direct state access, `minTemp` / `maxTemp` ignored, stray `setMode` on power-off; no real instance tested |
 | `ClimateController`, `ClimateControllerUS` | `sensor.py` | partial | Only the request/demand relay. The mode numbering differs between the two types |

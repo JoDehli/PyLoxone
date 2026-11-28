@@ -57,7 +57,9 @@
           "verify_ssl": "TLS-Zertifikat des Miniservers prüfen",
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
-          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)",
+          "irc_setpoint_mode": "Raumregler: Temperatur setzen als",
+          "irc_override_hours": "Raumregler: Dauer der manuellen Übersteuerung in Stunden"
         }
       },
       "reauth_confirm": {
@@ -84,10 +86,20 @@
           "verify_ssl": "TLS-Zertifikat des Miniservers prüfen",
           "generate_scenes": "Scenen generieren",
           "generate_lightcontroller_subcontrols": "LightControllerV2-Subcontrols standardmäßig aktivieren",
-          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)"
+          "generate_scenes_delay": "Verzögerung beim erstellen der Scenen (wenn aktiviert)",
+          "irc_setpoint_mode": "Raumregler: Temperatur setzen als",
+          "irc_override_hours": "Raumregler: Dauer der manuellen Übersteuerung in Stunden"
         },
         "description": "PyLoxone Einstellungen editieren:",
         "title": "PyLoxone Einstellungen"
+      }
+    }
+  },
+  "selector": {
+    "irc_setpoint_mode": {
+      "options": {
+        "comfort_offset": "Anpassung der Komforttemperatur (bis zum Ende der Komfortzeit)",
+        "manual_override": "Manuelle Übersteuerung (fester Sollwert)"
       }
     }
   },

@@ -76,6 +76,21 @@ SERVICE_REFRESH_TOKEN = "refresh_token"
 
 CONF_HVAC_AUTO_MODE = "hvac_auto_mode"
 
+# How a single target temperature set on a room controller V2 in automatic
+# mode is sent to the Miniserver:
+# - comfort_offset: ``setComfortModeTemp`` (the previous behaviour, default).
+#   Adjusts the comfort temperature until the scheduled comfort period ends.
+# - manual_override: ``override/3/{until}/{temp}``, the manual override timer
+#   ("fixed setpoint") that third-party voice bridges such as 1Home use.
+CONF_IRC_SETPOINT_MODE = "irc_setpoint_mode"
+IRC_SETPOINT_COMFORT_OFFSET = "comfort_offset"
+IRC_SETPOINT_MANUAL_OVERRIDE = "manual_override"
+DEFAULT_IRC_SETPOINT_MODE = IRC_SETPOINT_COMFORT_OFFSET
+# Length of the manual override in hours. The Miniserver needs an end time
+# for the override to start, so the minimum is half an hour.
+CONF_IRC_OVERRIDE_HOURS = "irc_override_hours"
+DEFAULT_IRC_OVERRIDE_HOURS = 4
+
 STATE_ON = "on"
 STATE_OFF = "off"
 

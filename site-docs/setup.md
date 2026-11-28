@@ -38,6 +38,17 @@ To access individual light outputs:
 
 The integration option **"Generate sub-controls for LightControllerV2"** controls the default enabled state for newly created sub-control entities. When enabled, new sub-controls start as enabled; when disabled (the default), they start as disabled but remain visible in the entity registry for manual activation.
 
+## Room controller: set temperature
+
+These two integration options control what happens when a temperature is set on an `IRoomControllerV2` while it runs in an automatic mode, for example from the thermostat card or by voice ("Alexa, set the kitchen to 22 degrees").
+
+- **Room controller: set temperature as**
+    - **Comfort temperature adjustment** (default): adjusts the comfort temperature until the scheduled comfort period ends. This is the behaviour of earlier versions.
+    - **Manual override (fixed setpoint)**: starts the Loxone manual override timer at the requested temperature, as the Loxone app does. The controller stays in its automatic mode and returns to the schedule when the timer ends. A new temperature while an override runs replaces it.
+- **Room controller: manual override length in hours**: how long the manual override lasts. Default 4, minimum 0.5. The Miniserver needs an end time, so an override without one is not possible.
+
+Manual operating modes and heat/cool ranges are not affected by these options. Voice assistants cannot pass a duration with the temperature, so voice commands always use the configured length.
+
 ## Log Configuration
 Use the following settings if you paste a log into a issue:
 
